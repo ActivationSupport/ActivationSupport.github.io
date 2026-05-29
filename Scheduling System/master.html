@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Master Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;min-height:100vh}
+.header{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:19px;font-weight:700;display:flex;align-items:center;gap:10px}
+.header-right{display:flex;align-items:center;gap:12px}
+.user-chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:5px 13px;font-size:12px;color:#fff}
+.logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600}
+.logout-btn:hover{background:rgba(255,255,255,.25)}
+
+/* Login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f0f4f8;padding:20px}
+.login-card{background:#fff;border-radius:14px;padding:36px;box-shadow:0 2px 8px rgba(0,0,0,.1);width:100%;max-width:380px;text-align:center}
+.login-logo{width:60px;height:60px;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 18px}
+.login-card h2{font-size:20px;color:#1f2937;margin-bottom:4px}
+.login-card .sub{color:#6b7280;font-size:12px;margin-bottom:22px;background:#fef3c7;color:#92400e;padding:6px 10px;border-radius:6px;display:inline-block}
+.login-card input{width:100%;padding:12px 14px;border:2px solid #e5e7eb;border-radius:8px;font-size:15px;margin-bottom:14px}
+.login-card input:focus{outline:none;border-color:#1a1a2e}
+.login-card button{width:100%;padding:13px;background:#1a1a2e;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer}
+.login-card button:hover{background:#16213e}
+.login-err{color:#dc2626;font-size:13px;margin-top:10px}
+
+/* Nav */
+.nav-tabs{background:#fff;border-bottom:2px solid #e5e7eb;display:flex;padding:0 24px;overflow-x:auto}
+.nav-tab{padding:14px 20px;font-size:14px;font-weight:600;color:#6b7280;border-bottom:3px solid transparent;cursor:pointer;margin-bottom:-2px;white-space:nowrap;transition:all .2s}
+.nav-tab:hover{color:#374151}
+.nav-tab.active{color:#1a1a2e;border-bottom-color:#1a1a2e}
+
+/* Dashboard */
+.dash{max-width:1200px;margin:0 auto;padding:24px 16px}
+
+/* Stats grid */
+.stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center}
+.stat-num{font-size:26px;font-weight:800;color:#1a1a2e}
+.stat-num.green{color:#15803d}
+.stat-num.red{color:#dc2626}
+.stat-num.orange{color:#ea580c}
+.stat-num.blue{color:#2563eb}
+.stat-lbl{font-size:11px;color:#6b7280;margin-top:4px}
+
+/* Office cards grid */
+.offices-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px}
+.office-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.07);border-left:4px solid #1a1a2e}
+.office-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.office-card-header h4{font-size:15px;font-weight:700;color:#1f2937}
+.office-pill{background:#f0f4f8;color:#374151;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px}
+.office-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.om{background:#f8fafc;border-radius:8px;padding:10px;text-align:center}
+.om .n{font-size:20px;font-weight:800;color:#1a1a2e}
+.om .l{font-size:10px;color:#6b7280;margin-top:2px}
+
+/* Filters bar */
+.filters{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:16px}
+.filters-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:5px;flex:1;min-width:130px}
+.fg label{font-size:12px;font-weight:600;color:#374151}
+.fg input,.fg select{padding:9px 11px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;color:#1f2937;background:#fff}
+.fg input:focus,.fg select:focus{outline:none;border-color:#1a1a2e}
+.btn-filter{padding:9px 16px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-end}
+.btn-filter:hover{background:#16213e}
+.btn-clear{padding:9px 14px;background:#fff;color:#6b7280;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;cursor:pointer;align-self:flex-end}
+.btn-clear:hover{border-color:#9ca3af}
+.btn-add{padding:9px 16px;background:#15803d;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-end}
+.btn-add:hover{background:#166534}
+
+/* Table */
+.table-wrap{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden;margin-bottom:16px}
+.table-head{padding:14px 18px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.table-head h3{font-size:15px;color:#1f2937;font-weight:700}
+.count-badge{background:#f0f4f8;color:#6b7280;font-size:12px;padding:3px 9px;border-radius:20px}
+table{width:100%;border-collapse:collapse}
+th{background:#f8fafc;text-align:left;padding:10px 14px;font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #f0f0f0}
+td{padding:11px 14px;font-size:13px;color:#374151;border-bottom:1px solid #f7f7f7;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.status-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.s-Scheduled{background:#dbeafe;color:#1d4ed8}
+.s-Completed{background:#dcfce7;color:#15803d}
+.s-Cancelled{background:#fee2e2;color:#b91c1c}
+.s-No-Show{background:#fef3c7;color:#b45309}
+.type-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:#f0f4f8;color:#374151}
+.role-badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.role-superadmin{background:#fef3c7;color:#92400e}
+.role-owner{background:#dbeafe;color:#1d4ed8}
+.office-tag{display:inline-block;background:#f0f4f8;color:#374151;font-size:11px;padding:2px 7px;border-radius:10px;margin:1px}
+.action-btn{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-edit{background:#eff6ff;color:#2563eb}
+.btn-edit:hover{background:#dbeafe}
+.btn-deact{background:#fef2f2;color:#dc2626}
+.btn-deact:hover{background:#fee2e2}
+.btn-activ{background:#f0fdf4;color:#15803d}
+.btn-activ:hover{background:#dcfce7}
+.action-gap{display:flex;gap:6px;flex-wrap:wrap}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:14px;padding:28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal h3{font-size:18px;color:#1f2937;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af}
+.modal-close:hover{color:#374151}
+.mfg{margin-bottom:14px}
+.mfg label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px}
+.mfg label span.req{color:#ef4444}
+.mfg input,.mfg select{width:100%;padding:10px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;color:#1f2937;background:#fff}
+.mfg input:focus,.mfg select:focus{outline:none;border-color:#1a1a2e}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-btns{display:flex;gap:10px;margin-top:22px}
+.modal-btns button{flex:1;padding:11px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;border:none}
+.m-save{background:#1a1a2e;color:#fff}
+.m-save:hover{background:#16213e}
+.m-cancel{background:#f3f4f6;color:#374151}
+.m-cancel:hover{background:#e5e7eb}
+.hint{font-size:11px;color:#9ca3af;margin-top:3px}
+
+/* Pct bar */
+.pct-bar{display:flex;align-items:center;gap:6px}
+.pct-track{width:60px;background:#f0f4f8;border-radius:3px;height:8px;overflow:hidden}
+.pct-fill{height:100%;background:#15803d;border-radius:3px}
+
+/* Misc */
+.empty{text-align:center;padding:48px 20px;color:#9ca3af}
+.empty-ico{font-size:40px;margin-bottom:12px}
+.spin{display:inline-block;width:22px;height:22px;border:3px solid #e5e7eb;border-top-color:#1a1a2e;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading{text-align:center;padding:32px;color:#6b7280}
+.alert{padding:10px 13px;border-radius:7px;font-size:13px;margin-bottom:14px}
+.alert-err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.alert-ok{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+
+.section-title{font-size:16px;font-weight:700;color:#1f2937;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+@media(max-width:900px){
+  .stats-row{grid-template-columns:repeat(3,1fr)}
+  .offices-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">🏢</div>
+      <h2>Master Dashboard</h2>
+      <div class="sub">⭐ Superadmin Access Only</div>
+      <input type="text" id="unInput" placeholder="Username" autocomplete="username"
+             onkeydown="if(event.key==='Enter')document.getElementById('pwInput').focus()">
+      <input type="password" id="pwInput" placeholder="Password" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')login()">
+      <button onclick="login()" id="loginBtn">Sign In</button>
+      <div id="loginErr" class="login-err"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="mainApp" style="display:none">
+  <div class="header">
+    <h1>🏢 Master Dashboard</h1>
+    <div class="header-right">
+      <div class="user-chip" id="userChip"></div>
+      <span id="headerDate" style="font-size:12px;opacity:.8"></span>
+      <button class="logout-btn" onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <div class="nav-tab active" id="tabOverview" onclick="switchTab('overview')">📊 Overview</div>
+    <div class="nav-tab" id="tabAppts" onclick="switchTab('appts')">📅 Appointments</div>
+    <div class="nav-tab" id="tabActivators" onclick="switchTab('activators')">👥 Activators</div>
+    <div class="nav-tab" id="tabAccounts" onclick="switchTab('accounts')">🔑 Accounts</div>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div id="pageOverview" class="dash">
+    <div id="overviewBody"><div class="loading"><div class="spin"></div><br>Loading overview…</div></div>
+  </div>
+
+  <!-- APPOINTMENTS TAB -->
+  <div id="pageAppts" class="dash" style="display:none">
+    <div class="filters">
+      <div class="filters-row">
+        <div class="fg"><label>Search</label>
+          <input type="text" id="aSearch" placeholder="Name, DSI/SPM, activator…" onkeydown="if(event.key==='Enter')applyApptFilters()"></div>
+        <div class="fg"><label>Office</label>
+          <select id="aOffice"><option value="">All Offices</option></select></div>
+        <div class="fg"><label>Activator</label>
+          <select id="aActivator"><option value="">All Activators</option></select></div>
+        <div class="fg"><label>Status</label>
+          <select id="aStatus">
+            <option value="">All</option>
+            <option>Scheduled</option><option>Completed</option>
+            <option>Cancelled</option><option>No-Show</option>
+          </select></div>
+        <div class="fg"><label>Date</label><input type="date" id="aDate"></div>
+        <button class="btn-filter" onclick="applyApptFilters()">Search</button>
+        <button class="btn-clear" onclick="clearApptFilters()">Clear</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-head">
+        <h3>All Appointments</h3>
+        <span class="count-badge" id="apptCount">—</span>
+      </div>
+      <div id="apptTableBody"><div class="loading"><div class="spin"></div><br>Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- ACTIVATORS TAB -->
+  <div id="pageActivators" class="dash" style="display:none">
+    <div class="filters">
+      <div class="filters-row">
+        <div class="fg"><label>Office</label>
+          <select id="actOfficeFilter" onchange="renderActivatorsTable()"><option value="">All Offices</option></select></div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-head">
+        <h3>All Activators</h3>
+        <span class="count-badge" id="actCount">—</span>
+      </div>
+      <div id="actTableBody"><div class="loading"><div class="spin"></div><br>Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- ACCOUNTS TAB -->
+  <div id="pageAccounts" class="dash" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="section-title">🔑 Admin Accounts</div>
+      <button class="btn-add" onclick="openCreateAccount()">＋ New Account</button>
+    </div>
+    <div id="accountsErr" class="alert alert-err" style="display:none"></div>
+    <div id="accountsOk"  class="alert alert-ok"  style="display:none"></div>
+    <div class="table-wrap">
+      <div id="accountsBody"><div class="loading"><div class="spin"></div><br>Loading accounts…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE/EDIT ACCOUNT MODAL -->
+<div id="accountModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAccountModal()">
+  <div class="modal">
+    <h3 id="accountModalTitle">New Admin Account
+      <button class="modal-close" onclick="closeAccountModal()">✕</button>
+    </h3>
+    <div id="acctErr" class="alert alert-err" style="display:none"></div>
+    <input type="hidden" id="acctId">
+
+    <div class="modal-row">
+      <div class="mfg">
+        <label>Username <span class="req">*</span></label>
+        <input type="text" id="acctUsername" autocomplete="off">
+      </div>
+      <div class="mfg">
+        <label>Display Name</label>
+        <input type="text" id="acctDisplayName" placeholder="Full name or office name">
+      </div>
+    </div>
+
+    <div class="modal-row">
+      <div class="mfg">
+        <label>Password <span class="req" id="acctPwReq">*</span></label>
+        <input type="password" id="acctPassword" autocomplete="new-password" placeholder="Set password">
+        <div class="hint" id="acctPwHint" style="display:none">Leave blank to keep existing password</div>
+      </div>
+      <div class="mfg">
+        <label>Role <span class="req">*</span></label>
+        <select id="acctRole" onchange="onRoleChange()">
+          <option value="owner">Office Owner</option>
+          <option value="superadmin">Superadmin</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mfg" id="officeAccessField">
+      <label>Office Access <span class="req">*</span></label>
+      <input type="text" id="acctOfficeAccess" placeholder="e.g. Downtown Office | West Side Office">
+      <div class="hint">Enter office name(s) exactly as they appear. Use | to separate multiple offices.</div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="m-cancel" onclick="closeAccountModal()">Cancel</button>
+      <button class="m-save" id="acctSaveBtn" onclick="saveAccount()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let sessionToken    = null;
+let currentUser     = null;
+let allActivators   = [];
+let allAppts        = [];
+let allAccounts     = [];
+let allOffices      = [];
+let apptFilters     = {};
+let editingAccountId = null;
+
+// ── Auth ──────────────────────────────────────────────────────
+
+window.onload = function() {
+  const token = localStorage.getItem('masterToken');
+  if (token) {
+    google.script.run
+      .withSuccessHandler(function(user) {
+        if (user && user.role === 'superadmin') {
+          sessionToken = token;
+          currentUser  = user;
+          showApp();
+        } else {
+          localStorage.removeItem('masterToken');
+          showLogin();
+        }
+      })
+      .withFailureHandler(showLogin)
+      .validateSession(token);
+  } else {
+    showLogin();
+  }
+};
+
+function showLogin() {
+  document.getElementById('loginPage').style.display = 'block';
+  document.getElementById('mainApp').style.display   = 'none';
+}
+
+function login() {
+  const un  = document.getElementById('unInput').value.trim();
+  const pw  = document.getElementById('pwInput').value;
+  const btn = document.getElementById('loginBtn');
+  document.getElementById('loginErr').textContent = '';
+  if (!un || !pw) { document.getElementById('loginErr').textContent='Enter username and password.'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false; btn.textContent = 'Sign In';
+      if (res.success) {
+        if (res.role !== 'superadmin') {
+          document.getElementById('loginErr').textContent = 'This dashboard requires superadmin access.';
+          return;
+        }
+        localStorage.setItem('masterToken', res.token);
+        sessionToken = res.token;
+        currentUser  = { role: res.role, officeAccess: res.officeAccess, displayName: res.displayName, username: res.username };
+        showApp();
+      } else {
+        document.getElementById('loginErr').textContent = res.error || 'Invalid credentials.';
+      }
+    })
+    .withFailureHandler(function() {
+      btn.disabled = false; btn.textContent = 'Sign In';
+      document.getElementById('loginErr').textContent = 'Login failed. Please try again.';
+    })
+    .loginAdmin(un, pw);
+}
+
+function logout() {
+  if (sessionToken) google.script.run.logoutAdmin(sessionToken);
+  localStorage.removeItem('masterToken');
+  sessionToken = null; currentUser = null;
+  document.getElementById('unInput').value = '';
+  document.getElementById('pwInput').value = '';
+  showLogin();
+}
+
+function showApp() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mainApp').style.display   = 'block';
+  document.getElementById('userChip').textContent    = '⭐ ' + (currentUser.displayName || currentUser.username);
+  document.getElementById('headerDate').textContent  =
+    new Date().toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric',year:'numeric'});
+  loadAllData();
+}
+
+// ── Data loading ──────────────────────────────────────────────
+
+function loadAllData() {
+  loadActivators();
+  loadOffices();
+  loadAppointments({});
+}
+
+function loadActivators() {
+  google.script.run
+    .withSuccessHandler(function(data) {
+      allActivators = data;
+      // Populate activator dropdowns
+      const dd = document.getElementById('aActivator');
+      dd.innerHTML = '<option value="">All Activators</option>';
+      data.forEach(a => { dd.innerHTML += `<option value="${a.id}">${esc(a.name)} — ${esc(a.office||'No Office')}</option>`; });
+      if (document.getElementById('pageActivators').style.display !== 'none') renderActivatorsTable();
+    })
+    .getActivators();
+}
+
+function loadOffices() {
+  google.script.run
+    .withSuccessHandler(function(offices) {
+      allOffices = offices;
+      // Populate office dropdowns
+      [document.getElementById('aOffice'), document.getElementById('actOfficeFilter')].forEach(dd => {
+        if (!dd) return;
+        dd.innerHTML = '<option value="">All Offices</option>';
+        offices.forEach(o => { dd.innerHTML += `<option value="${esc(o)}">${esc(o)}</option>`; });
+      });
+    })
+    .getOffices();
+}
+
+function loadAppointments(filters) {
+  document.getElementById('apptTableBody').innerHTML =
+    '<div class="loading"><div class="spin"></div><br>Loading…</div>';
+  google.script.run
+    .withSuccessHandler(function(data) {
+      allAppts = data;
+      renderApptsTable(data);
+      if (document.getElementById('pageOverview').style.display !== 'none') renderOverview();
+    })
+    .getAppointments(filters);
+}
+
+function loadAccounts() {
+  document.getElementById('accountsBody').innerHTML =
+    '<div class="loading"><div class="spin"></div><br>Loading…</div>';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res.error) {
+        document.getElementById('accountsBody').innerHTML =
+          `<p style="color:#dc2626;padding:20px">${esc(res.error)}</p>`;
+        return;
+      }
+      allAccounts = Array.isArray(res) ? res : [];
+      renderAccountsTable();
+    })
+    .getAdmins(sessionToken);
+}
+
+// ── Tab switching ──────────────────────────────────────────────
+
+function switchTab(tab) {
+  ['overview','appts','activators','accounts'].forEach(t => {
+    document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t===tab);
+    document.getElementById('page' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t===tab ? 'block' : 'none';
+  });
+  if (tab==='overview')    renderOverview();
+  if (tab==='activators')  renderActivatorsTable();
+  if (tab==='accounts')    loadAccounts();
+}
+
+// ── Overview tab ───────────────────────────────────────────────
+
+function renderOverview() {
+  const data  = allAppts;
+  const acts  = allActivators;
+  const offices = allOffices.length ? allOffices : [...new Set(acts.map(a => a.office).filter(o => o))].sort();
+  const today = todayStr();
+
+  // Global stats
+  const counts = { Scheduled:0, Completed:0, Cancelled:0, 'No-Show':0 };
+  data.forEach(r => { const s = r.status||'Scheduled'; if (counts[s]!==undefined) counts[s]++; });
+  const concluded = counts.Completed + counts['No-Show'];
+  const compRate  = concluded > 0 ? Math.round(counts.Completed/concluded*100) : 0;
+  const noShow    = concluded > 0 ? Math.round(counts['No-Show']/concluded*100) : 0;
+  const totalDev  = data.filter(r=>r.status==='Completed').reduce((s,r)=>s+(Number(r.deviceCount)||1),0);
+  const todayAppts = data.filter(r => r.date === today);
+
+  let html = `
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num">${data.length}</div><div class="stat-lbl">Total Appointments</div></div>
+      <div class="stat-card"><div class="stat-num green">${compRate}%</div><div class="stat-lbl">Completion Rate</div></div>
+      <div class="stat-card"><div class="stat-num red">${noShow}%</div><div class="stat-lbl">No-Show Rate</div></div>
+      <div class="stat-card"><div class="stat-num blue">${todayAppts.length}</div><div class="stat-lbl">Today's Appointments</div></div>
+      <div class="stat-card"><div class="stat-num">${totalDev}</div><div class="stat-lbl">Devices Activated</div></div>
+      <div class="stat-card"><div class="stat-num orange">${acts.length}</div><div class="stat-lbl">Total Activators</div></div>
+    </div>
+  `;
+
+  // Per-office cards
+  if (offices.length) {
+    html += `<div class="section-title">🏢 Offices</div><div class="offices-grid">`;
+    offices.forEach(office => {
+      const offAppts = data.filter(r => r.office === office);
+      const offActs  = acts.filter(a => a.office === office);
+      const oConc    = offAppts.filter(r=>r.status==='Completed'||r.status==='No-Show').length;
+      const oComp    = offAppts.filter(r=>r.status==='Completed').length;
+      const oRate    = oConc > 0 ? Math.round(oComp/oConc*100) : 0;
+      const oDev     = offAppts.filter(r=>r.status==='Completed').reduce((s,r)=>s+(Number(r.deviceCount)||1),0);
+      html += `
+        <div class="office-card">
+          <div class="office-card-header">
+            <h4>🏢 ${esc(office)}</h4>
+            <span class="office-pill">${offActs.length} activator${offActs.length!==1?'s':''}</span>
+          </div>
+          <div class="office-metrics">
+            <div class="om"><div class="n">${offAppts.length}</div><div class="l">Total</div></div>
+            <div class="om"><div class="n" style="color:#15803d">${oComp}</div><div class="l">Completed</div></div>
+            <div class="om"><div class="n" style="color:#2563eb">${oRate}%</div><div class="l">Comp. Rate</div></div>
+            <div class="om"><div class="n">${oDev}</div><div class="l">Devices</div></div>
+          </div>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Top activators table
+  html += `
+    <div class="section-title">👥 Activator Performance</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Activator</th><th>Office</th><th>Total</th><th>Completed</th>
+          <th>No-Shows</th><th>Cancelled</th><th>Comp. Rate</th>
+        </tr></thead>
+        <tbody>`;
+
+  const actMap = {};
+  acts.forEach(a => { actMap[a.id] = { name:a.name, office:a.office||'—', total:0, completed:0, noShow:0, cancelled:0 }; });
+  data.forEach(r => {
+    if (!actMap[r.activatorId]) actMap[r.activatorId] = { name:r.activatorName||'Unknown', office:r.office||'—', total:0, completed:0, noShow:0, cancelled:0 };
+    actMap[r.activatorId].total++;
+    const s = r.status;
+    if (s==='Completed')  actMap[r.activatorId].completed++;
+    else if (s==='No-Show')   actMap[r.activatorId].noShow++;
+    else if (s==='Cancelled') actMap[r.activatorId].cancelled++;
+  });
+
+  const actRows = Object.values(actMap).sort((a,b) => b.total - a.total);
+  if (actRows.length) {
+    actRows.forEach(a => {
+      const conc = a.completed + a.noShow;
+      const rate = conc > 0 ? Math.round(a.completed/conc*100) : 0;
+      html += `<tr>
+        <td><strong>${esc(a.name)}</strong></td>
+        <td><span class="office-tag">${esc(a.office)}</span></td>
+        <td>${a.total}</td>
+        <td style="color:#15803d;font-weight:600">${a.completed}</td>
+        <td style="color:#b45309;font-weight:600">${a.noShow}</td>
+        <td style="color:#6b7280">${a.cancelled}</td>
+        <td><div class="pct-bar">
+          <div class="pct-track"><div class="pct-fill" style="width:${rate}%"></div></div>
+          <span style="font-size:12px;font-weight:700">${rate}%</span>
+        </div></td>
+      </tr>`;
+    });
+  } else {
+    html += '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:24px">No data yet</td></tr>';
+  }
+  html += `</tbody></table></div>`;
+
+  document.getElementById('overviewBody').innerHTML = html;
+}
+
+// ── Appointments tab ───────────────────────────────────────────
+
+function renderApptsTable(data) {
+  document.getElementById('apptCount').textContent = data.length + ' result' + (data.length!==1?'s':'');
+  if (!data.length) {
+    document.getElementById('apptTableBody').innerHTML =
+      '<div class="empty"><div class="empty-ico">📭</div><strong>No appointments found</strong><br>Try adjusting filters.</div>';
+    return;
+  }
+  document.getElementById('apptTableBody').innerHTML =
+    '<table><thead><tr>' +
+    '<th>Date & Time</th><th>Customer</th><th>DSI/SPM</th><th>Activator</th><th>Office</th><th>Devices</th><th>Status</th>' +
+    '</tr></thead><tbody>' +
+    data.map(a => `
+      <tr>
+        <td><strong>${fmtDate(a.date)}</strong><br><span style="color:#6b7280;font-size:11px">${fmtTime(a.time)}</span></td>
+        <td><strong>${esc(a.customerName)}</strong><br><span style="color:#6b7280;font-size:11px">${esc(a.customerPhone)}</span></td>
+        <td style="font-family:monospace;font-size:12px">${esc(a.dsiSpmNumber)}</td>
+        <td>${esc(a.activatorName)}</td>
+        <td><span class="office-tag">${esc(a.office||'—')}</span></td>
+        <td style="text-align:center;font-weight:700">${a.deviceCount||1}</td>
+        <td><span class="status-badge s-${(a.status||'').replace(' ','-')}">${a.status}</span></td>
+      </tr>`).join('') +
+    '</tbody></table>';
+}
+
+function applyApptFilters() {
+  const f = {};
+  const s  = document.getElementById('aSearch').value.trim();
+  const o  = document.getElementById('aOffice').value;
+  const a  = document.getElementById('aActivator').value;
+  const st = document.getElementById('aStatus').value;
+  const d  = document.getElementById('aDate').value;
+  if (s)  f.search      = s;
+  if (o)  f.office      = o;
+  if (a)  f.activatorId = a;
+  if (st) f.status      = st;
+  if (d)  f.date        = d;
+  apptFilters = f;
+  loadAppointments(f);
+}
+
+function clearApptFilters() {
+  ['aSearch','aOffice','aActivator','aStatus','aDate'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  apptFilters = {};
+  loadAppointments({});
+}
+
+// ── Activators tab ─────────────────────────────────────────────
+
+function renderActivatorsTable() {
+  const offFilter = (document.getElementById('actOfficeFilter') || {}).value || '';
+  let acts = allActivators;
+  if (offFilter) acts = acts.filter(a => (a.office||'') === offFilter);
+  document.getElementById('actCount').textContent = acts.length + ' activator' + (acts.length!==1?'s':'');
+
+  if (!acts.length) {
+    document.getElementById('actTableBody').innerHTML =
+      '<div class="empty"><div class="empty-ico">👤</div><strong>No activators found</strong></div>';
+    return;
+  }
+
+  // Get appointment counts per activator
+  const countMap = {};
+  allAppts.forEach(r => {
+    if (!countMap[r.activatorId]) countMap[r.activatorId] = { total:0, completed:0 };
+    countMap[r.activatorId].total++;
+    if (r.status==='Completed') countMap[r.activatorId].completed++;
+  });
+
+  document.getElementById('actTableBody').innerHTML =
+    '<table><thead><tr>' +
+    '<th>Name</th><th>Email</th><th>Office</th><th>Timezone</th><th>Appointments</th><th>Completed</th>' +
+    '</tr></thead><tbody>' +
+    acts.map(a => {
+      const c = countMap[a.id] || { total:0, completed:0 };
+      return `<tr>
+        <td><strong>${esc(a.name)}</strong></td>
+        <td style="font-size:12px;color:#6b7280">${esc(a.email)}</td>
+        <td><span class="office-tag">${esc(a.office||'—')}</span></td>
+        <td style="font-size:12px">${esc(a.timezone||'—')}</td>
+        <td style="text-align:center">${c.total}</td>
+        <td style="text-align:center;color:#15803d;font-weight:600">${c.completed}</td>
+      </tr>`;
+    }).join('') +
+    '</tbody></table>';
+}
+
+// ── Accounts tab ───────────────────────────────────────────────
+
+function renderAccountsTable() {
+  if (!allAccounts.length) {
+    document.getElementById('accountsBody').innerHTML =
+      '<div class="empty"><div class="empty-ico">🔑</div><strong>No admin accounts yet</strong><br>Create the first one above.</div>';
+    return;
+  }
+  document.getElementById('accountsBody').innerHTML =
+    '<table><thead><tr>' +
+    '<th>Username</th><th>Display Name</th><th>Role</th><th>Office Access</th><th>Status</th><th>Actions</th>' +
+    '</tr></thead><tbody>' +
+    allAccounts.map(a => {
+      const offices = a.officeAccess === 'ALL' ? '<span class="office-tag" style="background:#fef3c7;color:#92400e">ALL OFFICES</span>'
+        : (a.officeAccess||'').split('|').filter(o=>o.trim()).map(o=>`<span class="office-tag">${esc(o.trim())}</span>`).join(' ') || '<span style="color:#9ca3af;font-size:12px">—</span>';
+      return `<tr>
+        <td><strong>${esc(a.username)}</strong></td>
+        <td>${esc(a.displayName||'—')}</td>
+        <td><span class="role-badge role-${a.role}">${a.role==='superadmin'?'⭐ Superadmin':'🏢 Owner'}</span></td>
+        <td>${offices}</td>
+        <td>
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:${a.active?'#15803d':'#9ca3af'}">
+            ${a.active?'✅ Active':'⛔ Inactive'}
+          </span>
+        </td>
+        <td><div class="action-gap">
+          <button class="action-btn btn-edit" onclick="openEditAccount('${a.id}')">Edit</button>
+          ${a.active
+            ? `<button class="action-btn btn-deact" onclick="toggleAccount('${a.id}',false)">Deactivate</button>`
+            : `<button class="action-btn btn-activ" onclick="toggleAccount('${a.id}',true)">Activate</button>`}
+        </div></td>
+      </tr>`;
+    }).join('') +
+    '</tbody></table>';
+}
+
+function openCreateAccount() {
+  editingAccountId = null;
+  document.getElementById('accountModalTitle').childNodes[0].textContent = 'New Admin Account ';
+  document.getElementById('acctId').value           = '';
+  document.getElementById('acctUsername').value     = '';
+  document.getElementById('acctDisplayName').value  = '';
+  document.getElementById('acctPassword').value     = '';
+  document.getElementById('acctRole').value         = 'owner';
+  document.getElementById('acctOfficeAccess').value = '';
+  document.getElementById('acctPwReq').style.display   = 'inline';
+  document.getElementById('acctPwHint').style.display  = 'none';
+  document.getElementById('acctSaveBtn').textContent   = 'Create Account';
+  document.getElementById('acctErr').style.display     = 'none';
+  document.getElementById('acctUsername').disabled     = false;
+  onRoleChange();
+  document.getElementById('accountModal').style.display = 'flex';
+}
+
+function openEditAccount(id) {
+  const acct = allAccounts.find(a => a.id === id);
+  if (!acct) return;
+  editingAccountId = id;
+  document.getElementById('accountModalTitle').childNodes[0].textContent = 'Edit Admin Account ';
+  document.getElementById('acctId').value           = id;
+  document.getElementById('acctUsername').value     = acct.username;
+  document.getElementById('acctDisplayName').value  = acct.displayName||'';
+  document.getElementById('acctPassword').value     = '';
+  document.getElementById('acctRole').value         = acct.role||'owner';
+  document.getElementById('acctOfficeAccess').value = acct.officeAccess||'';
+  document.getElementById('acctPwReq').style.display   = 'none';
+  document.getElementById('acctPwHint').style.display  = 'inline';
+  document.getElementById('acctSaveBtn').textContent   = 'Save Changes';
+  document.getElementById('acctErr').style.display     = 'none';
+  document.getElementById('acctUsername').disabled     = true; // can't change username
+  onRoleChange();
+  document.getElementById('accountModal').style.display = 'flex';
+}
+
+function closeAccountModal() {
+  document.getElementById('accountModal').style.display = 'none';
+  editingAccountId = null;
+}
+
+function onRoleChange() {
+  const isSuperadmin = document.getElementById('acctRole').value === 'superadmin';
+  const field = document.getElementById('officeAccessField');
+  field.style.display = isSuperadmin ? 'none' : 'block';
+  if (isSuperadmin) document.getElementById('acctOfficeAccess').value = 'ALL';
+}
+
+function saveAccount() {
+  const username     = document.getElementById('acctUsername').value.trim();
+  const displayName  = document.getElementById('acctDisplayName').value.trim();
+  const password     = document.getElementById('acctPassword').value;
+  const role         = document.getElementById('acctRole').value;
+  const officeAccess = role === 'superadmin' ? 'ALL' : document.getElementById('acctOfficeAccess').value.trim();
+  const errEl        = document.getElementById('acctErr');
+  errEl.style.display = 'none';
+
+  if (!editingAccountId) {
+    if (!username) { showAcctErr('Username is required.'); return; }
+    if (!password) { showAcctErr('Password is required.'); return; }
+    if (role !== 'superadmin' && !officeAccess) { showAcctErr('Office Access is required for Owner accounts.'); return; }
+  } else {
+    if (role !== 'superadmin' && !officeAccess) { showAcctErr('Office Access is required for Owner accounts.'); return; }
+  }
+
+  const btn = document.getElementById('acctSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  if (!editingAccountId) {
+    const data = { username, displayName, password, role, officeAccess };
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false; btn.textContent = 'Create Account';
+        if (res.success) {
+          closeAccountModal();
+          showAccountsOk('Account created successfully.');
+          loadAccounts();
+        } else {
+          showAcctErr(res.error || 'Failed to create account.');
+        }
+      })
+      .withFailureHandler(function() {
+        btn.disabled = false; btn.textContent = 'Create Account';
+        showAcctErr('An error occurred. Please try again.');
+      })
+      .createAdmin(data, sessionToken);
+  } else {
+    const updates = { displayName, role, officeAccess };
+    if (password) updates.password = password;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false; btn.textContent = 'Save Changes';
+        if (res.success) {
+          closeAccountModal();
+          showAccountsOk('Account updated successfully.');
+          loadAccounts();
+        } else {
+          showAcctErr(res.error || 'Failed to update account.');
+        }
+      })
+      .withFailureHandler(function() {
+        btn.disabled = false; btn.textContent = 'Save Changes';
+        showAcctErr('An error occurred. Please try again.');
+      })
+      .updateAdmin(editingAccountId, updates, sessionToken);
+  }
+}
+
+function toggleAccount(id, active) {
+  const msg = active ? 'Activate this account?' : 'Deactivate this account? The user will no longer be able to log in.';
+  if (!confirm(msg)) return;
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res.success) {
+        showAccountsOk(active ? 'Account activated.' : 'Account deactivated.');
+        loadAccounts();
+      } else {
+        showAccountsErr(res.error || 'Update failed.');
+      }
+    })
+    .updateAdmin(id, { active }, sessionToken);
+}
+
+function showAcctErr(msg) {
+  const el = document.getElementById('acctErr');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function showAccountsOk(msg) {
+  const el = document.getElementById('accountsOk');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+function showAccountsErr(msg) {
+  const el = document.getElementById('accountsErr');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+
+function fmtTime(t) {
+  if (!t) return '';
+  const [h,m] = String(t).split(':').map(Number);
+  const per = h>=12?'PM':'AM', h12=h===0?12:h>12?h-12:h;
+  return h12+':'+String(m).padStart(2,'0')+' '+per;
+}
+function fmtDate(d) {
+  if (!d) return '';
+  const [y,mo,dd] = String(d).split('-').map(Number);
+  return new Date(y,mo-1,dd).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>

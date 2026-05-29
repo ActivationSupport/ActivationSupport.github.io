@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activation Admin Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;min-height:100vh}
+.header{background:#00A8E0;color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:19px;font-weight:700}
+.header-right{display:flex;align-items:center;gap:12px}
+.user-info{font-size:12px;opacity:.9;text-align:right;line-height:1.5}
+.logout-btn{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600}
+.logout-btn:hover{background:rgba(255,255,255,.3)}
+.master-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);color:#fff;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;text-decoration:none;display:inline-block}
+.master-btn:hover{background:rgba(255,255,255,.25)}
+
+/* Login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f0f4f8;padding:20px}
+.login-card{background:#fff;border-radius:14px;padding:36px;box-shadow:0 2px 8px rgba(0,0,0,.1);width:100%;max-width:380px;text-align:center}
+.login-logo{width:56px;height:56px;background:#00A8E0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 18px}
+.login-card h2{font-size:20px;color:#1f2937;margin-bottom:6px}
+.login-card p{color:#6b7280;font-size:13px;margin-bottom:24px}
+.login-card input{width:100%;padding:12px 14px;border:2px solid #e5e7eb;border-radius:8px;font-size:15px;margin-bottom:14px}
+.login-card input:focus{outline:none;border-color:#00A8E0}
+.login-card button{width:100%;padding:13px;background:#00A8E0;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer}
+.login-card button:hover{background:#0090c4}
+.login-err{color:#dc2626;font-size:13px;margin-top:10px}
+.office-badge{display:inline-block;background:#e0f2fe;color:#0369a1;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;margin-top:6px}
+
+/* Nav tabs */
+.nav-tabs{background:#fff;border-bottom:2px solid #e5e7eb;display:flex;padding:0 24px}
+.nav-tab{padding:14px 20px;font-size:14px;font-weight:600;color:#6b7280;border-bottom:3px solid transparent;cursor:pointer;margin-bottom:-2px;transition:all .2s}
+.nav-tab:hover{color:#374151}
+.nav-tab.active{color:#00A8E0;border-bottom-color:#00A8E0}
+
+/* Dashboard */
+.dash{max-width:1150px;margin:0 auto;padding:22px 16px}
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+.stat-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center}
+.stat-num{font-size:28px;font-weight:800;color:#00A8E0}
+.stat-lbl{font-size:11px;color:#6b7280;margin-top:4px}
+
+/* Filters */
+.filters{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:16px}
+.filters-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:5px;flex:1;min-width:130px}
+.fg label{font-size:12px;font-weight:600;color:#374151}
+.fg input,.fg select{padding:9px 11px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;color:#1f2937;background:#fff}
+.fg input:focus,.fg select:focus{outline:none;border-color:#00A8E0}
+.btn-filter{padding:9px 16px;background:#00A8E0;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-end}
+.btn-filter:hover{background:#0090c4}
+.btn-clear{padding:9px 14px;background:#fff;color:#6b7280;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;cursor:pointer;align-self:flex-end}
+.btn-clear:hover{border-color:#9ca3af}
+
+/* Table */
+.table-wrap{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden}
+.table-head{padding:14px 18px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.table-head h3{font-size:15px;color:#1f2937;font-weight:700}
+.count-badge{background:#f0f4f8;color:#6b7280;font-size:12px;padding:3px 9px;border-radius:20px}
+table{width:100%;border-collapse:collapse}
+th{background:#f8fafc;text-align:left;padding:10px 14px;font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #f0f0f0}
+td{padding:11px 14px;font-size:13px;color:#374151;border-bottom:1px solid #f7f7f7;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.status-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.s-Scheduled{background:#dbeafe;color:#1d4ed8}
+.s-Completed{background:#dcfce7;color:#15803d}
+.s-Cancelled{background:#fee2e2;color:#b91c1c}
+.s-No-Show{background:#fef3c7;color:#b45309}
+.type-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:#f0f4f8;color:#374151}
+.action-btn{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-edit{background:#eff6ff;color:#2563eb}
+.btn-edit:hover{background:#dbeafe}
+.btn-cancel{background:#fef2f2;color:#dc2626}
+.btn-cancel:hover{background:#fee2e2}
+.action-gap{display:flex;gap:6px}
+
+/* Reports */
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.report-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.report-card h4{font-size:14px;font-weight:700;color:#1f2937;margin-bottom:16px;display:flex;align-items:center;gap:7px}
+.report-card .card-icon{font-size:16px}
+.rep-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.rep-stat{background:#f8fafc;border-radius:9px;padding:13px;text-align:center}
+.rep-stat .rn{font-size:26px;font-weight:800;color:#00A8E0}
+.rep-stat .rl{font-size:11px;color:#6b7280;margin-top:3px}
+.rep-stat.green .rn{color:#15803d}
+.rep-stat.red .rn{color:#dc2626}
+.rep-stat.orange .rn{color:#ea580c}
+
+/* Bar chart */
+.bar-list{display:flex;flex-direction:column;gap:8px}
+.bar-row{display:flex;align-items:center;gap:8px}
+.bar-label{font-size:12px;color:#374151;width:46px;flex-shrink:0;text-align:right}
+.bar-track{flex:1;background:#f0f4f8;border-radius:4px;height:22px;overflow:hidden}
+.bar-fill{height:100%;background:#00A8E0;border-radius:4px;transition:width .5s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;min-width:2px}
+.bar-fill span{font-size:11px;color:#fff;font-weight:700;white-space:nowrap}
+.bar-fill.zero{background:#e5e7eb}
+
+/* Activator table in reports */
+.rep-table{width:100%;border-collapse:collapse;font-size:13px}
+.rep-table th{background:#f8fafc;padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;border-bottom:1px solid #e5e7eb}
+.rep-table td{padding:10px 12px;border-bottom:1px solid #f7f7f7;color:#374151}
+.rep-table tr:last-child td{border-bottom:none}
+.rep-table tr:hover td{background:#fafafa}
+.pct-bar{display:flex;align-items:center;gap:6px}
+.pct-track{width:60px;background:#f0f4f8;border-radius:3px;height:8px;overflow:hidden}
+.pct-fill{height:100%;background:#15803d;border-radius:3px}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:14px;padding:28px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal h3{font-size:18px;color:#1f2937;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;line-height:1}
+.modal-close:hover{color:#374151}
+.mfg{margin-bottom:14px}
+.mfg label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px}
+.mfg input,.mfg select,.mfg textarea{width:100%;padding:10px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;color:#1f2937;background:#fff}
+.mfg input:focus,.mfg select:focus,.mfg textarea:focus{outline:none;border-color:#00A8E0}
+.mfg textarea{resize:vertical;min-height:70px}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-btns{display:flex;gap:10px;margin-top:20px}
+.modal-btns button{flex:1;padding:11px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;border:none}
+.m-save{background:#00A8E0;color:#fff}
+.m-save:hover{background:#0090c4}
+.m-cancel{background:#f3f4f6;color:#374151}
+.m-cancel:hover{background:#e5e7eb}
+
+/* Misc */
+.empty{text-align:center;padding:48px 20px;color:#9ca3af}
+.empty-ico{font-size:40px;margin-bottom:12px}
+.spin{display:inline-block;width:22px;height:22px;border:3px solid #e5e7eb;border-top-color:#00A8E0;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading{text-align:center;padding:32px;color:#6b7280}
+.alert{padding:10px 13px;border-radius:7px;font-size:13px;margin-bottom:12px}
+.alert-err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.alert-ok{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+.pw-hint{font-size:11px;color:#9ca3af;margin-top:4px}
+
+@media(max-width:800px){
+  .stats-row{grid-template-columns:repeat(3,1fr)}
+  .report-grid{grid-template-columns:1fr}
+  th:nth-child(5),td:nth-child(5),th:nth-child(6),td:nth-child(6){display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">🔐</div>
+      <h2>Admin Dashboard</h2>
+      <p>Sign in with your admin credentials</p>
+      <input type="text" id="unInput" placeholder="Username" autocomplete="username"
+             onkeydown="if(event.key==='Enter')document.getElementById('pwInput').focus()">
+      <input type="password" id="pwInput" placeholder="Password" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')login()">
+      <button onclick="login()" id="loginBtn">Sign In</button>
+      <div id="loginErr" class="login-err"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none">
+  <div class="header">
+    <h1>📋 Activation Dashboard</h1>
+    <div class="header-right">
+      <div class="user-info">
+        <span id="userDisplayName" style="font-weight:700"></span>
+        <div id="userOfficeBadge"></div>
+      </div>
+      <span id="headerDate" style="font-size:12px;opacity:.85"></span>
+      <span id="masterLink" style="display:none"></span>
+      <button class="logout-btn" onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <div class="nav-tab active" id="tabAppt" onclick="switchTab('appt')">📅 Appointments</div>
+    <div class="nav-tab" id="tabReports" onclick="switchTab('reports')">📊 Reports</div>
+  </div>
+
+  <!-- APPOINTMENTS TAB -->
+  <div id="pageAppt" class="dash">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-lbl">Total</div></div>
+      <div class="stat-card"><div class="stat-num" id="statToday">—</div><div class="stat-lbl">Today</div></div>
+      <div class="stat-card"><div class="stat-num" id="statUpcoming">—</div><div class="stat-lbl">Upcoming</div></div>
+      <div class="stat-card"><div class="stat-num" id="statCompleted">—</div><div class="stat-lbl">Completed</div></div>
+      <div class="stat-card"><div class="stat-num" id="statDevices">—</div><div class="stat-lbl">Devices Today</div></div>
+    </div>
+
+    <div class="filters">
+      <div class="filters-row">
+        <div class="fg"><label>Search</label>
+          <input type="text" id="fSearch" placeholder="Name, DSI/SPM, activator…" onkeydown="if(event.key==='Enter')applyFilters()"></div>
+        <div class="fg"><label>Activator</label>
+          <select id="fActivator"><option value="">All Activators</option></select></div>
+        <div class="fg"><label>Status</label>
+          <select id="fStatus">
+            <option value="">All</option>
+            <option>Scheduled</option><option>Completed</option>
+            <option>Cancelled</option><option>No-Show</option>
+          </select></div>
+        <div class="fg"><label>Date</label><input type="date" id="fDate"></div>
+        <button class="btn-filter" onclick="applyFilters()">Search</button>
+        <button class="btn-clear" onclick="clearFilters()">Clear</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-head">
+        <h3>Appointments</h3>
+        <span class="count-badge" id="apptCount">Loading…</span>
+      </div>
+      <div id="tableBody"><div class="loading"><div class="spin"></div><br>Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- REPORTS TAB -->
+  <div id="pageReports" class="dash" style="display:none">
+    <div id="reportsBody"><div class="loading"><div class="spin"></div><br>Loading reports…</div></div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3>Edit Appointment <button class="modal-close" onclick="closeModal()">✕</button></h3>
+    <div id="modalErr" class="alert alert-err" style="display:none"></div>
+    <div id="modalOk"  class="alert alert-ok"  style="display:none"></div>
+    <input type="hidden" id="mId">
+    <div class="modal-row">
+      <div class="mfg"><label>Date</label><input type="date" id="mDate"></div>
+      <div class="mfg"><label>Time</label><input type="time" id="mTime"></div>
+    </div>
+    <div class="mfg"><label>Activator</label><select id="mActivator"></select></div>
+    <div class="modal-row">
+      <div class="mfg"><label>Customer Name</label><input type="text" id="mCustName"></div>
+      <div class="mfg"><label>DSI / SPM Number</label><input type="text" id="mDsi"></div>
+    </div>
+    <div class="mfg"><label>Customer Email</label><input type="email" id="mEmail"></div>
+    <div class="modal-row">
+      <div class="mfg"><label>Customer Phone</label><input type="tel" id="mPhone"></div>
+      <div class="mfg"><label>Devices</label>
+        <select id="mDevices">
+          <option value="1">1 device</option><option value="2">2 devices</option>
+          <option value="3">3 devices</option><option value="4">4 devices</option>
+          <option value="5">5 devices</option><option value="6">6+ devices</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="mfg"><label>Status</label>
+        <select id="mStatus" onchange="onStatusChange()">
+          <option>Scheduled</option><option>Completed</option>
+          <option>Cancelled</option><option>No-Show</option>
+        </select>
+      </div>
+      <div class="mfg"><label>Address (in-person)</label>
+        <input type="text" id="mAddr" placeholder="Leave blank if phone">
+      </div>
+    </div>
+    <div class="mfg" id="cancelReasonField" style="display:none">
+      <label>Cancellation Reason <span style="color:#dc2626">*</span></label>
+      <textarea id="mCancelReason" placeholder="Required — enter reason for cancellation…" style="min-height:60px"></textarea>
+      <div id="cancelReasonErr" style="color:#dc2626;font-size:12px;margin-top:4px;display:none">Please enter a cancellation reason.</div>
+    </div>
+    <div class="mfg"><label>Notes</label><textarea id="mNotes" placeholder="Internal notes…"></textarea></div>
+    <div class="modal-btns">
+      <button class="m-cancel" onclick="closeModal()">Cancel</button>
+      <button class="m-save" id="saveBtn" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- CANCEL REASON PROMPT -->
+<div id="cancelPromptModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeCancelPrompt()">
+  <div class="modal" style="max-width:420px">
+    <h3>Cancel Appointment <button class="modal-close" onclick="closeCancelPrompt()">✕</button></h3>
+    <input type="hidden" id="cancelPromptId">
+    <p style="font-size:13px;color:#6b7280;margin-bottom:16px">Please provide a reason before cancelling this appointment.</p>
+    <div class="mfg">
+      <label>Reason for Cancellation <span style="color:#dc2626">*</span></label>
+      <textarea id="cancelPromptReason" placeholder="e.g. Customer requested cancellation, schedule conflict…" style="min-height:70px" onkeydown="if(event.key==='Enter'&&event.ctrlKey)submitCancelPrompt()"></textarea>
+      <div id="cancelPromptErr" style="color:#dc2626;font-size:12px;margin-top:4px;display:none">Please enter a reason to continue.</div>
+    </div>
+    <div class="modal-btns">
+      <button class="m-cancel" onclick="closeCancelPrompt()">Go Back</button>
+      <button style="flex:1;padding:11px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;border:none;background:#dc2626;color:#fff" onclick="submitCancelPrompt()">Confirm Cancellation</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let allAppointments = [];
+let allActivators   = [];
+let currentFilters  = {};
+let currentTab      = 'appt';
+let currentUser     = null;
+let sessionToken    = null;
+
+// ── Auth ──────────────────────────────────────────────────────
+
+window.onload = function() {
+  const token = localStorage.getItem('adminToken');
+  if (token) {
+    google.script.run
+      .withSuccessHandler(function(user) {
+        if (user) {
+          sessionToken = token;
+          currentUser  = user;
+          showDashboard();
+        } else {
+          localStorage.removeItem('adminToken');
+          showLogin();
+        }
+      })
+      .withFailureHandler(showLogin)
+      .validateSession(token);
+  } else {
+    showLogin();
+  }
+};
+
+function showLogin() {
+  document.getElementById('loginPage').style.display  = 'block';
+  document.getElementById('dashboard').style.display  = 'none';
+}
+
+function login() {
+  const un = document.getElementById('unInput').value.trim();
+  const pw = document.getElementById('pwInput').value;
+  const btn = document.getElementById('loginBtn');
+  document.getElementById('loginErr').textContent = '';
+  if (!un || !pw) { document.getElementById('loginErr').textContent = 'Enter username and password.'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false; btn.textContent = 'Sign In';
+      if (res.success) {
+        localStorage.setItem('adminToken', res.token);
+        sessionToken = res.token;
+        currentUser  = { role: res.role, officeAccess: res.officeAccess, displayName: res.displayName, username: res.username };
+        showDashboard();
+      } else {
+        document.getElementById('loginErr').textContent = res.error || 'Invalid credentials.';
+      }
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled = false; btn.textContent = 'Sign In';
+      document.getElementById('loginErr').textContent = 'Login failed. Please try again.';
+    })
+    .loginAdmin(un, pw);
+}
+
+function logout() {
+  if (sessionToken) {
+    google.script.run.logoutAdmin(sessionToken);
+  }
+  localStorage.removeItem('adminToken');
+  sessionToken = null;
+  currentUser  = null;
+  allAppointments = [];
+  allActivators   = [];
+  document.getElementById('unInput').value = '';
+  document.getElementById('pwInput').value = '';
+  showLogin();
+}
+
+function showDashboard() {
+  document.getElementById('loginPage').style.display  = 'none';
+  document.getElementById('dashboard').style.display  = 'block';
+
+  const now = new Date();
+  document.getElementById('headerDate').textContent =
+    now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  document.getElementById('userDisplayName').textContent = currentUser.displayName || currentUser.username;
+
+  // Show office badge or superadmin indicator
+  const badge = document.getElementById('userOfficeBadge');
+  if (currentUser.role === 'superadmin') {
+    badge.innerHTML = '<span class="office-badge" style="background:#fef3c7;color:#92400e">⭐ Superadmin</span>';
+  } else if (currentUser.officeAccess) {
+    const offices = currentUser.officeAccess.split('|').filter(o => o.trim());
+    badge.innerHTML = offices.map(o => `<span class="office-badge">${esc(o.trim())}</span>`).join(' ');
+  }
+
+  // Show Master Dashboard link for superadmins
+  const masterEl = document.getElementById('masterLink');
+  if (currentUser.role === 'superadmin') {
+    masterEl.style.display = 'inline';
+    masterEl.innerHTML = '<a class="master-btn" href="?page=master" target="_blank">Master Dashboard →</a>';
+  }
+
+  loadActivators();
+  loadAppointments({});
+}
+
+// ── Init ──────────────────────────────────────────────────────
+
+function loadActivators() {
+  google.script.run
+    .withSuccessHandler(function(data) {
+      allActivators = data;
+      const s1 = document.getElementById('fActivator');
+      const s2 = document.getElementById('mActivator');
+      s1.innerHTML = '<option value="">All Activators</option>';
+      s2.innerHTML = '';
+      data.forEach(a => {
+        s1.innerHTML += `<option value="${a.id}">${esc(a.name)}</option>`;
+        s2.innerHTML += `<option value="${a.id}">${esc(a.name)}</option>`;
+      });
+    })
+    .getActivatorsForUser(sessionToken);
+}
+
+// ── Tab switching ─────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabAppt').classList.toggle('active', tab==='appt');
+  document.getElementById('tabReports').classList.toggle('active', tab==='reports');
+  document.getElementById('pageAppt').style.display    = tab==='appt'    ? 'block' : 'none';
+  document.getElementById('pageReports').style.display = tab==='reports' ? 'block' : 'none';
+  if (tab==='reports') loadReports();
+}
+
+// ── Appointments tab ──────────────────────────────────────────
+function loadAppointments(filters) {
+  document.getElementById('tableBody').innerHTML =
+    '<div class="loading"><div class="spin"></div><br>Loading…</div>';
+  google.script.run
+    .withSuccessHandler(function(data) {
+      allAppointments = data;
+      updateStats(data);
+      renderTable(data);
+    })
+    .getAppointmentsForUser(sessionToken, filters);
+}
+
+function updateStats(data) {
+  const today = todayStr();
+  const todayAppts = data.filter(a => a.date === today);
+  document.getElementById('statTotal').textContent     = data.length;
+  document.getElementById('statToday').textContent     = todayAppts.length;
+  document.getElementById('statUpcoming').textContent  = data.filter(a=>a.date>=today&&a.status==='Scheduled').length;
+  document.getElementById('statCompleted').textContent = data.filter(a=>a.status==='Completed').length;
+  document.getElementById('statDevices').textContent   = todayAppts.reduce((s,a)=>s+(Number(a.deviceCount)||1),0);
+}
+
+function renderTable(data) {
+  document.getElementById('apptCount').textContent = data.length+' result'+(data.length!==1?'s':'');
+  if (!data.length) {
+    document.getElementById('tableBody').innerHTML =
+      '<div class="empty"><div class="empty-ico">📭</div><strong>No appointments found</strong><br>Try adjusting your filters.</div>';
+    return;
+  }
+  document.getElementById('tableBody').innerHTML =
+    '<table><thead><tr>'+
+    '<th>Date & Time</th><th>Customer</th><th>DSI/SPM</th>'+
+    '<th>Activator</th><th>Devices</th><th>Type</th><th>Status</th><th>Actions</th>'+
+    '</tr></thead><tbody>'+
+    data.map(a=>`
+      <tr>
+        <td><strong>${fmtDate(a.date)}</strong><br><span style="color:#6b7280;font-size:11px">${fmtTime(a.time)}</span></td>
+        <td><strong>${esc(a.customerName)}</strong><br><span style="color:#6b7280;font-size:11px">${esc(a.customerPhone)}</span></td>
+        <td style="font-family:monospace;font-size:12px">${esc(a.dsiSpmNumber)}</td>
+        <td>${esc(a.activatorName)}</td>
+        <td style="text-align:center;font-weight:700;color:#374151">${a.deviceCount||1}</td>
+        <td><span class="type-badge">${a.appointmentType==='phone'?'📞 Phone':'🏪 In-Person'}</span></td>
+        <td><span class="status-badge s-${a.status.replace(' ','-')}">${a.status}</span></td>
+        <td><div class="action-gap">
+          <button class="action-btn btn-edit" onclick="openEdit('${a.id}')">Edit</button>
+          ${a.status!=='Cancelled'?`<button class="action-btn btn-cancel" onclick="cancelAppt('${a.id}')">Cancel</button>`:''}
+        </div></td>
+      </tr>`).join('')+
+    '</tbody></table>';
+}
+
+function applyFilters() {
+  const f = {};
+  const s  = document.getElementById('fSearch').value.trim();
+  const a  = document.getElementById('fActivator').value;
+  const st = document.getElementById('fStatus').value;
+  const d  = document.getElementById('fDate').value;
+  if (s)  f.search      = s;
+  if (a)  f.activatorId = a;
+  if (st) f.status      = st;
+  if (d)  f.date        = d;
+  currentFilters = f;
+  loadAppointments(f);
+}
+
+function clearFilters() {
+  ['fSearch','fActivator','fStatus','fDate'].forEach(id => document.getElementById(id).value='');
+  currentFilters = {};
+  loadAppointments({});
+}
+
+// ── Reports tab ───────────────────────────────────────────────
+function loadReports() {
+  document.getElementById('reportsBody').innerHTML =
+    '<div class="loading"><div class="spin"></div><br>Loading reports…</div>';
+  google.script.run
+    .withSuccessHandler(renderReports)
+    .withFailureHandler(function(){
+      document.getElementById('reportsBody').innerHTML='<p style="color:#dc2626;padding:20px">Failed to load report data.</p>';
+    })
+    .getReportDataForUser(sessionToken);
+}
+
+function renderReports(d) {
+  const s = d.summary;
+  const maxDay  = Math.max(...d.byDay.map(x=>x.count), 1);
+  const maxHour = Math.max(...d.byHour.map(x=>x.count), 1);
+
+  document.getElementById('reportsBody').innerHTML = `
+    <div class="rep-stats" style="margin-bottom:20px">
+      <div class="rep-stat"><div class="rn">${s.total}</div><div class="rl">Total Appointments</div></div>
+      <div class="rep-stat green"><div class="rn">${s.completionRate}%</div><div class="rl">Completion Rate</div></div>
+      <div class="rep-stat red"><div class="rn">${s.noShowRate}%</div><div class="rl">No-Show Rate</div></div>
+      <div class="rep-stat"><div class="rn">${s.Completed}</div><div class="rl">Completed</div></div>
+      <div class="rep-stat orange"><div class="rn">${s['No-Show']}</div><div class="rl">No-Shows</div></div>
+      <div class="rep-stat"><div class="rn">${s.Cancelled}</div><div class="rl">Cancelled</div></div>
+      <div class="rep-stat"><div class="rn">${s.Scheduled}</div><div class="rl">Scheduled</div></div>
+      <div class="rep-stat"><div class="rn">${s.totalDevices}</div><div class="rl">Devices Activated</div></div>
+      <div class="rep-stat"><div class="rn">${s.total>0?Math.round(s.totalDevices/Math.max(s.Completed,1)*10)/10:0}</div><div class="rl">Avg Devices/Appt</div></div>
+    </div>
+
+    <div class="report-grid">
+      <div class="report-card" style="grid-column:1/-1">
+        <h4><span class="card-icon">👥</span> Performance by Activator</h4>
+        <table class="rep-table">
+          <thead><tr>
+            <th>Activator</th><th>Total</th><th>Completed</th>
+            <th>No-Shows</th><th>Cancelled</th><th>Completion Rate</th>
+          </tr></thead>
+          <tbody>
+            ${d.byActivator.length ? d.byActivator.map(a => {
+              const concluded = a.completed + a.noShow;
+              const rate = concluded > 0 ? Math.round(a.completed/concluded*100) : 0;
+              return `<tr>
+                <td><strong>${esc(a.name)}</strong></td>
+                <td>${a.total}</td>
+                <td style="color:#15803d;font-weight:600">${a.completed}</td>
+                <td style="color:#b45309;font-weight:600">${a.noShow}</td>
+                <td style="color:#6b7280">${a.cancelled}</td>
+                <td>
+                  <div class="pct-bar">
+                    <div class="pct-track"><div class="pct-fill" style="width:${rate}%"></div></div>
+                    <span style="font-size:12px;font-weight:700;color:#374151">${rate}%</span>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('') : '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:20px">No data yet</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="report-card">
+        <h4><span class="card-icon">📅</span> Appointments by Day of Week</h4>
+        <div class="bar-list">
+          ${d.byDay.map(item => `
+            <div class="bar-row">
+              <div class="bar-label">${item.day}</div>
+              <div class="bar-track">
+                <div class="bar-fill ${item.count===0?'zero':''}" style="width:${Math.round(item.count/maxDay*100)}%">
+                  ${item.count > 0 ? `<span>${item.count}</span>` : ''}
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="report-card">
+        <h4><span class="card-icon">🕐</span> Appointments by Hour</h4>
+        <div class="bar-list">
+          ${d.byHour.map(item => `
+            <div class="bar-row">
+              <div class="bar-label" style="width:56px;font-size:11px">${item.label}</div>
+              <div class="bar-track">
+                <div class="bar-fill ${item.count===0?'zero':''}" style="width:${Math.round(item.count/maxHour*100)}%">
+                  ${item.count > 0 ? `<span>${item.count}</span>` : ''}
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Edit modal ────────────────────────────────────────────────
+function openEdit(id) {
+  const a = allAppointments.find(x=>x.id===id);
+  if (!a) return;
+  document.getElementById('mId').value            = a.id;
+  document.getElementById('mDate').value          = a.date;
+  document.getElementById('mTime').value          = a.time;
+  document.getElementById('mCustName').value      = a.customerName||'';
+  document.getElementById('mEmail').value         = a.customerEmail||'';
+  document.getElementById('mPhone').value         = a.customerPhone||'';
+  document.getElementById('mAddr').value          = a.address||'';
+  document.getElementById('mDsi').value           = a.dsiSpmNumber||'';
+  document.getElementById('mNotes').value         = a.notes||'';
+  document.getElementById('mStatus').value        = a.status||'Scheduled';
+  document.getElementById('mDevices').value       = String(a.deviceCount||1);
+  document.getElementById('mActivator').value     = a.activatorId;
+  document.getElementById('mCancelReason').value  = a.cancelReason||'';
+  document.getElementById('cancelReasonErr').style.display = 'none';
+  document.getElementById('modalErr').style.display = 'none';
+  document.getElementById('modalOk').style.display  = 'none';
+  onStatusChange();
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('editModal').style.display='none'; }
+
+function onStatusChange() {
+  const isCancelled = document.getElementById('mStatus').value === 'Cancelled';
+  document.getElementById('cancelReasonField').style.display = isCancelled ? 'block' : 'none';
+  if (!isCancelled) document.getElementById('cancelReasonErr').style.display = 'none';
+}
+
+function saveEdit() {
+  const status       = document.getElementById('mStatus').value;
+  const cancelReason = document.getElementById('mCancelReason').value.trim();
+  if (status === 'Cancelled' && !cancelReason) {
+    document.getElementById('cancelReasonErr').style.display = 'block';
+    document.getElementById('mCancelReason').focus();
+    return;
+  }
+  document.getElementById('cancelReasonErr').style.display = 'none';
+  const btn = document.getElementById('saveBtn');
+  btn.disabled=true; btn.textContent='Saving…';
+  const actSel = document.getElementById('mActivator');
+  const updates = {
+    date:          document.getElementById('mDate').value,
+    time:          document.getElementById('mTime').value,
+    activatorId:   actSel.value,
+    activatorName: actSel.options[actSel.selectedIndex]&&actSel.options[actSel.selectedIndex].text||'',
+    customerName:  document.getElementById('mCustName').value,
+    customerEmail: document.getElementById('mEmail').value,
+    customerPhone: document.getElementById('mPhone').value,
+    address:       document.getElementById('mAddr').value,
+    dsiSpmNumber:  document.getElementById('mDsi').value,
+    status:        status,
+    notes:         document.getElementById('mNotes').value,
+    deviceCount:   parseInt(document.getElementById('mDevices').value)||1
+  };
+  if (status === 'Cancelled') updates.cancelReason = cancelReason;
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled=false; btn.textContent='Save Changes';
+      if (res.success) {
+        document.getElementById('modalOk').style.display='block';
+        document.getElementById('modalOk').textContent='Appointment updated successfully.';
+        document.getElementById('modalErr').style.display='none';
+        loadAppointments(currentFilters);
+      } else {
+        document.getElementById('modalErr').style.display='block';
+        document.getElementById('modalErr').textContent=res.error||'Update failed.';
+      }
+    })
+    .withFailureHandler(function(){
+      btn.disabled=false; btn.textContent='Save Changes';
+      document.getElementById('modalErr').style.display='block';
+      document.getElementById('modalErr').textContent='An error occurred.';
+    })
+    .updateAppointment(document.getElementById('mId').value, updates);
+}
+
+function cancelAppt(id) {
+  document.getElementById('cancelPromptId').value    = id;
+  document.getElementById('cancelPromptReason').value = '';
+  document.getElementById('cancelPromptErr').style.display = 'none';
+  document.getElementById('cancelPromptModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('cancelPromptReason').focus(), 80);
+}
+
+function submitCancelPrompt() {
+  const id     = document.getElementById('cancelPromptId').value;
+  const reason = document.getElementById('cancelPromptReason').value.trim();
+  if (!reason) {
+    document.getElementById('cancelPromptErr').style.display = 'block';
+    document.getElementById('cancelPromptReason').focus();
+    return;
+  }
+  document.getElementById('cancelPromptModal').style.display = 'none';
+  google.script.run
+    .withSuccessHandler(function(res){ if(res.success) loadAppointments(currentFilters); })
+    .cancelAppointment(id, reason);
+}
+
+function closeCancelPrompt() {
+  document.getElementById('cancelPromptModal').style.display = 'none';
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function fmtTime(t) {
+  if(!t) return '';
+  const [h,m]=String(t).split(':').map(Number);
+  const per=h>=12?'PM':'AM', h12=h===0?12:h>12?h-12:h;
+  return h12+':'+String(m).padStart(2,'0')+' '+per;
+}
+function fmtDate(d) {
+  if(!d) return '';
+  const [y,mo,dd]=String(d).split('-').map(Number);
+  return new Date(y,mo-1,dd).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function todayStr() {
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>

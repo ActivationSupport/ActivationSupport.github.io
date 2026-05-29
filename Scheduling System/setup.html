@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activator Profile Setup</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;min-height:100vh}
+.header{background:#00A8E0;color:#fff;padding:20px 24px;text-align:center}
+.header h1{font-size:21px;font-weight:700}
+.header p{font-size:13px;opacity:.85;margin-top:4px}
+.container{max-width:600px;margin:28px auto;padding:0 16px 48px}
+.card{background:#fff;border-radius:14px;padding:26px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:18px}
+.card h2{font-size:17px;color:#1f2937;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.section-icon{font-size:20px}
+
+/* Form fields */
+.fg{margin-bottom:16px}
+.fg label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px}
+.fg label span{color:#ef4444}
+.fg input,.fg select{width:100%;padding:11px 13px;border:2px solid #e5e7eb;border-radius:8px;font-size:15px;color:#1f2937;background:#fff;transition:border-color .2s}
+.fg input:focus,.fg select:focus{outline:none;border-color:#00A8E0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* Schedule */
+.day-row{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid #f3f4f6;gap:14px}
+.day-row:last-child{border-bottom:none}
+.day-toggle{display:flex;align-items:center;gap:10px;width:110px;flex-shrink:0}
+.toggle-switch{position:relative;width:40px;height:22px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:22px;transition:.25s}
+.toggle-slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s}
+input:checked+.toggle-slider{background:#00A8E0}
+input:checked+.toggle-slider::before{transform:translateX(18px)}
+.day-name{font-weight:600;color:#374151;font-size:14px;width:36px}
+.time-inputs{display:flex;align-items:center;gap:8px;flex:1}
+.time-inputs input[type="time"]{padding:8px 10px;border:2px solid #e5e7eb;border-radius:7px;font-size:13px;color:#1f2937;width:120px;background:#fff}
+.time-inputs input[type="time"]:focus{outline:none;border-color:#00A8E0}
+.time-inputs input[type="time"]:disabled{background:#f9fafb;color:#9ca3af;border-color:#e5e7eb}
+.time-sep{color:#9ca3af;font-size:13px}
+.day-off{color:#9ca3af;font-size:12px;font-style:italic}
+
+/* Buttons */
+.btn{width:100%;padding:13px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;transition:all .2s}
+.btn-p{background:#00A8E0;color:#fff}
+.btn-p:hover:not(:disabled){background:#0090c4}
+.btn-p:disabled{background:#9ca3af;cursor:not-allowed}
+
+/* Alert */
+.alert{padding:12px 15px;border-radius:8px;font-size:13px;margin-bottom:16px}
+.alert-err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.alert-ok{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+
+/* Success state */
+.succ-card{text-align:center;padding:20px 0 10px}
+.succ-circle{width:64px;height:64px;background:#ecfdf5;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:28px}
+.succ-card h3{font-size:19px;color:#1f2937;margin-bottom:7px}
+.succ-card p{color:#6b7280;font-size:13px;line-height:1.5}
+.btn-link{background:none;border:none;color:#00A8E0;font-size:13px;cursor:pointer;text-decoration:underline;margin-top:14px;display:inline-block;font-weight:600}
+
+@media(max-width:480px){
+  .form-row{grid-template-columns:1fr}
+  .time-inputs{flex-wrap:wrap}
+  .time-inputs input[type="time"]{width:100%}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Activator Profile Setup</h1>
+  <p>Set your availability so customers can book with you</p>
+</div>
+
+<div class="container">
+
+  <div id="mainForm">
+
+    <!-- Profile -->
+    <div class="card">
+      <h2><span class="section-icon">👤</span> Your Profile</h2>
+
+      <div id="formErr" class="alert alert-err" style="display:none"></div>
+
+      <div class="form-row">
+        <div class="fg">
+          <label>Full Name <span>*</span></label>
+          <input type="text" id="actName" placeholder="Your full name">
+        </div>
+        <div class="fg">
+          <label>Email Address <span>*</span></label>
+          <input type="email" id="actEmail" placeholder="your@email.com">
+          <span style="font-size:11px;color:#9ca3af;margin-top:3px;display:block">Booking notifications sent here</span>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label>Your Timezone <span>*</span></label>
+        <select id="actTz">
+          <option value="">— Select your timezone —</option>
+          <option value="America/New_York">Eastern Time (ET) — New York, Miami, Atlanta</option>
+          <option value="America/Chicago">Central Time (CT) — Chicago, Dallas, Houston</option>
+          <option value="America/Denver">Mountain Time (MT) — Denver, Phoenix, Salt Lake City</option>
+          <option value="America/Los_Angeles">Pacific Time (PT) — Los Angeles, Seattle, Las Vegas</option>
+          <option value="America/Anchorage">Alaska Time (AKT)</option>
+          <option value="Pacific/Honolulu">Hawaii Time (HST)</option>
+          <option value="America/Phoenix">Arizona Time (No DST)</option>
+        </select>
+      </div>
+    </div>
+
+      <div class="fg">
+        <label>Office / Location <span>*</span></label>
+        <input type="text" id="actOffice" placeholder="e.g. Downtown Office, West Side, Midtown">
+        <span style="font-size:11px;color:#9ca3af;margin-top:3px;display:block">Enter your office name exactly as it appears in the admin system</span>
+      </div>
+
+    <!-- Schedule -->
+    <div class="card">
+      <h2><span class="section-icon">📅</span> Weekly Schedule</h2>
+      <p style="color:#6b7280;font-size:13px;margin-bottom:18px">Toggle on the days you work and set your start/end times. All times are in your timezone above.</p>
+
+      <div id="scheduleRows"></div>
+    </div>
+
+    <!-- Save -->
+    <button class="btn btn-p" id="saveBtn" onclick="saveProfile()">Save My Profile</button>
+
+  </div>
+
+  <!-- Success -->
+  <div id="successView" class="card" style="display:none">
+    <div class="succ-card">
+      <div class="succ-circle">✓</div>
+      <h3>Profile Saved!</h3>
+      <p>Your schedule is live. Clients and reps can now book with you during your available hours.</p>
+      <button class="btn-link" onclick="editAgain()">Update my schedule</button>
+    </div>
+  </div>
+
+  <!-- Time Blocking -->
+  <div class="card" id="blockCard" style="display:none">
+    <h2><span class="section-icon">🚫</span> Block Time Off</h2>
+    <p style="color:#6b7280;font-size:13px;margin-bottom:18px">Block specific dates or times so no appointments can be booked during those periods.</p>
+
+    <div id="blockErr" class="alert" style="display:none;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:8px;padding:11px 14px;font-size:13px;margin-bottom:14px"></div>
+
+    <!-- Add block form -->
+    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:18px">
+      <p style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px">Add a Block</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="fg">
+          <label>Date <span style="color:#ef4444">*</span></label>
+          <input type="date" id="blkDate">
+        </div>
+        <div class="fg">
+          <label>Reason (optional)</label>
+          <input type="text" id="blkReason" placeholder="e.g. PTO, Holiday, Meeting">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:#374151;cursor:pointer">
+          <input type="checkbox" id="blkAllDay" checked onchange="toggleAllDay(this.checked)" style="width:16px;height:16px">
+          Block entire day
+        </label>
+      </div>
+      <div id="blkTimeRow" style="display:none;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="fg"><label>From</label><input type="time" id="blkStart"></div>
+        <div class="fg"><label>To</label><input type="time" id="blkEnd"></div>
+      </div>
+      <button class="btn btn-p" style="margin-top:4px" onclick="addBlock()">Add Block</button>
+    </div>
+
+    <!-- Existing blocks -->
+    <div>
+      <p style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px">Your Blocked Times</p>
+      <div id="blockList"><p style="color:#9ca3af;font-size:13px">Loading…</p></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentActivatorId = null;
+
+const DAYS = [
+  { key: 'mon', label: 'Mon', full: 'Monday'    },
+  { key: 'tue', label: 'Tue', full: 'Tuesday'   },
+  { key: 'wed', label: 'Wed', full: 'Wednesday' },
+  { key: 'thu', label: 'Thu', full: 'Thursday'  },
+  { key: 'fri', label: 'Fri', full: 'Friday'    },
+  { key: 'sat', label: 'Sat', full: 'Saturday'  },
+  { key: 'sun', label: 'Sun', full: 'Sunday'    }
+];
+
+const DEFAULT_START = '09:00';
+const DEFAULT_END   = '17:00';
+
+window.onload = function() {
+  renderScheduleRows();
+  // Pre-enable Mon-Fri by default
+  ['mon','tue','wed','thu','fri'].forEach(k => {
+    document.getElementById('tog_'+k).checked = true;
+    toggleDay(k, true);
+  });
+};
+
+function renderScheduleRows() {
+  document.getElementById('scheduleRows').innerHTML = DAYS.map(d => `
+    <div class="day-row">
+      <div class="day-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" id="tog_${d.key}" onchange="toggleDay('${d.key}',this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="day-name">${d.label}</span>
+      </div>
+      <div class="time-inputs" id="times_${d.key}">
+        <input type="time" id="start_${d.key}" value="${DEFAULT_START}" disabled>
+        <span class="time-sep">to</span>
+        <input type="time" id="end_${d.key}" value="${DEFAULT_END}" disabled>
+      </div>
+      <span class="day-off" id="off_${d.key}">Day off</span>
+    </div>
+  `).join('');
+}
+
+function toggleDay(key, enabled) {
+  document.getElementById('start_' + key).disabled = !enabled;
+  document.getElementById('end_'   + key).disabled = !enabled;
+  document.getElementById('off_'   + key).style.display = enabled ? 'none' : 'inline';
+}
+
+function saveProfile() {
+  const name   = v('actName').trim();
+  const email  = v('actEmail').trim();
+  const tz     = v('actTz');
+  const office = v('actOffice').trim();
+
+  if (!name || !email || !tz) {
+    showErr('Please fill in your name, email, and timezone.');
+    return;
+  }
+  if (!office) {
+    showErr('Please enter your office / location name.');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showErr('Please enter a valid email address.');
+    return;
+  }
+
+  const schedule = {};
+  let hasAnyDay = false;
+
+  for (const d of DAYS) {
+    const enabled = document.getElementById('tog_' + d.key).checked;
+    const start   = v('start_' + d.key);
+    const end     = v('end_'   + d.key);
+
+    if (enabled) {
+      if (!start || !end) {
+        showErr('Please set start and end times for ' + d.full + '.');
+        return;
+      }
+      if (start >= end) {
+        showErr('On ' + d.full + ', start time must be before end time.');
+        return;
+      }
+      schedule[d.key] = { start, end };
+      hasAnyDay = true;
+    } else {
+      schedule[d.key] = { start: '', end: '' };
+    }
+  }
+
+  if (!hasAnyDay) {
+    showErr('Please enable at least one working day.');
+    return;
+  }
+
+  hideErr();
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false;
+      btn.textContent = 'Save My Profile';
+      if (res.success) {
+        currentActivatorId = res.id;
+        document.getElementById('mainForm').style.display = 'none';
+        document.getElementById('successView').style.display = 'block';
+        loadBlockedTimes(res.id);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        showErr('Save failed. Please try again.');
+      }
+    })
+    .withFailureHandler(function() {
+      btn.disabled = false;
+      btn.textContent = 'Save My Profile';
+      showErr('An error occurred. Please try again.');
+    })
+    .saveActivator({ name, email, timezone: tz, office, schedule });
+}
+
+function editAgain() {
+  document.getElementById('mainForm').style.display   = 'block';
+  document.getElementById('successView').style.display = 'none';
+}
+
+function showErr(msg) {
+  const el = document.getElementById('formErr');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function hideErr() {
+  document.getElementById('formErr').style.display = 'none';
+}
+
+function v(id) {
+  return (document.getElementById(id) || {}).value || '';
+}
+
+// ── Time Blocking ───────────────────────────────────────────
+
+function toggleAllDay(checked) {
+  document.getElementById('blkTimeRow').style.display = checked ? 'none' : 'grid';
+}
+
+function loadBlockedTimes(activatorId) {
+  document.getElementById('blockCard').style.display = 'block';
+  const today = new Date();
+  document.getElementById('blkDate').min =
+    today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+
+  google.script.run
+    .withSuccessHandler(renderBlockList)
+    .withFailureHandler(function(){ document.getElementById('blockList').innerHTML='<p style="color:#dc2626;font-size:13px">Failed to load blocked times.</p>'; })
+    .getBlockedTimesForActivator(activatorId);
+}
+
+function renderBlockList(blocks) {
+  const el = document.getElementById('blockList');
+  if (!blocks.length) {
+    el.innerHTML = '<p style="color:#9ca3af;font-size:13px;font-style:italic">No blocked times set. Your full schedule is available for booking.</p>';
+    return;
+  }
+  el.innerHTML = blocks.map(b => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px">
+      <div>
+        <div style="font-weight:600;color:#1f2937;font-size:13px">${fmtDate(b.date)}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">
+          ${b.allDay ? 'All day' : fmtTime(b.startTime)+' – '+fmtTime(b.endTime)}
+          ${b.reason ? ' · '+b.reason : ''}
+        </div>
+      </div>
+      <button onclick="removeBlock('${b.id}')" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Remove</button>
+    </div>
+  `).join('');
+}
+
+function addBlock() {
+  const date    = v('blkDate');
+  const allDay  = document.getElementById('blkAllDay').checked;
+  const start   = v('blkStart');
+  const end     = v('blkEnd');
+  const reason  = v('blkReason');
+  const errEl   = document.getElementById('blockErr');
+
+  errEl.style.display = 'none';
+
+  if (!date) { errEl.textContent='Please select a date.'; errEl.style.display='block'; return; }
+  if (!allDay && (!start || !end)) { errEl.textContent='Please enter start and end times.'; errEl.style.display='block'; return; }
+  if (!allDay && start >= end) { errEl.textContent='Start time must be before end time.'; errEl.style.display='block'; return; }
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res.success) {
+        document.getElementById('blkDate').value   = '';
+        document.getElementById('blkReason').value = '';
+        document.getElementById('blkStart').value  = '';
+        document.getElementById('blkEnd').value    = '';
+        loadBlockedTimes(currentActivatorId);
+      } else {
+        errEl.textContent = 'Failed to add block. Please try again.';
+        errEl.style.display = 'block';
+      }
+    })
+    .addBlockedTime({ activatorId:currentActivatorId, date, allDay, startTime:start, endTime:end, reason });
+}
+
+function removeBlock(id) {
+  google.script.run
+    .withSuccessHandler(function(res){ if(res.success) loadBlockedTimes(currentActivatorId); })
+    .removeBlockedTime(id);
+}
+
+function fmtTime(t) {
+  if (!t) return '';
+  const [h,m] = String(t).split(':').map(Number);
+  const per = h>=12?'PM':'AM', h12=h===0?12:h>12?h-12:h;
+  return h12+':'+String(m).padStart(2,'0')+' '+per;
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const [y,mo,dd] = String(d).split('-').map(Number);
+  return new Date(y,mo-1,dd).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+</script>
+</body>
+</html>

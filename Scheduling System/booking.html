@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Schedule Your AT&T Activation</title>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: #f0f4f8;
+                min-height: 100vh;
+            }
+            .header {
+                background: #00a8e0;
+                color: #fff;
+                padding: 22px 16px;
+                text-align: center;
+            }
+            .header h1 {
+                font-size: 22px;
+                font-weight: 700;
+            }
+            .header p {
+                font-size: 13px;
+                opacity: 0.85;
+                margin-top: 4px;
+            }
+            .container {
+                max-width: 660px;
+                margin: 28px auto;
+                padding: 0 16px 40px;
+            }
+
+            /* Progress */
+            .progress-wrap {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                margin-bottom: 24px;
+                position: relative;
+            }
+            .progress-wrap::before {
+                content: "";
+                position: absolute;
+                top: 15px;
+                left: 16px;
+                right: 16px;
+                height: 2px;
+                background: #d1d5db;
+                z-index: 0;
+            }
+            .prog-fill {
+                position: absolute;
+                top: 15px;
+                left: 16px;
+                height: 2px;
+                background: #00a8e0;
+                z-index: 1;
+                transition: width 0.35s ease;
+            }
+            .step-dot {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                z-index: 2;
+                flex: 1;
+            }
+            .dot {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: #d1d5db;
+                color: #9ca3af;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 13px;
+                transition: all 0.3s;
+                border: 2px solid transparent;
+            }
+            .dot.active {
+                background: #00a8e0;
+                color: #fff;
+                box-shadow: 0 0 0 3px rgba(0, 168, 224, 0.2);
+            }
+            .dot.done {
+                background: #00a8e0;
+                color: #fff;
+            }
+            .step-label {
+                font-size: 10px;
+                color: #6b7280;
+                margin-top: 4px;
+                text-align: center;
+            }
+
+            /* Cards */
+            .card {
+                background: #fff;
+                border-radius: 14px;
+                padding: 26px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+                margin-bottom: 16px;
+            }
+            .card h2 {
+                font-size: 19px;
+                color: #1f2937;
+                margin-bottom: 5px;
+            }
+            .card .sub {
+                color: #6b7280;
+                font-size: 13px;
+                margin-bottom: 22px;
+            }
+
+            /* Option buttons */
+            .opt-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+            .opt-btn {
+                border: 2px solid #e5e7eb;
+                border-radius: 10px;
+                padding: 18px 12px;
+                cursor: pointer;
+                text-align: center;
+                transition: all 0.2s;
+                background: #fff;
+                width: 100%;
+            }
+            .opt-btn:hover {
+                border-color: #00a8e0;
+                background: #f0fafe;
+            }
+            .opt-btn.sel {
+                border-color: #00a8e0;
+                background: #e6f6fd;
+            }
+            .opt-btn .icon {
+                font-size: 26px;
+                margin-bottom: 7px;
+            }
+            .opt-btn .lbl {
+                font-weight: 700;
+                color: #1f2937;
+                font-size: 14px;
+            }
+            .opt-btn .dsc {
+                font-size: 11px;
+                color: #6b7280;
+                margin-top: 3px;
+            }
+
+            /* Activator cards */
+            .act-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 14px;
+            }
+            .act-card {
+                border: 2px solid #e5e7eb;
+                border-radius: 10px;
+                padding: 12px 14px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                transition: all 0.2s;
+            }
+            .act-card:hover {
+                border-color: #00a8e0;
+                background: #f0fafe;
+            }
+            .act-card.sel {
+                border-color: #00a8e0;
+                background: #e6f6fd;
+            }
+            .act-avatar {
+                width: 42px;
+                height: 42px;
+                border-radius: 50%;
+                background: #00a8e0;
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 16px;
+                flex-shrink: 0;
+            }
+            .act-name {
+                font-weight: 600;
+                color: #1f2937;
+                font-size: 14px;
+            }
+            .act-tz {
+                font-size: 11px;
+                color: #6b7280;
+                margin-top: 2px;
+            }
+
+            /* Time slots */
+            .time-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+            .ts {
+                border: 2px solid #e5e7eb;
+                border-radius: 9px;
+                padding: 12px 8px;
+                cursor: pointer;
+                text-align: center;
+                transition: all 0.2s;
+            }
+            .ts:hover {
+                border-color: #00a8e0;
+                background: #f0fafe;
+            }
+            .ts.sel {
+                border-color: #00a8e0;
+                background: #00a8e0;
+                color: #fff;
+            }
+            .ts .tt {
+                font-weight: 700;
+                font-size: 14px;
+            }
+            .ts .at {
+                font-size: 10px;
+                color: #6b7280;
+                margin-top: 2px;
+            }
+            .ts.sel .at {
+                color: rgba(255, 255, 255, 0.75);
+            }
+
+            /* Form */
+            .fg {
+                margin-bottom: 16px;
+            }
+            .fg label {
+                display: block;
+                font-weight: 600;
+                color: #374151;
+                font-size: 13px;
+                margin-bottom: 5px;
+            }
+            .fg label span {
+                color: #ef4444;
+            }
+            .fg input,
+            .fg select {
+                width: 100%;
+                padding: 11px 13px;
+                border: 2px solid #e5e7eb;
+                border-radius: 8px;
+                font-size: 15px;
+                color: #1f2937;
+                transition: border-color 0.2s;
+                background: #fff;
+            }
+            .fg input:focus,
+            .fg select:focus {
+                outline: none;
+                border-color: #00a8e0;
+            }
+            .fg .hint {
+                font-size: 11px;
+                color: #9ca3af;
+                margin-top: 3px;
+            }
+            .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 14px;
+            }
+
+            /* Buttons */
+            .btn {
+                width: 100%;
+                padding: 13px;
+                border-radius: 10px;
+                font-size: 15px;
+                font-weight: 700;
+                cursor: pointer;
+                border: none;
+                transition: all 0.2s;
+            }
+            .btn-p {
+                background: #00a8e0;
+                color: #fff;
+            }
+            .btn-p:hover:not(:disabled) {
+                background: #0090c4;
+            }
+            .btn-p:disabled {
+                background: #9ca3af;
+                cursor: not-allowed;
+            }
+            .btn-s {
+                background: #fff;
+                color: #374151;
+                border: 2px solid #e5e7eb;
+            }
+            .btn-s:hover {
+                border-color: #9ca3af;
+            }
+            .btn-row {
+                display: flex;
+                gap: 10px;
+                margin-top: 22px;
+            }
+            .btn-row .btn {
+                flex: 1;
+            }
+
+            /* Summary */
+            .sum-box {
+                background: #f8fafc;
+                border: 1px solid #e5e7eb;
+                border-radius: 10px;
+                padding: 16px;
+                margin-bottom: 18px;
+            }
+            .sum-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                padding: 6px 0;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .sum-row:last-child {
+                border-bottom: none;
+            }
+            .sum-lbl {
+                color: #6b7280;
+                font-size: 13px;
+            }
+            .sum-val {
+                color: #1f2937;
+                font-size: 13px;
+                font-weight: 600;
+                text-align: right;
+                max-width: 60%;
+            }
+
+            /* Success */
+            .succ-wrap {
+                text-align: center;
+                padding: 16px 0 24px;
+            }
+            .succ-circle {
+                width: 68px;
+                height: 68px;
+                background: #ecfdf5;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 14px;
+                font-size: 30px;
+            }
+            .succ-wrap h3 {
+                color: #1f2937;
+                font-size: 20px;
+                margin-bottom: 7px;
+            }
+            .succ-wrap p {
+                color: #6b7280;
+                font-size: 13px;
+            }
+
+            /* Misc */
+            .divider {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin: 18px 0;
+            }
+            .divider::before,
+            .divider::after {
+                content: "";
+                flex: 1;
+                height: 1px;
+                background: #e5e7eb;
+            }
+            .divider span {
+                color: #9ca3af;
+                font-size: 12px;
+            }
+            .loading {
+                text-align: center;
+                padding: 28px;
+                color: #6b7280;
+            }
+            .spin {
+                display: inline-block;
+                width: 26px;
+                height: 26px;
+                border: 3px solid #e5e7eb;
+                border-top-color: #00a8e0;
+                border-radius: 50%;
+                animation: sp 0.7s linear infinite;
+                margin-bottom: 8px;
+            }
+            @keyframes sp {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            .no-slots {
+                text-align: center;
+                padding: 28px;
+                color: #6b7280;
+            }
+            .no-slots .ico {
+                font-size: 34px;
+                margin-bottom: 10px;
+            }
+            .alert {
+                padding: 11px 14px;
+                border-radius: 8px;
+                font-size: 13px;
+                margin-bottom: 14px;
+            }
+            .alert-err {
+                background: #fef2f2;
+                color: #dc2626;
+                border: 1px solid #fecaca;
+            }
+            .alert-inf {
+                background: #eff6ff;
+                color: #2563eb;
+                border: 1px solid #bfdbfe;
+            }
+            .booked-by-bar {
+                background: #f9fafb;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 11px 13px;
+                margin-bottom: 16px;
+                font-size: 13px;
+                color: #374151;
+            }
+            .booked-by-bar select {
+                border: none;
+                background: transparent;
+                font-size: 13px;
+                color: #1f2937;
+                font-weight: 700;
+                margin-left: 6px;
+                cursor: pointer;
+            }
+            @media (max-width: 480px) {
+                .form-row {
+                    grid-template-columns: 1fr;
+                }
+                .time-grid {
+                    grid-template-columns: 1fr 1fr;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>AT&T Activation Scheduler</h1>
+            <p>Book your device activation appointment</p>
+        </div>
+
+        <div class="container">
+            <div class="progress-wrap" id="progressWrap">
+                <div class="prog-fill" id="progFill" style="width: 0%"></div>
+                <div class="step-dot">
+                    <div class="dot active" id="dot1">1</div>
+                    <span class="step-label">Type</span>
+                </div>
+                <div class="step-dot">
+                    <div class="dot" id="dot2">2</div>
+                    <span class="step-label">Date</span>
+                </div>
+                <div class="step-dot">
+                    <div class="dot" id="dot3">3</div>
+                    <span class="step-label">Time</span>
+                </div>
+                <div class="step-dot">
+                    <div class="dot" id="dot4">4</div>
+                    <span class="step-label">Details</span>
+                </div>
+                <div class="step-dot">
+                    <div class="dot" id="dot5">✓</div>
+                    <span class="step-label">Confirm</span>
+                </div>
+            </div>
+
+            <!-- STEP 1 -->
+            <div id="step1" class="card">
+                <h2>Appointment Type</h2>
+                <p class="sub">
+                    Choose how you'd like your activation performed
+                </p>
+
+                <div class="opt-grid">
+                    <button
+                        class="opt-btn"
+                        id="typePhone"
+                        onclick="selectType('phone')"
+                    >
+                        <div class="icon">📞</div>
+                        <div class="lbl">Phone</div>
+                        <div class="dsc">Activation over the phone</div>
+                    </button>
+                    <button
+                        class="opt-btn"
+                        id="typeInPerson"
+                        onclick="selectType('inperson')"
+                    >
+                        <div class="icon">🏪</div>
+                        <div class="lbl">In-Person</div>
+                        <div class="dsc">Activator comes to you</div>
+                    </button>
+                </div>
+
+                <div class="divider"><span>Choose Activator</span></div>
+
+                <div class="opt-grid" style="margin-bottom: 14px">
+                    <button
+                        class="opt-btn"
+                        id="modeSpecific"
+                        onclick="selectMode('specific')"
+                    >
+                        <div class="icon">👤</div>
+                        <div class="lbl">Specific</div>
+                        <div class="dsc">Choose your activator</div>
+                    </button>
+                    <button
+                        class="opt-btn"
+                        id="modeNext"
+                        onclick="selectMode('next')"
+                    >
+                        <div class="icon">⚡</div>
+                        <div class="lbl">Next Available</div>
+                        <div class="dsc">First open slot</div>
+                    </button>
+                </div>
+
+                <div id="actListWrap" style="display: none">
+                    <div class="act-list" id="actCards">
+                        <div class="loading">
+                            <div class="spin"></div>
+                            <br />Loading activators…
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button
+                        class="btn btn-p"
+                        id="s1Next"
+                        onclick="goStep(2)"
+                        disabled
+                    >
+                        Continue →
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2 -->
+            <div id="step2" class="card" style="display: none">
+                <h2>Select a Date</h2>
+                <p class="sub">Choose the date for your appointment</p>
+                <div class="fg">
+                    <label>Date <span>*</span></label>
+                    <input
+                        type="date"
+                        id="dateInput"
+                        onchange="onDateChange(this.value)"
+                    />
+                </div>
+                <div
+                    id="advanceNote"
+                    class="alert alert-inf"
+                    style="margin-bottom: 10px"
+                ></div>
+                <div
+                    id="dateInfo"
+                    class="alert alert-inf"
+                    style="display: none"
+                ></div>
+                <div class="btn-row">
+                    <button class="btn btn-s" onclick="goStep(1)">
+                        ← Back
+                    </button>
+                    <button
+                        class="btn btn-p"
+                        id="s2Next"
+                        onclick="goStep(3, true)"
+                        disabled
+                    >
+                        Continue →
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 3 -->
+            <div id="step3" class="card" style="display: none">
+                <h2>Select a Time</h2>
+                <p class="sub" id="s3sub">Choose an available time slot</p>
+                <div id="slotsWrap">
+                    <div class="loading">
+                        <div class="spin"></div>
+                        <br />Loading available times…
+                    </div>
+                </div>
+                <div class="btn-row" style="margin-top: 18px">
+                    <button class="btn btn-s" onclick="goStep(2)">
+                        ← Back
+                    </button>
+                    <button
+                        class="btn btn-p"
+                        id="s3Next"
+                        onclick="goStep(4)"
+                        disabled
+                    >
+                        Continue →
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 4 -->
+            <div id="step4" class="card" style="display: none">
+                <h2>Customer Information</h2>
+                <p class="sub">Enter the details for this appointment</p>
+
+                <div class="booked-by-bar">
+                    Booking as:
+                    <select id="bookedBy">
+                        <option value="Client">Client</option>
+                        <option value="Rep">Rep</option>
+                        <option value="Activator">Activator</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="fg">
+                        <label>Customer Name <span>*</span></label>
+                        <input
+                            type="text"
+                            id="custName"
+                            placeholder="Full name"
+                            oninput="chkS4()"
+                        />
+                    </div>
+                    <div class="fg">
+                        <label>DSI / SPM Number <span>*</span></label>
+                        <input
+                            type="text"
+                            id="dsiNum"
+                            placeholder="DSI or SPM #"
+                            oninput="chkS4()"
+                        />
+                    </div>
+                </div>
+
+                <div class="fg">
+                    <label>Customer Email <span>*</span></label>
+                    <input
+                        type="email"
+                        id="custEmail"
+                        placeholder="email@example.com"
+                        oninput="chkS4()"
+                    />
+                    <div class="hint">Confirmation will be sent here</div>
+                </div>
+
+                <div class="fg">
+                    <label>Customer Phone <span>*</span></label>
+                    <input
+                        type="tel"
+                        id="custPhone"
+                        placeholder="(555) 555-5555"
+                        oninput="chkS4()"
+                    />
+                </div>
+
+                <div class="fg">
+                    <label>Number of Devices <span>*</span></label>
+                    <select id="deviceCount" onchange="chkS4()">
+                        <option value="">— Select —</option>
+                        <option value="1">1 device</option>
+                        <option value="2">2 devices</option>
+                        <option value="3">3 devices</option>
+                        <option value="4">4 devices</option>
+                        <option value="5">5 devices</option>
+                        <option value="6">6+ devices</option>
+                    </select>
+                </div>
+
+                <div class="fg" id="addrGroup" style="display: none">
+                    <label>Address <span>*</span></label>
+                    <input
+                        type="text"
+                        id="custAddr"
+                        placeholder="Customer's address — activator will travel here"
+                        oninput="chkS4()"
+                    />
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-s" onclick="goStep(3)">
+                        ← Back
+                    </button>
+                    <button
+                        class="btn btn-p"
+                        id="s4Next"
+                        onclick="goStep(5)"
+                        disabled
+                    >
+                        Review →
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 5: Review -->
+            <div id="step5" class="card" style="display: none">
+                <h2>Review & Confirm</h2>
+                <p class="sub">Please review your details before confirming</p>
+                <div class="sum-box" id="reviewBox"></div>
+                <div
+                    id="submitErr"
+                    class="alert alert-err"
+                    style="display: none"
+                ></div>
+                <div class="btn-row">
+                    <button class="btn btn-s" onclick="goStep(4)">
+                        ← Edit
+                    </button>
+                    <button
+                        class="btn btn-p"
+                        id="submitBtn"
+                        onclick="submitBooking()"
+                    >
+                        Confirm Appointment
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 6: Success -->
+            <div id="step6" class="card" style="display: none">
+                <div class="succ-wrap">
+                    <div class="succ-circle">✓</div>
+                    <h3>Appointment Confirmed!</h3>
+                    <p id="succMsg">A confirmation email has been sent.</p>
+                </div>
+                <div class="sum-box" id="succSummary"></div>
+                <div style="margin-top: 20px">
+                    <button class="btn btn-p" onclick="resetForm()">
+                        Book Another Appointment
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const S = {
+                type: null,
+                mode: null,
+                actId: null,
+                actName: null,
+                actTz: null,
+                date: null,
+                time: null,
+            };
+            let activators = [];
+
+            window.onload = function () {
+                const today = new Date();
+                document.getElementById("dateInput").min = fmt(today);
+                document.getElementById("advanceNote").textContent =
+                    "Appointments must be booked at least 4 hours in advance.";
+                loadActivators();
+            };
+
+            function fmt(d) {
+                return (
+                    d.getFullYear() +
+                    "-" +
+                    pad(d.getMonth() + 1) +
+                    "-" +
+                    pad(d.getDate())
+                );
+            }
+            function pad(n) {
+                return String(n).padStart(2, "0");
+            }
+
+            function loadActivators() {
+                google.script.run
+                    .withSuccessHandler(function (data) {
+                        activators = data;
+                        renderActCards(data);
+                    })
+                    .withFailureHandler(function () {})
+                    .getActivators();
+            }
+
+            function renderActCards(list) {
+                const el = document.getElementById("actCards");
+                if (!list.length) {
+                    el.innerHTML =
+                        '<div class="alert alert-inf">No activators are set up yet.</div>';
+                    return;
+                }
+                el.innerHTML = list
+                    .map(
+                        (a) =>
+                            `<div class="act-card" id="ac_${a.id}" onclick="pickActivator('${a.id}','${escQ(a.name)}','${a.timezone}')">
+      <div class="act-avatar">${a.name.charAt(0).toUpperCase()}</div>
+      <div>
+        <div class="act-name">${a.name}</div>
+        <div class="act-tz">${tzLabel(a.timezone)}</div>
+      </div>
+    </div>`,
+                    )
+                    .join("");
+            }
+
+            function selectType(t) {
+                S.type = t;
+                document
+                    .getElementById("typePhone")
+                    .classList.toggle("sel", t === "phone");
+                document
+                    .getElementById("typeInPerson")
+                    .classList.toggle("sel", t === "inperson");
+                document.getElementById("addrGroup").style.display =
+                    t === "inperson" ? "block" : "none";
+                chkS1();
+            }
+
+            function selectMode(m) {
+                S.mode = m;
+                document
+                    .getElementById("modeSpecific")
+                    .classList.toggle("sel", m === "specific");
+                document
+                    .getElementById("modeNext")
+                    .classList.toggle("sel", m === "next");
+                document.getElementById("actListWrap").style.display =
+                    m === "specific" ? "block" : "none";
+                if (m === "next") {
+                    S.actId = "next";
+                    S.actName = "Next Available";
+                    S.actTz = null;
+                } else {
+                    S.actId = null;
+                    S.actName = null;
+                }
+                chkS1();
+            }
+
+            function pickActivator(id, name, tz) {
+                S.actId = id;
+                S.actName = name;
+                S.actTz = tz;
+                document
+                    .querySelectorAll(".act-card")
+                    .forEach((c) => c.classList.remove("sel"));
+                document.getElementById("ac_" + id).classList.add("sel");
+                chkS1();
+            }
+
+            function chkS1() {
+                const ok =
+                    S.type &&
+                    (S.mode === "next" || (S.mode === "specific" && S.actId));
+                document.getElementById("s1Next").disabled = !ok;
+            }
+
+            function onDateChange(v) {
+                S.date = v;
+                const d = new Date(v + "T12:00:00");
+                const days = [
+                    "Sunday",
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                ];
+                document.getElementById("dateInfo").style.display = "block";
+                document.getElementById("dateInfo").textContent =
+                    "Selected: " + days[d.getDay()] + ", " + fmtDate(v);
+                document.getElementById("s2Next").disabled = false;
+            }
+
+            function loadSlots() {
+                document.getElementById("slotsWrap").innerHTML =
+                    '<div class="loading"><div class="spin"></div><br>Loading available times…</div>';
+                document.getElementById("s3Next").disabled = true;
+
+                if (S.mode === "next") {
+                    google.script.run
+                        .withSuccessHandler(renderNextSlots)
+                        .withFailureHandler(slotsErr)
+                        .getNextAvailableSlots(S.date);
+                } else {
+                    google.script.run
+                        .withSuccessHandler(renderSpecificSlots)
+                        .withFailureHandler(slotsErr)
+                        .getAvailableSlots(S.actId, S.date);
+                }
+            }
+
+            function renderSpecificSlots(slots) {
+                document.getElementById("s3sub").textContent =
+                    "Available times for " +
+                    S.actName +
+                    " (" +
+                    tzLabel(S.actTz) +
+                    ")";
+                if (!slots.length) {
+                    noSlots();
+                    return;
+                }
+                document.getElementById("slotsWrap").innerHTML =
+                    '<div class="time-grid">' +
+                    slots
+                        .map(
+                            (s) =>
+                                `<div class="ts" onclick="pickTime('${s}','${S.actId}','${escQ(S.actName)}','${S.actTz || ""}',this)">
+        <div class="tt">${fmtTime(s)}</div>
+        <div class="at">${tzLabel(S.actTz)}</div>
+      </div>`,
+                        )
+                        .join("") +
+                    "</div>";
+            }
+
+            function renderNextSlots(slots) {
+                document.getElementById("s3sub").textContent =
+                    "Available times across all activators";
+                if (!slots.length) {
+                    noSlots();
+                    return;
+                }
+                document.getElementById("slotsWrap").innerHTML =
+                    '<div class="time-grid">' +
+                    slots
+                        .map(
+                            (s) =>
+                                `<div class="ts" onclick="pickTime('${s.time}','${s.activatorId}','${escQ(s.activatorName)}','${s.timezone || ""}',this)">
+        <div class="tt">${fmtTime(s.time)}</div>
+        <div class="at">${s.activatorName}</div>
+      </div>`,
+                        )
+                        .join("") +
+                    "</div>";
+            }
+
+            function pickTime(time, actId, actName, tz, el) {
+                S.time = time;
+                S.actId = actId;
+                S.actName = actName;
+                S.actTz = tz;
+                document
+                    .querySelectorAll(".ts")
+                    .forEach((t) => t.classList.remove("sel"));
+                el.classList.add("sel");
+                document.getElementById("s3Next").disabled = false;
+            }
+
+            function noSlots() {
+                document.getElementById("slotsWrap").innerHTML =
+                    '<div class="no-slots"><div class="ico">📅</div>' +
+                    "<strong>No available times on this date</strong><br>" +
+                    '<span style="font-size:12px">Go back and select a different date</span></div>';
+            }
+
+            function slotsErr() {
+                document.getElementById("slotsWrap").innerHTML =
+                    '<div class="alert alert-err">Failed to load time slots. Please try again.</div>';
+            }
+
+            function chkS4() {
+                const name = val("custName");
+                const email = val("custEmail");
+                const phone = val("custPhone");
+                const dsi = val("dsiNum");
+                const addr = val("custAddr");
+                const needAddr = S.type === "inperson";
+                const devices = val("deviceCount");
+                const ok =
+                    name &&
+                    email &&
+                    phone &&
+                    dsi &&
+                    devices &&
+                    (!needAddr || addr) &&
+                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+                document.getElementById("s4Next").disabled = !ok;
+            }
+
+            function buildSummary(boxId) {
+                const rows = [
+                    ["Date", fmtDate(S.date)],
+                    [
+                        "Time",
+                        fmtTime(S.time) +
+                            (S.actTz ? " (" + tzLabel(S.actTz) + ")" : ""),
+                    ],
+                    [
+                        "Type",
+                        S.type === "phone"
+                            ? "Phone Appointment"
+                            : "In-Person Appointment",
+                    ],
+                    ["Activator", S.actName],
+                    ["Customer", val("custName")],
+                    ["Email", val("custEmail")],
+                    ["Phone", val("custPhone")],
+                    ["DSI/SPM #", val("dsiNum")],
+                    [
+                        "Devices",
+                        val("deviceCount") +
+                            " device" +
+                            (val("deviceCount") === "1" ? "" : "s"),
+                    ],
+                ];
+                if (S.type === "inperson")
+                    rows.push(["Address", val("custAddr")]);
+                document.getElementById(boxId).innerHTML = rows
+                    .map(
+                        ([l, v]) =>
+                            `<div class="sum-row"><span class="sum-lbl">${l}</span><span class="sum-val">${v || "—"}</span></div>`,
+                    )
+                    .join("");
+            }
+
+            function submitBooking() {
+                const btn = document.getElementById("submitBtn");
+                btn.disabled = true;
+                btn.textContent = "Confirming…";
+                document.getElementById("submitErr").style.display = "none";
+
+                google.script.run
+                    .withSuccessHandler(function (res) {
+                        if (res.success) {
+                            document.getElementById("succMsg").textContent =
+                                "Appointment " +
+                                res.id +
+                                " confirmed! Check your email for details.";
+                            buildSummary("succSummary");
+                            goStep(6);
+                        } else {
+                            showErr("Booking failed. Please try again.");
+                            btn.disabled = false;
+                            btn.textContent = "Confirm Appointment";
+                        }
+                    })
+                    .withFailureHandler(function () {
+                        showErr("An error occurred. Please try again.");
+                        btn.disabled = false;
+                        btn.textContent = "Confirm Appointment";
+                    })
+                    .createAppointment({
+                        date: S.date,
+                        time: S.time,
+                        activatorId: S.actId,
+                        activatorName: S.actName,
+                        activatorTimezone: S.actTz,
+                        customerName: val("custName"),
+                        customerEmail: val("custEmail"),
+                        customerPhone: val("custPhone"),
+                        address: val("custAddr"),
+                        dsiSpmNumber: val("dsiNum"),
+                        appointmentType: S.type,
+                        bookedBy: document.getElementById("bookedBy").value,
+                        deviceCount: parseInt(val("deviceCount")) || 1,
+                    });
+            }
+
+            function showErr(msg) {
+                const el = document.getElementById("submitErr");
+                el.textContent = msg;
+                el.style.display = "block";
+            }
+
+            function goStep(n, loadSlotsFlag) {
+                for (let i = 1; i <= 6; i++) {
+                    const el = document.getElementById("step" + i);
+                    if (el) el.style.display = i === n ? "block" : "none";
+                }
+                for (let i = 1; i <= 5; i++) {
+                    const d = document.getElementById("dot" + i);
+                    if (!d) continue;
+                    d.classList.remove("active", "done");
+                    if (i < n) d.classList.add("done");
+                    else if (i === n) d.classList.add("active");
+                }
+                const pct = Math.min(((n - 1) / 4) * 100, 100);
+                document.getElementById("progFill").style.width = pct + "%";
+                if (n === 3 && loadSlotsFlag) loadSlots();
+                if (n === 4)
+                    document.getElementById("addrGroup").style.display =
+                        S.type === "inperson" ? "block" : "none";
+                if (n === 5) buildSummary("reviewBox");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
+            function resetForm() {
+                Object.assign(S, {
+                    type: null,
+                    mode: null,
+                    actId: null,
+                    actName: null,
+                    actTz: null,
+                    date: null,
+                    time: null,
+                });
+                [
+                    "custName",
+                    "custEmail",
+                    "custPhone",
+                    "custAddr",
+                    "dsiNum",
+                    "dateInput",
+                ].forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = "";
+                });
+                document
+                    .querySelectorAll(".opt-btn,.act-card,.ts")
+                    .forEach((e) => e.classList.remove("sel"));
+                document.getElementById("s1Next").disabled = true;
+                document.getElementById("actListWrap").style.display = "none";
+                goStep(1);
+            }
+
+            function val(id) {
+                return (document.getElementById(id) || {}).value || "";
+            }
+            function escQ(s) {
+                return (s || "").replace(/'/g, "\\'");
+            }
+
+            function fmtTime(t) {
+                if (!t) return "";
+                const [h, m] = t.split(":").map(Number);
+                const per = h >= 12 ? "PM" : "AM";
+                const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                return h12 + ":" + pad(m) + " " + per;
+            }
+
+            function fmtDate(d) {
+                if (!d) return "";
+                const [y, mo, dd] = d.split("-").map(Number);
+                return new Date(y, mo - 1, dd).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                });
+            }
+
+            function tzLabel(tz) {
+                const m = {
+                    "America/New_York": "Eastern",
+                    "America/Chicago": "Central",
+                    "America/Denver": "Mountain",
+                    "America/Los_Angeles": "Pacific",
+                    "America/Anchorage": "Alaska",
+                    "Pacific/Honolulu": "Hawaii",
+                    "America/Phoenix": "Arizona",
+                };
+                return m[tz] || tz || "";
+            }
+        </script>
+    </body>
+</html>
