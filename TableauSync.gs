@@ -101,22 +101,17 @@ var REPORTS = {
     columns: [
       'Owner & Office',
       'Rep',
-      'rep.Rep Number',
       'Customer Name',
       'sp.SPM Number',
-      'spe.Account BAN',
-      'spe.TN',
       'Product Type (Broken out lvl 2)',
-      'Type+Device+Package',
       'sp.Order Date (copy)',
       'Ship Date (SP)',
-      'spe.Status',
       'DTR Status (enriched)',
       'Activation Bucket',
       'SPE.DTR Current Due Date (date)',
       'Unit Count'
     ],
-    deduplicateKey: ['sp.SPM Number', 'spe.TN']
+    deduplicateKey: ['sp.SPM Number', 'Customer Name']
   },
 
   'b2b-activation-rates': {
