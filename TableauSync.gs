@@ -121,7 +121,6 @@ var REPORTS = {
     columns: [
       'Owner & Office',
       'Activation Color',
-      'Calculation1 (1)',
       '0-7 Days',
       '8-14 Days',
       '15-30 Days',
