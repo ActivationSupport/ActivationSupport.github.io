@@ -1,6 +1,322 @@
 <!doctype html>
-<html>
-    <body>
-        <h1>Hello, world!</h1>
-    </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activation Support — Tools & Resources</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f4f8;
+      color: #1a1a2e;
+      line-height: 1.6;
+    }
+
+    header {
+      background: #1F4E78;
+      color: #fff;
+      padding: 40px 24px 32px;
+      text-align: center;
+    }
+    header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p  { margin-top: 8px; font-size: 1rem; color: #b8d4f0; }
+
+    main {
+      max-width: 960px;
+      margin: 40px auto;
+      padding: 0 24px 60px;
+      display: grid;
+      gap: 28px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.10);
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: #2E75B6;
+      color: #fff;
+      padding: 14px 20px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+    .card-header.dark { background: #1F4E78; }
+
+    .card-body { padding: 20px; }
+
+    /* Two-column grid inside a card */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+
+    .section-label {
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #2E75B6;
+      margin-bottom: 10px;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th {
+      text-align: left;
+      background: #D6E4F0;
+      color: #1F4E78;
+      font-weight: 700;
+      padding: 8px 12px;
+    }
+    td { padding: 8px 12px; border-bottom: 1px solid #eef2f7; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #f9fbfd; }
+
+    .badge {
+      display: inline-block;
+      font-size: .72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #D6E4F0;
+      color: #1F4E78;
+    }
+    .badge.green  { background: #C6EFCE; color: #1E5631; }
+    .badge.yellow { background: #FFF2CC; color: #7F6000; }
+    .badge.red    { background: #FCE4D6; color: #9C0006; }
+    .badge.gray   { background: #efefef; color: #555; }
+
+    .step-list { list-style: none; }
+    .step-list li {
+      display: flex;
+      gap: 14px;
+      padding: 10px 0;
+      border-bottom: 1px solid #eef2f7;
+      font-size: .9rem;
+    }
+    .step-list li:last-child { border-bottom: none; }
+    .step-num {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #2E75B6;
+      color: #fff;
+      font-weight: 700;
+      font-size: .78rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+    .step-list strong { display: block; color: #1F4E78; }
+
+    .callout {
+      background: #FFF2CC;
+      color: #7F6000;
+      border-left: 4px solid #FFD700;
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      font-size: .88rem;
+      margin-top: 14px;
+    }
+
+    footer {
+      text-align: center;
+      font-size: .8rem;
+      color: #999;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Activation Support</h1>
+  <p>Daily Call List &amp; Appointment Scheduling — Setup &amp; Reference</p>
+</header>
+
+<main>
+
+  <!-- ── Overview ─────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header dark">What's In This Repo</div>
+    <div class="card-body">
+      <div class="two-col">
+        <div>
+          <div class="section-label">Call List Scripts</div>
+          <table>
+            <tr><th>File</th><th>Version</th></tr>
+            <tr>
+              <td>CallList_final.gs</td>
+              <td><span class="badge green">B2B</span></td>
+            </tr>
+            <tr>
+              <td>CallList_ICD.gs</td>
+              <td><span class="badge">NDS</span></td>
+            </tr>
+          </table>
+          <p style="font-size:.82rem;color:#666;margin-top:8px;">Both are production scripts. B2B and NDS have different CSV column mappings — use the right one for each office.</p>
+        </div>
+        <div>
+          <div class="section-label">Scheduling System</div>
+          <table>
+            <tr><th>File</th><th>Role</th></tr>
+            <tr><td>Code.gs</td><td>Backend</td></tr>
+            <tr><td>MasterDashboard.gs</td><td>Multi-office view</td></tr>
+            <tr><td>SchedulerBridge.gs</td><td>Call List integration</td></tr>
+            <tr><td>booking.html</td><td>Customer booking page</td></tr>
+            <tr><td>admin.html</td><td>Admin dashboard</td></tr>
+            <tr><td>setup.html</td><td>Activator setup</td></tr>
+            <tr><td>cancel.html / reschedule.html</td><td>Self-service</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Call List: Daily Workflow ────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">Daily Call List Workflow</div>
+    <div class="card-body">
+      <ul class="step-list">
+        <li>
+          <span class="step-num">1</span>
+          <div><strong>Import Order Log CSV</strong>Call List &rarr; Import Order Log CSV &rarr; select <em>Order Log.csv</em></div>
+        </li>
+        <li>
+          <span class="step-num">2</span>
+          <div><strong>Import Activation Order Log</strong>Call List &rarr; Import CSV &amp; Build &rarr; select <em>Activation Oppt Order Log (X).csv</em></div>
+        </li>
+        <li>
+          <span class="step-num">3</span>
+          <div><strong>Make calls — add notes &amp; ratings</strong>Click any row &rarr; type in the Notes column &rarr; pick a Rating from the dropdown. Notes survive every future import.</div>
+        </li>
+        <li>
+          <span class="step-num">4</span>
+          <div><strong>Refresh Daily Report (end of day)</strong>Call List &rarr; Refresh Daily Report — builds the email-ready summary. Appointments section populates automatically.</div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── Tabs & Ratings ───────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header dark">Sheet Tabs &amp; Ratings Reference</div>
+    <div class="card-body two-col">
+      <div>
+        <div class="section-label">Tabs</div>
+        <table>
+          <tr><th>Tab</th><th>Contents</th></tr>
+          <tr><td>Master Tracker</td><td>All active orders</td></tr>
+          <tr><td>Completed Orders</td><td>Fully done orders</td></tr>
+          <tr><td>Day-After Orders</td><td>Yesterday's orders — today's calls</td></tr>
+          <tr><td>Delivered Not Activated</td><td>Delivered, not yet activated</td></tr>
+          <tr><td>Order Issues</td><td>Porting, payment, cluster issues</td></tr>
+          <tr><td>Escalations</td><td>Poor / Bad rated customers</td></tr>
+          <tr><td>Rep Activation</td><td>Activation rate per rep</td></tr>
+          <tr><td>Rep Churn</td><td>Churn rate per rep</td></tr>
+          <tr><td>Daily Report</td><td>End-of-day email summary</td></tr>
+          <tr><td>Appointments</td><td>All scheduled appointments</td></tr>
+          <tr><td>Activators</td><td>Activator profiles &amp; availability</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="section-label">Ratings</div>
+        <table>
+          <tr><th>Rating</th><th>Meaning</th></tr>
+          <tr><td><span class="badge green">5 Stars</span></td><td>Excellent — customer happy</td></tr>
+          <tr><td><span class="badge green" style="background:#e2efda;color:#385723">4 Stars</span></td><td>Good — no issues</td></tr>
+          <tr><td><span class="badge yellow">3 Stars</span></td><td>Neutral</td></tr>
+          <tr><td><span class="badge red" style="background:#fce4d6;color:#9c0006">2 Stars</span></td><td>Poor — auto-flags to Escalations</td></tr>
+          <tr><td><span class="badge red">1 Star</span></td><td>Bad — auto-flags to Escalations</td></tr>
+          <tr><td><span class="badge gray">No Answer</span></td><td>Called, no response</td></tr>
+        </table>
+        <div class="section-label" style="margin-top:16px;">Activation Buckets</div>
+        <table>
+          <tr><th>Bucket</th><th>Age</th></tr>
+          <tr><td><span class="badge green">0–7 Days</span></td><td>Newest</td></tr>
+          <tr><td><span class="badge yellow">8–14 Days</span></td><td>1–2 weeks old</td></tr>
+          <tr><td><span class="badge red" style="background:#fce4d6;color:#7f2704">15–30 Days</span></td><td>Needs attention</td></tr>
+          <tr><td><span class="badge red">31–60 Days</span></td><td>High priority</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Scheduling System Setup ──────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">Scheduling System — Quick Setup</div>
+    <div class="card-body">
+      <ul class="step-list">
+        <li>
+          <span class="step-num">1</span>
+          <div><strong>Create a new Google Sheet named "Activation Scheduler"</strong>Extensions &rarr; Apps Script to open the editor.</div>
+        </li>
+        <li>
+          <span class="step-num">2</span>
+          <div><strong>Paste the 6 script files</strong>Code.gs + booking.html + admin.html + setup.html + cancel.html + reschedule.html — file names must match exactly.</div>
+        </li>
+        <li>
+          <span class="step-num">3</span>
+          <div><strong>Run <code>initializeSystem()</code></strong>Creates the Appointments, Activators, Blocked Times, and Admins sheets.</div>
+        </li>
+        <li>
+          <span class="step-num">4</span>
+          <div><strong>Deploy as Web App</strong>Deploy &rarr; New Deployment &rarr; Web App &rarr; Execute as: Me &rarr; Access: Anyone.</div>
+        </li>
+        <li>
+          <span class="step-num">5</span>
+          <div><strong>Save Web App URL in Script Properties</strong>Project Settings &rarr; Script Properties &rarr; key: <code>WEB_APP_URL</code></div>
+        </li>
+        <li>
+          <span class="step-num">6</span>
+          <div><strong>Run <code>setupReminderTrigger()</code></strong>Enables 24-hour and 1-hour automated reminder emails.</div>
+        </li>
+        <li>
+          <span class="step-num">7</span>
+          <div><strong>Connect each Call List via SchedulerBridge.gs</strong>Paste SchedulerBridge.gs into the office sheet's Apps Script. Set <code>SCHEDULER_SPREADSHEET_ID</code> and <code>SCHEDULER_WEB_APP_URL</code>.</div>
+        </li>
+      </ul>
+      <div class="callout">Default admin password is <strong>admin123</strong> — change it in Script Properties (<code>ADMIN_PASSWORD</code>) before sharing the admin link.</div>
+    </div>
+  </div>
+
+  <!-- ── Booking Links Reference ──────────────────────────────── -->
+  <div class="card">
+    <div class="card-header dark">Web App Links (once deployed)</div>
+    <div class="card-body">
+      <table>
+        <tr><th>Page</th><th>URL Pattern</th><th>Share With</th></tr>
+        <tr>
+          <td>Booking Page</td>
+          <td><code>...exec</code></td>
+          <td>Customers &amp; reps</td>
+        </tr>
+        <tr>
+          <td>Admin Dashboard</td>
+          <td><code>...exec?page=admin</code></td>
+          <td>Admins only</td>
+        </tr>
+        <tr>
+          <td>Activator Setup</td>
+          <td><code>...exec?page=setup</code></td>
+          <td>Each activator (once)</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>Activation Support &mdash; Internal Tools Reference</footer>
+
+</body>
 </html>
