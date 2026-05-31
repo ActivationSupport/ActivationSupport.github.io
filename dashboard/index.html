@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activation Support</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1F4E78;--blue2:#2E75B6;--blue3:#D6E4F0;
+  --green:#1E5631;--green2:#C6EFCE;
+  --yellow:#7F6000;--yellow2:#FFF2CC;
+  --red:#9C0006;--red2:#FCE4D6;
+  --gray:#555;--gray2:#efefef;
+  --sidebar:220px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f4f8;color:#1a1a2e;line-height:1.5;height:100vh;overflow:hidden}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:var(--blue);display:flex;align-items:center;justify-content:center;z-index:100}
+.login-card{background:#fff;border-radius:12px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.login-card h1{font-size:1.5rem;color:var(--blue);margin-bottom:4px}
+.login-card p{font-size:.85rem;color:#666;margin-bottom:28px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#555;margin-bottom:6px}
+.field input{width:100%;padding:10px 12px;border:1.5px solid #d1d9e0;border-radius:6px;font-size:.95rem;outline:none;transition:border .15s}
+.field input:focus{border-color:var(--blue2)}
+.btn{width:100%;padding:11px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s}
+.btn:hover{background:var(--blue2)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+#login-error{color:#c0392b;font-size:.82rem;margin-top:10px;display:none}
+
+/* ── APP SHELL ── */
+#app{display:none;height:100vh;overflow:hidden}
+.shell{display:flex;height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar);background:var(--blue);color:#fff;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-header{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,.12)}
+.sidebar-office{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.55);margin-bottom:2px}
+.sidebar-name{font-size:1rem;font-weight:700}
+.sidebar-user{font-size:.75rem;color:rgba(255,255,255,.65);margin-top:2px}
+nav{flex:1;padding:10px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:.87rem;cursor:pointer;color:rgba(255,255,255,.75);border-left:3px solid transparent;transition:all .15s;user-select:none}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:rgba(255,255,255,.12);color:#fff;border-left-color:#fff;font-weight:600}
+.nav-icon{font-size:1rem;width:20px;text-align:center}
+.sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.12)}
+.sign-out{font-size:.78rem;color:rgba(255,255,255,.55);cursor:pointer;display:flex;align-items:center;gap:6px}
+.sign-out:hover{color:#fff}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.topbar{background:#fff;padding:14px 24px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar h2{font-size:1.05rem;font-weight:700;color:var(--blue)}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.refresh-btn{padding:6px 14px;background:var(--blue3);color:var(--blue);border:none;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:background .15s}
+.refresh-btn:hover{background:#b8d4f0}
+.content{padding:20px 24px;flex:1}
+
+/* ── CARDS ── */
+.card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:16px;overflow:hidden}
+.card-header{background:var(--blue2);color:#fff;padding:12px 16px;font-size:.88rem;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+.card-header.dark{background:var(--blue)}
+.card-body{padding:16px}
+
+/* ── STAT ROW ── */
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);text-align:center}
+.stat-val{font-size:2rem;font-weight:700;color:var(--blue);line-height:1}
+.stat-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-top:4px}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;background:var(--blue3);color:var(--blue);font-weight:700;padding:9px 12px;white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid #eef2f7;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:nth-child(even) td{background:#f9fbfd}
+tr:hover td{background:#f0f7ff}
+
+/* ── BADGES ── */
+.badge{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.badge-blue{background:var(--blue3);color:var(--blue)}
+.badge-green{background:var(--green2);color:var(--green)}
+.badge-yellow{background:var(--yellow2);color:var(--yellow)}
+.badge-red{background:var(--red2);color:var(--red)}
+.badge-gray{background:var(--gray2);color:var(--gray)}
+
+/* ── SEARCH/FILTER ── */
+.filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.filter-row input,.filter-row select{padding:7px 10px;border:1.5px solid #d1d9e0;border-radius:6px;font-size:.84rem;outline:none}
+.filter-row input:focus,.filter-row select:focus{border-color:var(--blue2)}
+.filter-row input{flex:1;min-width:180px}
+
+/* ── LOADING / EMPTY ── */
+.spinner{text-align:center;padding:48px;color:#aaa;font-size:.9rem}
+.empty{text-align:center;padding:40px;color:#aaa;font-size:.88rem}
+
+/* ── PILLS for activation bucket ── */
+.pill-0-7{background:#C6EFCE;color:#1E5631;padding:2px 7px;border-radius:8px;font-size:.72rem;font-weight:700}
+.pill-8-14{background:#FFF2CC;color:#7F6000;padding:2px 7px;border-radius:8px;font-size:.72rem;font-weight:700}
+.pill-15-30{background:#FCE4D6;color:#7F2704;padding:2px 7px;border-radius:8px;font-size:.72rem;font-weight:700}
+.pill-31-60{background:#F8CBAD;color:#660000;padding:2px 7px;border-radius:8px;font-size:.72rem;font-weight:700}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:200}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:10px;padding:28px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h3{font-size:1rem;color:var(--blue);margin-bottom:16px;font-weight:700}
+.modal-close{float:right;cursor:pointer;color:#aaa;font-size:1.2rem;margin-top:-4px}
+.modal-close:hover{color:#333}
+.detail-row{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid #eef2f7;font-size:.85rem}
+.detail-row:last-child{border-bottom:none}
+.detail-label{font-weight:600;color:#555;min-width:140px;flex-shrink:0}
+.detail-val{color:#222}
+
+/* ── RESPONSIVE ── */
+@media(max-width:640px){
+  .sidebar{width:56px}
+  .sidebar-header,.sidebar-office,.sidebar-name,.sidebar-user,.nav-item span,.sidebar-footer{display:none}
+  .nav-item{justify-content:center;padding:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Activation Support</h1>
+    <p id="login-office-name">Loading office…</p>
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>PIN</label>
+      <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric">
+    </div>
+    <button class="btn" id="login-btn">Sign In</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="shell">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-office">Office</div>
+        <div class="sidebar-name" id="sb-office-name">—</div>
+        <div class="sidebar-user" id="sb-user-name">—</div>
+      </div>
+      <nav id="sidebar-nav"></nav>
+      <div class="sidebar-footer">
+        <div class="sign-out" onclick="signOut()">⬅ <span>Sign Out</span></div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <h2 id="page-title">Dashboard</h2>
+        <div class="topbar-actions">
+          <span id="last-updated" style="font-size:.75rem;color:#999"></span>
+          <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="content" id="main-content">
+        <div class="spinner">Loading…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-bg" id="detail-modal">
+  <div class="modal">
+    <span class="modal-close" onclick="closeModal()">✕</span>
+    <h3 id="modal-title">Details</h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────
+var CFG = {};
+var SESSION = {};
+var DATA = {};
+var CURRENT_TAB = 'aor';
+
+function loadConfig() {
+  var params = new URLSearchParams(window.location.search);
+  var raw = params.get('office');
+  if (!raw) { showError('No office config in URL. Use the link provided by your admin.'); return false; }
+  try {
+    CFG = JSON.parse(atob(raw));
+    document.getElementById('login-office-name').textContent = (CFG.officeName || 'Office') + ' — Activation Support';
+    document.title = (CFG.officeName || 'Activation') + ' Dashboard';
+    return true;
+  } catch(e) {
+    showError('Invalid office config. Contact your admin.'); return false;
+  }
+}
+
+function showError(msg) {
+  document.getElementById('login-office-name').textContent = '⚠ ' + msg;
+}
+
+// ── API ──────────────────────────────────────────────────────────────────
+function api(params) {
+  params.key = CFG.apiKey;
+  params.officeId = CFG.officeId;
+  params.sheetId = CFG.sheetId;
+  var qs = Object.keys(params).map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
+  return fetch(CFG.appsScriptUrl + '?' + qs).then(function(r) { return r.json(); });
+}
+
+function apiPost(body) {
+  body.key = CFG.apiKey;
+  body.officeId = CFG.officeId;
+  body.sheetId = CFG.sheetId;
+  return fetch(CFG.appsScriptUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json(); });
+}
+
+// ── AUTH ─────────────────────────────────────────────────────────────────
+function initLogin() {
+  if (!loadConfig()) return;
+  document.getElementById('login-btn').onclick = doLogin;
+  document.getElementById('login-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('login-email').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-pin').focus(); });
+
+  // Restore session
+  var saved = sessionStorage.getItem('as_session_' + CFG.officeId);
+  if (saved) { try { SESSION = JSON.parse(saved); showApp(); } catch(e) {} }
+}
+
+function doLogin() {
+  var email = document.getElementById('login-email').value.trim().toLowerCase();
+  var pin   = document.getElementById('login-pin').value.trim();
+  var err   = document.getElementById('login-error');
+  var btn   = document.getElementById('login-btn');
+  err.style.display = 'none';
+  if (!email || !pin) { err.textContent = 'Enter your email and PIN.'; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  apiPost({ action: 'validatePin', email: email, pin: pin }).then(function(res) {
+    if (res.ok && res.valid) {
+      SESSION = { email: email };
+      sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
+      showApp();
+    } else {
+      err.textContent = res.error || 'Incorrect PIN. Try again.';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Sign In';
+    }
+  }).catch(function() {
+    err.textContent = 'Connection error. Try again.';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Sign In';
+  });
+}
+
+function signOut() {
+  sessionStorage.removeItem('as_session_' + CFG.officeId);
+  DATA = {}; SESSION = {};
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pin').value = '';
+}
+
+// ── APP INIT ─────────────────────────────────────────────────────────────
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('sb-office-name').textContent = CFG.officeName || '—';
+  buildNav();
+  loadData();
+}
+
+var TABS = [
+  { id: 'aor',        icon: '📋', label: 'AOR',              roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'actrates',   icon: '📊', label: 'Activation Rates', roles: ['admin','owner','manager','jd','l1'] },
+  { id: 'dayafter',   icon: '📞', label: 'Day-After Orders', roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'delivered',  icon: '📦', label: 'Delivered Not Act',roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'issues',     icon: '⚠️', label: 'Order Issues',     roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'escalations',icon: '🚨', label: 'Escalations',      roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'orderlog',   icon: '📄', label: 'Order Log',        roles: ['admin','owner','manager','jd'] },
+  { id: 'churn',      icon: '📉', label: 'Churn Report',     roles: ['admin','owner','manager','jd'] },
+  { id: 'people',     icon: '👥', label: 'People',           roles: ['admin','owner','manager','jd','l1'] },
+];
+
+function buildNav() {
+  var role = SESSION.role || 'rep';
+  var nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = '';
+  TABS.forEach(function(t) {
+    if (!t.roles.includes(role)) return;
+    var el = document.createElement('div');
+    el.className = 'nav-item' + (t.id === CURRENT_TAB ? ' active' : '');
+    el.dataset.tab = t.id;
+    el.innerHTML = '<span class="nav-icon">' + t.icon + '</span><span>' + t.label + '</span>';
+    el.onclick = function() { switchTab(t.id); };
+    nav.appendChild(el);
+  });
+}
+
+function switchTab(id) {
+  CURRENT_TAB = id;
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.tab === id);
+  });
+  var tab = TABS.find(function(t) { return t.id === id; });
+  document.getElementById('page-title').textContent = tab ? tab.label : id;
+  renderTab(id);
+}
+
+// ── DATA ─────────────────────────────────────────────────────────────────
+function loadData() {
+  document.getElementById('main-content').innerHTML = '<div class="spinner">Loading data…</div>';
+  api({ ownerEmail: SESSION.email, ownerName: SESSION.name || '' }).then(function(res) {
+    if (res.error) { document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + res.error + '</div>'; return; }
+    DATA = res;
+    // Determine role from roster
+    var roster = DATA.roster || {};
+    var me = roster[SESSION.email];
+    SESSION.role = me ? (me.rank || 'rep') : 'rep';
+    SESSION.name = me ? (me.name || SESSION.email) : SESSION.email;
+    sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
+    document.getElementById('sb-user-name').textContent = SESSION.name + ' · ' + SESSION.role;
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    buildNav();
+    // Make sure CURRENT_TAB is accessible for this role
+    var tab = TABS.find(function(t) { return t.id === CURRENT_TAB; });
+    if (!tab || !tab.roles.includes(SESSION.role)) {
+      CURRENT_TAB = TABS.find(function(t) { return t.roles.includes(SESSION.role); }).id;
+    }
+    switchTab(CURRENT_TAB);
+  }).catch(function(e) {
+    document.getElementById('main-content').innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="loadData()">Retry</a></div>';
+  });
+}
+
+function refreshData() { loadData(); }
+
+// ── RENDER TABS ───────────────────────────────────────────────────────────
+function renderTab(id) {
+  var c = document.getElementById('main-content');
+  switch(id) {
+    case 'aor':         c.innerHTML = renderAOR();         break;
+    case 'actrates':    c.innerHTML = renderActRates();    break;
+    case 'dayafter':    c.innerHTML = renderDayAfter();    break;
+    case 'delivered':   c.innerHTML = renderDelivered();   break;
+    case 'issues':      c.innerHTML = renderIssues();      break;
+    case 'escalations': c.innerHTML = renderEscalations(); break;
+    case 'orderlog':    c.innerHTML = renderOrderLog();    break;
+    case 'churn':       c.innerHTML = renderChurn();       break;
+    case 'people':      c.innerHTML = renderPeople();      break;
+    default: c.innerHTML = '<div class="empty">Coming soon.</div>';
+  }
+  bindFilters();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function bucketPill(b) {
+  if (!b) return '<span class="badge-gray badge">—</span>';
+  var cls = b.indexOf('0-7')>=0?'pill-0-7':b.indexOf('8-14')>=0?'pill-8-14':b.indexOf('15-30')>=0?'pill-15-30':'pill-31-60';
+  return '<span class="'+cls+'">'+b+'</span>';
+}
+
+function dtrBadge(s) {
+  if (!s) return '<span class="badge badge-gray">—</span>';
+  var cls='badge-gray';
+  if (/active/i.test(s)) cls='badge-green';
+  else if (/deliver/i.test(s)) cls='badge-blue';
+  else if (/pending|order/i.test(s)) cls='badge-yellow';
+  else if (/cancel|disco/i.test(s)) cls='badge-red';
+  return '<span class="badge '+cls+'">'+s+'</span>';
+}
+
+function fmtDate(v) {
+  if (!v) return '—';
+  var d = v instanceof Date ? v : new Date(v);
+  if (isNaN(d.getTime())) return String(v).split('T')[0];
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function filterRows(rows, query, fields) {
+  if (!query) return rows;
+  var q = query.toLowerCase();
+  return rows.filter(function(r) {
+    return fields.some(function(f) { return String(r[f]||'').toLowerCase().includes(q); });
+  });
+}
+
+// ── AOR ──────────────────────────────────────────────────────────────────
+function renderAOR() {
+  var rows = DATA.aorData || [];
+  if (!rows.length) return noData('No AOR data yet. Tableau sync runs nightly.');
+  var stats = {total:rows.length, pending:0, delivered:0, active:0, issue:0};
+  rows.forEach(function(r) {
+    var s = String(r['DTR Status (enriched)']||'').toLowerCase();
+    if (/active/i.test(s)) stats.active++;
+    else if (/deliver/i.test(s)) stats.delivered++;
+    else if (/cancel|disco/i.test(s)) stats.issue++;
+    else stats.pending++;
+  });
+  return statRow([
+    {val:stats.total,label:'Total Orders'},
+    {val:stats.active,label:'Active'},
+    {val:stats.delivered,label:'Delivered'},
+    {val:stats.pending,label:'Pending'},
+    {val:stats.issue,label:'Issues'}
+  ]) +
+  '<div class="card"><div class="card-header dark">Activation Opportunity Report</div><div class="card-body">' +
+  '<div class="filter-row"><input id="f-aor" placeholder="Search customer, rep, DSI…"><select id="f-aor-bucket"><option value="">All Buckets</option><option>0-7 Days</option><option>8-14 Days</option><option>15-30 Days</option><option>31-60 Days</option></select><select id="f-aor-status"><option value="">All Statuses</option></select></div>' +
+  '<div class="tbl-wrap"><table id="aor-table"><thead><tr>' +
+  '<th>Customer</th><th>Rep</th><th>DSI</th><th>Product</th><th>Order Date</th><th>Ship Date</th><th>DTR Status</th><th>Bucket</th><th>Due Date</th><th>Units</th>' +
+  '</tr></thead><tbody>' +
+  rows.map(function(r,i) {
+    return '<tr onclick="showAORDetail('+i+')" style="cursor:pointer"><td>'+esc(r['Customer Name'])+'</td><td>'+esc(r['Rep'])+'</td><td>'+esc(r['sp.SPM Number'])+'</td>' +
+    '<td>'+esc(r['Product Type (Broken out lvl 2)'])+'</td><td>'+fmtDate(r['sp.Order Date (copy)'])+'</td><td>'+fmtDate(r['Ship Date (SP)'])+'</td>' +
+    '<td>'+dtrBadge(r['DTR Status (enriched)'])+'</td><td>'+bucketPill(r['Activation Bucket'])+'</td>' +
+    '<td>'+fmtDate(r['SPE.DTR Current Due Date (date)'])+'</td><td>'+esc(r['Unit Count'])+'</td></tr>';
+  }).join('') +
+  '</tbody></table></div></div></div>';
+}
+
+function showAORDetail(i) {
+  var r = (DATA.aorData||[])[i]; if(!r) return;
+  var fields = ['Customer Name','Rep','sp.SPM Number','Product Type (Broken out lvl 2)','sp.Order Date (copy)','Ship Date (SP)','DTR Status (enriched)','Activation Bucket','SPE.DTR Current Due Date (date)','Unit Count'];
+  document.getElementById('modal-title').textContent = r['Customer Name'] || 'AOR Detail';
+  document.getElementById('modal-body').innerHTML = fields.map(function(f) {
+    return '<div class="detail-row"><span class="detail-label">'+esc(f)+'</span><span class="detail-val">'+esc(r[f])+'</span></div>';
+  }).join('');
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+// ── ACTIVATION RATES ──────────────────────────────────────────────────────
+function renderActRates() {
+  var rows = DATA.activationRates || [];
+  if (!rows.length) return noData('No activation rate data yet. Tableau sync runs nightly.');
+  return '<div class="card"><div class="card-header dark">Activation Rates by Rep</div><div class="card-body">' +
+  '<div class="filter-row"><input id="f-rates" placeholder="Search rep or office…"></div>' +
+  '<div class="tbl-wrap"><table id="rates-table"><thead><tr>' +
+  '<th>Owner & Office</th><th>Activation Color</th>' +
+  '<th>0-7 Days</th><th>8-14 Days</th><th>15-30 Days</th><th>31-60 Days</th>' +
+  '</tr></thead><tbody>' +
+  rows.map(function(r) {
+    function pct(v){ var n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
+    var color = String(r['Activation Color']||'').toLowerCase();
+    var rowStyle = color==='green'?'background:#f0fff4':color==='yellow'?'background:#fffbeb':color==='red'?'background:#fff5f5':'';
+    return '<tr style="'+rowStyle+'"><td>'+esc(r['Owner & Office'])+'</td>' +
+    '<td>'+esc(r['Activation Color'])+'</td>' +
+    '<td>'+pct(r['0-7 Days'])+'</td><td>'+pct(r['8-14 Days'])+'</td>' +
+    '<td>'+pct(r['15-30 Days'])+'</td><td>'+pct(r['31-60 Days'])+'</td></tr>';
+  }).join('') +
+  '</tbody></table></div></div></div>';
+}
+
+// ── DAY-AFTER ORDERS ──────────────────────────────────────────────────────
+function renderDayAfter() {
+  var rows = DATA.aorData || [];
+  var yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+  var yd = yesterday.toISOString().split('T')[0];
+  var filtered = rows.filter(function(r) {
+    var d = String(r['sp.Order Date (copy)']||'').split('T')[0];
+    return d === yd;
+  });
+  if (!filtered.length) return noData('No orders from yesterday found in AOR data.');
+  return aorTable(filtered, 'Day-After Orders — ' + fmtDate(yesterday));
+}
+
+// ── DELIVERED NOT ACTIVATED ───────────────────────────────────────────────
+function renderDelivered() {
+  var rows = DATA.aorData || [];
+  var filtered = rows.filter(function(r) { return /deliver/i.test(String(r['DTR Status (enriched)']||'')); });
+  if (!filtered.length) return noData('No delivered-not-activated orders found.');
+  return aorTable(filtered, 'Delivered Not Activated');
+}
+
+// ── ORDER ISSUES ──────────────────────────────────────────────────────────
+function renderIssues() {
+  var dsi = DATA.tableauSummary && DATA.tableauSummary.dsiSummary ? DATA.tableauSummary.dsiSummary : {};
+  var issues = [];
+  Object.keys(dsi).forEach(function(d) {
+    var s = dsi[d];
+    var reasons = Object.keys(s.disconnectReasons||{});
+    if (reasons.length) issues.push({dsi:d, rep:s.tableauRep, devices:s.totalDevices, reasons:reasons.join(', '), statusCounts:s.statusCounts});
+  });
+  if (!issues.length) return noData('No order issues found in Tableau data.');
+  return '<div class="card"><div class="card-header dark">Order Issues</div><div class="card-body">' +
+  '<div class="filter-row"><input id="f-issues" placeholder="Search DSI or rep…"></div>' +
+  '<div class="tbl-wrap"><table id="issues-table"><thead><tr><th>DSI</th><th>Rep</th><th>Devices</th><th>Disconnect Reasons</th></tr></thead><tbody>' +
+  issues.map(function(r) {
+    return '<tr><td>'+esc(r.dsi)+'</td><td>'+esc(r.rep)+'</td><td>'+r.devices+'</td><td>'+esc(r.reasons)+'</td></tr>';
+  }).join('') + '</tbody></table></div></div></div>';
+}
+
+// ── ESCALATIONS ───────────────────────────────────────────────────────────
+function renderEscalations() {
+  var rows = DATA.aorData || [];
+  var filtered = rows.filter(function(r) {
+    var b = r['Activation Bucket'] || '';
+    return b.indexOf('31-60') >= 0;
+  });
+  if (!filtered.length) return noData('No escalated orders (31-60 day bucket).');
+  return aorTable(filtered, 'Escalations — 31-60 Day Bucket');
+}
+
+// ── ORDER LOG ─────────────────────────────────────────────────────────────
+function renderOrderLog() {
+  var dsi = DATA.tableauSummary && DATA.tableauSummary.dsiSummary ? DATA.tableauSummary.dsiSummary : {};
+  var rows = Object.keys(dsi).map(function(d) {
+    var s = dsi[d]; return { dsi:d, rep:s.tableauRep, devices:s.totalDevices, statusCounts:s.statusCounts, productCounts:s.productCounts };
+  });
+  if (!rows.length) return noData('No order log data yet. Tableau sync runs nightly.');
+  return '<div class="card"><div class="card-header dark">Order Log Summary</div><div class="card-body">' +
+  '<div class="filter-row"><input id="f-ol" placeholder="Search DSI or rep…"></div>' +
+  '<div class="tbl-wrap"><table id="ol-table"><thead><tr><th>DSI</th><th>Rep</th><th>Devices</th><th>Active</th><th>Delivered</th><th>Pending</th><th>Cancelled</th></tr></thead><tbody>' +
+  rows.map(function(r) {
+    var sc = r.statusCounts || {};
+    function cnt(key) { var total=0; Object.keys(sc).forEach(function(k){ if(k.toLowerCase().includes(key)) total+=sc[k]; }); return total||'—'; }
+    return '<tr><td>'+esc(r.dsi)+'</td><td>'+esc(r.rep)+'</td><td>'+r.devices+'</td><td>'+cnt('active')+'</td><td>'+cnt('deliver')+'</td><td>'+cnt('pending')+'</td><td>'+cnt('cancel')+'</td></tr>';
+  }).join('') + '</tbody></table></div></div></div>';
+}
+
+// ── CHURN ─────────────────────────────────────────────────────────────────
+function renderChurn() {
+  var rows = DATA.churnReport || [];
+  if (!rows.length) return noData('No churn data yet. Tableau sync runs nightly.');
+  var headers = Object.keys(rows[0]).filter(function(k) { return !k.startsWith('_blank'); });
+  return '<div class="card"><div class="card-header dark">Churn Report</div><div class="card-body">' +
+  '<div class="filter-row"><input id="f-churn" placeholder="Search rep…"></div>' +
+  '<div class="tbl-wrap"><table id="churn-table"><thead><tr>' +
+  headers.map(function(h) { return '<th>'+esc(h)+'</th>'; }).join('') +
+  '</tr></thead><tbody>' +
+  rows.map(function(r) {
+    return '<tr>' + headers.map(function(h) { return '<td>'+esc(r[h])+'</td>'; }).join('') + '</tr>';
+  }).join('') + '</tbody></table></div></div></div>';
+}
+
+// ── PEOPLE ────────────────────────────────────────────────────────────────
+function renderPeople() {
+  var roster = DATA.roster || {};
+  var rows = Object.keys(roster).map(function(email) {
+    var r = roster[email]; return Object.assign({email:email}, r);
+  }).sort(function(a,b) { return a.name.localeCompare(b.name); });
+  if (!rows.length) return noData('No people in the roster yet.');
+  return '<div class="card"><div class="card-header dark">People & Roster</div><div class="card-body">' +
+  '<div class="filter-row"><input id="f-people" placeholder="Search name, email, role…"></div>' +
+  '<div class="tbl-wrap"><table id="people-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Status</th><th>Tableau Name</th></tr></thead><tbody>' +
+  rows.map(function(r) {
+    var statusBadge = r.deactivated ? '<span class="badge badge-red">Inactive</span>' : '<span class="badge badge-green">Active</span>';
+    return '<tr><td>'+esc(r.name)+'</td><td>'+esc(r.email)+'</td><td>'+esc(r.rank)+'</td><td>'+esc(r.team)+'</td><td>'+statusBadge+'</td><td>'+esc(r.tableauName)+'</td></tr>';
+  }).join('') + '</tbody></table></div></div></div>';
+}
+
+// ── SHARED AOR TABLE ─────────────────────────────────────────────────────
+function aorTable(rows, title) {
+  return '<div class="card"><div class="card-header dark">'+esc(title)+'</div><div class="card-body">' +
+  '<div class="filter-row"><input class="aor-filter" placeholder="Search customer, rep, DSI…"></div>' +
+  '<div class="tbl-wrap"><table><thead><tr>' +
+  '<th>Customer</th><th>Rep</th><th>DSI</th><th>Product</th><th>Order Date</th><th>DTR Status</th><th>Bucket</th><th>Units</th>' +
+  '</tr></thead><tbody>' +
+  rows.map(function(r) {
+    return '<tr><td>'+esc(r['Customer Name'])+'</td><td>'+esc(r['Rep'])+'</td><td>'+esc(r['sp.SPM Number'])+'</td>' +
+    '<td>'+esc(r['Product Type (Broken out lvl 2)'])+'</td><td>'+fmtDate(r['sp.Order Date (copy)'])+'</td>' +
+    '<td>'+dtrBadge(r['DTR Status (enriched)'])+'</td><td>'+bucketPill(r['Activation Bucket'])+'</td><td>'+esc(r['Unit Count'])+'</td></tr>';
+  }).join('') + '</tbody></table></div></div></div>';
+}
+
+// ── STAT ROW ─────────────────────────────────────────────────────────────
+function statRow(stats) {
+  return '<div class="stat-row">' + stats.map(function(s) {
+    return '<div class="stat"><div class="stat-val">'+s.val+'</div><div class="stat-label">'+s.label+'</div></div>';
+  }).join('') + '</div>';
+}
+
+function noData(msg) {
+  return '<div class="card"><div class="card-body"><div class="empty">'+esc(msg)+'</div></div></div>';
+}
+
+// ── LIVE FILTER BINDING ───────────────────────────────────────────────────
+function bindFilters() {
+  // Generic table filter
+  document.querySelectorAll('[id^="f-"]').forEach(function(input) {
+    input.addEventListener('input', function() {
+      var tblId = input.id.replace('f-','') + '-table';
+      var tbl = document.getElementById(tblId);
+      if (!tbl) return;
+      var q = input.value.toLowerCase();
+      Array.from(tbl.querySelectorAll('tbody tr')).forEach(function(tr) {
+        tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+  });
+  // AOR-specific bucket/status filters
+  var bucketSel = document.getElementById('f-aor-bucket');
+  var statusSel = document.getElementById('f-aor-status');
+  if (statusSel) {
+    var statuses = [...new Set((DATA.aorData||[]).map(function(r){ return r['DTR Status (enriched)']||''; }).filter(Boolean))].sort();
+    statuses.forEach(function(s) { var o=document.createElement('option'); o.value=s; o.textContent=s; statusSel.appendChild(o); });
+  }
+  function applyAORFilters() {
+    var q = (document.getElementById('f-aor')||{value:''}).value.toLowerCase();
+    var bucket = bucketSel ? bucketSel.value : '';
+    var status = statusSel ? statusSel.value : '';
+    var tbl = document.getElementById('aor-table'); if (!tbl) return;
+    Array.from(tbl.querySelectorAll('tbody tr')).forEach(function(tr, i) {
+      var r = (DATA.aorData||[])[i] || {};
+      var matchQ = !q || tr.textContent.toLowerCase().includes(q);
+      var matchB = !bucket || (r['Activation Bucket']||'').includes(bucket);
+      var matchS = !status || (r['DTR Status (enriched)']||'') === status;
+      tr.style.display = (matchQ && matchB && matchS) ? '' : 'none';
+    });
+  }
+  if (document.getElementById('f-aor')) document.getElementById('f-aor').addEventListener('input', applyAORFilters);
+  if (bucketSel) bucketSel.addEventListener('change', applyAORFilters);
+  if (statusSel) statusSel.addEventListener('change', applyAORFilters);
+  // Generic .aor-filter inputs
+  document.querySelectorAll('.aor-filter').forEach(function(input) {
+    input.addEventListener('input', function() {
+      var q = input.value.toLowerCase();
+      var rows = input.closest('.card-body').querySelectorAll('tbody tr');
+      rows.forEach(function(tr) { tr.style.display = tr.textContent.toLowerCase().includes(q)?'':'none'; });
+    });
+  });
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────
+function closeModal() { document.getElementById('detail-modal').classList.remove('open'); }
+document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+// ── BOOT ─────────────────────────────────────────────────────────────────
+initLogin();
+</script>
+</body>
+</html>
