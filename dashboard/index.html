@@ -221,7 +221,8 @@ function apiPost(body) {
   body.sheetId = CFG.sheetId;
   return fetch(CFG.appsScriptUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(body)
   }).then(function(r) { return r.json(); });
 }
