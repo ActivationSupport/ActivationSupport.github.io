@@ -10,6 +10,13 @@ const TABLEAU_TAB = '_TableauOrderLog';
 const CHURN_REPORT_TAB = '_TableauChurnReport';
 const AOR_TAB = '_TableauAOR';
 const ACTIVATION_RATES_TAB = '_TableauActivationRates';
+var OFFICE_OWNER_MAP = {
+  'off_001': 'atomic marketing',
+  'off_002': 'viridian',
+  'off_003': 'elevate marketing',
+  'off_004': 'ignite solutions'
+};
+var RATINGS_VALID = ['No Answer','1 Star','2 Stars','3 Stars','4 Stars','5 Stars'];
 function officeTab(base, officeId) { return base + '_' + officeId; }
 const DEFAULT_OFFICE_ID = 'off_001';
 function buildTeamEmojiMaps(ss, officeId) {
@@ -129,6 +136,146 @@ function hashPin(email, pin) {
   return digest.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
 }
 
+// ── OFFICE FILTERING ─────────────────────────────────────────────────────
+function _officeMatch(officeId) { return (OFFICE_OWNER_MAP[officeId]||'').toLowerCase(); }
+
+function _filterByOffice(rows, col, officeId) {
+  var match = _officeMatch(officeId);
+  if (!match) return rows;
+  return rows.filter(function(row) {
+    return String(tCol(row,col,'OWNER_OFFICE')||'').toLowerCase().indexOf(match) !== -1;
+  });
+}
+
+function _buildTolRow(row, col) {
+  var rawDate = tCol(row,col,'ORDER_DATE');
+  var d = rawDate instanceof Date ? rawDate : (rawDate ? new Date(rawDate) : null);
+  return {
+    dsi:         String(tCol(row,col,'DSI')||'').trim(),
+    rep:         String(tCol(row,col,'REP')||'').trim(),
+    ownerOffice: String(tCol(row,col,'OWNER_OFFICE')||'').trim(),
+    spe:         String(tCol(row,col,'SPE')||'').trim(),
+    productType: String(tCol(row,col,'PRODUCT_TYPE')||'').trim(),
+    orderDate:   (d && !isNaN(d.getTime())) ? d.toISOString().split('T')[0] : '',
+    dtrStatus:   String(tCol(row,col,'DTR_STATUS')||'').trim(),
+    orderStatus: String(tCol(row,col,'ORDER_STATUS')||'').trim(),
+    portCarrier: String(tCol(row,col,'PORT_CARRIER')||'').trim(),
+    discoReason: String(tCol(row,col,'DISCO_REASON')||'').trim(),
+    phone:       String(tCol(row,col,'PHONE')||'').trim(),
+    installDate: String(tCol(row,col,'INSTALL_DATE')||'').trim(),
+    unitCount:   Number(tCol(row,col,'UNIT_COUNT'))||0
+  };
+}
+
+function _dedupByDsi(rows) {
+  var seen = {}; return rows.filter(function(r) { if (!r.dsi||seen[r.dsi]) return false; seen[r.dsi]=true; return true; });
+}
+
+function readDayAfterOrders(ss, officeId) {
+  var sheet = ss.getSheetByName(TABLEAU_TAB); if (!sheet) return [];
+  var data = sheet.getDataRange().getValues(); if (data.length < 2) return [];
+  var col = buildTableauColumnMap(data[0]);
+  var today = new Date(); today.setHours(0,0,0,0);
+  var dow = today.getDay();
+  var targets = [];
+  if (dow === 1) { for (var d=1;d<=3;d++) targets.push(new Date(today.getTime()-d*86400000).getTime()); }
+  else { targets.push(new Date(today.getTime()-86400000).getTime()); }
+  var rows = [];
+  _filterByOffice(data.slice(1), col, officeId).forEach(function(row) {
+    var raw = tCol(row,col,'ORDER_DATE'); if (!raw) return;
+    var od = raw instanceof Date ? raw : new Date(raw); if (isNaN(od.getTime())) return;
+    od.setHours(0,0,0,0); if (targets.indexOf(od.getTime()) === -1) return;
+    rows.push(_buildTolRow(row,col));
+  });
+  return _dedupByDsi(rows);
+}
+
+function readDeliveredNotActive(ss, officeId) {
+  var sheet = ss.getSheetByName(TABLEAU_TAB); if (!sheet) return [];
+  var data = sheet.getDataRange().getValues(); if (data.length < 2) return [];
+  var col = buildTableauColumnMap(data[0]);
+  var MATCH = ['delivered','shipped','open'];
+  var rows = [];
+  _filterByOffice(data.slice(1), col, officeId).forEach(function(row) {
+    var status = String(tCol(row,col,'DTR_STATUS')||'').toLowerCase();
+    if (!MATCH.some(function(m) { return status.indexOf(m) !== -1; })) return;
+    rows.push(_buildTolRow(row,col));
+  });
+  return _dedupByDsi(rows);
+}
+
+function readOrderIssues(ss, officeId) {
+  var sheet = ss.getSheetByName(TABLEAU_TAB); if (!sheet) return [];
+  var data = sheet.getDataRange().getValues(); if (data.length < 2) return [];
+  var col = buildTableauColumnMap(data[0]);
+  var portLines = {};
+  var byDsi = {};
+  _filterByOffice(data.slice(1), col, officeId).forEach(function(row) {
+    var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) return;
+    var portCarrier = String(tCol(row,col,'PORT_CARRIER')||'').trim();
+    var productType = String(tCol(row,col,'PRODUCT_TYPE')||'').toLowerCase();
+    var dtrStatus   = String(tCol(row,col,'DTR_STATUS')||'').toLowerCase();
+    var isPorting   = portCarrier.length > 0;
+    var isBYOD      = productType.indexOf('byod') !== -1;
+    var isPayment   = dtrStatus.indexOf('valid payment') !== -1 || dtrStatus.indexOf('payment') !== -1;
+    if (isPorting) portLines[dsi] = (portLines[dsi]||0) + 1;
+    if (!byDsi[dsi] && (isPorting||isBYOD||isPayment)) {
+      var r = _buildTolRow(row,col);
+      r.issueType = isPorting ? 'Porting' : isPayment ? 'Pending Payment' : 'BYOD';
+      byDsi[dsi] = r;
+    }
+  });
+  return Object.keys(byDsi).map(function(dsi) {
+    byDsi[dsi].heldBackLines = portLines[dsi]||0; return byDsi[dsi];
+  });
+}
+
+// ── NOTES & RATINGS ──────────────────────────────────────────────────────
+function readNotes(ss, officeId) {
+  var sheet = ss.getSheetByName('_Notes_'+officeId); if (!sheet) return {};
+  var data = sheet.getDataRange().getValues(); if (data.length < 2) return {};
+  var out = {};
+  for (var i=1;i<data.length;i++) {
+    var dsi = String(data[i][0]||'').trim(); if (!dsi) continue;
+    if (!out[dsi]) out[dsi] = [];
+    out[dsi].push({ ts: data[i][1]?new Date(data[i][1]).toISOString():'', authorEmail:String(data[i][2]||'').trim(), authorName:String(data[i][3]||'').trim(), noteText:String(data[i][4]||'').trim() });
+  }
+  return out;
+}
+
+function readRatings(ss, officeId) {
+  var sheet = ss.getSheetByName('_Ratings_'+officeId); if (!sheet) return {};
+  var data = sheet.getDataRange().getValues(); if (data.length < 2) return {};
+  var out = {};
+  for (var i=1;i<data.length;i++) { var dsi=String(data[i][0]||'').trim(); if (dsi) out[dsi]=String(data[i][1]||'').trim(); }
+  return out;
+}
+
+function writeNoteEntry(body, ss, officeId) {
+  var dsi=String(body.dsi||'').trim(), noteText=String(body.noteText||'').trim();
+  var authorEmail=String(body.authorEmail||'').trim().toLowerCase(), authorName=String(body.authorName||'').trim();
+  if (!dsi||!noteText) return { error:'missing dsi or noteText' };
+  var tabName='_Notes_'+officeId;
+  var sheet=ss.getSheetByName(tabName);
+  if (!sheet) { sheet=ss.insertSheet(tabName); sheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText']); sheet.getRange(1,1,1,5).setFontWeight('bold'); sheet.setFrozenRows(1); }
+  sheet.appendRow([dsi, new Date(), authorEmail, authorName, noteText]);
+  return { ok:true, ts:new Date().toISOString() };
+}
+
+function writeRatingEntry(body, ss, officeId) {
+  var dsi=String(body.dsi||'').trim(), rating=String(body.rating||'').trim();
+  var updatedBy=String(body.updatedBy||'').trim().toLowerCase();
+  if (!dsi||!rating) return { error:'missing dsi or rating' };
+  if (RATINGS_VALID.indexOf(rating)===-1) return { error:'invalid rating' };
+  var tabName='_Ratings_'+officeId;
+  var sheet=ss.getSheetByName(tabName);
+  if (!sheet) { sheet=ss.insertSheet(tabName); sheet.appendRow(['dsi','rating','lastUpdated','updatedBy']); sheet.getRange(1,1,1,4).setFontWeight('bold'); sheet.setFrozenRows(1); }
+  var data=sheet.getDataRange().getValues();
+  for (var i=1;i<data.length;i++) { if (String(data[i][0]||'').trim()===dsi) { sheet.getRange(i+1,2,1,3).setValues([[rating,new Date(),updatedBy]]); return { ok:true }; } }
+  sheet.appendRow([dsi, rating, new Date(), updatedBy]);
+  return { ok:true };
+}
+
 function doGet(e) {
   const key = (e && e.parameter && e.parameter.key) || '';
   if (!validateKey(key)) return jsonResponse({ error: 'unauthorized' });
@@ -145,6 +292,11 @@ function doGet(e) {
       return jsonResponse({ orders: readPayrollOrders(ss, officeId, payrollMode) });
     }
     if (action === 'readTableauSummary') return jsonResponse(getTableauSummaryWithCache(ss, officeId));
+    if (action === 'readDayAfter') return jsonResponse({ orders: readDayAfterOrders(ss, officeId) });
+    if (action === 'readDelivered') return jsonResponse({ orders: readDeliveredNotActive(ss, officeId) });
+    if (action === 'readIssues') return jsonResponse({ orders: readOrderIssues(ss, officeId) });
+    if (action === 'readNotes') return jsonResponse({ notes: readNotes(ss, officeId) });
+    if (action === 'readRatings') return jsonResponse({ ratings: readRatings(ss, officeId) });
     if (action === 'readTableauDetail') {
       const dsi = (e.parameter && e.parameter.dsi) || '';
       return jsonResponse({ devices: readTableauDetail(ss, dsi) });
@@ -192,7 +344,9 @@ function doGet(e) {
       tableauSummary: tableauSummary,
       churnReport: readChurnReport(ss),
       aorData: readAOR(ss),
-      activationRates: readActivationRates(ss)
+      activationRates: readActivationRates(ss),
+      notes: readNotes(ss, officeId),
+      ratings: readRatings(ss, officeId)
     };
     return jsonResponse(data);
   } catch (err) { return jsonResponse({ error: err.message }); }
@@ -780,6 +934,8 @@ function doPost(e) {
       case 'addSale':             result=writeAddSale(body,ss,officeId); break;
       case 'replayWebhook':       result=replayWebhook(body,ss,officeId); break;
       case 'bustTableauCache':    result=writeBustTableauCache(officeId); break;
+      case 'addNote':             result=writeNoteEntry(body,ss,officeId); break;
+      case 'setRating':           result=writeRatingEntry(body,ss,officeId); break;
       case 'saveChallengeConfig': result=writeChallengeConfig(body,ss,officeId); break;
       case 'endChallenge':        result=writeEndChallenge(body,ss,officeId); break;
       case 'calculateBlood':      result=writeCalculateBlood(body,ss,officeId); break;
