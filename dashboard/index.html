@@ -252,7 +252,7 @@ tr:hover td{background:#f0f7ff}
 var CFG = {};
 var SESSION = {};
 var DATA = {};
-var CURRENT_TAB = 'aor';
+var CURRENT_TAB = 'dayafter';
 
 function loadConfig() {
   var params = new URLSearchParams(window.location.search);
@@ -349,16 +349,14 @@ function showApp() {
 }
 
 var TABS = [
-  { id: 'aor',        icon: '📋', label: 'AOR',                roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'actrates',   icon: '📊', label: 'Activation Rates',   roles: ['admin','owner','manager','jd','l1'] },
-  { id: 'dayafter',   icon: '📞', label: 'Day-After Calls',    roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'delivered',  icon: '📦', label: 'Delivered Not Active',roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'issues',     icon: '⚠️',  label: 'Order Issues',       roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'noanswer',   icon: '📵', label: 'No Answer',           roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'escalations',icon: '🚨', label: 'Escalations',         roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'orderlog',   icon: '📄', label: 'Order Log',           roles: ['admin','owner','manager','jd'] },
-  { id: 'churn',      icon: '📉', label: 'Churn Report',        roles: ['admin','owner','manager','jd'] },
-  { id: 'people',     icon: '👥', label: 'People',              roles: ['admin','owner','manager','jd','l1'] },
+  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',     roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'actrates',    icon: '📊', label: 'Activation Rates',    roles: ['admin','owner','manager','jd','l1'] },
+  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ['admin','owner','manager','jd'] },
+  { id: 'people',      icon: '👥', label: 'People',               roles: ['admin','owner','manager','jd','l1'] },
 ];
 
 function buildNav() {
@@ -683,17 +681,28 @@ function renderIssuesTable(orders) {
     '</tbody></table></div></div></div>';
 }
 
+// ── ORDER LOOKUP — call list data first, AOR as fallback ─────────────────
+function buildOrderLookup() {
+  var map = {};
+  (DATA.dayAfterOrders||[]).concat(DATA.deliveredOrders||[]).concat(DATA.orderIssues||[]).forEach(function(o) {
+    if (o.dsi && !map[o.dsi]) map[o.dsi] = o;
+  });
+  (DATA.aorData||[]).forEach(function(r) {
+    var d = r['sp.SPM Number']; if (!d || map[d]) return;
+    map[d] = { dsi:d, rep:r['Rep']||'—', spe:r['Customer Name']||'', productType:r['Product Type (Broken out lvl 2)']||'', orderDate:r['sp.Order Date (copy)']||'', dtrStatus:r['DTR Status (enriched)']||'' };
+  });
+  return map;
+}
+
 // ── NO ANSWER ─────────────────────────────────────────────────────────────
 function renderNoAnswerTable() {
   var ratings = DATA.ratings || {};
   var noAnswerDsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='No Answer'; });
   if (!noAnswerDsis.length) return noData('No orders marked No Answer yet.');
-  var aorByDsi = {};
-  (DATA.aorData||[]).forEach(function(r) { var d=r['sp.SPM Number']; if(d) aorByDsi[d]=r; });
+  var lookup = buildOrderLookup();
   var orders = noAnswerDsis.map(function(dsi) {
-    var a = aorByDsi[dsi];
-    return a ? { dsi:dsi, rep:esc(a['Rep']||'—'), spe:a['Customer Name']||'', productType:a['Product Type (Broken out lvl 2)']||'', orderDate:fmtDate(a['sp.Order Date (copy)']), dtrStatus:a['DTR Status (enriched)']||'' }
-             : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
+    var o = lookup[dsi];
+    return o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
   });
   return '<div class="card"><div class="card-header dark">No Answer &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     '<div class="filter-row"><input id="f-na" placeholder="Search rep, customer, DSI…"></div>' +
@@ -707,12 +716,10 @@ function renderEscalationsTable() {
   var ratings = DATA.ratings || {};
   var escDsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='1 Star'||ratings[dsi]==='2 Stars'; });
   if (!escDsis.length) return noData('No escalations yet. Orders rated 1 or 2 Stars appear here.');
-  var aorByDsi = {};
-  (DATA.aorData||[]).forEach(function(r) { var d=r['sp.SPM Number']; if(d) aorByDsi[d]=r; });
+  var lookup = buildOrderLookup();
   var orders = escDsis.map(function(dsi) {
-    var a = aorByDsi[dsi];
-    return a ? { dsi:dsi, rep:a['Rep']||'—', spe:a['Customer Name']||'', productType:a['Product Type (Broken out lvl 2)']||'', orderDate:fmtDate(a['sp.Order Date (copy)']), dtrStatus:a['DTR Status (enriched)']||'' }
-             : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
+    var o = lookup[dsi];
+    return o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
   });
   return '<div class="card"><div class="card-header dark">Escalations &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     '<div class="filter-row"><input id="f-esc" placeholder="Search rep, customer, DSI…"></div>' +

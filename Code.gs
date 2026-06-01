@@ -345,6 +345,9 @@ function doGet(e) {
       churnReport: readChurnReport(ss),
       aorData: readAOR(ss),
       activationRates: readActivationRates(ss),
+      dayAfterOrders: readDayAfterOrders(ss, officeId),
+      deliveredOrders: readDeliveredNotActive(ss, officeId),
+      orderIssues: readOrderIssues(ss, officeId),
       notes: readNotes(ss, officeId),
       ratings: readRatings(ss, officeId)
     };
