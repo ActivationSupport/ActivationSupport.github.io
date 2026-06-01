@@ -381,7 +381,7 @@ function refreshData() { TAB_CACHE = {}; loadData(); }
 // Lazy load tab data (day-after, delivered, issues)
 var LAZY_TABS = { dayafter:'readDayAfter', delivered:'readDelivered', issues:'readIssues' };
 function loadTabData(tabId, callback) {
-  if (TAB_CACHE[tabId]) { callback(TAB_CACHE[tabId]); return; }
+  if (TAB_CACHE[tabId] !== undefined) { callback(TAB_CACHE[tabId]); return; }
   var action = LAZY_TABS[tabId];
   if (!action) { callback([]); return; }
   api({ action: action }).then(function(res) {
