@@ -11,10 +11,10 @@ const CHURN_REPORT_TAB = '_TableauChurnReport';
 const AOR_TAB = '_TableauAOR';
 const ACTIVATION_RATES_TAB = '_TableauActivationRates';
 var OFFICE_OWNER_MAP = {
-  'off_001': 'atomic marketing',
-  'off_002': 'viridian',
-  'off_003': 'elevate marketing',
-  'off_004': 'ignite solutions'
+  'off_001': 'atomic marketing, inc.',
+  'off_002': 'viridian, inc.',
+  'off_003': 'elevate marketing team, inc.',
+  'off_004': 'ignite solutions, inc.'
 };
 var RATINGS_VALID = ['No Answer','1 Star','2 Stars','3 Stars','4 Stars','5 Stars'];
 function officeTab(base, officeId) { return base + '_' + officeId; }
@@ -171,60 +171,89 @@ function _dedupByDsi(rows) {
   var seen = {}; return rows.filter(function(r) { if (!r.dsi||seen[r.dsi]) return false; seen[r.dsi]=true; return true; });
 }
 
+// Returns filtered rows from both _TableauOrderLog and _TableauAOR.
+// TOL is primary; AOR fills in DSIs not already seen in TOL.
+// The callback receives (row, col, dsi) and returns a processed row or null to skip.
+function _readBothLogs(ss, officeId, processFn) {
+  var seen = {};
+  var results = [];
+  var tabs = [TABLEAU_TAB, AOR_TAB];
+  for (var t = 0; t < tabs.length; t++) {
+    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
+    var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
+    var col = buildTableauColumnMap(sheetData[0]);
+    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
+    for (var i = 0; i < filtered.length; i++) {
+      var row = filtered[i];
+      var dsi = String(tCol(row,col,'DSI')||'').trim();
+      if (!dsi || seen[dsi]) continue;
+      var result = processFn(row, col, dsi);
+      if (result) { seen[dsi] = true; results.push(result); }
+    }
+  }
+  return results;
+}
+
 function readDayAfterOrders(ss, officeId) {
-  var sheet = ss.getSheetByName(TABLEAU_TAB); if (!sheet) return [];
-  var data = sheet.getDataRange().getValues(); if (data.length < 2) return [];
-  var col = buildTableauColumnMap(data[0]);
   var today = new Date(); today.setHours(0,0,0,0);
-  var dow = today.getDay();
+  var dow = today.getDay(); // 0=Sun,1=Mon,...,6=Sat
   var targets = [];
-  if (dow === 1) { for (var d=1;d<=3;d++) targets.push(new Date(today.getTime()-d*86400000).getTime()); }
-  else { targets.push(new Date(today.getTime()-86400000).getTime()); }
-  var rows = [];
-  _filterByOffice(data.slice(1), col, officeId).forEach(function(row) {
-    var raw = tCol(row,col,'ORDER_DATE'); if (!raw) return;
-    var od = raw instanceof Date ? raw : new Date(raw); if (isNaN(od.getTime())) return;
-    od.setHours(0,0,0,0); if (targets.indexOf(od.getTime()) === -1) return;
-    rows.push(_buildTolRow(row,col));
+  if (dow === 1) {
+    // Monday: show Fri + Sat + Sun
+    targets.push(new Date(today.getTime() - 3 * 86400000).getTime()); // Friday
+    targets.push(new Date(today.getTime() - 2 * 86400000).getTime()); // Saturday
+    targets.push(new Date(today.getTime() - 1 * 86400000).getTime()); // Sunday
+  } else {
+    targets.push(new Date(today.getTime() - 86400000).getTime()); // yesterday
+  }
+
+  return _readBothLogs(ss, officeId, function(row, col, dsi) {
+    var raw = tCol(row,col,'ORDER_DATE'); if (!raw) return null;
+    var od = raw instanceof Date ? raw : new Date(raw); if (isNaN(od.getTime())) return null;
+    od.setHours(0,0,0,0);
+    if (targets.indexOf(od.getTime()) === -1) return null;
+    return _buildTolRow(row, col);
   });
-  return _dedupByDsi(rows);
 }
 
 function readDeliveredNotActive(ss, officeId) {
-  var sheet = ss.getSheetByName(TABLEAU_TAB); if (!sheet) return [];
-  var data = sheet.getDataRange().getValues(); if (data.length < 2) return [];
-  var col = buildTableauColumnMap(data[0]);
   var MATCH = ['delivered','shipped','open'];
-  var rows = [];
-  _filterByOffice(data.slice(1), col, officeId).forEach(function(row) {
+  return _readBothLogs(ss, officeId, function(row, col, dsi) {
     var status = String(tCol(row,col,'DTR_STATUS')||'').toLowerCase();
-    if (!MATCH.some(function(m) { return status.indexOf(m) !== -1; })) return;
-    rows.push(_buildTolRow(row,col));
+    if (!MATCH.some(function(m) { return status.indexOf(m) !== -1; })) return null;
+    return _buildTolRow(row, col);
   });
-  return _dedupByDsi(rows);
 }
 
 function readOrderIssues(ss, officeId) {
-  var sheet = ss.getSheetByName(TABLEAU_TAB); if (!sheet) return [];
-  var data = sheet.getDataRange().getValues(); if (data.length < 2) return [];
-  var col = buildTableauColumnMap(data[0]);
   var portLines = {};
   var byDsi = {};
-  _filterByOffice(data.slice(1), col, officeId).forEach(function(row) {
-    var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) return;
-    var portCarrier = String(tCol(row,col,'PORT_CARRIER')||'').trim();
-    var productType = String(tCol(row,col,'PRODUCT_TYPE')||'').toLowerCase();
-    var dtrStatus   = String(tCol(row,col,'DTR_STATUS')||'').toLowerCase();
-    var isPorting   = portCarrier.length > 0;
-    var isBYOD      = productType.indexOf('byod') !== -1;
-    var isPayment   = dtrStatus.indexOf('valid payment') !== -1 || dtrStatus.indexOf('payment') !== -1;
-    if (isPorting) portLines[dsi] = (portLines[dsi]||0) + 1;
-    if (!byDsi[dsi] && (isPorting||isBYOD||isPayment)) {
-      var r = _buildTolRow(row,col);
-      r.issueType = isPorting ? 'Porting' : isPayment ? 'Pending Payment' : 'BYOD';
-      byDsi[dsi] = r;
+  var tolDsis = {};
+  var tabs = [TABLEAU_TAB, AOR_TAB];
+  for (var t = 0; t < tabs.length; t++) {
+    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
+    var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
+    var col = buildTableauColumnMap(sheetData[0]);
+    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
+    for (var i = 0; i < filtered.length; i++) {
+      var row = filtered[i];
+      var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
+      if (t === 1 && tolDsis[dsi]) continue; // AOR: skip DSIs already found in TOL
+      var portCarrier = String(tCol(row,col,'PORT_CARRIER')||'').trim();
+      var productType = String(tCol(row,col,'PRODUCT_TYPE')||'').toLowerCase();
+      var dtrStatus   = String(tCol(row,col,'DTR_STATUS')||'').toLowerCase();
+      var isPorting   = portCarrier.length > 0;
+      var isBYOD      = productType.indexOf('byod') !== -1;
+      var isPayment   = dtrStatus.indexOf('valid payment') !== -1 || dtrStatus.indexOf('payment') !== -1;
+      if (isPorting) portLines[dsi] = (portLines[dsi]||0) + 1;
+      if (!byDsi[dsi] && (isPorting||isBYOD||isPayment)) {
+        var r = _buildTolRow(row,col);
+        r.issueType = isPorting ? 'Porting' : isPayment ? 'Pending Payment' : 'BYOD';
+        byDsi[dsi] = r;
+      }
     }
-  });
+    if (t === 0) { Object.keys(byDsi).forEach(function(d) { tolDsis[d] = true; }); }
+  }
   return Object.keys(byDsi).map(function(dsi) {
     byDsi[dsi].heldBackLines = portLines[dsi]||0; return byDsi[dsi];
   });
@@ -283,6 +312,33 @@ function doGet(e) {
     const action = (e && e.parameter && e.parameter.action) || '';
     const officeId = (e && e.parameter && e.parameter.officeId) || DEFAULT_OFFICE_ID;
     const ss = getSheet(e && e.parameter);
+    if (action === 'debugOrderLog') {
+      var sheet = ss.getSheetByName(TABLEAU_TAB);
+      if (!sheet) return jsonResponse({ error: 'No _TableauOrderLog tab found' });
+      var dbgData = sheet.getDataRange().getValues();
+      var col = buildTableauColumnMap(dbgData[0]);
+      var allRows = dbgData.slice(1);
+      var officeRows = _filterByOffice(allRows, col, officeId);
+      // Count DTR statuses in office rows
+      var dtrCounts = {};
+      officeRows.forEach(function(row) {
+        var s = String(tCol(row,col,'DTR_STATUS')||'(empty)').trim();
+        dtrCounts[s] = (dtrCounts[s]||0) + 1;
+      });
+      // Sample owner values from first 3 rows
+      var ownerSamples = allRows.slice(0,3).map(function(row) {
+        return JSON.stringify(String(tCol(row,col,'OWNER_OFFICE')||''));
+      });
+      return jsonResponse({
+        totalRows: allRows.length,
+        headers: dbgData[0],
+        columnMap: col,
+        officeFilteredRows: officeRows.length,
+        dtrStatusCounts: dtrCounts,
+        ownerSamples: ownerSamples,
+        officeMatchString: _officeMatch(officeId)
+      });
+    }
     if (action === 'readOrders') {
       const filterEmail = (e.parameter && e.parameter.email) || '';
       return jsonResponse({ orders: readOrders(ss, officeId, filterEmail || null) });
@@ -1465,63 +1521,3 @@ function migrateFromExternal(body, ss) {
   return { success:true, officeId:officeId, salesRows:salesSheet.getLastRow()-1, log:log };
 }
 
-function migrateLunaData() {
-  var SOURCE_SHEET_ID = '1pOi6p5gsHCdn_SZpNwWJLzwLmLCn5D-6gKAHccAaqqU';
-  var SOURCE_TAB = 'Production Post';
-  var TARGET_OFFICE_ID = 'off_003';
-  var sourceSS = SpreadsheetApp.openById(SOURCE_SHEET_ID);
-  var sourceSheet = sourceSS.getSheetByName(SOURCE_TAB);
-  if (!sourceSheet) { sourceSheet = sourceSS.getSheets()[0]; Logger.log('[Luna] Using first sheet: ' + sourceSheet.getName()); }
-  var sourceData = sourceSheet.getDataRange().getValues();
-  Logger.log('[Luna] Source rows: ' + sourceData.length);
-  var targetSS = SpreadsheetApp.getActiveSpreadsheet();
-  var salesTabName = officeTab(TAB.SALES, TARGET_OFFICE_ID);
-  var targetSheet = getOrCreateSheet(targetSS, salesTabName, TAB.SALES);
-  var rosterSheet = targetSS.getSheetByName(officeTab(TAB.ROSTER, TARGET_OFFICE_ID));
-  var emojiByEmail = {};
-  if (rosterSheet) {
-    var rosterData = rosterSheet.getDataRange().getValues();
-    var teamMaps = buildTeamEmojiMaps(targetSS, TARGET_OFFICE_ID);
-    for (var r = 1; r < rosterData.length; r++) {
-      var rEmail = String(rosterData[r][0] || '').trim().toLowerCase();
-      var tName = String(rosterData[r][2] || '').trim();
-      if (rEmail && tName && teamMaps.nameMap[tName]) emojiByEmail[rEmail] = teamMaps.nameMap[tName];
-    }
-  }
-  var newRows = [], skipped = 0;
-  for (var i = 1; i < sourceData.length; i++) {
-    var row = sourceData[i];
-    var timestamp = row[1] || '', email = String(row[2] || '').trim().toLowerCase();
-    if (!timestamp && !email) { skipped++; continue; }
-    var repAndTrainee = String(row[29] || '').trim();
-    var isTrainee = 'No', traineeName = '';
-    if (repAndTrainee) {
-      var rtLow = repAndTrainee.toLowerCase();
-      if (rtLow.indexOf('trainee') !== -1 || rtLow.indexOf('training') !== -1) {
-        isTrainee = 'Yes';
-        var tMatch = repAndTrainee.match(/trainee[:\s]+(.+)/i);
-        if (tMatch) traineeName = tMatch[1].replace(/[()]/g, '').trim();
-      }
-    }
-    var ocRaw = String(row[8] || '').trim();
-    var orderChannel = (ocRaw.toLowerCase().indexOf('tower') !== -1) ? 'Tower' : 'Sara';
-    var cuAnswer = String(row[5] || '').trim().toLowerCase();
-    var codesUsedBy = (cuAnswer === 'yes' || cuAnswer === 'true') ? String(row[6] || '').trim().toLowerCase() : '';
-    var air = parseInt(row[33]) || 0, newPhones = parseInt(row[15]) || 0, byods = parseInt(row[16]) || 0;
-    var cell = parseInt(row[36]) || 0; if (cell === 0) cell = newPhones + byods;
-    var fiber = parseInt(row[32]) || 0, voipQty = parseInt(row[37]) || 0, dtv = parseInt(row[34]) || 0;
-    var yeses = parseInt(row[35]) || 0, units = parseInt(row[38]) || 0;
-    var teamEmoji = emojiByEmail[email] || '';
-    newRows.push([timestamp, email, String(row[4] || '').trim(), row[3] || '', String(row[7] || 'attb2b').trim() || 'attb2b',
-      String(row[9] || '').trim(), String(row[11] || '').trim(), String(row[24] || '').trim(),
-      isTrainee, traineeName, air, newPhones, byods, cell, fiber, String(row[18] || '').trim(),
-      row[19] || '', voipQty, dtv, String(row[23] || '').trim(), '', String(row[12] || '').trim(),
-      '', teamEmoji, yeses, units, 'Pending', '', '', '[]', orderChannel, codesUsedBy]);
-  }
-  Logger.log('[Luna] Rows to migrate: ' + newRows.length + ', Skipped: ' + skipped);
-  if (newRows.length === 0) return { success: false, error: 'No data rows found' };
-  var startRow = targetSheet.getLastRow() + 1;
-  targetSheet.getRange(startRow, 1, newRows.length, 32).setValues(newRows);
-  Logger.log('[Luna] Complete! Migrated ' + newRows.length + ' rows to ' + salesTabName);
-  return { success: true, rowsMigrated: newRows.length, rowsSkipped: skipped, targetTab: salesTabName };
-}

@@ -417,14 +417,12 @@ function refreshData() { TAB_CACHE = {}; loadData(); }
 function renderTab(id) {
   var c = document.getElementById('main-content');
   switch(id) {
-    case 'aor':         c.innerHTML = renderAOR();         break;
     case 'actrates':    c.innerHTML = renderActRates();    break;
     case 'dayafter':    c.innerHTML = renderCallTable(DATA.dayAfterOrders||[], 'Day-After Calls', 'No day-after orders found.'); break;
     case 'delivered':   c.innerHTML = renderCallTable(DATA.deliveredOrders||[], 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
     case 'issues':      c.innerHTML = renderIssuesTable(DATA.orderIssues||[]); break;
     case 'noanswer':    c.innerHTML = renderNoAnswerTable(); break;
     case 'escalations': c.innerHTML = renderEscalationsTable(); break;
-    case 'orderlog':    c.innerHTML = renderOrderLog();    break;
     case 'churn':       c.innerHTML = renderChurn();       break;
     case 'people':      c.innerHTML = renderPeople();      break;
     default: c.innerHTML = '<div class="empty">Coming soon.</div>';
@@ -433,22 +431,6 @@ function renderTab(id) {
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
-function bucketPill(b) {
-  if (!b) return '<span class="badge-gray badge">—</span>';
-  var cls = b.indexOf('0-7')>=0?'pill-0-7':b.indexOf('8-14')>=0?'pill-8-14':b.indexOf('15-30')>=0?'pill-15-30':'pill-31-60';
-  return '<span class="'+cls+'">'+b+'</span>';
-}
-
-function dtrBadge(s) {
-  if (!s) return '<span class="badge badge-gray">—</span>';
-  var cls='badge-gray';
-  if (/active/i.test(s)) cls='badge-green';
-  else if (/deliver/i.test(s)) cls='badge-blue';
-  else if (/pending|order/i.test(s)) cls='badge-yellow';
-  else if (/cancel|disco/i.test(s)) cls='badge-red';
-  return '<span class="badge '+cls+'">'+s+'</span>';
-}
-
 function fmtDate(v) {
   if (!v) return '—';
   var d = v instanceof Date ? v : new Date(v);
@@ -457,57 +439,6 @@ function fmtDate(v) {
 }
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-function filterRows(rows, query, fields) {
-  if (!query) return rows;
-  var q = query.toLowerCase();
-  return rows.filter(function(r) {
-    return fields.some(function(f) { return String(r[f]||'').toLowerCase().includes(q); });
-  });
-}
-
-// ── AOR ──────────────────────────────────────────────────────────────────
-function renderAOR() {
-  var rows = DATA.aorData || [];
-  if (!rows.length) return noData('No AOR data yet. Tableau sync runs nightly.');
-  var stats = {total:rows.length, pending:0, delivered:0, active:0, issue:0};
-  rows.forEach(function(r) {
-    var s = String(r['DTR Status (enriched)']||'').toLowerCase();
-    if (/active/i.test(s)) stats.active++;
-    else if (/deliver/i.test(s)) stats.delivered++;
-    else if (/cancel|disco/i.test(s)) stats.issue++;
-    else stats.pending++;
-  });
-  return statRow([
-    {val:stats.total,label:'Total Orders'},
-    {val:stats.active,label:'Active'},
-    {val:stats.delivered,label:'Delivered'},
-    {val:stats.pending,label:'Pending'},
-    {val:stats.issue,label:'Issues'}
-  ]) +
-  '<div class="card"><div class="card-header dark">Activation Opportunity Report</div><div class="card-body">' +
-  '<div class="filter-row"><input id="f-aor" placeholder="Search customer, rep, DSI…"><select id="f-aor-bucket"><option value="">All Buckets</option><option>0-7 Days</option><option>8-14 Days</option><option>15-30 Days</option><option>31-60 Days</option></select><select id="f-aor-status"><option value="">All Statuses</option></select></div>' +
-  '<div class="tbl-wrap"><table id="aor-table"><thead><tr>' +
-  '<th>Customer</th><th>Rep</th><th>DSI</th><th>Product</th><th>Order Date</th><th>Ship Date</th><th>DTR Status</th><th>Bucket</th><th>Due Date</th><th>Units</th>' +
-  '</tr></thead><tbody>' +
-  rows.map(function(r,i) {
-    return '<tr onclick="showAORDetail('+i+')" style="cursor:pointer"><td>'+esc(r['Customer Name'])+'</td><td>'+esc(r['Rep'])+'</td><td>'+esc(r['sp.SPM Number'])+'</td>' +
-    '<td>'+esc(r['Product Type (Broken out lvl 2)'])+'</td><td>'+fmtDate(r['sp.Order Date (copy)'])+'</td><td>'+fmtDate(r['Ship Date (SP)'])+'</td>' +
-    '<td>'+dtrBadge(r['DTR Status (enriched)'])+'</td><td>'+bucketPill(r['Activation Bucket'])+'</td>' +
-    '<td>'+fmtDate(r['SPE.DTR Current Due Date (date)'])+'</td><td>'+esc(r['Unit Count'])+'</td></tr>';
-  }).join('') +
-  '</tbody></table></div></div></div>';
-}
-
-function showAORDetail(i) {
-  var r = (DATA.aorData||[])[i]; if(!r) return;
-  var fields = ['Customer Name','Rep','sp.SPM Number','Product Type (Broken out lvl 2)','sp.Order Date (copy)','Ship Date (SP)','DTR Status (enriched)','Activation Bucket','SPE.DTR Current Due Date (date)','Unit Count'];
-  document.getElementById('modal-title').textContent = r['Customer Name'] || 'AOR Detail';
-  document.getElementById('modal-body').innerHTML = fields.map(function(f) {
-    return '<div class="detail-row"><span class="detail-label">'+esc(f)+'</span><span class="detail-val">'+esc(r[f])+'</span></div>';
-  }).join('');
-  document.getElementById('detail-modal').classList.add('open');
-}
 
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
 function renderActRates() {
@@ -542,11 +473,11 @@ function statusPill(s) {
   return '<span class="sp '+cls+'">'+esc(s)+'</span>';
 }
 
-function ratingPill(dsi) {
+function ratingPill(dsi, safeId) {
   var r = (DATA.ratings||{})[dsi] || '';
-  if (!r) return '';
   var cls = r==='No Answer'?'rp-na':r==='1 Star'?'rp-1':r==='2 Stars'?'rp-2':r==='3 Stars'?'rp-3':r==='4 Stars'?'rp-4':r==='5 Stars'?'rp-5':'';
-  return '<span class="rating-pill '+cls+'">'+esc(r)+'</span>';
+  var id = safeId ? ' id="rp-'+safeId+'"' : '';
+  return '<span class="rating-pill '+cls+'"'+id+'>'+esc(r)+'</span>';
 }
 
 // ── NOTES MODAL ───────────────────────────────────────────────────────────
@@ -645,7 +576,7 @@ function callTableRows(orders, extraColFn) {
       '<td>'+esc(o.productType)+'</td>' +
       extra +
       '<td>'+statusPill(o.dtrStatus)+'</td>' +
-      '<td><span class="rating-pill" id="rp-'+safeId+'">'+((DATA.ratings||{})[dsi]||'')+'</span></td>' +
+      '<td>' + ratingPill(dsi, safeId) + '</td>' +
       '<td>' +
         '<button class="notes-btn" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">NOTES' +
         (noteCount>0?'<span style="margin-left:5px;background:var(--blue2);color:#fff;border-radius:8px;padding:1px 6px;font-size:.68rem">'+noteCount+'</span>':'') +
@@ -728,23 +659,6 @@ function renderEscalationsTable() {
     '</tr></thead><tbody>'+callTableRows(orders,null)+'</tbody></table></div></div></div>';
 }
 
-// ── ORDER LOG ─────────────────────────────────────────────────────────────
-function renderOrderLog() {
-  var dsi = DATA.tableauSummary && DATA.tableauSummary.dsiSummary ? DATA.tableauSummary.dsiSummary : {};
-  var rows = Object.keys(dsi).map(function(d) {
-    var s = dsi[d]; return { dsi:d, rep:s.tableauRep, devices:s.totalDevices, statusCounts:s.statusCounts, productCounts:s.productCounts };
-  });
-  if (!rows.length) return noData('No order log data yet. Tableau sync runs nightly.');
-  return '<div class="card"><div class="card-header dark">Order Log Summary</div><div class="card-body">' +
-  '<div class="filter-row"><input id="f-ol" placeholder="Search DSI or rep…"></div>' +
-  '<div class="tbl-wrap"><table id="ol-table"><thead><tr><th>DSI</th><th>Rep</th><th>Devices</th><th>Active</th><th>Delivered</th><th>Pending</th><th>Cancelled</th></tr></thead><tbody>' +
-  rows.map(function(r) {
-    var sc = r.statusCounts || {};
-    function cnt(key) { var total=0; Object.keys(sc).forEach(function(k){ if(k.toLowerCase().includes(key)) total+=sc[k]; }); return total||'—'; }
-    return '<tr><td>'+esc(r.dsi)+'</td><td>'+esc(r.rep)+'</td><td>'+r.devices+'</td><td>'+cnt('active')+'</td><td>'+cnt('deliver')+'</td><td>'+cnt('pending')+'</td><td>'+cnt('cancel')+'</td></tr>';
-  }).join('') + '</tbody></table></div></div></div>';
-}
-
 // ── CHURN ─────────────────────────────────────────────────────────────────
 function renderChurn() {
   var rows = DATA.churnReport || [];
@@ -776,34 +690,12 @@ function renderPeople() {
   }).join('') + '</tbody></table></div></div></div>';
 }
 
-// ── SHARED AOR TABLE ─────────────────────────────────────────────────────
-function aorTable(rows, title) {
-  return '<div class="card"><div class="card-header dark">'+esc(title)+'</div><div class="card-body">' +
-  '<div class="filter-row"><input class="aor-filter" placeholder="Search customer, rep, DSI…"></div>' +
-  '<div class="tbl-wrap"><table><thead><tr>' +
-  '<th>Customer</th><th>Rep</th><th>DSI</th><th>Product</th><th>Order Date</th><th>DTR Status</th><th>Bucket</th><th>Units</th>' +
-  '</tr></thead><tbody>' +
-  rows.map(function(r) {
-    return '<tr><td>'+esc(r['Customer Name'])+'</td><td>'+esc(r['Rep'])+'</td><td>'+esc(r['sp.SPM Number'])+'</td>' +
-    '<td>'+esc(r['Product Type (Broken out lvl 2)'])+'</td><td>'+fmtDate(r['sp.Order Date (copy)'])+'</td>' +
-    '<td>'+dtrBadge(r['DTR Status (enriched)'])+'</td><td>'+bucketPill(r['Activation Bucket'])+'</td><td>'+esc(r['Unit Count'])+'</td></tr>';
-  }).join('') + '</tbody></table></div></div></div>';
-}
-
-// ── STAT ROW ─────────────────────────────────────────────────────────────
-function statRow(stats) {
-  return '<div class="stat-row">' + stats.map(function(s) {
-    return '<div class="stat"><div class="stat-val">'+s.val+'</div><div class="stat-label">'+s.label+'</div></div>';
-  }).join('') + '</div>';
-}
-
 function noData(msg) {
   return '<div class="card"><div class="card-body"><div class="empty">'+esc(msg)+'</div></div></div>';
 }
 
 // ── LIVE FILTER BINDING ───────────────────────────────────────────────────
 function bindFilters() {
-  // Generic table filter
   document.querySelectorAll('[id^="f-"]').forEach(function(input) {
     input.addEventListener('input', function() {
       var tblId = input.id.replace('f-','') + '-table';
@@ -813,37 +705,6 @@ function bindFilters() {
       Array.from(tbl.querySelectorAll('tbody tr')).forEach(function(tr) {
         tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
       });
-    });
-  });
-  // AOR-specific bucket/status filters
-  var bucketSel = document.getElementById('f-aor-bucket');
-  var statusSel = document.getElementById('f-aor-status');
-  if (statusSel) {
-    var statuses = [...new Set((DATA.aorData||[]).map(function(r){ return r['DTR Status (enriched)']||''; }).filter(Boolean))].sort();
-    statuses.forEach(function(s) { var o=document.createElement('option'); o.value=s; o.textContent=s; statusSel.appendChild(o); });
-  }
-  function applyAORFilters() {
-    var q = (document.getElementById('f-aor')||{value:''}).value.toLowerCase();
-    var bucket = bucketSel ? bucketSel.value : '';
-    var status = statusSel ? statusSel.value : '';
-    var tbl = document.getElementById('aor-table'); if (!tbl) return;
-    Array.from(tbl.querySelectorAll('tbody tr')).forEach(function(tr, i) {
-      var r = (DATA.aorData||[])[i] || {};
-      var matchQ = !q || tr.textContent.toLowerCase().includes(q);
-      var matchB = !bucket || (r['Activation Bucket']||'').includes(bucket);
-      var matchS = !status || (r['DTR Status (enriched)']||'') === status;
-      tr.style.display = (matchQ && matchB && matchS) ? '' : 'none';
-    });
-  }
-  if (document.getElementById('f-aor')) document.getElementById('f-aor').addEventListener('input', applyAORFilters);
-  if (bucketSel) bucketSel.addEventListener('change', applyAORFilters);
-  if (statusSel) statusSel.addEventListener('change', applyAORFilters);
-  // Generic .aor-filter inputs
-  document.querySelectorAll('.aor-filter').forEach(function(input) {
-    input.addEventListener('input', function() {
-      var q = input.value.toLowerCase();
-      var rows = input.closest('.card-body').querySelectorAll('tbody tr');
-      rows.forEach(function(tr) { tr.style.display = tr.textContent.toLowerCase().includes(q)?'':'none'; });
     });
   });
 }
