@@ -97,31 +97,68 @@ tr:hover td{background:#f0f7ff}
 .spinner{text-align:center;padding:48px;color:#aaa;font-size:.9rem}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:.88rem}
 
-/* ── RATING ── */
-.rating-bar{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}
-.r-btn{padding:3px 10px;border-radius:12px;border:1.5px solid #d1d9e0;background:#fff;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
-.r-btn:hover{border-color:var(--blue2);color:var(--blue2)}
-.r-btn.active-na{background:#efefef;color:#555;border-color:#aaa}
-.r-btn.active-1{background:#f8d7da;color:#721c24;border-color:#f5c6cb}
-.r-btn.active-2{background:var(--red2);color:var(--red);border-color:#e9aeae}
-.r-btn.active-3{background:var(--yellow2);color:var(--yellow);border-color:#ffe08a}
-.r-btn.active-4{background:#e2efda;color:#385723;border-color:#b8d9a3}
-.r-btn.active-5{background:var(--green2);color:var(--green);border-color:#8fd49b}
-/* ── NOTES ── */
-.order-card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:12px;overflow:hidden}
-.order-card-header{display:grid;grid-template-columns:1fr auto;align-items:start;padding:12px 16px;cursor:pointer;gap:8px}
-.order-card-header:hover{background:#f7fbff}
-.order-meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:#555;margin-top:4px}
-.order-meta span{white-space:nowrap}
-.order-expand{display:none;padding:0 16px 14px}
-.order-expand.open{display:block}
-.notes-history{max-height:180px;overflow-y:auto;margin-bottom:10px}
-.note-entry{padding:6px 0;border-bottom:1px solid #f0f4f8;font-size:.82rem}
-.note-entry:last-child{border-bottom:none}
-.note-meta{font-size:.72rem;color:#888;display:block;margin-bottom:2px}
-.note-text{color:#222}
-.add-note-row{display:flex;gap:6px}
-.add-note-row input{flex:1;padding:7px 10px;border:1.5px solid #d1d9e0;border-radius:6px;font-size:.84rem;outline:none}
+/* ── CALL TABLE ── */
+.call-table-wrap{overflow-x:auto}
+.call-table{width:100%;border-collapse:collapse;font-size:.875rem}
+.call-table thead tr{border-bottom:2px solid #e2e8f0}
+.call-table th{text-align:left;padding:10px 14px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#888;white-space:nowrap}
+.call-table td{padding:12px 14px;border-bottom:1px solid #f0f4f8;vertical-align:middle}
+.call-table tbody tr:last-child td{border-bottom:none}
+.call-table tbody tr:hover td{background:#f7fbff}
+.rep-name{font-weight:600;color:#1a1a2e}
+.dsi-link{color:var(--blue2);font-weight:600;cursor:pointer;text-decoration:none}
+.dsi-link:hover{text-decoration:underline}
+/* status pills */
+.sp{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;margin-right:3px}
+.sp-active{background:#c6efce;color:#1e5631}
+.sp-delivered{background:#d1ecf1;color:#0c5460}
+.sp-shipped{background:#cce5ff;color:#004085}
+.sp-open{background:#fff3cd;color:#856404}
+.sp-pending{background:#fde2e2;color:#721c24}
+.sp-canceled,.sp-disconnected{background:#efefef;color:#555}
+.sp-default{background:#e9ecef;color:#495057}
+/* issue badge */
+.issue-tag{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:8px;background:#fff3cd;color:#856404;margin-right:4px}
+.issue-tag.porting{background:#fde2e2;color:#9c0006}
+.issue-tag.payment{background:#fff3cd;color:#856404}
+.issue-tag.byod{background:#cce5ff;color:#004085}
+/* rating pill on row */
+.rating-pill{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap}
+.rp-na{background:#efefef;color:#555}
+.rp-1{background:#f8d7da;color:#721c24}
+.rp-2{background:var(--red2);color:var(--red)}
+.rp-3{background:var(--yellow2);color:var(--yellow)}
+.rp-4{background:#e2efda;color:#385723}
+.rp-5{background:var(--green2);color:var(--green)}
+/* NOTES button */
+.notes-btn{padding:5px 14px;border:1.5px solid #d1d9e0;background:#fff;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;color:#555;transition:all .15s}
+.notes-btn:hover{border-color:var(--blue2);color:var(--blue2)}
+/* ── NOTES MODAL ── */
+.nm-dsi{font-size:1.1rem;font-weight:700;color:var(--blue);margin-bottom:2px}
+.nm-sub{font-size:.82rem;color:#888;margin-bottom:16px}
+.nm-section-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:8px}
+.nm-history{min-height:60px;max-height:200px;overflow-y:auto;background:#f7f9fc;border-radius:6px;padding:10px 12px;margin-bottom:16px}
+.nm-empty{font-size:.82rem;color:#aaa;font-style:italic}
+.nm-note{padding:6px 0;border-bottom:1px solid #eef2f7;font-size:.83rem}
+.nm-note:last-child{border-bottom:none}
+.nm-note-meta{font-size:.72rem;color:#999;margin-bottom:2px}
+.nm-note-text{color:#222}
+.nm-rating-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.nm-r-btn{padding:5px 12px;border-radius:12px;border:1.5px solid #d1d9e0;background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .15s}
+.nm-r-btn:hover{border-color:var(--blue2)}
+.nm-r-btn.active-na{background:#efefef;color:#555;border-color:#aaa}
+.nm-r-btn.active-1{background:#f8d7da;color:#721c24;border-color:#f5c6cb}
+.nm-r-btn.active-2{background:var(--red2);color:var(--red);border-color:#e9aeae}
+.nm-r-btn.active-3{background:var(--yellow2);color:var(--yellow);border-color:#ffe08a}
+.nm-r-btn.active-4{background:#e2efda;color:#385723;border-color:#b8d9a3}
+.nm-r-btn.active-5{background:var(--green2);color:var(--green);border-color:#8fd49b}
+.nm-textarea{width:100%;padding:9px 12px;border:1.5px solid #d1d9e0;border-radius:6px;font-size:.86rem;font-family:inherit;resize:vertical;min-height:80px;outline:none;margin-bottom:12px}
+.nm-textarea:focus{border-color:var(--blue2)}
+.nm-actions{display:flex;gap:8px}
+.nm-add-btn{flex:1;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer}
+.nm-add-btn:hover{background:var(--blue2)}
+.nm-close-btn{padding:10px 20px;border:1.5px solid #d1d9e0;background:#fff;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;color:#555}
+.nm-close-btn:hover{border-color:#aaa}
 .add-note-row input:focus{border-color:var(--blue2)}
 .add-note-row button{padding:7px 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .add-note-row button:hover{background:var(--blue2)}
@@ -350,7 +387,7 @@ function switchTab(id) {
 }
 
 // ── DATA ─────────────────────────────────────────────────────────────────
-var TAB_CACHE = {}; // lazy-loaded tab data
+var TAB_CACHE = {};
 
 function loadData() {
   TAB_CACHE = {};
@@ -378,39 +415,17 @@ function loadData() {
 
 function refreshData() { TAB_CACHE = {}; loadData(); }
 
-// Lazy load tab data (day-after, delivered, issues)
-var LAZY_TABS = { dayafter:'readDayAfter', delivered:'readDelivered', issues:'readIssues' };
-function loadTabData(tabId, callback) {
-  if (TAB_CACHE[tabId] !== undefined) { callback(TAB_CACHE[tabId]); return; }
-  var action = LAZY_TABS[tabId];
-  if (!action) { callback([]); return; }
-  api({ action: action }).then(function(res) {
-    TAB_CACHE[tabId] = res.orders || [];
-    callback(TAB_CACHE[tabId]);
-  }).catch(function() { callback([]); });
-}
-
 // ── RENDER TABS ───────────────────────────────────────────────────────────
 function renderTab(id) {
   var c = document.getElementById('main-content');
-  // Lazy-loaded tabs show spinner then render
-  if (LAZY_TABS[id]) {
-    c.innerHTML = '<div class="spinner">Loading…</div>';
-    loadTabData(id, function(orders) {
-      switch(id) {
-        case 'dayafter':  c.innerHTML = renderCallLog(orders, 'Day-After Calls', 'No day-after orders found.'); break;
-        case 'delivered': c.innerHTML = renderCallLog(orders, 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
-        case 'issues':    c.innerHTML = renderIssues(orders); break;
-      }
-      bindFilters();
-    });
-    return;
-  }
   switch(id) {
     case 'aor':         c.innerHTML = renderAOR();         break;
     case 'actrates':    c.innerHTML = renderActRates();    break;
-    case 'noanswer':    c.innerHTML = renderNoAnswer();    break;
-    case 'escalations': c.innerHTML = renderEscalations(); break;
+    case 'dayafter':    c.innerHTML = renderCallTable(DATA.dayAfterOrders||[], 'Day-After Calls', 'No day-after orders found.'); break;
+    case 'delivered':   c.innerHTML = renderCallTable(DATA.deliveredOrders||[], 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
+    case 'issues':      c.innerHTML = renderIssuesTable(DATA.orderIssues||[]); break;
+    case 'noanswer':    c.innerHTML = renderNoAnswerTable(); break;
+    case 'escalations': c.innerHTML = renderEscalationsTable(); break;
     case 'orderlog':    c.innerHTML = renderOrderLog();    break;
     case 'churn':       c.innerHTML = renderChurn();       break;
     case 'people':      c.innerHTML = renderPeople();      break;
@@ -518,176 +533,192 @@ function renderActRates() {
   '</tbody></table></div></div></div>';
 }
 
-// ── SHARED ORDER CARD HELPERS ─────────────────────────────────────────────
+// ── CALL TABLE HELPERS ────────────────────────────────────────────────────
 var RATING_OPTS = ['No Answer','1 Star','2 Stars','3 Stars','4 Stars','5 Stars'];
 
-function ratingClass(r) {
+// ── STATUS PILL ───────────────────────────────────────────────────────────
+function statusPill(s) {
+  if (!s) return '<span class="sp sp-default">—</span>';
+  var sl = s.toLowerCase();
+  var cls = sl.indexOf('active')!==-1?'sp-active':sl.indexOf('deliver')!==-1?'sp-delivered':sl.indexOf('ship')!==-1?'sp-shipped':sl.indexOf('open')!==-1?'sp-open':sl.indexOf('pend')!==-1?'sp-pending':(sl.indexOf('cancel')!==-1||sl.indexOf('disco')!==-1)?'sp-canceled':'sp-default';
+  return '<span class="sp '+cls+'">'+esc(s)+'</span>';
+}
+
+function ratingPill(dsi) {
+  var r = (DATA.ratings||{})[dsi] || '';
   if (!r) return '';
-  if (r==='No Answer') return 'active-na';
-  if (r==='1 Star') return 'active-1';
-  if (r==='2 Stars') return 'active-2';
-  if (r==='3 Stars') return 'active-3';
-  if (r==='4 Stars') return 'active-4';
-  if (r==='5 Stars') return 'active-5';
-  return '';
+  var cls = r==='No Answer'?'rp-na':r==='1 Star'?'rp-1':r==='2 Stars'?'rp-2':r==='3 Stars'?'rp-3':r==='4 Stars'?'rp-4':r==='5 Stars'?'rp-5':'';
+  return '<span class="rating-pill '+cls+'">'+esc(r)+'</span>';
 }
 
-function ratingBar(dsi) {
-  var cur = (DATA.ratings||{})[dsi] || '';
-  return '<div class="rating-bar">' + RATING_OPTS.map(function(r) {
-    var cls = 'r-btn' + (cur===r ? ' '+ratingClass(r) : '');
-    return '<button class="'+cls+'" onclick="event.stopPropagation();setRating(\''+esc(dsi)+'\',\''+r+'\')">'+r+'</button>';
-  }).join('') + '</div>';
-}
+// ── NOTES MODAL ───────────────────────────────────────────────────────────
+var _modalDsi = '';
 
-function notesPanel(dsi) {
+function openNotesModal(dsi, customer, rep) {
+  _modalDsi = dsi;
   var notes = (DATA.notes||{})[dsi] || [];
-  var history = notes.length ? notes.map(function(n) {
-    return '<div class="note-entry"><span class="note-meta">'+fmtDate(n.ts)+' — '+esc(n.authorName)+'</span><span class="note-text">'+esc(n.noteText)+'</span></div>';
-  }).join('') : '<div style="font-size:.8rem;color:#aaa;padding:4px 0">No notes yet.</div>';
-  return '<div class="notes-history" id="nh-'+esc(dsi)+'">' + history + '</div>' +
-    '<div class="add-note-row"><input type="text" id="ni-'+esc(dsi)+'" placeholder="Add a note…" onkeydown="if(event.key===\'Enter\')addNote(\''+esc(dsi)+'\')"><button onclick="addNote(\''+esc(dsi)+'\')">Add</button></div>';
-}
+  var rating = (DATA.ratings||{})[dsi] || '';
 
-function orderCard(order, extraHtml) {
-  var dsi = order.dsi || '';
-  var cardId = 'oc-' + dsi.replace(/\W/g,'_');
-  var header = '<div class="order-card-header" onclick="toggleCard(\''+cardId+'\')">' +
-    '<div><strong>'+esc(order.spe||order.rep||'—')+'</strong>' +
-    (extraHtml||'') +
-    '<div class="order-meta">' +
-      '<span>Rep: '+esc(order.rep)+'</span>' +
-      '<span>DSI: '+esc(dsi)+'</span>' +
-      '<span>Product: '+esc(order.productType)+'</span>' +
-      '<span>Order Date: '+esc(order.orderDate)+'</span>' +
-      '<span>Status: '+esc(order.dtrStatus)+'</span>' +
-    '</div></div>' +
-    '<div style="text-align:right;font-size:.75rem;color:#aaa">▼</div>' +
+  var historyHtml = notes.length ? notes.map(function(n) {
+    return '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(n.ts)+' &mdash; '+esc(n.authorName)+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
+  }).join('') : '<div class="nm-empty">No notes yet.</div>';
+
+  var ratingHtml = RATING_OPTS.map(function(r) {
+    var active = r===rating ? ' active-'+( r==='No Answer'?'na': r.replace(' Stars','').replace(' Star','') ) : '';
+    return '<button class="nm-r-btn'+active+'" onclick="modalSetRating(\''+r+'\')">'+r+'</button>';
+  }).join('');
+
+  document.getElementById('modal-title').innerHTML =
+    '<div class="nm-dsi">DSI: '+esc(dsi)+'</div>' +
+    '<div class="nm-sub">'+esc(customer)+(rep?' &mdash; '+esc(rep):'')+'</div>';
+
+  document.getElementById('modal-body').innerHTML =
+    '<div class="nm-section-label">History</div>' +
+    '<div class="nm-history" id="nm-hist-'+esc(dsi)+'">'+historyHtml+'</div>' +
+    '<div class="nm-section-label">Rating</div>' +
+    '<div class="nm-rating-row" id="nm-rating-row">'+ratingHtml+'</div>' +
+    '<div class="nm-section-label">Add Note</div>' +
+    '<textarea class="nm-textarea" id="nm-note-input" placeholder="Type your note…"></textarea>' +
+    '<div class="nm-actions">' +
+      '<button class="nm-add-btn" onclick="modalAddNote()">ADD NOTE</button>' +
+      '<button class="nm-close-btn" onclick="closeModal()">CLOSE</button>' +
     '</div>';
-  var body = '<div class="order-expand" id="'+cardId+'">' +
-    ratingBar(dsi) +
-    notesPanel(dsi) +
-    '</div>';
-  return '<div class="order-card">' + header + body + '</div>';
+
+  document.getElementById('detail-modal').classList.add('open');
 }
 
-function toggleCard(id) {
-  var el = document.getElementById(id);
-  if (el) el.classList.toggle('open');
-}
-
-function setRating(dsi, rating) {
+function modalSetRating(rating) {
+  if (!_modalDsi) return;
   if (!DATA.ratings) DATA.ratings = {};
-  DATA.ratings[dsi] = rating;
-  // Re-render rating bars for this DSI across the page
-  document.querySelectorAll('.rating-bar').forEach(function(bar) {
-    var btns = bar.querySelectorAll('.r-btn');
-    btns.forEach(function(btn) {
-      var btnRating = btn.textContent.trim();
-      btn.className = 'r-btn' + (btnRating===rating ? ' '+ratingClass(rating) : '');
-    });
+  DATA.ratings[_modalDsi] = rating;
+  // Update modal buttons
+  document.querySelectorAll('#nm-rating-row .nm-r-btn').forEach(function(btn) {
+    var r = btn.textContent.trim();
+    var active = r===rating ? ' active-'+(r==='No Answer'?'na':r.replace(' Stars','').replace(' Star','')) : '';
+    btn.className = 'nm-r-btn' + active;
   });
-  apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:SESSION.email });
-  // Refresh No Answer / Escalations tabs if they're cached
-  delete TAB_CACHE['noanswer']; delete TAB_CACHE['escalations'];
+  // Update rating pill on the row
+  var pill = document.getElementById('rp-'+_modalDsi.replace(/\W/g,'_'));
+  if (pill) {
+    var cls = rating==='No Answer'?'rp-na':rating==='1 Star'?'rp-1':rating==='2 Stars'?'rp-2':rating==='3 Stars'?'rp-3':rating==='4 Stars'?'rp-4':rating==='5 Stars'?'rp-5':'';
+    pill.className = 'rating-pill '+cls;
+    pill.textContent = rating;
+  }
+  apiPost({ action:'setRating', dsi:_modalDsi, rating:rating, updatedBy:SESSION.email });
 }
 
-function addNote(dsi) {
-  var input = document.getElementById('ni-'+dsi);
+function modalAddNote() {
+  var input = document.getElementById('nm-note-input');
   if (!input) return;
   var text = input.value.trim(); if (!text) return;
   input.value = ''; input.disabled = true;
   var now = new Date().toISOString();
   var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text };
   if (!DATA.notes) DATA.notes = {};
-  if (!DATA.notes[dsi]) DATA.notes[dsi] = [];
-  DATA.notes[dsi].push(entry);
-  // Update all note history panels for this DSI
-  document.querySelectorAll('[id="nh-'+dsi+'"]').forEach(function(el) {
-    el.innerHTML += '<div class="note-entry"><span class="note-meta">'+fmtDate(now)+' — '+esc(SESSION.name)+'</span><span class="note-text">'+esc(text)+'</span></div>';
-  });
-  apiPost({ action:'addNote', dsi:dsi, noteText:text, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+  if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
+  DATA.notes[_modalDsi].push(entry);
+  var hist = document.getElementById('nm-hist-'+_modalDsi.replace(/\W/g,'_'));
+  if (hist) {
+    var empties = hist.querySelectorAll('.nm-empty');
+    empties.forEach(function(e) { e.remove(); });
+    hist.innerHTML += '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(now)+' &mdash; '+esc(SESSION.name)+'</div><div class="nm-note-text">'+esc(text)+'</div></div>';
+    hist.scrollTop = hist.scrollHeight;
+  }
+  // Update note count on row
+  var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
+  if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
+  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
     .then(function() { input.disabled = false; })
     .catch(function() { input.disabled = false; });
 }
 
-// ── CALL LOG (Day-After + Delivered) ─────────────────────────────────────
-function renderCallLog(orders, title, emptyMsg) {
+// ── CALL TABLE ────────────────────────────────────────────────────────────
+function callTableRows(orders, extraColFn) {
+  return orders.map(function(o) {
+    var dsi = o.dsi || '';
+    var safeId = dsi.replace(/\W/g,'_');
+    var noteCount = ((DATA.notes||{})[dsi]||[]).length;
+    var extra = extraColFn ? extraColFn(o) : '';
+    return '<tr>' +
+      '<td><span class="rep-name">'+esc(o.rep)+'</span></td>' +
+      '<td><span class="dsi-link" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">'+esc(dsi)+'</span></td>' +
+      '<td>'+esc(o.orderDate)+'</td>' +
+      '<td>'+esc(o.spe)+'</td>' +
+      '<td>'+esc(o.productType)+'</td>' +
+      extra +
+      '<td>'+statusPill(o.dtrStatus)+'</td>' +
+      '<td><span class="rating-pill" id="rp-'+safeId+'">'+((DATA.ratings||{})[dsi]||'')+'</span></td>' +
+      '<td>' +
+        '<button class="notes-btn" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">NOTES' +
+        (noteCount>0?'<span style="margin-left:5px;background:var(--blue2);color:#fff;border-radius:8px;padding:1px 6px;font-size:.68rem">'+noteCount+'</span>':'') +
+        '</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderCallTable(orders, title, emptyMsg) {
   if (!orders.length) return noData(emptyMsg);
-  return '<div class="card"><div class="card-header dark">'+esc(title)+' ('+orders.length+')</div><div class="card-body">' +
-    '<div class="filter-row"><input id="f-cl-'+title.replace(/\s/g,'')+'" placeholder="Search customer, rep, DSI…" oninput="filterCards(this)"></div>' +
-    '<div id="cards-'+title.replace(/\s/g,'')+'">' +
-    orders.map(function(o) { return orderCard(o,''); }).join('') +
-    '</div></div></div>';
+  return '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
+    '<div class="filter-row"><input id="f-ct" placeholder="Search rep, customer, DSI…"></div>' +
+    '<div class="call-table-wrap"><table class="call-table" id="ct-table"><thead><tr>' +
+    '<th>Rep</th><th>DSI</th><th>Date</th><th>Customer</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    '</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div></div></div>';
 }
 
 // ── ORDER ISSUES ──────────────────────────────────────────────────────────
-function renderIssues(orders) {
-  if (!orders||!orders.length) return noData('No order issues found.');
-  return '<div class="card"><div class="card-header dark">Order Issues ('+orders.length+')</div><div class="card-body">' +
-    '<div class="filter-row"><input placeholder="Search customer, rep, DSI…" oninput="filterCards(this)"></div>' +
-    '<div>' +
-    orders.map(function(o) {
-      var badge = '<span class="issue-badge">'+esc(o.issueType)+'</span>';
-      if (o.issueType==='Porting' && o.heldBackLines>0) badge += '<span class="issue-badge" style="background:#fde2e2;color:#9c0006">'+o.heldBackLines+' line'+(o.heldBackLines>1?'s':'')+' held</span>';
-      return orderCard(o, badge);
-    }).join('') +
-    '</div></div></div>';
+function renderIssuesTable(orders) {
+  if (!orders.length) return noData('No order issues found.');
+  return '<div class="card"><div class="card-header dark">Order Issues &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
+    '<div class="filter-row"><input id="f-iss" placeholder="Search rep, customer, DSI…"></div>' +
+    '<div class="call-table-wrap"><table class="call-table" id="iss-table"><thead><tr>' +
+    '<th>Rep</th><th>DSI</th><th>Date</th><th>Customer</th><th>Product</th><th>Issue</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    '</tr></thead><tbody>' +
+    callTableRows(orders, function(o) {
+      var tag = o.issueType==='Porting'?'porting':o.issueType==='Pending Payment'?'payment':'byod';
+      var extra = '<span class="issue-tag '+tag+'">'+esc(o.issueType)+'</span>';
+      if (o.issueType==='Porting'&&o.heldBackLines>0) extra += '<span class="issue-tag porting">'+o.heldBackLines+' line'+(o.heldBackLines>1?'s':'')+' held</span>';
+      return '<td>'+extra+'</td>';
+    }) +
+    '</tbody></table></div></div></div>';
 }
 
 // ── NO ANSWER ─────────────────────────────────────────────────────────────
-function renderNoAnswer() {
+function renderNoAnswerTable() {
   var ratings = DATA.ratings || {};
-  var notes   = DATA.notes || {};
-  // Build combined pool from AOR data + any DSI with No Answer rating
   var noAnswerDsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='No Answer'; });
-  if (!noAnswerDsis.length) return noData('No orders marked as No Answer.');
-  // Build simple order objects from AOR data or just DSI
+  if (!noAnswerDsis.length) return noData('No orders marked No Answer yet.');
   var aorByDsi = {};
   (DATA.aorData||[]).forEach(function(r) { var d=r['sp.SPM Number']; if(d) aorByDsi[d]=r; });
-  var cards = noAnswerDsis.map(function(dsi) {
-    var aor = aorByDsi[dsi];
-    var o = aor ? {
-      dsi:dsi, spe:aor['Customer Name']||'', rep:aor['Rep']||'',
-      productType:aor['Product Type (Broken out lvl 2)']||'',
-      orderDate:aor['sp.Order Date (copy)']||'', dtrStatus:aor['DTR Status (enriched)']||'', ownerOffice:''
-    } : { dsi:dsi, spe:dsi, rep:'—', productType:'—', orderDate:'—', dtrStatus:'—', ownerOffice:'' };
-    return orderCard(o,'');
+  var orders = noAnswerDsis.map(function(dsi) {
+    var a = aorByDsi[dsi];
+    return a ? { dsi:dsi, rep:esc(a['Rep']||'—'), spe:a['Customer Name']||'', productType:a['Product Type (Broken out lvl 2)']||'', orderDate:fmtDate(a['sp.Order Date (copy)']), dtrStatus:a['DTR Status (enriched)']||'' }
+             : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
   });
-  return '<div class="card"><div class="card-header dark">No Answer ('+noAnswerDsis.length+')</div><div class="card-body">' +
-    '<div class="filter-row"><input placeholder="Search…" oninput="filterCards(this)"></div>' +
-    '<div>' + cards.join('') + '</div></div></div>';
+  return '<div class="card"><div class="card-header dark">No Answer &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
+    '<div class="filter-row"><input id="f-na" placeholder="Search rep, customer, DSI…"></div>' +
+    '<div class="call-table-wrap"><table class="call-table" id="na-table"><thead><tr>' +
+    '<th>Rep</th><th>DSI</th><th>Date</th><th>Customer</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    '</tr></thead><tbody>'+callTableRows(orders,null)+'</tbody></table></div></div></div>';
 }
 
 // ── ESCALATIONS ───────────────────────────────────────────────────────────
-function renderEscalations() {
+function renderEscalationsTable() {
   var ratings = DATA.ratings || {};
   var escDsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='1 Star'||ratings[dsi]==='2 Stars'; });
   if (!escDsis.length) return noData('No escalations yet. Orders rated 1 or 2 Stars appear here.');
   var aorByDsi = {};
   (DATA.aorData||[]).forEach(function(r) { var d=r['sp.SPM Number']; if(d) aorByDsi[d]=r; });
-  var cards = escDsis.map(function(dsi) {
-    var aor = aorByDsi[dsi];
-    var o = aor ? {
-      dsi:dsi, spe:aor['Customer Name']||'', rep:aor['Rep']||'',
-      productType:aor['Product Type (Broken out lvl 2)']||'',
-      orderDate:aor['sp.Order Date (copy)']||'', dtrStatus:aor['DTR Status (enriched)']||'', ownerOffice:''
-    } : { dsi:dsi, spe:dsi, rep:'—', productType:'—', orderDate:'—', dtrStatus:'—', ownerOffice:'' };
-    var starBadge = '<span class="issue-badge" style="background:#fde2e2;color:#9c0006">'+esc(ratings[dsi])+'</span>';
-    return orderCard(o, starBadge);
+  var orders = escDsis.map(function(dsi) {
+    var a = aorByDsi[dsi];
+    return a ? { dsi:dsi, rep:a['Rep']||'—', spe:a['Customer Name']||'', productType:a['Product Type (Broken out lvl 2)']||'', orderDate:fmtDate(a['sp.Order Date (copy)']), dtrStatus:a['DTR Status (enriched)']||'' }
+             : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
   });
-  return '<div class="card"><div class="card-header dark">Escalations ('+escDsis.length+')</div><div class="card-body">' +
-    '<div class="filter-row"><input placeholder="Search…" oninput="filterCards(this)"></div>' +
-    '<div>' + cards.join('') + '</div></div></div>';
-}
-
-function filterCards(input) {
-  var q = input.value.toLowerCase();
-  var container = input.closest('.card-body').querySelector('div:last-child');
-  if (!container) return;
-  container.querySelectorAll('.order-card').forEach(function(card) {
-    card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
+  return '<div class="card"><div class="card-header dark">Escalations &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
+    '<div class="filter-row"><input id="f-esc" placeholder="Search rep, customer, DSI…"></div>' +
+    '<div class="call-table-wrap"><table class="call-table" id="esc-table"><thead><tr>' +
+    '<th>Rep</th><th>DSI</th><th>Date</th><th>Customer</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    '</tr></thead><tbody>'+callTableRows(orders,null)+'</tbody></table></div></div></div>';
 }
 
 // ── ORDER LOG ─────────────────────────────────────────────────────────────
