@@ -97,6 +97,35 @@ tr:hover td{background:#f0f7ff}
 .spinner{text-align:center;padding:48px;color:#aaa;font-size:.9rem}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:.88rem}
 
+/* ── RATING ── */
+.rating-bar{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}
+.r-btn{padding:3px 10px;border-radius:12px;border:1.5px solid #d1d9e0;background:#fff;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.r-btn:hover{border-color:var(--blue2);color:var(--blue2)}
+.r-btn.active-na{background:#efefef;color:#555;border-color:#aaa}
+.r-btn.active-1{background:#f8d7da;color:#721c24;border-color:#f5c6cb}
+.r-btn.active-2{background:var(--red2);color:var(--red);border-color:#e9aeae}
+.r-btn.active-3{background:var(--yellow2);color:var(--yellow);border-color:#ffe08a}
+.r-btn.active-4{background:#e2efda;color:#385723;border-color:#b8d9a3}
+.r-btn.active-5{background:var(--green2);color:var(--green);border-color:#8fd49b}
+/* ── NOTES ── */
+.order-card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:12px;overflow:hidden}
+.order-card-header{display:grid;grid-template-columns:1fr auto;align-items:start;padding:12px 16px;cursor:pointer;gap:8px}
+.order-card-header:hover{background:#f7fbff}
+.order-meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:#555;margin-top:4px}
+.order-meta span{white-space:nowrap}
+.order-expand{display:none;padding:0 16px 14px}
+.order-expand.open{display:block}
+.notes-history{max-height:180px;overflow-y:auto;margin-bottom:10px}
+.note-entry{padding:6px 0;border-bottom:1px solid #f0f4f8;font-size:.82rem}
+.note-entry:last-child{border-bottom:none}
+.note-meta{font-size:.72rem;color:#888;display:block;margin-bottom:2px}
+.note-text{color:#222}
+.add-note-row{display:flex;gap:6px}
+.add-note-row input{flex:1;padding:7px 10px;border:1.5px solid #d1d9e0;border-radius:6px;font-size:.84rem;outline:none}
+.add-note-row input:focus{border-color:var(--blue2)}
+.add-note-row button{padding:7px 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.add-note-row button:hover{background:var(--blue2)}
+.issue-badge{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;background:#fff3cd;color:#856404;margin-left:6px}
 /* ── PILLS for activation bucket ── */
 .pill-0-7{background:#C6EFCE;color:#1E5631;padding:2px 7px;border-radius:8px;font-size:.72rem;font-weight:700}
 .pill-8-14{background:#FFF2CC;color:#7F6000;padding:2px 7px;border-radius:8px;font-size:.72rem;font-weight:700}
@@ -283,15 +312,16 @@ function showApp() {
 }
 
 var TABS = [
-  { id: 'aor',        icon: '📋', label: 'AOR',              roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'actrates',   icon: '📊', label: 'Activation Rates', roles: ['admin','owner','manager','jd','l1'] },
-  { id: 'dayafter',   icon: '📞', label: 'Day-After Orders', roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'delivered',  icon: '📦', label: 'Delivered Not Act',roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'issues',     icon: '⚠️', label: 'Order Issues',     roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'escalations',icon: '🚨', label: 'Escalations',      roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'orderlog',   icon: '📄', label: 'Order Log',        roles: ['admin','owner','manager','jd'] },
-  { id: 'churn',      icon: '📉', label: 'Churn Report',     roles: ['admin','owner','manager','jd'] },
-  { id: 'people',     icon: '👥', label: 'People',           roles: ['admin','owner','manager','jd','l1'] },
+  { id: 'aor',        icon: '📋', label: 'AOR',                roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'actrates',   icon: '📊', label: 'Activation Rates',   roles: ['admin','owner','manager','jd','l1'] },
+  { id: 'dayafter',   icon: '📞', label: 'Day-After Calls',    roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'delivered',  icon: '📦', label: 'Delivered Not Active',roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'issues',     icon: '⚠️',  label: 'Order Issues',       roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'noanswer',   icon: '📵', label: 'No Answer',           roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'escalations',icon: '🚨', label: 'Escalations',         roles: ['admin','owner','manager','jd','l1','rep'] },
+  { id: 'orderlog',   icon: '📄', label: 'Order Log',           roles: ['admin','owner','manager','jd'] },
+  { id: 'churn',      icon: '📉', label: 'Churn Report',        roles: ['admin','owner','manager','jd'] },
+  { id: 'people',     icon: '👥', label: 'People',              roles: ['admin','owner','manager','jd','l1'] },
 ];
 
 function buildNav() {
@@ -320,12 +350,14 @@ function switchTab(id) {
 }
 
 // ── DATA ─────────────────────────────────────────────────────────────────
+var TAB_CACHE = {}; // lazy-loaded tab data
+
 function loadData() {
+  TAB_CACHE = {};
   document.getElementById('main-content').innerHTML = '<div class="spinner">Loading data…</div>';
   api({ ownerEmail: SESSION.email, ownerName: SESSION.name || '' }).then(function(res) {
     if (res.error) { document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + res.error + '</div>'; return; }
     DATA = res;
-    // Determine role from roster
     var roster = DATA.roster || {};
     var me = roster[SESSION.email];
     SESSION.role = me ? (me.rank || 'rep') : 'rep';
@@ -334,28 +366,50 @@ function loadData() {
     document.getElementById('sb-user-name').textContent = SESSION.name + ' · ' + SESSION.role;
     document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
     buildNav();
-    // Make sure CURRENT_TAB is accessible for this role
     var tab = TABS.find(function(t) { return t.id === CURRENT_TAB; });
     if (!tab || !tab.roles.includes(SESSION.role)) {
       CURRENT_TAB = TABS.find(function(t) { return t.roles.includes(SESSION.role); }).id;
     }
     switchTab(CURRENT_TAB);
-  }).catch(function(e) {
+  }).catch(function() {
     document.getElementById('main-content').innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="loadData()">Retry</a></div>';
   });
 }
 
-function refreshData() { loadData(); }
+function refreshData() { TAB_CACHE = {}; loadData(); }
+
+// Lazy load tab data (day-after, delivered, issues)
+var LAZY_TABS = { dayafter:'readDayAfter', delivered:'readDelivered', issues:'readIssues' };
+function loadTabData(tabId, callback) {
+  if (TAB_CACHE[tabId]) { callback(TAB_CACHE[tabId]); return; }
+  var action = LAZY_TABS[tabId];
+  if (!action) { callback([]); return; }
+  api({ action: action }).then(function(res) {
+    TAB_CACHE[tabId] = res.orders || [];
+    callback(TAB_CACHE[tabId]);
+  }).catch(function() { callback([]); });
+}
 
 // ── RENDER TABS ───────────────────────────────────────────────────────────
 function renderTab(id) {
   var c = document.getElementById('main-content');
+  // Lazy-loaded tabs show spinner then render
+  if (LAZY_TABS[id]) {
+    c.innerHTML = '<div class="spinner">Loading…</div>';
+    loadTabData(id, function(orders) {
+      switch(id) {
+        case 'dayafter':  c.innerHTML = renderCallLog(orders, 'Day-After Calls', 'No day-after orders found.'); break;
+        case 'delivered': c.innerHTML = renderCallLog(orders, 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
+        case 'issues':    c.innerHTML = renderIssues(orders); break;
+      }
+      bindFilters();
+    });
+    return;
+  }
   switch(id) {
     case 'aor':         c.innerHTML = renderAOR();         break;
     case 'actrates':    c.innerHTML = renderActRates();    break;
-    case 'dayafter':    c.innerHTML = renderDayAfter();    break;
-    case 'delivered':   c.innerHTML = renderDelivered();   break;
-    case 'issues':      c.innerHTML = renderIssues();      break;
+    case 'noanswer':    c.innerHTML = renderNoAnswer();    break;
     case 'escalations': c.innerHTML = renderEscalations(); break;
     case 'orderlog':    c.innerHTML = renderOrderLog();    break;
     case 'churn':       c.innerHTML = renderChurn();       break;
@@ -464,54 +518,176 @@ function renderActRates() {
   '</tbody></table></div></div></div>';
 }
 
-// ── DAY-AFTER ORDERS ──────────────────────────────────────────────────────
-function renderDayAfter() {
-  var rows = DATA.aorData || [];
-  var yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
-  var yd = yesterday.toISOString().split('T')[0];
-  var filtered = rows.filter(function(r) {
-    var d = String(r['sp.Order Date (copy)']||'').split('T')[0];
-    return d === yd;
-  });
-  if (!filtered.length) return noData('No orders from yesterday found in AOR data.');
-  return aorTable(filtered, 'Day-After Orders — ' + fmtDate(yesterday));
+// ── SHARED ORDER CARD HELPERS ─────────────────────────────────────────────
+var RATING_OPTS = ['No Answer','1 Star','2 Stars','3 Stars','4 Stars','5 Stars'];
+
+function ratingClass(r) {
+  if (!r) return '';
+  if (r==='No Answer') return 'active-na';
+  if (r==='1 Star') return 'active-1';
+  if (r==='2 Stars') return 'active-2';
+  if (r==='3 Stars') return 'active-3';
+  if (r==='4 Stars') return 'active-4';
+  if (r==='5 Stars') return 'active-5';
+  return '';
 }
 
-// ── DELIVERED NOT ACTIVATED ───────────────────────────────────────────────
-function renderDelivered() {
-  var rows = DATA.aorData || [];
-  var filtered = rows.filter(function(r) { return /deliver/i.test(String(r['DTR Status (enriched)']||'')); });
-  if (!filtered.length) return noData('No delivered-not-activated orders found.');
-  return aorTable(filtered, 'Delivered Not Activated');
+function ratingBar(dsi) {
+  var cur = (DATA.ratings||{})[dsi] || '';
+  return '<div class="rating-bar">' + RATING_OPTS.map(function(r) {
+    var cls = 'r-btn' + (cur===r ? ' '+ratingClass(r) : '');
+    return '<button class="'+cls+'" onclick="event.stopPropagation();setRating(\''+esc(dsi)+'\',\''+r+'\')">'+r+'</button>';
+  }).join('') + '</div>';
+}
+
+function notesPanel(dsi) {
+  var notes = (DATA.notes||{})[dsi] || [];
+  var history = notes.length ? notes.map(function(n) {
+    return '<div class="note-entry"><span class="note-meta">'+fmtDate(n.ts)+' — '+esc(n.authorName)+'</span><span class="note-text">'+esc(n.noteText)+'</span></div>';
+  }).join('') : '<div style="font-size:.8rem;color:#aaa;padding:4px 0">No notes yet.</div>';
+  return '<div class="notes-history" id="nh-'+esc(dsi)+'">' + history + '</div>' +
+    '<div class="add-note-row"><input type="text" id="ni-'+esc(dsi)+'" placeholder="Add a note…" onkeydown="if(event.key===\'Enter\')addNote(\''+esc(dsi)+'\')"><button onclick="addNote(\''+esc(dsi)+'\')">Add</button></div>';
+}
+
+function orderCard(order, extraHtml) {
+  var dsi = order.dsi || '';
+  var cardId = 'oc-' + dsi.replace(/\W/g,'_');
+  var header = '<div class="order-card-header" onclick="toggleCard(\''+cardId+'\')">' +
+    '<div><strong>'+esc(order.spe||order.rep||'—')+'</strong>' +
+    (extraHtml||'') +
+    '<div class="order-meta">' +
+      '<span>Rep: '+esc(order.rep)+'</span>' +
+      '<span>DSI: '+esc(dsi)+'</span>' +
+      '<span>Product: '+esc(order.productType)+'</span>' +
+      '<span>Order Date: '+esc(order.orderDate)+'</span>' +
+      '<span>Status: '+esc(order.dtrStatus)+'</span>' +
+    '</div></div>' +
+    '<div style="text-align:right;font-size:.75rem;color:#aaa">▼</div>' +
+    '</div>';
+  var body = '<div class="order-expand" id="'+cardId+'">' +
+    ratingBar(dsi) +
+    notesPanel(dsi) +
+    '</div>';
+  return '<div class="order-card">' + header + body + '</div>';
+}
+
+function toggleCard(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+function setRating(dsi, rating) {
+  if (!DATA.ratings) DATA.ratings = {};
+  DATA.ratings[dsi] = rating;
+  // Re-render rating bars for this DSI across the page
+  document.querySelectorAll('.rating-bar').forEach(function(bar) {
+    var btns = bar.querySelectorAll('.r-btn');
+    btns.forEach(function(btn) {
+      var btnRating = btn.textContent.trim();
+      btn.className = 'r-btn' + (btnRating===rating ? ' '+ratingClass(rating) : '');
+    });
+  });
+  apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:SESSION.email });
+  // Refresh No Answer / Escalations tabs if they're cached
+  delete TAB_CACHE['noanswer']; delete TAB_CACHE['escalations'];
+}
+
+function addNote(dsi) {
+  var input = document.getElementById('ni-'+dsi);
+  if (!input) return;
+  var text = input.value.trim(); if (!text) return;
+  input.value = ''; input.disabled = true;
+  var now = new Date().toISOString();
+  var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text };
+  if (!DATA.notes) DATA.notes = {};
+  if (!DATA.notes[dsi]) DATA.notes[dsi] = [];
+  DATA.notes[dsi].push(entry);
+  // Update all note history panels for this DSI
+  document.querySelectorAll('[id="nh-'+dsi+'"]').forEach(function(el) {
+    el.innerHTML += '<div class="note-entry"><span class="note-meta">'+fmtDate(now)+' — '+esc(SESSION.name)+'</span><span class="note-text">'+esc(text)+'</span></div>';
+  });
+  apiPost({ action:'addNote', dsi:dsi, noteText:text, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+    .then(function() { input.disabled = false; })
+    .catch(function() { input.disabled = false; });
+}
+
+// ── CALL LOG (Day-After + Delivered) ─────────────────────────────────────
+function renderCallLog(orders, title, emptyMsg) {
+  if (!orders.length) return noData(emptyMsg);
+  return '<div class="card"><div class="card-header dark">'+esc(title)+' ('+orders.length+')</div><div class="card-body">' +
+    '<div class="filter-row"><input id="f-cl-'+title.replace(/\s/g,'')+'" placeholder="Search customer, rep, DSI…" oninput="filterCards(this)"></div>' +
+    '<div id="cards-'+title.replace(/\s/g,'')+'">' +
+    orders.map(function(o) { return orderCard(o,''); }).join('') +
+    '</div></div></div>';
 }
 
 // ── ORDER ISSUES ──────────────────────────────────────────────────────────
-function renderIssues() {
-  var dsi = DATA.tableauSummary && DATA.tableauSummary.dsiSummary ? DATA.tableauSummary.dsiSummary : {};
-  var issues = [];
-  Object.keys(dsi).forEach(function(d) {
-    var s = dsi[d];
-    var reasons = Object.keys(s.disconnectReasons||{});
-    if (reasons.length) issues.push({dsi:d, rep:s.tableauRep, devices:s.totalDevices, reasons:reasons.join(', '), statusCounts:s.statusCounts});
+function renderIssues(orders) {
+  if (!orders||!orders.length) return noData('No order issues found.');
+  return '<div class="card"><div class="card-header dark">Order Issues ('+orders.length+')</div><div class="card-body">' +
+    '<div class="filter-row"><input placeholder="Search customer, rep, DSI…" oninput="filterCards(this)"></div>' +
+    '<div>' +
+    orders.map(function(o) {
+      var badge = '<span class="issue-badge">'+esc(o.issueType)+'</span>';
+      if (o.issueType==='Porting' && o.heldBackLines>0) badge += '<span class="issue-badge" style="background:#fde2e2;color:#9c0006">'+o.heldBackLines+' line'+(o.heldBackLines>1?'s':'')+' held</span>';
+      return orderCard(o, badge);
+    }).join('') +
+    '</div></div></div>';
+}
+
+// ── NO ANSWER ─────────────────────────────────────────────────────────────
+function renderNoAnswer() {
+  var ratings = DATA.ratings || {};
+  var notes   = DATA.notes || {};
+  // Build combined pool from AOR data + any DSI with No Answer rating
+  var noAnswerDsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='No Answer'; });
+  if (!noAnswerDsis.length) return noData('No orders marked as No Answer.');
+  // Build simple order objects from AOR data or just DSI
+  var aorByDsi = {};
+  (DATA.aorData||[]).forEach(function(r) { var d=r['sp.SPM Number']; if(d) aorByDsi[d]=r; });
+  var cards = noAnswerDsis.map(function(dsi) {
+    var aor = aorByDsi[dsi];
+    var o = aor ? {
+      dsi:dsi, spe:aor['Customer Name']||'', rep:aor['Rep']||'',
+      productType:aor['Product Type (Broken out lvl 2)']||'',
+      orderDate:aor['sp.Order Date (copy)']||'', dtrStatus:aor['DTR Status (enriched)']||'', ownerOffice:''
+    } : { dsi:dsi, spe:dsi, rep:'—', productType:'—', orderDate:'—', dtrStatus:'—', ownerOffice:'' };
+    return orderCard(o,'');
   });
-  if (!issues.length) return noData('No order issues found in Tableau data.');
-  return '<div class="card"><div class="card-header dark">Order Issues</div><div class="card-body">' +
-  '<div class="filter-row"><input id="f-issues" placeholder="Search DSI or rep…"></div>' +
-  '<div class="tbl-wrap"><table id="issues-table"><thead><tr><th>DSI</th><th>Rep</th><th>Devices</th><th>Disconnect Reasons</th></tr></thead><tbody>' +
-  issues.map(function(r) {
-    return '<tr><td>'+esc(r.dsi)+'</td><td>'+esc(r.rep)+'</td><td>'+r.devices+'</td><td>'+esc(r.reasons)+'</td></tr>';
-  }).join('') + '</tbody></table></div></div></div>';
+  return '<div class="card"><div class="card-header dark">No Answer ('+noAnswerDsis.length+')</div><div class="card-body">' +
+    '<div class="filter-row"><input placeholder="Search…" oninput="filterCards(this)"></div>' +
+    '<div>' + cards.join('') + '</div></div></div>';
 }
 
 // ── ESCALATIONS ───────────────────────────────────────────────────────────
 function renderEscalations() {
-  var rows = DATA.aorData || [];
-  var filtered = rows.filter(function(r) {
-    var b = r['Activation Bucket'] || '';
-    return b.indexOf('31-60') >= 0;
+  var ratings = DATA.ratings || {};
+  var escDsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='1 Star'||ratings[dsi]==='2 Stars'; });
+  if (!escDsis.length) return noData('No escalations yet. Orders rated 1 or 2 Stars appear here.');
+  var aorByDsi = {};
+  (DATA.aorData||[]).forEach(function(r) { var d=r['sp.SPM Number']; if(d) aorByDsi[d]=r; });
+  var cards = escDsis.map(function(dsi) {
+    var aor = aorByDsi[dsi];
+    var o = aor ? {
+      dsi:dsi, spe:aor['Customer Name']||'', rep:aor['Rep']||'',
+      productType:aor['Product Type (Broken out lvl 2)']||'',
+      orderDate:aor['sp.Order Date (copy)']||'', dtrStatus:aor['DTR Status (enriched)']||'', ownerOffice:''
+    } : { dsi:dsi, spe:dsi, rep:'—', productType:'—', orderDate:'—', dtrStatus:'—', ownerOffice:'' };
+    var starBadge = '<span class="issue-badge" style="background:#fde2e2;color:#9c0006">'+esc(ratings[dsi])+'</span>';
+    return orderCard(o, starBadge);
   });
-  if (!filtered.length) return noData('No escalated orders (31-60 day bucket).');
-  return aorTable(filtered, 'Escalations — 31-60 Day Bucket');
+  return '<div class="card"><div class="card-header dark">Escalations ('+escDsis.length+')</div><div class="card-body">' +
+    '<div class="filter-row"><input placeholder="Search…" oninput="filterCards(this)"></div>' +
+    '<div>' + cards.join('') + '</div></div></div>';
+}
+
+function filterCards(input) {
+  var q = input.value.toLowerCase();
+  var container = input.closest('.card-body').querySelector('div:last-child');
+  if (!container) return;
+  container.querySelectorAll('.order-card').forEach(function(card) {
+    card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
 }
 
 // ── ORDER LOG ─────────────────────────────────────────────────────────────
