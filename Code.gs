@@ -11,14 +11,14 @@ const CHURN_REPORT_TAB = '_TableauChurnReport';
 const AOR_TAB = '_TableauAOR';
 const ACTIVATION_RATES_TAB = '_TableauActivationRates';
 var OFFICE_OWNER_MAP = {
-  'off_001': 'atomic marketing, inc.',
-  'off_002': 'viridian, inc.',
-  'off_003': 'elevate marketing team, inc.',
-  'off_004': 'ignite solutions, inc.'
+  'midspire': 'atomic marketing, inc.',
+  'viridian': 'viridian, inc.',
+  'elevate': 'elevate marketing team, inc.',
+  'ignite': 'ignite solutions, inc.'
 };
 var RATINGS_VALID = ['No Answer','1 Star','2 Stars','3 Stars','4 Stars','5 Stars'];
 function officeTab(base, officeId) { return base + '_' + officeId; }
-const DEFAULT_OFFICE_ID = 'off_001';
+const DEFAULT_OFFICE_ID = 'midspire';
 function buildTeamEmojiMaps(ss, officeId) {
   var emojiMap = {}, nameMap = {};
   var sheet = ss.getSheetByName(officeTab(TAB.TEAMS, officeId));
@@ -92,7 +92,7 @@ function jsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
 function getSheet(params) {
-  var sheetId = (params && params.sheetId) || '';
+  var sheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID') || '';
   if (sheetId) return SpreadsheetApp.openById(sheetId);
   return SpreadsheetApp.getActiveSpreadsheet();
 }
@@ -104,7 +104,7 @@ function getOrCreateSheet(ss, tabName, baseName) {
     switch (baseName) {
       case TAB.SALES:
         sheet.appendRow(['Timestamp','Email','Rep Name','Date of Sale','Campaign','DSI','Account Type','Client Name','Trainee','Trainee Name','Air','New Phones','BYODs','Cell','Fiber','Fiber Package','Install Date','VoIP Qty','DTV','DTV Package','Ooma Package','Account Notes','Activation Support','Team Emoji','Yeses','Units','Status','Notes','Paid Out','Tickets','Order Channel','Codes Used By','SPE Cache']); break;
-      case TAB.ROSTER: sheet.appendRow(['email','name','team','rank','deactivated','dateAdded','pinHash','phone','tableauName']); break;
+      case TAB.ROSTER: sheet.appendRow(['email','name','team','rank','deactivated','dateAdded','pinHash','phone','tableauName','permissions']); break;
       case TAB.OVERRIDES: sheet.appendRow(['key','product','status','date','order','notes_json']); break;
       case TAB.TEAM_CUSTOM: sheet.appendRow(['persona','emoji','displayName']); break;
       case TAB.UNLOCKS: sheet.appendRow(['persona','status']); break;
@@ -366,19 +366,6 @@ function doGet(e) {
       var officeName = (e.parameter && e.parameter.officeName) || 'OFFICE';
       return jsonResponse({ text: buildLeaderboardText(ss, officeId, officeName) });
     }
-    var ownerEmail = (e.parameter && e.parameter.ownerEmail || '').trim().toLowerCase();
-    var ownerName = (e.parameter && e.parameter.ownerName || '').trim();
-    if (ownerEmail) {
-      var rosterSheet = ss.getSheetByName(officeTab(TAB.ROSTER, officeId));
-      if (rosterSheet) {
-        var rosterData = rosterSheet.getDataRange().getValues();
-        var ownerFound = false;
-        for (var ri = 1; ri < rosterData.length; ri++) {
-          if (String(rosterData[ri][0] || '').trim().toLowerCase() === ownerEmail) { ownerFound = true; break; }
-        }
-        if (!ownerFound) rosterSheet.appendRow([ownerEmail, ownerName || ownerEmail, '', 'owner', false, new Date().toISOString(), '', '', '']);
-      }
-    }
     let roster = readRoster(ss, officeId);
     const teamMaps = buildTeamEmojiMaps(ss, officeId);
     const peopleResult = readPeople(ss, officeId, roster, teamMaps.nameMap);
@@ -426,11 +413,13 @@ function readRoster(ss, officeId) {
     const email=String(data[i][0]||'').trim().toLowerCase();
     if (!email) continue;
     var pinVal=String(data[i][6]||'').trim();
+    var homePermissions=String(data[i][9]||'').trim()||officeId;
     result[email]={ name:String(data[i][1]||'').trim(), team:String(data[i][2]||'').trim(),
       rank:String(data[i][3]||'rep').trim(),
       deactivated:data[i][4]===true||String(data[i][4]).toUpperCase()==='TRUE',
       dateAdded:data[i][5]||'', hasPin:pinVal.length>0&&pinVal!=='undefined',
-      phone:String(data[i][7]||'').trim(), tableauName:String(data[i][8]||'').trim() };
+      phone:String(data[i][7]||'').trim(), tableauName:String(data[i][8]||'').trim(),
+      permissions:homePermissions };
   }
   return result;
 }
@@ -996,6 +985,7 @@ function doPost(e) {
       case 'createOfficeTabs':    result=createOfficeTabs(body,ss); break;
       case 'migrateFromLegacy':   result=migrateFromLegacy(ss,officeId); break;
       case 'migrateFromExternal': result=migrateFromExternal(body,ss); break;
+      case 'migrateOfficeIds':    result=migrateOfficeIds(ss); break;
       default: result={ error:'unknown action: '+body.action };
     }
     return jsonResponse(result);
@@ -1006,7 +996,7 @@ function writeAddRosterEntry(body, ss, officeId) {
   const sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
   const email=String(body.email||'').trim().toLowerCase(); if (!email) return { error:'missing email' };
   if (findRowCI(sheet,0,email)>0) return { error:'email already exists' };
-  sheet.appendRow([email,body.name||'',body.team||'',body.rank||'rep',false,new Date().toISOString().split('T')[0],'',body.phone||'','']);
+  sheet.appendRow([email,body.name||'',body.team||'',body.rank||'rep',false,new Date().toISOString().split('T')[0],'',body.phone||'','',body.permissions||officeId]);
   return { ok:true };
 }
 function writeUpdateRosterEntry(body, ss, officeId) {
@@ -1015,12 +1005,13 @@ function writeUpdateRosterEntry(body, ss, officeId) {
   const rowIdx=findRowCI(sheet,0,email); if (rowIdx<0) return { error:'email not found' };
   const newEmail=body.newEmail?String(body.newEmail).trim().toLowerCase():'';
   if (newEmail&&newEmail!==email&&findRowCI(sheet,0,newEmail)>0) return { error:'new email already exists in roster' };
-  const cur=sheet.getRange(rowIdx,1,1,9).getValues()[0];
-  sheet.getRange(rowIdx,1,1,9).setValues([[newEmail||email,
+  const cur=sheet.getRange(rowIdx,1,1,10).getValues()[0];
+  sheet.getRange(rowIdx,1,1,10).setValues([[newEmail||email,
     body.name!==undefined?body.name:cur[1], body.team!==undefined?body.team:cur[2],
     body.rank!==undefined?body.rank:cur[3], body.deactivated!==undefined?body.deactivated:cur[4],
     cur[5], cur[6], body.phone!==undefined?body.phone:(cur[7]||''),
-    body.tableauName!==undefined?body.tableauName:(cur[8]||'')]]);
+    body.tableauName!==undefined?body.tableauName:(cur[8]||''),
+    body.permissions!==undefined?body.permissions:(cur[9]||officeId)]]);
   return { ok:true };
 }
 function writeDeleteRosterEntry(body, ss, officeId) {
@@ -1084,13 +1075,17 @@ function writeValidatePin(body, ss, officeId) {
   var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
   var email=String(body.email||'').trim().toLowerCase(); var pin=String(body.pin||'').trim();
   if (!email) return { error:'missing email' }; if (!pin) return { error:'missing pin' };
-  var rowIdx=findRowCI(sheet,0,email); if (rowIdx<0) return { error:'email not found' };
-  var rowData=sheet.getRange(rowIdx,1,1,7).getValues()[0];
+  var rowIdx=findRowCI(sheet,0,email);
+  if (rowIdx<0) return { error:'Not authorized for this office' };
+  var rowData=sheet.getRange(rowIdx,1,1,10).getValues()[0];
   var deactivated=rowData[4]===true||String(rowData[4]).toUpperCase()==='TRUE';
   if (deactivated) return { error:'Account deactivated. Contact your Admin.' };
   var storedHash=String(rowData[6]||'').trim();
   if (!storedHash||storedHash==='undefined') return { error:'No PIN set for this account' };
-  if (hashPin(email,pin)===storedHash) return { ok:true, valid:true };
+  if (hashPin(email,pin)===storedHash) {
+    var permissions=String(rowData[9]||'').trim()||officeId;
+    return { ok:true, valid:true, permissions:permissions };
+  }
   return { ok:true, valid:false, error:'Incorrect PIN' };
 }
 function writeChangePin(body, ss, officeId) {
@@ -1426,6 +1421,23 @@ function postLeaderboardToChat(optOfficeId) {
   else { url=webhookUrl; payload=JSON.stringify({ content:message }); }
   var resp=UrlFetchApp.fetch(url,{ method:'post', contentType:'application/json', payload:payload, muteHttpExceptions:true });
   Logger.log('[LeaderboardPost] '+platform+' response: '+resp.getResponseCode());
+}
+
+function migrateOfficeIds(ss) {
+  var officeMap = { 'off_001':'midspire', 'off_002':'viridian', 'off_003':'elevate', 'off_004':'ignite' };
+  var tabBases = [TAB.SALES,TAB.ROSTER,TAB.TEAMS,TAB.TEAM_CUSTOM,TAB.OVERRIDES,TAB.UNLOCKS,TAB.SETTINGS,TAB.CHALLENGE,'_Notes','_Ratings'];
+  var log = []; var renamed = 0; var skipped = 0;
+  Object.keys(officeMap).forEach(function(oldId) {
+    var newId = officeMap[oldId];
+    tabBases.forEach(function(base) {
+      var oldName = base + '_' + oldId;
+      var newName = base + '_' + newId;
+      if (ss.getSheetByName(newName)) { log.push('SKIP (exists): ' + newName); skipped++; return; }
+      var sheet = ss.getSheetByName(oldName);
+      if (sheet) { sheet.setName(newName); log.push('Renamed: ' + oldName + ' → ' + newName); renamed++; }
+    });
+  });
+  return { success:true, renamed:renamed, skipped:skipped, log:log };
 }
 
 function migrateFromLegacy(ss, officeId) {

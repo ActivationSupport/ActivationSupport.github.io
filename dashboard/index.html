@@ -48,6 +48,11 @@ nav{flex:1;padding:10px 0}
 .sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.12)}
 .sign-out{font-size:.78rem;color:rgba(255,255,255,.55);cursor:pointer;display:flex;align-items:center;gap:6px}
 .sign-out:hover{color:#fff}
+.office-switcher{padding:8px 16px 4px}
+.office-switcher label{display:block;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.45);margin-bottom:4px}
+.office-select{width:100%;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:5px;padding:5px 8px;font-size:.8rem;cursor:pointer;outline:none}
+.office-select:focus{border-color:rgba(255,255,255,.5)}
+.office-select option{background:#1F4E78;color:#fff}
 
 /* ── MAIN ── */
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
@@ -218,6 +223,10 @@ tr:hover td{background:#f0f7ff}
         <div class="sidebar-name" id="sb-office-name">—</div>
         <div class="sidebar-user" id="sb-user-name">—</div>
       </div>
+      <div id="office-switcher" class="office-switcher" style="display:none">
+        <label>Switch Office</label>
+        <select id="office-select" class="office-select" onchange="switchOffice(this.value)"></select>
+      </div>
       <nav id="sidebar-nav"></nav>
       <div class="sidebar-footer">
         <div class="sign-out" onclick="signOut()">⬅ <span>Sign Out</span></div>
@@ -249,6 +258,10 @@ tr:hover td{background:#f0f7ff}
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9hfE_HDTDueNr-s-wQRNDvqWfQX-EkYkSFVQQeitc3_ccO8FqBabAhKe7YTqVzPQ21Q/exec';
+var API_KEY = 'activation-dash-2026-secret';
+var OFFICE_NAMES = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
+
 var CFG = {};
 var SESSION = {};
 var DATA = {};
@@ -256,16 +269,15 @@ var CURRENT_TAB = 'dayafter';
 
 function loadConfig() {
   var params = new URLSearchParams(window.location.search);
-  var raw = params.get('office');
-  if (!raw) { showError('No office config in URL. Use the link provided by your admin.'); return false; }
-  try {
-    CFG = JSON.parse(atob(raw));
-    document.getElementById('login-office-name').textContent = (CFG.officeName || 'Office') + ' — Activation Support';
-    document.title = (CFG.officeName || 'Activation') + ' Dashboard';
-    return true;
-  } catch(e) {
-    showError('Invalid office config. Contact your admin.'); return false;
+  var officeId = (params.get('office') || '').toLowerCase().trim();
+  if (!officeId || !OFFICE_NAMES[officeId]) {
+    showError('Invalid office URL. Contact your admin for the correct link.');
+    return false;
   }
+  CFG = { officeId: officeId, officeName: OFFICE_NAMES[officeId] };
+  document.getElementById('login-office-name').textContent = CFG.officeName + ' — Activation Support';
+  document.title = CFG.officeName + ' Dashboard';
+  return true;
 }
 
 function showError(msg) {
@@ -274,18 +286,16 @@ function showError(msg) {
 
 // ── API ──────────────────────────────────────────────────────────────────
 function api(params) {
-  params.key = CFG.apiKey;
+  params.key = API_KEY;
   params.officeId = CFG.officeId;
-  params.sheetId = CFG.sheetId;
   var qs = Object.keys(params).map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
-  return fetch(CFG.appsScriptUrl + '?' + qs).then(function(r) { return r.json(); });
+  return fetch(APPS_SCRIPT_URL + '?' + qs).then(function(r) { return r.json(); });
 }
 
 function apiPost(body) {
-  body.key = CFG.apiKey;
+  body.key = API_KEY;
   body.officeId = CFG.officeId;
-  body.sheetId = CFG.sheetId;
-  return fetch(CFG.appsScriptUrl, {
+  return fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -315,7 +325,7 @@ function doLogin() {
   btn.disabled = true; btn.textContent = 'Signing in…';
   apiPost({ action: 'validatePin', email: email, pin: pin }).then(function(res) {
     if (res.ok && res.valid) {
-      SESSION = { email: email };
+      SESSION = { email: email, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
     } else {
@@ -344,7 +354,30 @@ function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('sb-office-name').textContent = CFG.officeName || '—';
+  buildOfficeSwitcher();
   buildNav();
+  loadData();
+}
+
+function buildOfficeSwitcher() {
+  var container = document.getElementById('office-switcher');
+  if (!container) return;
+  var permitted = (SESSION.permissions || CFG.officeId).split(',').map(function(o) { return o.trim(); }).filter(function(o) { return OFFICE_NAMES[o]; });
+  if (permitted.length <= 1) { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+  var select = document.getElementById('office-select');
+  select.innerHTML = permitted.map(function(o) {
+    return '<option value="' + o + '"' + (o === CFG.officeId ? ' selected' : '') + '>' + OFFICE_NAMES[o] + '</option>';
+  }).join('');
+}
+
+function switchOffice(newOfficeId) {
+  if (!OFFICE_NAMES[newOfficeId] || newOfficeId === CFG.officeId) return;
+  CFG.officeId = newOfficeId;
+  CFG.officeName = OFFICE_NAMES[newOfficeId];
+  document.getElementById('sb-office-name').textContent = CFG.officeName;
+  window.history.pushState({}, '', window.location.pathname + '?office=' + newOfficeId);
+  TAB_CACHE = {};
   loadData();
 }
 
@@ -390,14 +423,19 @@ var TAB_CACHE = {};
 function loadData() {
   TAB_CACHE = {};
   document.getElementById('main-content').innerHTML = '<div class="spinner">Loading data…</div>';
-  api({ ownerEmail: SESSION.email, ownerName: SESSION.name || '' }).then(function(res) {
+  api({}).then(function(res) {
     if (res.error) { document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + res.error + '</div>'; return; }
     DATA = res;
     var roster = DATA.roster || {};
     var me = roster[SESSION.email];
-    SESSION.role = me ? (me.rank || 'rep') : 'rep';
-    SESSION.name = me ? (me.name || SESSION.email) : SESSION.email;
-    sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
+    if (me) {
+      SESSION.role = me.rank || 'rep';
+      SESSION.name = me.name || SESSION.email;
+    } else if (!SESSION.role) {
+      SESSION.role = 'rep';
+      SESSION.name = SESSION.email;
+    }
+    sessionStorage.setItem('as_session_' + (SESSION.homeOffice || CFG.officeId), JSON.stringify(SESSION));
     document.getElementById('sb-user-name').textContent = SESSION.name + ' · ' + SESSION.role;
     document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
     buildNav();

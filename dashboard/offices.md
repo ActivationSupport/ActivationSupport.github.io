@@ -2,25 +2,33 @@
 
 Base URL: `https://ActivationSupport.github.io/dashboard/index.html`
 
-## Midspire (Jami) — off_001
+## Midspire (Jami) — midspire
 ```
-https://ActivationSupport.github.io/dashboard/index.html?office=eyJvZmZpY2VJZCI6Im9mZl8wMDEiLCJzaGVldElkIjoiMTE1Tm43S2J3YmRsV0Z6WlBreF9mdzJoYk5uR1hkSXNvRGs2YnVTbUNzQnciLCJhcHBzU2NyaXB0VXJsIjoiaHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J3OWhmRV9IRFREdWVOci1zLXdRUk5EdnFXZlFYLUVrWWtTRlZRUWVpdGMzX2NjTzhGcUJhYkFoS2U3WVRxVnpQUTIxUS9leGVjIiwiYXBpS2V5IjoiYWN0aXZhdGlvbi1kYXNoLTIwMjYtc2VjcmV0Iiwib2ZmaWNlTmFtZSI6Ik1pZHNwaXJlIn0=
-```
-
-## Viridian (Stefan) — off_002
-```
-https://ActivationSupport.github.io/dashboard/index.html?office=eyJvZmZpY2VJZCI6Im9mZl8wMDIiLCJzaGVldElkIjoiMTE1Tm43S2J3YmRsV0Z6WlBreF9mdzJoYk5uR1hkSXNvRGs2YnVTbUNzQnciLCJhcHBzU2NyaXB0VXJsIjoiaHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J3OWhmRV9IRFREdWVOci1zLXdRUk5EdnFXZlFYLUVrWWtTRlZRUWVpdGMzX2NjTzhGcUJhYkFoS2U3WVRxVnpQUTIxUS9leGVjIiwiYXBpS2V5IjoiYWN0aXZhdGlvbi1kYXNoLTIwMjYtc2VjcmV0Iiwib2ZmaWNlTmFtZSI6IlZpcmlkaWFuIn0=
+https://ActivationSupport.github.io/dashboard/index.html?office=midspire
 ```
 
-## Elevate (Jackie) — off_003
+## Viridian (Stefan) — viridian
 ```
-https://ActivationSupport.github.io/dashboard/index.html?office=eyJvZmZpY2VJZCI6Im9mZl8wMDMiLCJzaGVldElkIjoiMTE1Tm43S2J3YmRsV0Z6WlBreF9mdzJoYk5uR1hkSXNvRGs2YnVTbUNzQnciLCJhcHBzU2NyaXB0VXJsIjoiaHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J3OWhmRV9IRFREdWVOci1zLXdRUk5EdnFXZlFYLUVrWWtTRlZRUWVpdGMzX2NjTzhGcUJhYkFoS2U3WVRxVnpQUTIxUS9leGVjIiwiYXBpS2V5IjoiYWN0aXZhdGlvbi1kYXNoLTIwMjYtc2VjcmV0Iiwib2ZmaWNlTmFtZSI6IkVsZXZhdGUifQ==
+https://ActivationSupport.github.io/dashboard/index.html?office=viridian
 ```
 
-## Ignite (Jacob) — off_004
+## Elevate (Jackie) — elevate
 ```
-https://ActivationSupport.github.io/dashboard/index.html?office=eyJvZmZpY2VJZCI6Im9mZl8wMDQiLCJzaGVldElkIjoiMTE1Tm43S2J3YmRsV0Z6WlBreF9mdzJoYk5uR1hkSXNvRGs2YnVTbUNzQnciLCJhcHBzU2NyaXB0VXJsIjoiaHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J3OWhmRV9IRFREdWVOci1zLXdRUk5EdnFXZlFYLUVrWWtTRlZRUWVpdGMzX2NjTzhGcUJhYkFoS2U3WVRxVnpQUTIxUS9leGVjIiwiYXBpS2V5IjoiYWN0aXZhdGlvbi1kYXNoLTIwMjYtc2VjcmV0Iiwib2ZmaWNlTmFtZSI6Iklnbml0ZSJ9
+https://ActivationSupport.github.io/dashboard/index.html?office=elevate
+```
+
+## Ignite (Jacob) — ignite
+```
+https://ActivationSupport.github.io/dashboard/index.html?office=ignite
 ```
 
 ---
 Keep these URLs private — share only with the designated owner/admin for each office.
+
+---
+## Migration (run once after deploying updated Code.gs)
+POST to the Apps Script URL with body:
+```json
+{ "action": "migrateOfficeIds", "key": "activation-dash-2026-secret" }
+```
+This renames all sheet tabs from `_Roster_off_001` format to `_Roster_midspire` format.
