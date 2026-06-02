@@ -6,7 +6,7 @@
 
 | Office | Owner | URL |
 |--------|-------|-----|
-| Midspire | Jami | `https://ActivationSupport.github.io/dashboard/index.html?office=midspire` |
+| Midspire | Jamis | `https://ActivationSupport.github.io/dashboard/index.html?office=midspire` |
 | Viridian | Stefan | `https://ActivationSupport.github.io/dashboard/index.html?office=viridian` |
 | Elevate | Jackie | `https://ActivationSupport.github.io/dashboard/index.html?office=elevate` |
 | Ignite | Jacob | `https://ActivationSupport.github.io/dashboard/index.html?office=ignite` |
