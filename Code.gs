@@ -167,10 +167,6 @@ function _buildTolRow(row, col) {
   };
 }
 
-function _dedupByDsi(rows) {
-  var seen = {}; return rows.filter(function(r) { if (!r.dsi||seen[r.dsi]) return false; seen[r.dsi]=true; return true; });
-}
-
 // Returns filtered rows from both _TableauOrderLog and _TableauAOR.
 // TOL is primary; AOR fills in DSIs not already seen in TOL.
 // The callback receives (row, col, dsi) and returns a processed row or null to skip.
