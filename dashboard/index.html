@@ -530,7 +530,7 @@ function statusBreakdown(statusCounts) {
   return Object.keys(statusCounts).map(function(s) {
     var count = statusCounts[s];
     var sl = s.toLowerCase();
-    var cls = sl.indexOf('active')!==-1?'sp-active':sl.indexOf('deliver')!==-1?'sp-delivered':sl.indexOf('ship')!==-1?'sp-shipped':sl.indexOf('open')!==-1?'sp-open':sl.indexOf('pend')!==-1?'sp-pending':(sl.indexOf('cancel')!==-1||sl.indexOf('disco')!==-1)?'sp-canceled':'sp-default';
+    var cls = s==='Null'?'sp-default':sl.indexOf('active')!==-1?'sp-active':sl.indexOf('deliver')!==-1?'sp-delivered':sl.indexOf('ship')!==-1?'sp-shipped':sl.indexOf('open')!==-1?'sp-open':sl.indexOf('pend')!==-1?'sp-pending':(sl.indexOf('cancel')!==-1||sl.indexOf('disco')!==-1)?'sp-canceled':'sp-default';
     return '<span class="sp ' + cls + '">' + esc(s) + (count > 1 ? ' \xd7' + count : '') + '</span>';
   }).join(' ');
 }
