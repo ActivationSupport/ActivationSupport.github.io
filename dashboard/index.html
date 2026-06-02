@@ -160,6 +160,9 @@ tr:hover td{background:#f0f7ff}
 .nm-textarea{width:100%;padding:9px 12px;border:1.5px solid #d1d9e0;border-radius:6px;font-size:.86rem;font-family:inherit;resize:vertical;min-height:80px;outline:none;margin-bottom:12px}
 .nm-textarea:focus{border-color:var(--blue2)}
 .nm-actions{display:flex;gap:8px}
+.nm-act-label{color:#1F4E78}
+.nm-rep-label{color:#1E5631}
+.nm-rep-add-btn{background:var(--green)!important}
 .nm-add-btn{flex:1;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer}
 .nm-add-btn:hover{background:var(--blue2)}
 .nm-close-btn{padding:10px 20px;border:1.5px solid #d1d9e0;background:#fff;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;color:#555}
@@ -371,7 +374,12 @@ function showApp() {
 function buildOfficeSwitcher() {
   var container = document.getElementById('office-switcher');
   if (!container) return;
-  var permitted = (SESSION.permissions || CFG.officeId).split(',').map(function(o) { return o.trim(); }).filter(function(o) { return OFFICE_NAMES[o]; });
+  var permitted;
+  if (SESSION.role === 'master-admin') {
+    permitted = Object.keys(OFFICE_NAMES);
+  } else {
+    permitted = (SESSION.permissions || CFG.officeId).split(',').map(function(o) { return o.trim(); }).filter(function(o) { return OFFICE_NAMES[o]; });
+  }
   if (permitted.length <= 1) { container.style.display = 'none'; return; }
   container.style.display = 'block';
   var select = document.getElementById('office-select');
@@ -390,15 +398,16 @@ function switchOffice(newOfficeId) {
   loadData();
 }
 
+var ALL_ROLES = ['master-admin','owner','admin','activator','rep'];
 var TABS = [
-  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',     roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ['admin','owner','manager','jd','l1','rep'] },
-  { id: 'actrates',    icon: '📊', label: 'Activation Rates',    roles: ['admin','owner','manager','jd','l1'] },
-  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ['admin','owner','manager','jd'] },
-  { id: 'people',      icon: '👥', label: 'People',               roles: ['admin','owner','manager','jd','l1'] },
+  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',     roles: ALL_ROLES },
+  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ALL_ROLES },
+  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ALL_ROLES },
+  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ALL_ROLES },
+  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ALL_ROLES },
+  { id: 'actrates',    icon: '📊', label: 'Activation Rates',    roles: ALL_ROLES },
+  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ALL_ROLES },
+  { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES },
 ];
 
 function buildNav() {
@@ -440,9 +449,11 @@ function loadData() {
     if (me) {
       SESSION.role = me.rank || 'rep';
       SESSION.name = me.name || SESSION.email;
+      SESSION.tableauName = me.tableauName || '';
     } else if (!SESSION.role) {
       SESSION.role = 'rep';
       SESSION.name = SESSION.email;
+      SESSION.tableauName = '';
     }
     sessionStorage.setItem('as_session_' + (SESSION.homeOffice || CFG.officeId), JSON.stringify(SESSION));
     document.getElementById('sb-user-name').textContent = SESSION.name + ' · ' + SESSION.role;
@@ -460,18 +471,30 @@ function loadData() {
 
 function refreshData() { TAB_CACHE = {}; loadData(); }
 
+// ── REP FILTER ────────────────────────────────────────────────────────────
+function repFilter(orders) {
+  if (SESSION.role !== 'rep') return orders;
+  var tn = (SESSION.tableauName || '').trim();
+  if (!tn) return [];
+  return orders.filter(function(o) { return o.rep === tn; });
+}
+
 // ── RENDER TABS ───────────────────────────────────────────────────────────
 function renderTab(id) {
   var c = document.getElementById('main-content');
+  if (id === 'people') {
+    c.innerHTML = '<div class="spinner">Loading…</div>';
+    ensureTableauNames(function() { c.innerHTML = renderPeople(); bindFilters(); });
+    return;
+  }
   switch(id) {
     case 'actrates':    c.innerHTML = renderActRates();    break;
-    case 'dayafter':    c.innerHTML = renderCallTable(DATA.dayAfterOrders||[], 'Day-After Calls', 'No day-after orders found.'); break;
-    case 'delivered':   c.innerHTML = renderCallTable(DATA.deliveredOrders||[], 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
-    case 'issues':      c.innerHTML = renderIssuesTable(DATA.orderIssues||[]); break;
+    case 'dayafter':    c.innerHTML = renderCallTable(repFilter(DATA.dayAfterOrders||[]), 'Day-After Calls', 'No day-after orders found.'); break;
+    case 'delivered':   c.innerHTML = renderCallTable(repFilter(DATA.deliveredOrders||[]), 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
+    case 'issues':      c.innerHTML = renderIssuesTable(repFilter(DATA.orderIssues||[])); break;
     case 'noanswer':    c.innerHTML = renderNoAnswerTable(); break;
     case 'escalations': c.innerHTML = renderEscalationsTable(); break;
     case 'churn':       c.innerHTML = renderChurn();       break;
-    case 'people':      c.innerHTML = renderPeople();      break;
     default: c.innerHTML = '<div class="empty">Coming soon.</div>';
   }
   bindFilters();
@@ -569,6 +592,16 @@ function ratingPill(dsi, safeId) {
   return '<span class="rating-pill '+cls+'"'+id+'>'+esc(r)+'</span>';
 }
 
+// ── TABLEAU NAMES LOADER ─────────────────────────────────────────────────
+var PEOPLE_TABLEAU_NAMES = null;
+function ensureTableauNames(cb) {
+  if (PEOPLE_TABLEAU_NAMES !== null) { cb(); return; }
+  api({ action: 'readRepNames' }).then(function(res) {
+    PEOPLE_TABLEAU_NAMES = res.names || [];
+    cb();
+  }).catch(function() { PEOPLE_TABLEAU_NAMES = []; cb(); });
+}
+
 // ── NOTES MODAL ───────────────────────────────────────────────────────────
 var _modalDsi = '';
 
@@ -576,10 +609,18 @@ function openNotesModal(dsi, customer, rep) {
   _modalDsi = dsi;
   var notes = (DATA.notes||{})[dsi] || [];
   var rating = (DATA.ratings||{})[dsi] || '';
+  var role = SESSION.role || 'rep';
+  var canAddActivation = role==='master-admin' || role==='activator';
+  var canAddRep = role==='master-admin' || role==='owner' || role==='admin' || role==='rep';
 
-  var historyHtml = notes.length ? notes.map(function(n) {
+  function noteItem(n) {
     return '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(n.ts)+' &mdash; '+esc(n.authorName)+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
-  }).join('') : '<div class="nm-empty">No notes yet.</div>';
+  }
+  var actNotes = notes.filter(function(n){ return (n.noteType||'activation')==='activation'; });
+  var repNotes = notes.filter(function(n){ return n.noteType==='rep'; });
+
+  var actHistHtml = actNotes.length ? actNotes.map(noteItem).join('') : '<div class="nm-empty">No activation notes yet.</div>';
+  var repHistHtml = repNotes.length ? repNotes.map(noteItem).join('') : '<div class="nm-empty">No rep notes yet.</div>';
 
   var ratingHtml = RATING_OPTS.map(function(r) {
     var active = r===rating ? ' active-'+( r==='No Answer'?'na': r.replace(' Stars','').replace(' Star','') ) : '';
@@ -588,19 +629,18 @@ function openNotesModal(dsi, customer, rep) {
 
   document.getElementById('modal-title').innerHTML =
     '<div class="nm-dsi">DSI: '+esc(dsi)+'</div>' +
-    '<div class="nm-sub">'+esc(customer)+(rep?' &mdash; '+esc(rep):'')+'</div>';
+    '<div class="nm-sub">'+(rep?esc(rep):'')+'</div>';
 
   document.getElementById('modal-body').innerHTML =
-    '<div class="nm-section-label">History</div>' +
-    '<div class="nm-history" id="nm-hist-'+esc(dsi)+'">'+historyHtml+'</div>' +
-    '<div class="nm-section-label">Rating</div>' +
+    '<div class="nm-section-label nm-act-label">Activation Notes</div>' +
+    '<div class="nm-history" id="nm-act-hist">'+actHistHtml+'</div>' +
+    (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…"></textarea><button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
+    '<div class="nm-section-label nm-rep-label" style="margin-top:8px">Rep Notes</div>' +
+    '<div class="nm-history" id="nm-rep-hist">'+repHistHtml+'</div>' +
+    (canAddRep ? '<textarea class="nm-textarea" id="nm-rep-input" placeholder="Add rep note…"></textarea><button class="nm-add-btn nm-rep-add-btn" onclick="modalAddNote(\'rep\')" style="margin-bottom:14px">ADD REP NOTE</button>' : '') +
+    '<div class="nm-section-label" style="margin-top:8px">Rating</div>' +
     '<div class="nm-rating-row" id="nm-rating-row">'+ratingHtml+'</div>' +
-    '<div class="nm-section-label">Add Note</div>' +
-    '<textarea class="nm-textarea" id="nm-note-input" placeholder="Type your note…"></textarea>' +
-    '<div class="nm-actions">' +
-      '<button class="nm-add-btn" onclick="modalAddNote()">ADD NOTE</button>' +
-      '<button class="nm-close-btn" onclick="closeModal()">CLOSE</button>' +
-    '</div>';
+    '<div class="nm-actions"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
 
   document.getElementById('detail-modal').classList.add('open');
 }
@@ -625,27 +665,28 @@ function modalSetRating(rating) {
   apiPost({ action:'setRating', dsi:_modalDsi, rating:rating, updatedBy:SESSION.email });
 }
 
-function modalAddNote() {
-  var input = document.getElementById('nm-note-input');
+function modalAddNote(noteType) {
+  noteType = noteType || 'activation';
+  var inputId = noteType === 'rep' ? 'nm-rep-input' : 'nm-act-input';
+  var histId  = noteType === 'rep' ? 'nm-rep-hist'  : 'nm-act-hist';
+  var input = document.getElementById(inputId);
   if (!input) return;
   var text = input.value.trim(); if (!text) return;
   input.value = ''; input.disabled = true;
   var now = new Date().toISOString();
-  var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text };
+  var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text, noteType:noteType };
   if (!DATA.notes) DATA.notes = {};
   if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
   DATA.notes[_modalDsi].push(entry);
-  var hist = document.getElementById('nm-hist-'+_modalDsi.replace(/\W/g,'_'));
+  var hist = document.getElementById(histId);
   if (hist) {
-    var empties = hist.querySelectorAll('.nm-empty');
-    empties.forEach(function(e) { e.remove(); });
+    hist.querySelectorAll('.nm-empty').forEach(function(e) { e.remove(); });
     hist.innerHTML += '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(now)+' &mdash; '+esc(SESSION.name)+'</div><div class="nm-note-text">'+esc(text)+'</div></div>';
     hist.scrollTop = hist.scrollHeight;
   }
-  // Update note count on row
   var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
   if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
-  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
     .then(function() { input.disabled = false; })
     .catch(function() { input.disabled = false; });
 }
@@ -763,19 +804,99 @@ function renderChurn() {
 }
 
 // ── PEOPLE ────────────────────────────────────────────────────────────────
+var PORTAL_ROLES = ['master-admin','owner','admin','activator','rep'];
+
 function renderPeople() {
   var roster = DATA.roster || {};
+  var canEdit = SESSION.role==='master-admin' || SESSION.role==='owner' || SESSION.role==='admin';
   var rows = Object.keys(roster).map(function(email) {
-    var r = roster[email]; return Object.assign({email:email}, r);
-  }).sort(function(a,b) { return a.name.localeCompare(b.name); });
+    return Object.assign({ email: email }, roster[email]);
+  }).sort(function(a,b) { return (a.name||'').localeCompare(b.name||''); });
   if (!rows.length) return noData('No people in the roster yet.');
-  return '<div class="card"><div class="card-header dark">People & Roster</div><div class="card-body">' +
-  '<div class="filter-row"><input id="f-people" placeholder="Search name, email, role…"></div>' +
-  '<div class="tbl-wrap"><table id="people-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Status</th><th>Tableau Name</th></tr></thead><tbody>' +
-  rows.map(function(r) {
-    var statusBadge = r.deactivated ? '<span class="badge badge-red">Inactive</span>' : '<span class="badge badge-green">Active</span>';
-    return '<tr><td>'+esc(r.name)+'</td><td>'+esc(r.email)+'</td><td>'+esc(r.rank)+'</td><td>'+esc(r.team)+'</td><td>'+statusBadge+'</td><td>'+esc(r.tableauName)+'</td></tr>';
-  }).join('') + '</tbody></table></div></div></div>';
+  var addBtn = canEdit ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
+  return '<div class="card"><div class="card-header dark">People &amp; Roster</div><div class="card-body">' +
+    addBtn +
+    '<div class="filter-row"><input id="f-people" placeholder="Search name, email, role…"></div>' +
+    '<div class="tbl-wrap"><table id="people-table"><thead><tr>' +
+    '<th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Status</th><th>Tableau Name</th><th>Office Access</th>' +
+    (canEdit ? '<th>Actions</th>' : '') +
+    '</tr></thead><tbody>' +
+    rows.map(function(r) {
+      var statusBadge = r.deactivated ? '<span class="badge badge-red">Inactive</span>' : '<span class="badge badge-green">Active</span>';
+      var perms = (r.permissions || CFG.officeId).split(',').map(function(p) { return OFFICE_NAMES[p.trim()] || p.trim(); }).join(', ');
+      var actions = canEdit ?
+        '<td style="white-space:nowrap">' +
+          '<button class="notes-btn" onclick="openEditPersonModal(\''+esc(r.email)+'\')">Edit</button>' +
+          (SESSION.role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson(\''+esc(r.email)+'\')">Remove</button>' : '') +
+        '</td>' : '';
+      return '<tr><td>'+esc(r.name)+'</td><td>'+esc(r.email)+'</td><td>'+esc(r.rank||'rep')+'</td><td>'+esc(r.team||'')+'</td><td>'+statusBadge+'</td><td>'+esc(r.tableauName||'—')+'</td><td>'+esc(perms)+'</td>'+actions+'</tr>';
+    }).join('') + '</tbody></table></div></div></div>';
+}
+
+function buildPersonForm(email, person) {
+  var p = person || {};
+  var rank = p.rank || 'rep';
+  var perms = (p.permissions || CFG.officeId).split(',').map(function(o){ return o.trim(); });
+  var roleOpts = PORTAL_ROLES.map(function(r){ return '<option value="'+r+'"'+(r===rank?' selected':'')+'>'+r+'</option>'; }).join('');
+  var tableauOpts = '<option value="">— Not Assigned —</option>' +
+    (PEOPLE_TABLEAU_NAMES||[]).map(function(n){ return '<option value="'+esc(n)+'"'+(n===(p.tableauName||'')?' selected':'')+'>'+esc(n)+'</option>'; }).join('');
+  var officeChecks = Object.keys(OFFICE_NAMES).map(function(o){
+    return '<label style="display:flex;align-items:center;gap:6px;margin:4px 0;font-size:.85rem"><input type="checkbox" value="'+o+'"'+(perms.indexOf(o)!==-1?' checked':'')+'>'+OFFICE_NAMES[o]+'</label>';
+  }).join('');
+  var isEdit = !!email;
+  return '<div class="field"><label>Name</label><input type="text" id="pf-name" value="'+esc(p.name||'')+'" style="width:100%;padding:8px;border:1.5px solid #d1d9e0;border-radius:6px"></div>' +
+    '<div class="field"><label>Email</label><input type="email" id="pf-email" value="'+esc(email||'')+'"'+(isEdit?' readonly style="width:100%;padding:8px;border:1.5px solid #d1d9e0;border-radius:6px;background:#f5f5f5"':' style="width:100%;padding:8px;border:1.5px solid #d1d9e0;border-radius:6px"')+'></div>' +
+    '<div class="field"><label>Role</label><select id="pf-role" style="width:100%;padding:8px;border:1.5px solid #d1d9e0;border-radius:6px">'+roleOpts+'</select></div>' +
+    '<div class="field"><label>Team</label><input type="text" id="pf-team" value="'+esc(p.team||'')+'" style="width:100%;padding:8px;border:1.5px solid #d1d9e0;border-radius:6px"></div>' +
+    '<div class="field"><label>Tableau Name</label><select id="pf-tableau" style="width:100%;padding:8px;border:1.5px solid #d1d9e0;border-radius:6px">'+tableauOpts+'</select></div>' +
+    '<div class="field"><label>Office Permissions</label><div id="pf-perms" style="padding:8px;border:1.5px solid #d1d9e0;border-radius:6px">'+officeChecks+'</div></div>' +
+    '<div class="field"><label>Status</label><select id="pf-status" style="width:100%;padding:8px;border:1.5px solid #d1d9e0;border-radius:6px"><option value="false"'+(p.deactivated?'':' selected')+'>Active</option><option value="true"'+(p.deactivated?' selected':'')+'>Inactive</option></select></div>' +
+    '<div class="nm-actions">' +
+    '<button class="nm-add-btn" onclick="savePerson('+(isEdit?'\''+esc(email)+'\'':'null')+')">SAVE</button>' +
+    '<button class="nm-close-btn" onclick="closeModal()">CANCEL</button>' +
+    '</div>';
+}
+
+function openAddPersonModal() {
+  document.getElementById('modal-title').innerHTML = '<div class="nm-dsi">Add Person</div>';
+  document.getElementById('modal-body').innerHTML = buildPersonForm(null, null);
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function openEditPersonModal(email) {
+  var person = (DATA.roster||{})[email]; if (!person) return;
+  document.getElementById('modal-title').innerHTML = '<div class="nm-dsi">Edit Person</div><div class="nm-sub">'+esc(email)+'</div>';
+  document.getElementById('modal-body').innerHTML = buildPersonForm(email, person);
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function savePerson(existingEmail) {
+  var name = document.getElementById('pf-name').value.trim();
+  var email = document.getElementById('pf-email').value.trim().toLowerCase();
+  var role = document.getElementById('pf-role').value;
+  var team = document.getElementById('pf-team').value.trim();
+  var tableauName = document.getElementById('pf-tableau').value;
+  var deactivated = document.getElementById('pf-status').value === 'true';
+  var checked = document.querySelectorAll('#pf-perms input[type=checkbox]:checked');
+  var permissions = Array.from(checked).map(function(cb){ return cb.value; }).join(',') || CFG.officeId;
+  if (!email) { alert('Email is required.'); return; }
+  var body = { name:name, rank:role, team:team, tableauName:tableauName, permissions:permissions, deactivated:deactivated };
+  if (existingEmail) {
+    body.action = 'updateRosterEntry'; body.email = existingEmail;
+  } else {
+    body.action = 'addRosterEntry'; body.email = email;
+  }
+  apiPost(body).then(function(res) {
+    if (res.ok) { closeModal(); refreshData(); }
+    else alert(res.error || 'Save failed.');
+  }).catch(function(){ alert('Connection error.'); });
+}
+
+function deletePerson(email) {
+  if (!confirm('Remove ' + email + ' from the roster? This cannot be undone.')) return;
+  apiPost({ action:'deleteRosterEntry', email:email }).then(function(res) {
+    if (res.ok) refreshData(); else alert(res.error||'Delete failed.');
+  });
 }
 
 function noData(msg) {
