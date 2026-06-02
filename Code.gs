@@ -1442,7 +1442,7 @@ function migrateOfficeIds(ss) {
 }
 
 function migrateFromLegacy(ss, officeId) {
-  if (!ss) ss=SpreadsheetApp.getActiveSpreadsheet(); if (!officeId) officeId='off_001';
+  if (!ss) ss=SpreadsheetApp.getActiveSpreadsheet(); if (!officeId) officeId='midspire';
   var log=[]; log.push('[Migration] Starting for '+officeId);
   var oldOL=ss.getSheetByName('Order Log'); var salesTabName=officeTab(TAB.SALES,officeId);
   var salesSheet=ss.getSheetByName(salesTabName); if (!salesSheet) salesSheet=getOrCreateSheet(ss,salesTabName,TAB.SALES);
