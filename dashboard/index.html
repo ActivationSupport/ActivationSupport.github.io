@@ -610,7 +610,6 @@ function callTableRows(orders, extraColFn) {
       '<td><span class="rep-name">'+esc(o.rep)+'</span></td>' +
       '<td><span class="dsi-link" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">'+esc(dsi)+'</span></td>' +
       '<td>'+esc(o.orderDate)+'</td>' +
-      '<td>'+esc(o.spe)+'</td>' +
       '<td>'+esc(o.productType)+'</td>' +
       extra +
       '<td>'+statusPill(o.dtrStatus)+'</td>' +
@@ -629,7 +628,7 @@ function renderCallTable(orders, title, emptyMsg) {
   return '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     '<div class="filter-row"><input id="f-ct" placeholder="Search rep, customer, DSI…"></div>' +
     '<div class="call-table-wrap"><table class="call-table" id="ct-table"><thead><tr>' +
-    '<th>Rep</th><th>DSI</th><th>Date</th><th>Customer</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    '<th>Rep</th><th>DSI</th><th>Date</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
     '</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div></div></div>';
 }
 
@@ -639,7 +638,7 @@ function renderIssuesTable(orders) {
   return '<div class="card"><div class="card-header dark">Order Issues &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     '<div class="filter-row"><input id="f-iss" placeholder="Search rep, customer, DSI…"></div>' +
     '<div class="call-table-wrap"><table class="call-table" id="iss-table"><thead><tr>' +
-    '<th>Rep</th><th>DSI</th><th>Date</th><th>Customer</th><th>Product</th><th>Issue</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    '<th>Rep</th><th>DSI</th><th>Date</th><th>Product</th><th>Issue</th><th>Status</th><th>Rating</th><th>Notes</th>' +
     '</tr></thead><tbody>' +
     callTableRows(orders, function(o) {
       var tag = o.issueType==='Porting'?'porting':o.issueType==='Pending Payment'?'payment':'byod';
@@ -676,7 +675,7 @@ function renderNoAnswerTable() {
   return '<div class="card"><div class="card-header dark">No Answer &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     '<div class="filter-row"><input id="f-na" placeholder="Search rep, customer, DSI…"></div>' +
     '<div class="call-table-wrap"><table class="call-table" id="na-table"><thead><tr>' +
-    '<th>Rep</th><th>DSI</th><th>Date</th><th>Customer</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    '<th>Rep</th><th>DSI</th><th>Date</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
     '</tr></thead><tbody>'+callTableRows(orders,null)+'</tbody></table></div></div></div>';
 }
 
@@ -693,7 +692,7 @@ function renderEscalationsTable() {
   return '<div class="card"><div class="card-header dark">Escalations &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     '<div class="filter-row"><input id="f-esc" placeholder="Search rep, customer, DSI…"></div>' +
     '<div class="call-table-wrap"><table class="call-table" id="esc-table"><thead><tr>' +
-    '<th>Rep</th><th>DSI</th><th>Date</th><th>Customer</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    '<th>Rep</th><th>DSI</th><th>Date</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
     '</tr></thead><tbody>'+callTableRows(orders,null)+'</tbody></table></div></div></div>';
 }
 
