@@ -48,11 +48,17 @@ nav{flex:1;padding:10px 0}
 .sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.12)}
 .sign-out{font-size:.78rem;color:rgba(255,255,255,.55);cursor:pointer;display:flex;align-items:center;gap:6px}
 .sign-out:hover{color:#fff}
-.office-switcher{padding:8px 16px 4px}
-.office-switcher label{display:block;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.45);margin-bottom:4px}
-.office-select{width:100%;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:5px;padding:5px 8px;font-size:.8rem;cursor:pointer;outline:none}
-.office-select:focus{border-color:rgba(255,255,255,.5)}
-.office-select option{background:#1F4E78;color:#fff}
+/* ── OFFICE DROPDOWN (topbar) ── */
+.office-dd-wrap{position:relative;display:inline-block}
+.office-dd-btn{display:flex;align-items:center;gap:6px;padding:6px 14px;background:#fff;color:var(--blue);border:1.5px solid #d1d9e0;border-radius:20px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:border .15s}
+.office-dd-btn:hover{border-color:var(--blue2);background:#f7fbff}
+.office-dd-arrow{font-size:.7rem;opacity:.6}
+.office-dd-panel{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.14);min-width:210px;padding:6px 0;z-index:500;display:none}
+.office-dd-panel.open{display:block}
+.office-dd-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:.88rem;font-weight:600;color:#1a1a2e}
+.office-dd-item:hover{background:#f0f7ff}
+.office-dd-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;color:#fff;flex-shrink:0}
+.office-dd-current{font-size:.68rem;font-weight:700;color:#888;margin-left:auto;padding:2px 8px;background:#f0f4f8;border-radius:8px}
 
 /* ── MAIN ── */
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
@@ -233,10 +239,6 @@ tr:hover td{background:#f0f7ff}
         <div class="sidebar-name" id="sb-office-name">—</div>
         <div class="sidebar-user" id="sb-user-name">—</div>
       </div>
-      <div id="office-switcher" class="office-switcher" style="display:none">
-        <label>Switch Office</label>
-        <select id="office-select" class="office-select" onchange="switchOffice(this.value)"></select>
-      </div>
       <nav id="sidebar-nav"></nav>
       <div class="sidebar-footer">
         <div class="sign-out" onclick="signOut()">⬅ <span>Sign Out</span></div>
@@ -248,6 +250,13 @@ tr:hover td{background:#f0f7ff}
         <div class="topbar-actions">
           <span id="last-updated" style="font-size:.75rem;color:#999"></span>
           <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+          <div class="office-dd-wrap" id="office-dd-wrap" style="display:none">
+            <button class="office-dd-btn" id="office-dd-btn" onclick="toggleOfficeDropdown(event)">
+              <span id="office-dd-label">—</span>
+              <span class="office-dd-arrow">▾</span>
+            </button>
+            <div class="office-dd-panel" id="office-dd-panel"></div>
+          </div>
         </div>
       </div>
       <div class="content" id="main-content">
@@ -272,7 +281,8 @@ tr:hover td{background:#f0f7ff}
 // ── CONFIG ──────────────────────────────────────────────────────────────
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9hfE_HDTDueNr-s-wQRNDvqWfQX-EkYkSFVQQeitc3_ccO8FqBabAhKe7YTqVzPQ21Q/exec';
 var API_KEY = 'activation-dash-2026-secret';
-var OFFICE_NAMES = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
+var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
+var OFFICE_COLORS = { midspire:'#1F4E78', viridian:'#1E5631', elevate:'#2E75B6', ignite:'#C0392B' };
 
 var CFG = {};
 var SESSION = {};
@@ -371,21 +381,36 @@ function showApp() {
   loadData();
 }
 
-function buildOfficeSwitcher() {
-  var container = document.getElementById('office-switcher');
-  if (!container) return;
-  var permitted;
-  if (SESSION.role === 'master-admin') {
-    permitted = Object.keys(OFFICE_NAMES);
-  } else {
-    permitted = (SESSION.permissions || CFG.officeId).split(',').map(function(o) { return o.trim(); }).filter(function(o) { return OFFICE_NAMES[o]; });
-  }
-  if (permitted.length <= 1) { container.style.display = 'none'; return; }
-  container.style.display = 'block';
-  var select = document.getElementById('office-select');
-  select.innerHTML = permitted.map(function(o) {
-    return '<option value="' + o + '"' + (o === CFG.officeId ? ' selected' : '') + '>' + OFFICE_NAMES[o] + '</option>';
+function buildOfficeSwitcher() { updateOfficeDropdown(); }
+
+function updateOfficeDropdown() {
+  var wrap = document.getElementById('office-dd-wrap'); if (!wrap) return;
+  var permitted = SESSION.role === 'master-admin'
+    ? Object.keys(OFFICE_NAMES)
+    : (SESSION.permissions || CFG.officeId).split(',').map(function(o){ return o.trim(); }).filter(function(o){ return OFFICE_NAMES[o]; });
+  if (permitted.length <= 1) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'inline-block';
+  document.getElementById('office-dd-label').textContent = OFFICE_NAMES[CFG.officeId] || CFG.officeId;
+  document.getElementById('office-dd-panel').innerHTML = permitted.map(function(o) {
+    var isCurrent = o === CFG.officeId;
+    var color = OFFICE_COLORS[o] || '#555';
+    var initial = (OFFICE_NAMES[o]||o).charAt(0).toUpperCase();
+    return '<div class="office-dd-item" onclick="selectOffice(\''+o+'\')">'+
+      '<div class="office-dd-icon" style="background:'+color+'">'+initial+'</div>'+
+      '<span>'+OFFICE_NAMES[o]+'</span>'+
+      (isCurrent ? '<span class="office-dd-current">Current</span>' : '')+
+      '</div>';
   }).join('');
+}
+
+function toggleOfficeDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('office-dd-panel').classList.toggle('open');
+}
+
+function selectOffice(officeId) {
+  document.getElementById('office-dd-panel').classList.remove('open');
+  switchOffice(officeId);
 }
 
 function switchOffice(newOfficeId) {
@@ -394,6 +419,7 @@ function switchOffice(newOfficeId) {
   CFG.officeName = OFFICE_NAMES[newOfficeId];
   document.getElementById('sb-office-name').textContent = CFG.officeName;
   window.history.pushState({}, '', window.location.pathname + '?office=' + newOfficeId);
+  updateOfficeDropdown();
   TAB_CACHE = {};
   loadData();
 }
@@ -923,6 +949,10 @@ function closeModal() { document.getElementById('detail-modal').classList.remove
 document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
 // ── BOOT ─────────────────────────────────────────────────────────────────
+document.addEventListener('click', function() {
+  var panel = document.getElementById('office-dd-panel');
+  if (panel) panel.classList.remove('open');
+});
 initLogin();
 </script>
 </body>
