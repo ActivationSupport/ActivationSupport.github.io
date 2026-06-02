@@ -29,6 +29,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .btn:hover{background:var(--blue2)}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 #login-error{color:#c0392b;font-size:.82rem;margin-top:10px;display:none}
+.login-who{font-size:.88rem;color:#444;font-weight:600;margin-bottom:14px;word-break:break-all}
+.login-set-intro{font-size:.82rem;color:#666;margin-bottom:14px}
+.login-back{font-size:.8rem;color:#888;text-align:center;margin-top:12px;cursor:pointer}
+.login-back:hover{color:var(--blue)}
 
 /* ── APP SHELL ── */
 #app{display:none;height:100vh;overflow:hidden}
@@ -217,15 +221,43 @@ tr:hover td{background:#f0f7ff}
   <div class="login-card">
     <h1>Activation Support</h1>
     <p id="login-office-name">Loading office…</p>
-    <div class="field">
-      <label>Email Address</label>
-      <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+
+    <!-- Step 1: email -->
+    <div id="ls-email-step">
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <button class="btn" id="login-continue-btn">Continue</button>
     </div>
-    <div class="field">
-      <label>PIN</label>
-      <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric">
+
+    <!-- Step 2a: enter PIN -->
+    <div id="ls-pin-step" style="display:none">
+      <div class="login-who" id="login-who"></div>
+      <div class="field">
+        <label>PIN</label>
+        <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric">
+      </div>
+      <button class="btn" id="login-btn">Sign In</button>
+      <div class="login-back" onclick="loginBack()">← Use a different email</div>
     </div>
-    <button class="btn" id="login-btn">Sign In</button>
+
+    <!-- Step 2b: create PIN -->
+    <div id="ls-set-pin-step" style="display:none">
+      <div class="login-who" id="login-who-set"></div>
+      <p class="login-set-intro">No PIN yet — create one to access your dashboard.</p>
+      <div class="field">
+        <label>New PIN (4–6 digits)</label>
+        <input type="password" id="login-new-pin" placeholder="••••" maxlength="6" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Confirm PIN</label>
+        <input type="password" id="login-confirm-pin" placeholder="••••" maxlength="6" inputmode="numeric">
+      </div>
+      <button class="btn" id="login-set-pin-btn">Set PIN &amp; Sign In</button>
+      <div class="login-back" onclick="loginBack()">← Use a different email</div>
+    </div>
+
     <div id="login-error"></div>
   </div>
 </div>
@@ -326,28 +358,81 @@ function apiPost(body) {
 }
 
 // ── AUTH ─────────────────────────────────────────────────────────────────
+var LOGIN_EMAIL = '';
+
 function initLogin() {
   if (!loadConfig()) return;
+  document.getElementById('login-continue-btn').onclick = loginCheckEmail;
   document.getElementById('login-btn').onclick = doLogin;
+  document.getElementById('login-set-pin-btn').onclick = doSetPin;
+  document.getElementById('login-email').addEventListener('keydown', function(e) { if (e.key === 'Enter') loginCheckEmail(); });
   document.getElementById('login-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
-  document.getElementById('login-email').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-pin').focus(); });
+  document.getElementById('login-new-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-confirm-pin').focus(); });
+  document.getElementById('login-confirm-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSetPin(); });
 
-  // Restore session
   var saved = sessionStorage.getItem('as_session_' + CFG.officeId);
   if (saved) { try { SESSION = JSON.parse(saved); showApp(); } catch(e) {} }
 }
 
-function doLogin() {
+function loginShowStep(step) {
+  document.getElementById('ls-email-step').style.display   = step === 'email'  ? '' : 'none';
+  document.getElementById('ls-pin-step').style.display     = step === 'pin'    ? '' : 'none';
+  document.getElementById('ls-set-pin-step').style.display = step === 'setpin' ? '' : 'none';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function loginBack() {
+  LOGIN_EMAIL = '';
+  loginShowStep('email');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-email').focus();
+}
+
+function loginCheckEmail() {
   var email = document.getElementById('login-email').value.trim().toLowerCase();
-  var pin   = document.getElementById('login-pin').value.trim();
-  var err   = document.getElementById('login-error');
-  var btn   = document.getElementById('login-btn');
+  var err = document.getElementById('login-error');
+  var btn = document.getElementById('login-continue-btn');
   err.style.display = 'none';
-  if (!email || !pin) { err.textContent = 'Enter your email and PIN.'; err.style.display = 'block'; return; }
+  if (!email) { err.textContent = 'Enter your email address.'; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Checking…';
+  apiPost({ action: 'checkEmail', email: email }).then(function(res) {
+    btn.disabled = false; btn.textContent = 'Continue';
+    if (!res.ok) { err.textContent = res.error || 'Something went wrong. Try again.'; err.style.display = 'block'; return; }
+    LOGIN_EMAIL = email;
+    if (!res.found) {
+      err.textContent = "Your email isn't recognized. Contact your Owner or Admin to be added to the system.";
+      err.style.display = 'block';
+      return;
+    }
+    if (res.hasPin) {
+      document.getElementById('login-who').textContent = email;
+      loginShowStep('pin');
+      document.getElementById('login-pin').value = '';
+      document.getElementById('login-pin').focus();
+    } else {
+      document.getElementById('login-who-set').textContent = email;
+      loginShowStep('setpin');
+      document.getElementById('login-new-pin').value = '';
+      document.getElementById('login-confirm-pin').value = '';
+      document.getElementById('login-new-pin').focus();
+    }
+  }).catch(function() {
+    btn.disabled = false; btn.textContent = 'Continue';
+    err.textContent = 'Connection error. Try again.';
+    err.style.display = 'block';
+  });
+}
+
+function doLogin() {
+  var pin = document.getElementById('login-pin').value.trim();
+  var err = document.getElementById('login-error');
+  var btn = document.getElementById('login-btn');
+  err.style.display = 'none';
+  if (!pin) { err.textContent = 'Enter your PIN.'; err.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Signing in…';
-  apiPost({ action: 'validatePin', email: email, pin: pin }).then(function(res) {
+  apiPost({ action: 'validatePin', email: LOGIN_EMAIL, pin: pin }).then(function(res) {
     if (res.ok && res.valid) {
-      SESSION = { email: email, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
+      SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
     } else {
@@ -362,13 +447,40 @@ function doLogin() {
   });
 }
 
+function doSetPin() {
+  var newPin     = document.getElementById('login-new-pin').value.trim();
+  var confirmPin = document.getElementById('login-confirm-pin').value.trim();
+  var err = document.getElementById('login-error');
+  var btn = document.getElementById('login-set-pin-btn');
+  err.style.display = 'none';
+  if (!newPin) { err.textContent = 'Enter a PIN.'; err.style.display = 'block'; return; }
+  if (!/^\d{4,6}$/.test(newPin)) { err.textContent = 'PIN must be 4–6 digits.'; err.style.display = 'block'; return; }
+  if (newPin !== confirmPin) { err.textContent = "PINs don't match. Try again."; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Setting PIN…';
+  apiPost({ action: 'setPin', email: LOGIN_EMAIL, pin: newPin }).then(function(res) {
+    if (res.ok && res.valid) {
+      SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
+      sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
+      showApp();
+    } else {
+      err.textContent = res.error || 'Failed to set PIN. Try again.';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Set PIN & Sign In';
+    }
+  }).catch(function() {
+    err.textContent = 'Connection error. Try again.';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Set PIN & Sign In';
+  });
+}
+
 function signOut() {
   sessionStorage.removeItem('as_session_' + CFG.officeId);
-  DATA = {}; SESSION = {};
+  DATA = {}; SESSION = {}; LOGIN_EMAIL = '';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
+  loginShowStep('email');
   document.getElementById('login-email').value = '';
-  document.getElementById('login-pin').value = '';
 }
 
 // ── APP INIT ─────────────────────────────────────────────────────────────
