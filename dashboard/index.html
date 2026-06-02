@@ -946,10 +946,15 @@ var PORTAL_ROLES = ['master-admin','owner','admin','activator','rep'];
 
 function renderPeople() {
   var roster = DATA.roster || {};
+  var guestRoster = DATA.guestRoster || {};
   var canEdit = SESSION.role==='master-admin' || SESSION.role==='owner' || SESSION.role==='admin';
-  var rows = Object.keys(roster).map(function(email) {
-    return Object.assign({ email: email }, roster[email]);
-  }).sort(function(a,b) { return (a.name||'').localeCompare(b.name||''); });
+  var homeRows = Object.keys(roster).map(function(email) {
+    return Object.assign({ email: email, isGuest: false }, roster[email]);
+  });
+  var guestRows = Object.keys(guestRoster).filter(function(email) { return !roster[email]; }).map(function(email) {
+    return Object.assign({ email: email, isGuest: true }, guestRoster[email]);
+  });
+  var rows = homeRows.concat(guestRows).sort(function(a,b) { return (a.name||'').localeCompare(b.name||''); });
   if (!rows.length) return noData('No people in the roster yet.');
   var addBtn = canEdit ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
   return '<div class="card"><div class="card-header dark">People &amp; Roster</div><div class="card-body">' +
@@ -962,12 +967,20 @@ function renderPeople() {
     rows.map(function(r) {
       var statusBadge = r.deactivated ? '<span class="badge badge-red">Inactive</span>' : '<span class="badge badge-green">Active</span>';
       var perms = (r.permissions || CFG.officeId).split(',').map(function(p) { return OFFICE_NAMES[p.trim()] || p.trim(); }).join(', ');
-      var actions = canEdit ?
-        '<td style="white-space:nowrap">' +
-          '<button class="notes-btn" onclick="openEditPersonModal(\''+esc(r.email)+'\')">Edit</button>' +
-          (SESSION.role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson(\''+esc(r.email)+'\')">Remove</button>' : '') +
-        '</td>' : '';
-      return '<tr><td>'+esc(r.name)+'</td><td>'+esc(r.email)+'</td><td>'+esc(r.rank||'rep')+'</td><td>'+esc(r.team||'')+'</td><td>'+statusBadge+'</td><td>'+esc(r.tableauName||'—')+'</td><td>'+esc(perms)+'</td>'+actions+'</tr>';
+      var nameCell = esc(r.name) + (r.isGuest ? ' <span style="font-size:.72rem;color:#888;font-weight:400">from ' + esc(OFFICE_NAMES[r.homeOffice]||r.homeOffice) + '</span>' : '');
+      var actions = '';
+      if (canEdit) {
+        if (!r.isGuest) {
+          actions = '<td style="white-space:nowrap">' +
+            '<button class="notes-btn" onclick="openEditPersonModal(\''+esc(r.email)+'\')">Edit</button>' +
+            (SESSION.role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson(\''+esc(r.email)+'\')">Remove</button>' : '') +
+            '</td>';
+        } else {
+          actions = '<td style="color:#aaa;font-size:.78rem">Managed in ' + esc(OFFICE_NAMES[r.homeOffice]||r.homeOffice) + '</td>';
+        }
+      }
+      return '<tr'+(r.isGuest?' style="background:#fafafa;color:#555"':'')+'>'+
+        '<td>'+nameCell+'</td><td>'+esc(r.email)+'</td><td>'+esc(r.rank||'rep')+'</td><td>'+esc(r.team||'')+'</td><td>'+statusBadge+'</td><td>'+esc(r.tableauName||'—')+'</td><td>'+esc(perms)+'</td>'+actions+'</tr>';
     }).join('') + '</tbody></table></div></div></div>';
 }
 
