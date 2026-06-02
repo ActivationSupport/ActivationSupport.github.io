@@ -410,6 +410,7 @@ function doGet(e) {
       var officeName = (e.parameter && e.parameter.officeName) || 'OFFICE';
       return jsonResponse({ text: buildLeaderboardText(ss, officeId, officeName) });
     }
+    if (action === 'readAdminSummary') return jsonResponse(readAdminSummary(ss));
     let roster = readRoster(ss, officeId);
     const teamMaps = buildTeamEmojiMaps(ss, officeId);
     const peopleResult = readPeople(ss, officeId, roster, teamMaps.nameMap);
@@ -1029,6 +1030,8 @@ function doPost(e) {
       case 'addTeam':             result=writeAddTeam(body,ss,officeId); break;
       case 'updateTeam':          result=writeUpdateTeam(body,ss,officeId); break;
       case 'deleteTeam':          result=writeDeleteTeam(body,ss,officeId); break;
+      case 'checkAdminEmail':     result=writeCheckAdminEmail(body,ss); break;
+      case 'validateAdminAccess': result=writeValidateAdminAccess(body,ss); break;
       case 'checkEmail':          result=writeCheckEmail(body,ss,officeId); break;
       case 'setPin':              result=writeSetPin(body,ss,officeId); break;
       case 'validatePin':         result=writeValidatePin(body,ss,officeId); break;
@@ -1126,6 +1129,54 @@ function writeDeleteUnlockRequest(body, ss, officeId) {
   const sheet=getOrCreateSheet(ss,officeTab(TAB.UNLOCKS,officeId),TAB.UNLOCKS);
   const persona=String(body.persona||'').trim(); if (!persona) return { error:'missing persona' };
   const rowIdx=findRow(sheet,0,persona); if (rowIdx>0) sheet.deleteRow(rowIdx); return { ok:true };
+}
+function readAdminSummary(ss) {
+  var allOffices=Object.keys(OFFICE_OWNER_MAP); var result={};
+  for (var i=0;i<allOffices.length;i++) {
+    var oid=allOffices[i];
+    var rSheet=ss.getSheetByName(officeTab(TAB.ROSTER,oid)); var activeReps=0;
+    if (rSheet) {
+      var rd=rSheet.getDataRange().getValues();
+      for (var j=1;j<rd.length;j++) {
+        if (!String(rd[j][0]||'').trim()) continue;
+        if (!(rd[j][4]===true||String(rd[j][4]).toUpperCase()==='TRUE')) activeReps++;
+      }
+    }
+    var da=readDayAfterOrders(ss,oid); var dna=readDeliveredNotActive(ss,oid); var iss=readOrderIssues(ss,oid);
+    result[oid]={ activeReps:activeReps, dayAfterCount:(da||[]).length, deliveredCount:(dna||[]).length, issuesCount:(iss||[]).length };
+  }
+  return { ok:true, summary:result };
+}
+function writeCheckAdminEmail(body, ss) {
+  var email=String(body.email||'').trim().toLowerCase(); if (!email) return { error:'missing email' };
+  var allOffices=Object.keys(OFFICE_OWNER_MAP);
+  for (var i=0;i<allOffices.length;i++) {
+    var sheet=ss.getSheetByName(officeTab(TAB.ROSTER,allOffices[i])); if (!sheet) continue;
+    var rowIdx=findRowCI(sheet,0,email); if (rowIdx<0) continue;
+    var rowData=sheet.getRange(rowIdx,1,1,10).getValues()[0];
+    if (rowData[4]===true||String(rowData[4]).toUpperCase()==='TRUE') continue;
+    var storedHash=String(rowData[6]||'').trim();
+    return { ok:true, found:true, hasPin:!!storedHash&&storedHash!=='undefined' };
+  }
+  return { ok:true, found:false };
+}
+function writeValidateAdminAccess(body, ss) {
+  var email=String(body.email||'').trim().toLowerCase(); var pin=String(body.pin||'').trim();
+  if (!email||!pin) return { error:'missing fields' };
+  var allOffices=Object.keys(OFFICE_OWNER_MAP);
+  for (var i=0;i<allOffices.length;i++) {
+    var sheet=ss.getSheetByName(officeTab(TAB.ROSTER,allOffices[i])); if (!sheet) continue;
+    var rowIdx=findRowCI(sheet,0,email); if (rowIdx<0) continue;
+    var rowData=sheet.getRange(rowIdx,1,1,10).getValues()[0];
+    if (rowData[4]===true||String(rowData[4]).toUpperCase()==='TRUE') return { error:'Account deactivated.' };
+    var storedHash=String(rowData[6]||'').trim();
+    if (!storedHash||storedHash==='undefined') return { error:'No PIN set. Log in through your office portal first.' };
+    if (hashPin(email,pin)!==storedHash) return { ok:true, valid:false, error:'Incorrect PIN.' };
+    var rank=String(rowData[3]||'').trim();
+    if (rank!=='master-admin') return { error:'Admin dashboard requires Master Admin access.' };
+    return { ok:true, valid:true, rank:rank, homeOffice:allOffices[i] };
+  }
+  return { ok:true, valid:false, error:'Email not recognized.' };
 }
 function writeCheckEmail(body, ss, officeId) {
   var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);

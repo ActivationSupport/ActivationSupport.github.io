@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activation Support — Admin Hub</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1F4E78;--blue2:#4A9FD4;
+  --bg:#1a1a1a;--surface:#242424;--border:rgba(255,255,255,.07);
+  --text:#e2e2e2;--text2:#999;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:#111;display:flex;align-items:center;justify-content:center;z-index:100}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.login-card h1{font-size:1.4rem;font-weight:800;color:var(--blue2);margin-bottom:2px}
+.login-card .login-sub{font-size:.82rem;color:var(--text2);margin-bottom:28px;letter-spacing:.3px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:6px}
+.field input{width:100%;padding:10px 12px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.95rem;outline:none;background:#1e1e1e;color:var(--text);transition:border .15s}
+.field input:focus{border-color:var(--blue2)}
+.btn{width:100%;padding:11px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s}
+.btn:hover{background:#2563a8}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+#login-error{color:#e74c3c;font-size:.82rem;margin-top:10px;display:none}
+.login-who{font-size:.88rem;color:var(--blue2);font-weight:600;margin-bottom:14px;word-break:break-all}
+.login-back{font-size:.8rem;color:var(--text2);text-align:center;margin-top:12px;cursor:pointer}
+.login-back:hover{color:var(--blue2)}
+
+/* ── APP ── */
+#admin-app{display:none}
+.admin-header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between}
+.admin-header-left{display:flex;align-items:center;gap:14px}
+.admin-brand{font-size:1rem;font-weight:800;color:var(--blue2);letter-spacing:.5px}
+.admin-badge{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;background:rgba(74,159,212,.15);color:var(--blue2);padding:3px 10px;border-radius:10px;border:1px solid rgba(74,159,212,.25)}
+.admin-header-right{display:flex;align-items:center;gap:16px}
+.admin-user-name{font-size:.85rem;color:var(--text);font-weight:600}
+.admin-user-email{font-size:.75rem;color:var(--text2)}
+.signout-btn{padding:6px 14px;background:transparent;border:1px solid #3a3a3a;border-radius:6px;color:var(--text2);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s}
+.signout-btn:hover{border-color:#666;color:var(--text)}
+
+/* ── BODY ── */
+.admin-body{padding:32px 28px;max-width:1100px;margin:0 auto}
+.admin-page-title{font-size:1.4rem;font-weight:800;color:var(--text);margin-bottom:6px}
+.admin-page-sub{font-size:.85rem;color:var(--text2);margin-bottom:28px}
+
+/* ── OFFICE GRID ── */
+.offices-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+.office-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:border .2s,box-shadow .2s}
+.office-card:hover{border-color:rgba(255,255,255,.15);box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.office-card-top{padding:20px 20px 16px;display:flex;align-items:flex-start;gap:14px}
+.office-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:800;color:#fff;flex-shrink:0;letter-spacing:.5px}
+.office-name{font-size:1.1rem;font-weight:800;color:var(--text);line-height:1.1;margin-bottom:3px}
+.office-owner{font-size:.78rem;color:var(--text2)}
+.office-stats{padding:0 20px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-item{background:#1e1e1e;border-radius:8px;padding:10px 12px}
+.stat-num{font-size:1.4rem;font-weight:800;line-height:1;margin-bottom:2px}
+.stat-lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
+.stat-loading{color:#444}
+.office-card-footer{padding:14px 20px;border-top:1px solid var(--border);margin-top:auto}
+.open-btn{width:100%;padding:9px;border:none;border-radius:7px;font-size:.88rem;font-weight:700;cursor:pointer;color:#fff;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.open-btn:hover{opacity:.85}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Admin Hub</h1>
+    <p class="login-sub">Activation Support · Master Admin</p>
+
+    <!-- Step 1: email -->
+    <div id="ls-email-step">
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <button class="btn" id="login-continue-btn">Continue</button>
+    </div>
+
+    <!-- Step 2: PIN -->
+    <div id="ls-pin-step" style="display:none">
+      <div class="login-who" id="login-who"></div>
+      <div class="field">
+        <label>PIN</label>
+        <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric">
+      </div>
+      <button class="btn" id="login-btn">Sign In</button>
+      <div class="login-back" onclick="loginBack()">← Use a different email</div>
+    </div>
+
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ADMIN APP -->
+<div id="admin-app">
+  <div class="admin-header">
+    <div class="admin-header-left">
+      <span class="admin-brand">Activation Support</span>
+      <span class="admin-badge">Admin Hub</span>
+    </div>
+    <div class="admin-header-right">
+      <div>
+        <div class="admin-user-name" id="hdr-name">—</div>
+        <div class="admin-user-email" id="hdr-email">—</div>
+      </div>
+      <button class="signout-btn" onclick="signOut()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="admin-body">
+    <div class="admin-page-title">All Offices</div>
+    <div class="admin-page-sub" id="summary-status">Loading office data…</div>
+    <div class="offices-grid" id="offices-grid"></div>
+  </div>
+</div>
+
+<script>
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9hfE_HDTDueNr-s-wQRNDvqWfQX-EkYkSFVQQeitc3_ccO8FqBabAhKe7YTqVzPQ21Q/exec';
+var API_KEY = 'activation-dash-2026-secret';
+
+var OFFICES = {
+  midspire: { name: 'Midspire',  owner: 'Jamis',  color: '#2563a8', initials: 'MS' },
+  viridian: { name: 'Viridian',  owner: 'Stefan', color: '#27ae60', initials: 'VI' },
+  elevate:  { name: 'Elevate',   owner: 'Jackie', color: '#8b5cf6', initials: 'EL' },
+  ignite:   { name: 'Ignite',    owner: 'Jacob',  color: '#f59e0b', initials: 'IG' }
+};
+
+var SESSION = {};
+var LOGIN_EMAIL = '';
+
+function api(params) {
+  params.key = API_KEY;
+  var qs = Object.keys(params).map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
+  return fetch(APPS_SCRIPT_URL + '?' + qs).then(function(r) { return r.json(); });
+}
+function apiPost(body) {
+  body.key = API_KEY;
+  return fetch(APPS_SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }).then(function(r) { return r.json(); });
+}
+
+/* ── LOGIN ── */
+function loginShowStep(step) {
+  document.getElementById('ls-email-step').style.display = step === 'email' ? '' : 'none';
+  document.getElementById('ls-pin-step').style.display   = step === 'pin'   ? '' : 'none';
+  document.getElementById('login-error').style.display = 'none';
+}
+function loginBack() {
+  LOGIN_EMAIL = '';
+  loginShowStep('email');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-email').focus();
+}
+function loginCheckEmail() {
+  var email = document.getElementById('login-email').value.trim().toLowerCase();
+  var err = document.getElementById('login-error');
+  var btn = document.getElementById('login-continue-btn');
+  err.style.display = 'none';
+  if (!email) { err.textContent = 'Enter your email address.'; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Checking…';
+  apiPost({ action: 'checkAdminEmail', email: email }).then(function(res) {
+    btn.disabled = false; btn.textContent = 'Continue';
+    if (!res.ok) { err.textContent = res.error || 'Something went wrong.'; err.style.display = 'block'; return; }
+    LOGIN_EMAIL = email;
+    if (!res.found) {
+      err.textContent = "Your email isn't recognized. Contact your Master Admin.";
+      err.style.display = 'block';
+      return;
+    }
+    if (!res.hasPin) {
+      err.textContent = "No PIN set. Log in through your office portal first to create a PIN.";
+      err.style.display = 'block';
+      return;
+    }
+    document.getElementById('login-who').textContent = email;
+    loginShowStep('pin');
+    document.getElementById('login-pin').value = '';
+    document.getElementById('login-pin').focus();
+  }).catch(function() {
+    btn.disabled = false; btn.textContent = 'Continue';
+    err.textContent = 'Connection error. Try again.';
+    err.style.display = 'block';
+  });
+}
+function doLogin() {
+  var pin = document.getElementById('login-pin').value.trim();
+  var err = document.getElementById('login-error');
+  var btn = document.getElementById('login-btn');
+  err.style.display = 'none';
+  if (!pin) { err.textContent = 'Enter your PIN.'; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  apiPost({ action: 'validateAdminAccess', email: LOGIN_EMAIL, pin: pin }).then(function(res) {
+    if (res.ok && res.valid) {
+      SESSION = { email: LOGIN_EMAIL, rank: res.rank, homeOffice: res.homeOffice };
+      sessionStorage.setItem('as_admin_session', JSON.stringify(SESSION));
+      showApp();
+    } else {
+      err.textContent = res.error || 'Incorrect PIN. Try again.';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Sign In';
+    }
+  }).catch(function() {
+    err.textContent = 'Connection error. Try again.';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Sign In';
+  });
+}
+function signOut() {
+  sessionStorage.removeItem('as_admin_session');
+  SESSION = {}; LOGIN_EMAIL = '';
+  document.getElementById('admin-app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  loginShowStep('email');
+  document.getElementById('login-email').value = '';
+}
+
+/* ── APP ── */
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-app').style.display = 'block';
+  document.getElementById('hdr-email').textContent = SESSION.email;
+  buildOfficeCards();
+  loadSummary();
+}
+
+function buildOfficeCards() {
+  var grid = document.getElementById('offices-grid');
+  grid.innerHTML = Object.keys(OFFICES).map(function(id) {
+    var o = OFFICES[id];
+    return '<div class="office-card" id="card-' + id + '">' +
+      '<div class="office-card-top">' +
+        '<div class="office-icon" style="background:' + o.color + '">' + o.initials + '</div>' +
+        '<div><div class="office-name">' + o.name + '</div><div class="office-owner">' + o.owner + '</div></div>' +
+      '</div>' +
+      '<div class="office-stats">' +
+        '<div class="stat-item"><div class="stat-num stat-loading" id="stat-reps-' + id + '">—</div><div class="stat-lbl">Active Reps</div></div>' +
+        '<div class="stat-item"><div class="stat-num stat-loading" id="stat-da-' + id + '">—</div><div class="stat-lbl">Day-After</div></div>' +
+        '<div class="stat-item"><div class="stat-num stat-loading" id="stat-dna-' + id + '">—</div><div class="stat-lbl">Delivered N/A</div></div>' +
+        '<div class="stat-item"><div class="stat-num stat-loading" id="stat-iss-' + id + '">—</div><div class="stat-lbl">Order Issues</div></div>' +
+      '</div>' +
+      '<div class="office-card-footer">' +
+        '<button class="open-btn" style="background:' + o.color + '" onclick="openOffice(\'' + id + '\')">Open ' + o.name + ' →</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function loadSummary() {
+  document.getElementById('summary-status').textContent = 'Loading office data…';
+  api({ action: 'readAdminSummary' }).then(function(res) {
+    if (!res.ok || !res.summary) {
+      document.getElementById('summary-status').textContent = 'Failed to load stats.';
+      return;
+    }
+    var now = new Date();
+    document.getElementById('summary-status').textContent = '4 offices · Updated ' + now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    Object.keys(res.summary).forEach(function(id) {
+      var s = res.summary[id];
+      var set = function(elId, val) {
+        var el = document.getElementById(elId);
+        if (el) { el.textContent = val; el.classList.remove('stat-loading'); }
+      };
+      set('stat-reps-' + id, s.activeReps);
+      set('stat-da-' + id, s.dayAfterCount);
+      set('stat-dna-' + id, s.deliveredCount);
+      set('stat-iss-' + id, s.issuesCount);
+    });
+  }).catch(function() {
+    document.getElementById('summary-status').textContent = 'Connection error loading stats.';
+  });
+}
+
+function openOffice(officeId) {
+  window.open('index.html?office=' + officeId, '_blank');
+}
+
+/* ── INIT ── */
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('login-continue-btn').onclick = loginCheckEmail;
+  document.getElementById('login-btn').onclick = doLogin;
+  document.getElementById('login-email').addEventListener('keydown', function(e) { if (e.key === 'Enter') loginCheckEmail(); });
+  document.getElementById('login-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+
+  var saved = sessionStorage.getItem('as_admin_session');
+  if (saved) { try { SESSION = JSON.parse(saved); showApp(); return; } catch(e) {} }
+  loginShowStep('email');
+});
+</script>
+</body>
+</html>
