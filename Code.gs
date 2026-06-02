@@ -147,32 +147,40 @@ function _filterByOffice(rows, col, officeId) {
   });
 }
 
-function _buildTolRow(row, col) {
+function _buildTolRow(row, col, allRows) {
   var rawDate = tCol(row,col,'ORDER_DATE');
   var d = rawDate instanceof Date ? rawDate : (rawDate ? new Date(rawDate) : null);
+  var productCounts = {}, statusCounts = {};
+  (allRows || [row]).forEach(function(r) {
+    var pt = String(tCol(r,col,'PRODUCT_TYPE')||'').trim();
+    if (pt) productCounts[pt] = (productCounts[pt]||0) + 1;
+    var st = String(tCol(r,col,'DTR_STATUS')||'').trim();
+    if (st) statusCounts[st] = (statusCounts[st]||0) + 1;
+  });
   return {
-    dsi:         String(tCol(row,col,'DSI')||'').trim(),
-    rep:         String(tCol(row,col,'REP')||'').trim(),
-    ownerOffice: String(tCol(row,col,'OWNER_OFFICE')||'').trim(),
-    spe:         String(tCol(row,col,'SPE')||'').trim(),
-    productType: String(tCol(row,col,'PRODUCT_TYPE')||'').trim(),
-    orderDate:   (d && !isNaN(d.getTime())) ? d.toISOString().split('T')[0] : '',
-    dtrStatus:   String(tCol(row,col,'DTR_STATUS')||'').trim(),
-    orderStatus: String(tCol(row,col,'ORDER_STATUS')||'').trim(),
-    portCarrier: String(tCol(row,col,'PORT_CARRIER')||'').trim(),
-    discoReason: String(tCol(row,col,'DISCO_REASON')||'').trim(),
-    phone:       String(tCol(row,col,'PHONE')||'').trim(),
-    installDate: String(tCol(row,col,'INSTALL_DATE')||'').trim(),
-    unitCount:   Number(tCol(row,col,'UNIT_COUNT'))||0
+    dsi:           String(tCol(row,col,'DSI')||'').trim(),
+    rep:           String(tCol(row,col,'REP')||'').trim(),
+    ownerOffice:   String(tCol(row,col,'OWNER_OFFICE')||'').trim(),
+    spe:           String(tCol(row,col,'SPE')||'').trim(),
+    productType:   String(tCol(row,col,'PRODUCT_TYPE')||'').trim(),
+    productCounts: productCounts,
+    orderDate:     (d && !isNaN(d.getTime())) ? d.toISOString().split('T')[0] : '',
+    dtrStatus:     String(tCol(row,col,'DTR_STATUS')||'').trim(),
+    statusCounts:  statusCounts,
+    orderStatus:   String(tCol(row,col,'ORDER_STATUS')||'').trim(),
+    portCarrier:   String(tCol(row,col,'PORT_CARRIER')||'').trim(),
+    discoReason:   String(tCol(row,col,'DISCO_REASON')||'').trim(),
+    phone:         String(tCol(row,col,'PHONE')||'').trim(),
+    installDate:   String(tCol(row,col,'INSTALL_DATE')||'').trim(),
+    unitCount:     Number(tCol(row,col,'UNIT_COUNT'))||0
   };
 }
 
 // Returns filtered rows from both _TableauOrderLog and _TableauAOR.
 // TOL is primary; AOR fills in DSIs not already seen in TOL.
-// The callback receives (row, col, dsi) and returns a processed row or null to skip.
+// Collects ALL lines per DSI, then calls processFn(firstRow, col, dsi, allRows).
 function _readBothLogs(ss, officeId, processFn) {
-  var seen = {};
-  var results = [];
+  var dsiRows = {}, dsiCols = {}, tolDsis = {};
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
     var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
@@ -182,11 +190,19 @@ function _readBothLogs(ss, officeId, processFn) {
     for (var i = 0; i < filtered.length; i++) {
       var row = filtered[i];
       var dsi = String(tCol(row,col,'DSI')||'').trim();
-      if (!dsi || seen[dsi]) continue;
-      var result = processFn(row, col, dsi);
-      if (result) { seen[dsi] = true; results.push(result); }
+      if (!dsi) continue;
+      if (t === 1 && tolDsis[dsi]) continue;
+      if (!dsiRows[dsi]) { dsiRows[dsi] = []; dsiCols[dsi] = col; }
+      dsiRows[dsi].push(row);
     }
+    if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
   }
+  var results = [];
+  Object.keys(dsiRows).forEach(function(dsi) {
+    var rows = dsiRows[dsi]; var col = dsiCols[dsi];
+    var result = processFn(rows[0], col, dsi, rows);
+    if (result) results.push(result);
+  });
   return results;
 }
 
@@ -203,28 +219,29 @@ function readDayAfterOrders(ss, officeId) {
     targets.push(new Date(today.getTime() - 86400000).getTime()); // yesterday
   }
 
-  return _readBothLogs(ss, officeId, function(row, col, dsi) {
+  return _readBothLogs(ss, officeId, function(row, col, dsi, allRows) {
     var raw = tCol(row,col,'ORDER_DATE'); if (!raw) return null;
     var od = raw instanceof Date ? raw : new Date(raw); if (isNaN(od.getTime())) return null;
     od.setHours(0,0,0,0);
     if (targets.indexOf(od.getTime()) === -1) return null;
-    return _buildTolRow(row, col);
+    return _buildTolRow(row, col, allRows);
   });
 }
 
 function readDeliveredNotActive(ss, officeId) {
   var MATCH = ['delivered','shipped','open'];
-  return _readBothLogs(ss, officeId, function(row, col, dsi) {
-    var status = String(tCol(row,col,'DTR_STATUS')||'').toLowerCase();
-    if (!MATCH.some(function(m) { return status.indexOf(m) !== -1; })) return null;
-    return _buildTolRow(row, col);
+  return _readBothLogs(ss, officeId, function(row, col, dsi, allRows) {
+    var qualifies = allRows.some(function(r) {
+      var s = String(tCol(r,col,'DTR_STATUS')||'').toLowerCase();
+      return MATCH.some(function(m) { return s.indexOf(m) !== -1; });
+    });
+    if (!qualifies) return null;
+    return _buildTolRow(row, col, allRows);
   });
 }
 
 function readOrderIssues(ss, officeId) {
-  var portLines = {};
-  var byDsi = {};
-  var tolDsis = {};
+  var portLines = {}, byDsi = {}, dsiAllRows = {}, dsiCols = {}, tolDsis = {};
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
     var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
@@ -234,7 +251,7 @@ function readOrderIssues(ss, officeId) {
     for (var i = 0; i < filtered.length; i++) {
       var row = filtered[i];
       var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
-      if (t === 1 && tolDsis[dsi]) continue; // AOR: skip DSIs already found in TOL
+      if (t === 1 && tolDsis[dsi]) continue;
       var portCarrier = String(tCol(row,col,'PORT_CARRIER')||'').trim();
       var productType = String(tCol(row,col,'PRODUCT_TYPE')||'').toLowerCase();
       var dtrStatus   = String(tCol(row,col,'DTR_STATUS')||'').toLowerCase();
@@ -242,16 +259,33 @@ function readOrderIssues(ss, officeId) {
       var isBYOD      = productType.indexOf('byod') !== -1;
       var isPayment   = dtrStatus.indexOf('valid payment') !== -1 || dtrStatus.indexOf('payment') !== -1;
       if (isPorting) portLines[dsi] = (portLines[dsi]||0) + 1;
-      if (!byDsi[dsi] && (isPorting||isBYOD||isPayment)) {
-        var r = _buildTolRow(row,col);
-        r.issueType = isPorting ? 'Porting' : isPayment ? 'Pending Payment' : 'BYOD';
-        byDsi[dsi] = r;
+      if (isPorting||isBYOD||isPayment) {
+        if (!dsiAllRows[dsi]) { dsiAllRows[dsi] = []; dsiCols[dsi] = col; }
+        dsiAllRows[dsi].push(row);
+        if (!byDsi[dsi]) {
+          var r = _buildTolRow(row, col);
+          r.issueType = isPorting ? 'Porting' : isPayment ? 'Pending Payment' : 'BYOD';
+          byDsi[dsi] = r;
+        }
       }
     }
     if (t === 0) { Object.keys(byDsi).forEach(function(d) { tolDsis[d] = true; }); }
   }
   return Object.keys(byDsi).map(function(dsi) {
-    byDsi[dsi].heldBackLines = portLines[dsi]||0; return byDsi[dsi];
+    var result = byDsi[dsi];
+    result.heldBackLines = portLines[dsi]||0;
+    if (dsiAllRows[dsi]) {
+      var productCounts = {}, statusCounts = {};
+      dsiAllRows[dsi].forEach(function(r) {
+        var pt = String(tCol(r,dsiCols[dsi],'PRODUCT_TYPE')||'').trim();
+        if (pt) productCounts[pt] = (productCounts[pt]||0) + 1;
+        var st = String(tCol(r,dsiCols[dsi],'DTR_STATUS')||'').trim();
+        if (st) statusCounts[st] = (statusCounts[st]||0) + 1;
+      });
+      result.productCounts = productCounts;
+      result.statusCounts = statusCounts;
+    }
+    return result;
   });
 }
 

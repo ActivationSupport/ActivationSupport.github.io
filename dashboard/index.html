@@ -168,6 +168,9 @@ tr:hover td{background:#f0f7ff}
 .add-note-row button{padding:7px 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .add-note-row button:hover{background:var(--blue2)}
 .issue-badge{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;background:#fff3cd;color:#856404;margin-left:6px}
+/* ── PRODUCT PILLS ── */
+.prod-pill{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;background:#e8f4fd;color:#1a5276;white-space:nowrap;margin-right:3px}
+
 /* ── PILLS for activation bucket ── */
 .pill-0-7{background:#C6EFCE;color:#1E5631;padding:2px 7px;border-radius:8px;font-size:.72rem;font-weight:700}
 .pill-8-14{background:#FFF2CC;color:#7F6000;padding:2px 7px;border-radius:8px;font-size:.72rem;font-weight:700}
@@ -511,6 +514,27 @@ function statusPill(s) {
   return '<span class="sp '+cls+'">'+esc(s)+'</span>';
 }
 
+var PRODUCT_LABELS = { 'WIRELESS':'Wireless','AIR/AWB':'Air','TABLET/WEARABLE':'Tablet','FIBER':'Fiber','VOIP':'VoIP','DTV':'DTV' };
+
+function productBreakdown(productCounts) {
+  if (!productCounts || !Object.keys(productCounts).length) return '<span class="sp sp-default">—</span>';
+  return Object.keys(productCounts).map(function(pt) {
+    var label = PRODUCT_LABELS[pt.toUpperCase()] || pt;
+    var count = productCounts[pt];
+    return '<span class="prod-pill">' + esc(label) + (count > 1 ? ' \xd7' + count : '') + '</span>';
+  }).join('');
+}
+
+function statusBreakdown(statusCounts) {
+  if (!statusCounts || !Object.keys(statusCounts).length) return '<span class="sp sp-default">—</span>';
+  return Object.keys(statusCounts).map(function(s) {
+    var count = statusCounts[s];
+    var sl = s.toLowerCase();
+    var cls = sl.indexOf('active')!==-1?'sp-active':sl.indexOf('deliver')!==-1?'sp-delivered':sl.indexOf('ship')!==-1?'sp-shipped':sl.indexOf('open')!==-1?'sp-open':sl.indexOf('pend')!==-1?'sp-pending':(sl.indexOf('cancel')!==-1||sl.indexOf('disco')!==-1)?'sp-canceled':'sp-default';
+    return '<span class="sp ' + cls + '">' + esc(s) + (count > 1 ? ' \xd7' + count : '') + '</span>';
+  }).join(' ');
+}
+
 function ratingPill(dsi, safeId) {
   var r = (DATA.ratings||{})[dsi] || '';
   var cls = r==='No Answer'?'rp-na':r==='1 Star'?'rp-1':r==='2 Stars'?'rp-2':r==='3 Stars'?'rp-3':r==='4 Stars'?'rp-4':r==='5 Stars'?'rp-5':'';
@@ -610,9 +634,9 @@ function callTableRows(orders, extraColFn) {
       '<td><span class="rep-name">'+esc(o.rep)+'</span></td>' +
       '<td><span class="dsi-link" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">'+esc(dsi)+'</span></td>' +
       '<td>'+esc(o.orderDate)+'</td>' +
-      '<td>'+esc(o.productType)+'</td>' +
+      '<td>'+productBreakdown(o.productCounts)+'</td>' +
       extra +
-      '<td>'+statusPill(o.dtrStatus)+'</td>' +
+      '<td>'+statusBreakdown(o.statusCounts)+'</td>' +
       '<td>' + ratingPill(dsi, safeId) + '</td>' +
       '<td>' +
         '<button class="notes-btn" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">NOTES' +
