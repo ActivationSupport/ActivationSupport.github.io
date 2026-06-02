@@ -431,7 +431,8 @@ function doGet(e) {
       deliveredOrders: readDeliveredNotActive(ss, officeId),
       orderIssues: readOrderIssues(ss, officeId),
       notes: readNotes(ss, officeId),
-      ratings: readRatings(ss, officeId)
+      ratings: readRatings(ss, officeId),
+      guestRoster: readCrossOfficeMembers(ss, officeId)
     };
     return jsonResponse(data);
   } catch (err) { return jsonResponse({ error: err.message }); }
@@ -448,6 +449,26 @@ function sumAllPeriods(agg) {
 function getWeekStart() {
   const now=new Date(); const dow=now.getDay(); const daysFromMon=dow===0?6:dow-1;
   const mon=new Date(now); mon.setDate(now.getDate()-daysFromMon); mon.setHours(0,0,0,0); return mon;
+}
+function readCrossOfficeMembers(ss, officeId) {
+  var allOffices=Object.keys(OFFICE_OWNER_MAP); var result={};
+  for (var i=0;i<allOffices.length;i++) {
+    var other=allOffices[i]; if (other===officeId) continue;
+    var sheet=ss.getSheetByName(officeTab(TAB.ROSTER,other)); if (!sheet) continue;
+    var data=sheet.getDataRange().getValues();
+    for (var j=1;j<data.length;j++) {
+      var email=String(data[j][0]||'').trim().toLowerCase(); if (!email) continue;
+      var deactivated=data[j][4]===true||String(data[j][4]).toUpperCase()==='TRUE'; if (deactivated) continue;
+      var permissions=String(data[j][9]||'').trim()||other;
+      if (permissions.split(',').map(function(p){return p.trim();}).indexOf(officeId)===-1) continue;
+      var pinVal=String(data[j][6]||'').trim();
+      result[email]={ name:String(data[j][1]||'').trim(), team:String(data[j][2]||'').trim(),
+        rank:String(data[j][3]||'rep').trim(), deactivated:false, dateAdded:data[j][5]||'',
+        hasPin:pinVal.length>0&&pinVal!=='undefined', phone:String(data[j][7]||'').trim(),
+        tableauName:String(data[j][8]||'').trim(), permissions:permissions, homeOffice:other };
+    }
+  }
+  return result;
 }
 function readRoster(ss, officeId) {
   const sheet=ss.getSheetByName(officeTab(TAB.ROSTER,officeId));
