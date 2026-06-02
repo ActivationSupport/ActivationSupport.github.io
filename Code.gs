@@ -393,7 +393,6 @@ function doGet(e) {
       teamCustomizations: readTeamCustomizations(ss, officeId),
       unlockRequests: readUnlockRequests(ss, officeId),
       settings: readSettings(ss, officeId),
-      tableauSummary: tableauSummary,
       churnReport: readChurnReport(ss),
       aorData: readAOR(ss),
       activationRates: readActivationRates(ss),
