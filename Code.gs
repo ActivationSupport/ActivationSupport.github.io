@@ -1424,6 +1424,7 @@ function postLeaderboardToChat(optOfficeId) {
 }
 
 function migrateOfficeIds(ss) {
+  if (!ss) { var sid=PropertiesService.getScriptProperties().getProperty('SHEET_ID')||''; ss=sid?SpreadsheetApp.openById(sid):SpreadsheetApp.getActiveSpreadsheet(); }
   var officeMap = { 'off_001':'midspire', 'off_002':'viridian', 'off_003':'elevate', 'off_004':'ignite' };
   var tabBases = [TAB.SALES,TAB.ROSTER,TAB.TEAMS,TAB.TEAM_CUSTOM,TAB.OVERRIDES,TAB.UNLOCKS,TAB.SETTINGS,TAB.CHALLENGE,'_Notes','_Ratings'];
   var log = []; var renamed = 0; var skipped = 0;
