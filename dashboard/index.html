@@ -131,11 +131,13 @@ tr:hover td{background:rgba(74,159,212,.07)}
 /* status pills */
 .sp{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;margin-right:3px}
 .sp-active{background:#1a4a2a;color:#4caf7d}
-.sp-delivered{background:#0d3540;color:#5bc8d8}
-.sp-shipped{background:#0d2a4a;color:#5ba3e8}
-.sp-open{background:#3a2c00;color:#f0b429}
-.sp-pending{background:#3d1010;color:#e87070}
-.sp-canceled,.sp-disconnected{background:#2e2e2e;color:#aaa}
+.sp-delivered{background:#2d1b4e;color:#b48ef0}
+.sp-yellow{background:#3a2c00;color:#f0c040}
+.sp-pale-yellow{background:#2e2600;color:#c9a855}
+.sp-canceled{background:#3d0d0d;color:#e87070}
+.sp-disconnected{background:#1a0505;color:#c03030}
+.sp-orange{background:#3d2000;color:#f08030}
+.sp-dark-orange{background:#2a1200;color:#cc6010}
 .sp-default{background:#2a2a2a;color:#999}
 
 /* issue badge */
@@ -684,11 +686,26 @@ function renderActRates() {
 var RATING_OPTS = ['No Answer','1 Star','2 Stars','3 Stars','4 Stars','5 Stars'];
 
 // ── STATUS PILL ───────────────────────────────────────────────────────────
+function spCls(s) {
+  if (!s) return 'sp-yellow';
+  var sl = s.toLowerCase().trim();
+  if (!sl || sl === 'null' || sl === '—' || sl === '-') return 'sp-yellow';
+  if (sl.indexOf('deliver') !== -1) return 'sp-delivered';
+  if (sl.indexOf('active') !== -1 || sl === 'posted') return 'sp-active';
+  if (sl.indexOf('cancel') !== -1) return 'sp-canceled';
+  if (sl.indexOf('disco') !== -1) return 'sp-disconnected';
+  if (sl.indexOf('port approv') !== -1) return 'sp-dark-orange';
+  if (sl.indexOf('order port') !== -1) return 'sp-dark-orange';
+  if (sl.indexOf('valid payment') !== -1 || (sl.indexOf('pend') !== -1 && sl.indexOf('payment') !== -1)) return 'sp-orange';
+  if (sl.indexOf('porting') !== -1 || (sl.indexOf('port') !== -1 && sl.indexOf('issue') !== -1)) return 'sp-orange';
+  if (sl.indexOf('byod') !== -1) return 'sp-orange';
+  if (sl.indexOf('backorder') !== -1 || sl.indexOf('back order') !== -1 || sl === 'open') return 'sp-pale-yellow';
+  if (sl.indexOf('ship') !== -1 || sl.indexOf('sched') !== -1 || sl.indexOf('pend') !== -1) return 'sp-yellow';
+  return 'sp-default';
+}
 function statusPill(s) {
-  if (!s) return '<span class="sp sp-default">—</span>';
-  var sl = s.toLowerCase();
-  var cls = sl.indexOf('active')!==-1?'sp-active':sl.indexOf('deliver')!==-1?'sp-delivered':sl.indexOf('ship')!==-1?'sp-shipped':sl.indexOf('open')!==-1?'sp-open':sl.indexOf('pend')!==-1?'sp-pending':(sl.indexOf('cancel')!==-1||sl.indexOf('disco')!==-1)?'sp-canceled':'sp-default';
-  return '<span class="sp '+cls+'">'+esc(s)+'</span>';
+  if (!s) return '<span class="sp sp-yellow">Null</span>';
+  return '<span class="sp ' + spCls(s) + '">' + esc(s) + '</span>';
 }
 
 var SARA_URL = 'https://www.saraplus.com/e/ServicePages/Login.aspx';
@@ -724,12 +741,10 @@ function productBreakdown(productCounts) {
 }
 
 function statusBreakdown(statusCounts) {
-  if (!statusCounts || !Object.keys(statusCounts).length) return '<span class="sp sp-default">—</span>';
+  if (!statusCounts || !Object.keys(statusCounts).length) return '<span class="sp sp-yellow">—</span>';
   return Object.keys(statusCounts).map(function(s) {
     var count = statusCounts[s];
-    var sl = s.toLowerCase();
-    var cls = s==='Null'?'sp-default':sl.indexOf('active')!==-1?'sp-active':sl.indexOf('deliver')!==-1?'sp-delivered':sl.indexOf('ship')!==-1?'sp-shipped':sl.indexOf('open')!==-1?'sp-open':sl.indexOf('pend')!==-1?'sp-pending':(sl.indexOf('cancel')!==-1||sl.indexOf('disco')!==-1)?'sp-canceled':'sp-default';
-    return '<span class="sp ' + cls + '">' + esc(s) + (count > 1 ? ' \xd7' + count : '') + '</span>';
+    return '<span class="sp ' + spCls(s) + '">' + esc(s) + (count > 1 ? ' \xd7' + count : '') + '</span>';
   }).join(' ');
 }
 
