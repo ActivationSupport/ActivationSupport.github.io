@@ -1008,6 +1008,7 @@ function doPost(e) {
       case 'addTeam':             result=writeAddTeam(body,ss,officeId); break;
       case 'updateTeam':          result=writeUpdateTeam(body,ss,officeId); break;
       case 'deleteTeam':          result=writeDeleteTeam(body,ss,officeId); break;
+      case 'checkEmail':          result=writeCheckEmail(body,ss,officeId); break;
       case 'setPin':              result=writeSetPin(body,ss,officeId); break;
       case 'validatePin':         result=writeValidatePin(body,ss,officeId); break;
       case 'changePin':           result=writeChangePin(body,ss,officeId); break;
@@ -1105,15 +1106,32 @@ function writeDeleteUnlockRequest(body, ss, officeId) {
   const persona=String(body.persona||'').trim(); if (!persona) return { error:'missing persona' };
   const rowIdx=findRow(sheet,0,persona); if (rowIdx>0) sheet.deleteRow(rowIdx); return { ok:true };
 }
+function writeCheckEmail(body, ss, officeId) {
+  var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
+  var email=String(body.email||'').trim().toLowerCase();
+  if (!email) return { error:'missing email' };
+  var rowIdx=findRowCI(sheet,0,email);
+  if (rowIdx<0) return { ok:true, found:false };
+  var rowData=sheet.getRange(rowIdx,1,1,10).getValues()[0];
+  var deactivated=rowData[4]===true||String(rowData[4]).toUpperCase()==='TRUE';
+  if (deactivated) return { ok:true, found:false };
+  var storedHash=String(rowData[6]||'').trim();
+  return { ok:true, found:true, hasPin:!!storedHash&&storedHash!=='undefined' };
+}
 function writeSetPin(body, ss, officeId) {
   var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
   var email=String(body.email||'').trim().toLowerCase(); var pin=String(body.pin||'').trim();
   if (!email) return { error:'missing email' }; if (!pin) return { error:'missing pin' };
   if (!/^\d{4,6}$/.test(pin)) return { error:'PIN must be 4-6 digits' };
   var rowIdx=findRowCI(sheet,0,email); if (rowIdx<0) return { error:'email not found' };
-  var existingHash=String(sheet.getRange(rowIdx,7).getValue()||'').trim();
-  if (existingHash.length>0&&existingHash!=='undefined') return { error:'PIN already set. Use change PIN instead.' };
-  sheet.getRange(rowIdx,7).setValue(hashPin(email,pin)); return { ok:true };
+  var rowData=sheet.getRange(rowIdx,1,1,10).getValues()[0];
+  var deactivated=rowData[4]===true||String(rowData[4]).toUpperCase()==='TRUE';
+  if (deactivated) return { error:'Account deactivated. Contact your Admin.' };
+  var existingHash=String(rowData[6]||'').trim();
+  if (existingHash.length>0&&existingHash!=='undefined') return { error:'PIN already set. Use Sign In.' };
+  sheet.getRange(rowIdx,7).setValue(hashPin(email,pin));
+  var permissions=String(rowData[9]||'').trim()||officeId;
+  return { ok:true, valid:true, permissions:permissions };
 }
 function writeValidatePin(body, ss, officeId) {
   var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
