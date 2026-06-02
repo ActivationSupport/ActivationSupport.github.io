@@ -154,8 +154,8 @@ function _buildTolRow(row, col, allRows) {
   (allRows || [row]).forEach(function(r) {
     var pt = String(tCol(r,col,'PRODUCT_TYPE')||'').trim();
     if (pt) productCounts[pt] = (productCounts[pt]||0) + 1;
-    var st = String(tCol(r,col,'DTR_STATUS')||'').trim();
-    if (st) statusCounts[st] = (statusCounts[st]||0) + 1;
+    var st = String(tCol(r,col,'DTR_STATUS')||'').trim() || 'Null';
+    statusCounts[st] = (statusCounts[st]||0) + 1;
   });
   return {
     dsi:           String(tCol(row,col,'DSI')||'').trim(),
@@ -279,8 +279,8 @@ function readOrderIssues(ss, officeId) {
       dsiAllRows[dsi].forEach(function(r) {
         var pt = String(tCol(r,dsiCols[dsi],'PRODUCT_TYPE')||'').trim();
         if (pt) productCounts[pt] = (productCounts[pt]||0) + 1;
-        var st = String(tCol(r,dsiCols[dsi],'DTR_STATUS')||'').trim();
-        if (st) statusCounts[st] = (statusCounts[st]||0) + 1;
+        var st = String(tCol(r,dsiCols[dsi],'DTR_STATUS')||'').trim() || 'Null';
+        statusCounts[st] = (statusCounts[st]||0) + 1;
       });
       result.productCounts = productCounts;
       result.statusCounts = statusCounts;
