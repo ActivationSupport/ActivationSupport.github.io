@@ -168,6 +168,10 @@ tr:hover td{background:#f0f7ff}
 .add-note-row button{padding:7px 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .add-note-row button:hover{background:var(--blue2)}
 .issue-badge{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;background:#fff3cd;color:#856404;margin-left:6px}
+/* ── DSI TOAST ── */
+#dsi-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1F4E78;color:#fff;padding:10px 22px;border-radius:8px;font-size:.85rem;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:400;white-space:nowrap}
+#dsi-toast.show{opacity:1}
+
 /* ── PRODUCT PILLS ── */
 .prod-pill{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;background:#e8f4fd;color:#1a5276;white-space:nowrap;margin-right:3px}
 
@@ -249,6 +253,8 @@ tr:hover td{background:#f0f7ff}
     </div>
   </div>
 </div>
+
+<div id="dsi-toast"></div>
 
 <!-- DETAIL MODAL -->
 <div class="modal-bg" id="detail-modal">
@@ -514,6 +520,27 @@ function statusPill(s) {
   return '<span class="sp '+cls+'">'+esc(s)+'</span>';
 }
 
+var SARA_URL = 'https://www.saraplus.com/e/(S(c3igm34rsefvi3xvicu005se))/ServicePages/Login.aspx?ReturnUrl=%2fe%2fSecurity%2fVerifyPasscode.aspx';
+
+function clickDsi(dsi) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(dsi);
+  } else {
+    var el = document.createElement('textarea');
+    el.value = dsi; el.style.position = 'fixed'; el.style.opacity = '0';
+    document.body.appendChild(el); el.select(); document.execCommand('copy');
+    document.body.removeChild(el);
+  }
+  window.open(SARA_URL, '_blank');
+  showToast('Copied: ' + dsi);
+}
+
+function showToast(msg) {
+  var t = document.getElementById('dsi-toast'); if (!t) return;
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2200);
+}
+
 var PRODUCT_LABELS = { 'WIRELESS':'Wireless','AIR/AWB':'Air','TABLET/WEARABLE':'Tablet','FIBER':'Fiber','VOIP':'VoIP','DTV':'DTV' };
 
 function productBreakdown(productCounts) {
@@ -632,7 +659,7 @@ function callTableRows(orders, extraColFn) {
     var extra = extraColFn ? extraColFn(o) : '';
     return '<tr>' +
       '<td><span class="rep-name">'+esc(o.rep)+'</span></td>' +
-      '<td><span class="dsi-link" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">'+esc(dsi)+'</span></td>' +
+      '<td><span class="dsi-link" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span></td>' +
       '<td>'+esc(o.orderDate)+'</td>' +
       '<td>'+productBreakdown(o.productCounts)+'</td>' +
       extra +
