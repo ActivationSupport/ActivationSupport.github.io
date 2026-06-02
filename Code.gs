@@ -31,7 +31,7 @@ function buildTeamEmojiMaps(ss, officeId) {
   }
   return { emojiMap: emojiMap, nameMap: nameMap };
 }
-const LEADER_RANKS = ["owner", "manager", "jd", "l1"];
+const LEADER_RANKS = ["master-admin","owner","admin","activator","manager","jd","l1"];
 const OL = {
   TIMESTAMP: 0, EMAIL: 1, REP_NAME: 2, DATE_OF_SALE: 3, CAMPAIGN: 4,
   DSI: 5, ACCOUNT_TYPE: 6, CLIENT_NAME: 7, TRAINEE: 8, TRAINEE_NAME: 9,
@@ -297,7 +297,7 @@ function readNotes(ss, officeId) {
   for (var i=1;i<data.length;i++) {
     var dsi = String(data[i][0]||'').trim(); if (!dsi) continue;
     if (!out[dsi]) out[dsi] = [];
-    out[dsi].push({ ts: data[i][1]?new Date(data[i][1]).toISOString():'', authorEmail:String(data[i][2]||'').trim(), authorName:String(data[i][3]||'').trim(), noteText:String(data[i][4]||'').trim() });
+    out[dsi].push({ ts: data[i][1]?new Date(data[i][1]).toISOString():'', authorEmail:String(data[i][2]||'').trim(), authorName:String(data[i][3]||'').trim(), noteText:String(data[i][4]||'').trim(), noteType:String(data[i][5]||'activation').trim() });
   }
   return out;
 }
@@ -313,11 +313,12 @@ function readRatings(ss, officeId) {
 function writeNoteEntry(body, ss, officeId) {
   var dsi=String(body.dsi||'').trim(), noteText=String(body.noteText||'').trim();
   var authorEmail=String(body.authorEmail||'').trim().toLowerCase(), authorName=String(body.authorName||'').trim();
+  var noteType=String(body.noteType||'activation').trim();
   if (!dsi||!noteText) return { error:'missing dsi or noteText' };
   var tabName='_Notes_'+officeId;
   var sheet=ss.getSheetByName(tabName);
-  if (!sheet) { sheet=ss.insertSheet(tabName); sheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText']); sheet.getRange(1,1,1,5).setFontWeight('bold'); sheet.setFrozenRows(1); }
-  sheet.appendRow([dsi, new Date(), authorEmail, authorName, noteText]);
+  if (!sheet) { sheet=ss.insertSheet(tabName); sheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText','noteType']); sheet.getRange(1,1,1,6).setFontWeight('bold'); sheet.setFrozenRows(1); }
+  sheet.appendRow([dsi, new Date(), authorEmail, authorName, noteText, noteType]);
   return { ok:true, ts:new Date().toISOString() };
 }
 
@@ -383,6 +384,15 @@ function doGet(e) {
     if (action === 'readIssues') return jsonResponse({ orders: readOrderIssues(ss, officeId) });
     if (action === 'readNotes') return jsonResponse({ notes: readNotes(ss, officeId) });
     if (action === 'readRatings') return jsonResponse({ ratings: readRatings(ss, officeId) });
+    if (action === 'readRepNames') {
+      var rnSheet=ss.getSheetByName(TABLEAU_TAB); if (!rnSheet) return jsonResponse({ names:[] });
+      var rnData=rnSheet.getDataRange().getValues(); if (rnData.length<2) return jsonResponse({ names:[] });
+      var rnCol=buildTableauColumnMap(rnData[0]);
+      var rnFiltered=_filterByOffice(rnData.slice(1),rnCol,officeId);
+      var rnNames={};
+      rnFiltered.forEach(function(row){ var n=String(tCol(row,rnCol,'REP')||'').trim(); if (n) rnNames[n]=true; });
+      return jsonResponse({ names:Object.keys(rnNames).sort() });
+    }
     if (action === 'readTableauDetail') {
       const dsi = (e.parameter && e.parameter.dsi) || '';
       return jsonResponse({ devices: readTableauDetail(ss, dsi) });
