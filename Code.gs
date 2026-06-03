@@ -293,10 +293,15 @@ function readOrderIssues(ss, officeId) {
   Object.keys(aorRows).forEach(function(dsi) {
     if (!dsiRows[dsi]) { dsiRows[dsi] = aorRows[dsi]; dsiCols[dsi] = aorCols[dsi]; }
   });
-  // Qualify DSIs where ANY line has an issue DTR_STATUS
+  // 29-day window
+  var today = new Date(); today.setHours(0,0,0,0);
+  var cutoff = new Date(today.getTime() - 28 * 86400000); // today - 28 days = 29-day window inclusive
+  // Qualify DSIs where ANY line has an issue DTR_STATUS and ORDER_DATE is within 29 days
   var results = [];
   Object.keys(dsiRows).forEach(function(dsi) {
     var rows = dsiRows[dsi]; var col = dsiCols[dsi];
+    var od = _parseDateLocal(tCol(rows[0],col,'ORDER_DATE'));
+    if (!od || od.getTime() < cutoff.getTime()) return;
     var qualifies = rows.some(function(r) { return _isIssueStatus(tCol(r,col,'DTR_STATUS')); });
     if (!qualifies) return;
     var result = _buildTolRow(rows[0], col, rows);
