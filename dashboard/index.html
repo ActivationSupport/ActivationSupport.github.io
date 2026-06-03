@@ -635,7 +635,7 @@ function renderTab(id) {
     case 'actrates':    c.innerHTML = renderActRates();    break;
     case 'dayafter':    c.innerHTML = renderCallTable(repFilter(DATA.dayAfterOrders||[]), 'Day-After Calls', 'No day-after orders found.'); break;
     case 'delivered':   c.innerHTML = renderCallTable(repFilter(DATA.deliveredOrders||[]), 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
-    case 'issues':      c.innerHTML = renderIssuesTable(repFilter(DATA.orderIssues||[])); break;
+    case 'issues':      c.innerHTML = renderCallTable(repFilter(DATA.orderIssues||[]), 'Order Issues', 'No order issues found.'); break;
     case 'noanswer':    c.innerHTML = renderNoAnswerTable(); break;
     case 'escalations': c.innerHTML = renderEscalationsTable(); break;
     case 'churn':       c.innerHTML = renderChurn();       break;
@@ -881,23 +881,6 @@ function renderCallTable(orders, title, emptyMsg) {
     '</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div></div></div>';
 }
 
-// ── ORDER ISSUES ──────────────────────────────────────────────────────────
-function renderIssuesTable(orders) {
-  if (!orders.length) return noData('No order issues found.');
-  return '<div class="card"><div class="card-header dark">Order Issues &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
-    '<div class="filter-row"><input id="f-iss" placeholder="Search rep, customer, DSI…"></div>' +
-    '<div class="call-table-wrap"><table class="call-table" id="iss-table"><thead><tr>' +
-    '<th>Rep</th><th>DSI</th><th>Date</th><th>Product</th><th>Issue</th><th>Status</th><th>Rating</th><th>Notes</th>' +
-    '</tr></thead><tbody>' +
-    callTableRows(orders, function(o) {
-      var statuses = o.issueStatuses || [];
-      var tags = statuses.map(function(s) {
-        return '<span class="sp '+spCls(s)+'">'+esc(s)+'</span>';
-      }).join(' ');
-      return '<td>'+(tags||'—')+'</td>';
-    }) +
-    '</tbody></table></div></div></div>';
-}
 
 // ── ORDER LOOKUP — call list data first, AOR as fallback ─────────────────
 function buildOrderLookup() {
