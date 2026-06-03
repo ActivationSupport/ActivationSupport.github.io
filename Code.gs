@@ -1877,3 +1877,26 @@ function migrateFromExternal(body, ss) {
   return { success:true, officeId:officeId, salesRows:salesSheet.getLastRow()-1, log:log };
 }
 
+
+// ── NOTE MIGRATION ──────────────────────────────────────────────────────────
+function discoverElevateSheet() {
+  var SOURCE_ID = '1cOib-GVI_bYOgILGP5wBQdQg2ri2bZ0yEmApmv03PM0';
+  var TABS = ['Master Tracker', 'Completed Orders', 'Order Issues'];
+  var ss;
+  try { ss = SpreadsheetApp.openById(SOURCE_ID); } catch(e) { Logger.log('ERROR: Cannot open sheet — ' + e.message); return; }
+  TABS.forEach(function(tabName) {
+    var sheet = ss.getSheetByName(tabName);
+    if (!sheet) { Logger.log('TAB NOT FOUND: ' + tabName); return; }
+    var data = sheet.getDataRange().getValues();
+    if (data.length < 2) { Logger.log('TAB EMPTY: ' + tabName); return; }
+    Logger.log('\n=== ' + tabName + ' ===');
+    Logger.log('HEADERS: ' + JSON.stringify(data[0]));
+    Logger.log('ROW COUNT: ' + (data.length - 1));
+    // Show up to 5 rows that have any non-empty value past column 3
+    var shown = 0;
+    for (var i = 1; i < data.length && shown < 5; i++) {
+      var hasContent = data[i].slice(3).some(function(v) { return String(v||'').trim() !== ''; });
+      if (hasContent) { Logger.log('SAMPLE ROW ' + i + ': ' + JSON.stringify(data[i])); shown++; }
+    }
+  });
+}
