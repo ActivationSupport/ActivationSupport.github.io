@@ -163,7 +163,7 @@ function loginCheckEmail() {
   err.style.display = 'none';
   if (!email) { err.textContent = 'Enter your email address.'; err.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Checking…';
-  apiPost({ action: 'checkAdminEmail', email: email }).then(function(res) {
+  api({ action: 'checkAdminEmail', email: email }).then(function(res) {
     btn.disabled = false; btn.textContent = 'Continue';
     if (!res.ok) { err.textContent = res.error || 'Something went wrong.'; err.style.display = 'block'; return; }
     LOGIN_EMAIL = email;
@@ -194,7 +194,7 @@ function doLogin() {
   err.style.display = 'none';
   if (!pin) { err.textContent = 'Enter your PIN.'; err.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Signing in…';
-  apiPost({ action: 'validateAdminAccess', email: LOGIN_EMAIL, pin: pin }).then(function(res) {
+  api({ action: 'validateAdminAccess', email: LOGIN_EMAIL, pin: pin }).then(function(res) {
     if (res.ok && res.valid) {
       SESSION = { email: LOGIN_EMAIL, rank: res.rank, homeOffice: res.homeOffice };
       sessionStorage.setItem('as_admin_session', JSON.stringify(SESSION));

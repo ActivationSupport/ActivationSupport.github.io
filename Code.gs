@@ -411,6 +411,14 @@ function doGet(e) {
       return jsonResponse({ text: buildLeaderboardText(ss, officeId, officeName) });
     }
     if (action === 'readAdminSummary') return jsonResponse(readAdminSummary(ss));
+    if (action === 'checkAdminEmail') {
+      var cae = {}; cae.email = (e.parameter && e.parameter.email) || '';
+      return jsonResponse(writeCheckAdminEmail(cae, ss));
+    }
+    if (action === 'validateAdminAccess') {
+      var vaa = {}; vaa.email = (e.parameter && e.parameter.email) || ''; vaa.pin = (e.parameter && e.parameter.pin) || '';
+      return jsonResponse(writeValidateAdminAccess(vaa, ss));
+    }
     let roster = readRoster(ss, officeId);
     const teamMaps = buildTeamEmojiMaps(ss, officeId);
     const peopleResult = readPeople(ss, officeId, roster, teamMaps.nameMap);
