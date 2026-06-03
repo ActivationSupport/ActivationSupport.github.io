@@ -121,6 +121,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .call-table{width:100%;border-collapse:collapse;font-size:.875rem}
 .call-table thead tr{border-bottom:1px solid rgba(255,255,255,.08)}
 .call-table th{text-align:left;padding:10px 14px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);white-space:nowrap}
+.sort-th{cursor:pointer;user-select:none}
+.sort-th:hover{color:var(--text)}
 .call-table td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;color:var(--text)}
 .call-table tbody tr:last-child td{border-bottom:none}
 .call-table tbody tr:hover td{background:rgba(74,159,212,.07)}
@@ -867,6 +869,36 @@ function modalAddNote(noteType) {
 }
 
 // ── CALL TABLE ────────────────────────────────────────────────────────────
+var _tabOrders = [], _sortTblId = '', _sortState = { col: null, dir: 1 };
+
+function sortCallTable(col) {
+  _sortState.dir = _sortState.col === col ? -_sortState.dir : 1;
+  _sortState.col = col;
+  var sorted = _tabOrders.slice().sort(function(a, b) {
+    var va, vb;
+    if      (col === 'rep')     { va = (a.rep||'').toLowerCase();                     vb = (b.rep||'').toLowerCase(); }
+    else if (col === 'dsi')     { va = a.dsi||'';                                     vb = b.dsi||''; }
+    else if (col === 'date')    { va = a.orderDate||'';                               vb = b.orderDate||''; }
+    else if (col === 'product') { va = Object.keys(a.productCounts||{}).sort()[0]||''; vb = Object.keys(b.productCounts||{}).sort()[0]||''; }
+    else if (col === 'status')  { va = Object.keys(a.statusCounts||{}).sort()[0]||''; vb = Object.keys(b.statusCounts||{}).sort()[0]||''; }
+    else return 0;
+    return va < vb ? -_sortState.dir : va > vb ? _sortState.dir : 0;
+  });
+  var tbody = document.querySelector('#'+_sortTblId+' tbody');
+  if (tbody) tbody.innerHTML = callTableRows(sorted, null);
+  var labels = { rep:'Name', dsi:'DSI', date:'Date', product:'Product', status:'Status' };
+  document.querySelectorAll('#'+_sortTblId+' th[data-col]').forEach(function(th) {
+    th.textContent = (labels[th.dataset.col]||th.dataset.col) + (th.dataset.col === col ? (_sortState.dir === 1 ? ' ↑' : ' ↓') : '');
+  });
+  var inp = document.getElementById('f-'+_sortTblId.replace('-table',''));
+  if (inp && inp.value) {
+    var q = inp.value.toLowerCase();
+    Array.from(document.querySelectorAll('#'+_sortTblId+' tbody tr')).forEach(function(tr) {
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+}
+
 function callTableRows(orders, extraColFn) {
   return orders.map(function(o) {
     var dsi = o.dsi || '';
@@ -890,12 +922,20 @@ function callTableRows(orders, extraColFn) {
   }).join('');
 }
 
+function _sortHeaders(tblId) {
+  var cols = [['rep','Name'],['dsi','DSI'],['date','Date'],['product','Product'],['status','Status']];
+  return cols.map(function(c) {
+    return '<th class="sort-th" data-col="'+c[0]+'" onclick="sortCallTable(\''+c[0]+'\')">'+c[1]+'</th>';
+  }).join('') + '<th>Rating</th><th>Notes</th>';
+}
+
 function renderCallTable(orders, title, emptyMsg) {
   if (!orders.length) return noData(emptyMsg);
+  _tabOrders = orders.slice(); _sortTblId = 'ct-table'; _sortState = { col: null, dir: 1 };
   return '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     '<div class="filter-row"><input id="f-ct" placeholder="Search rep, customer, DSI…"></div>' +
     '<div class="call-table-wrap"><table class="call-table" id="ct-table"><thead><tr>' +
-    '<th>Rep</th><th>DSI</th><th>Date</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    _sortHeaders('ct-table') +
     '</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div></div></div>';
 }
 
@@ -923,10 +963,11 @@ function renderNoAnswerTable() {
     var o = lookup[dsi];
     return o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
   });
+  _tabOrders = orders.slice(); _sortTblId = 'na-table'; _sortState = { col: null, dir: 1 };
   return '<div class="card"><div class="card-header dark">No Answer &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     '<div class="filter-row"><input id="f-na" placeholder="Search rep, customer, DSI…"></div>' +
     '<div class="call-table-wrap"><table class="call-table" id="na-table"><thead><tr>' +
-    '<th>Rep</th><th>DSI</th><th>Date</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    _sortHeaders('na-table') +
     '</tr></thead><tbody>'+callTableRows(orders,null)+'</tbody></table></div></div></div>';
 }
 
@@ -940,10 +981,11 @@ function renderEscalationsTable() {
     var o = lookup[dsi];
     return o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
   });
+  _tabOrders = orders.slice(); _sortTblId = 'esc-table'; _sortState = { col: null, dir: 1 };
   return '<div class="card"><div class="card-header dark">Escalations &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     '<div class="filter-row"><input id="f-esc" placeholder="Search rep, customer, DSI…"></div>' +
     '<div class="call-table-wrap"><table class="call-table" id="esc-table"><thead><tr>' +
-    '<th>Rep</th><th>DSI</th><th>Date</th><th>Product</th><th>Status</th><th>Rating</th><th>Notes</th>' +
+    _sortHeaders('esc-table') +
     '</tr></thead><tbody>'+callTableRows(orders,null)+'</tbody></table></div></div></div>';
 }
 
