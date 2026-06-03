@@ -639,7 +639,7 @@ function doGet(e) {
       settings: readSettings(ss, officeId),
       churnReport: readChurnReport(ss),
       aorData: readAOR(ss),
-      activationRates: readActivationRates(ss),
+      activationRates: readActivationRates(ss, officeId),
       dayAfterOrders: readDayAfterOrders(ss, officeId),
       deliveredOrders: readDeliveredNotActive(ss, officeId),
       orderIssues: readOrderIssues(ss, officeId),
@@ -899,15 +899,52 @@ function readAOR(ss) {
   return rows;
 }
 
-// === readActivationRates() — Read shared _TableauActivationRates tab ===
-function readActivationRates(ss) {
-  var sheet=ss.getSheetByName(ACTIVATION_RATES_TAB); if (!sheet) return [];
-  var data=sheet.getDataRange().getValues(); if (data.length<2) return [];
-  var headers=data[0].map(function(h) { return String(h).trim(); });
-  var rows=[];
-  for (var i=1;i<data.length;i++) {
-    var row={}; headers.forEach(function(h,j) { row[h||('_col'+j)]=data[i][j]!==undefined?data[i][j]:''; }); rows.push(row);
+function readActivationRates(ss, officeId) {
+  var today = new Date(); today.setHours(0,0,0,0);
+
+  function getBucket(od) {
+    var diff = Math.floor((today.getTime() - od.getTime()) / 86400000);
+    if (diff < 0 || diff > 60) return null;
+    if (diff <= 7)  return 'b0_7';
+    if (diff <= 14) return 'b8_14';
+    if (diff <= 30) return 'b15_30';
+    return 'b31_60';
   }
+
+  function isActiveLine(status) {
+    var s = String(status||'').trim().toLowerCase();
+    return s === 'active' || s === 'posted' || s.startsWith('disconnect');
+  }
+
+  var repData = {}, tolDsis = {};
+  var totals = { b0_7:{t:0,a:0}, b8_14:{t:0,a:0}, b15_30:{t:0,a:0}, b31_60:{t:0,a:0} };
+
+  var tabs = [TABLEAU_TAB, AOR_TAB];
+  for (var t = 0; t < tabs.length; t++) {
+    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
+    var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
+    var col = buildTableauColumnMap(sheetData[0]);
+    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
+    for (var i = 0; i < filtered.length; i++) {
+      var row = filtered[i];
+      var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
+      if (t === 1 && tolDsis[dsi]) continue;
+      var rep = String(tCol(row,col,'REP')||'').trim(); if (!rep) continue;
+      var od  = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
+      var bkt = getBucket(od); if (!bkt) continue;
+      var stRaw = tCol(row,col,'DTR_STATUS');
+      var active = !(stRaw instanceof Date) && isActiveLine(String(stRaw||''));
+      if (!repData[rep]) repData[rep] = { b0_7:{t:0,a:0}, b8_14:{t:0,a:0}, b15_30:{t:0,a:0}, b31_60:{t:0,a:0} };
+      repData[rep][bkt].t++; if (active) repData[rep][bkt].a++;
+      totals[bkt].t++;       if (active) totals[bkt].a++;
+      if (t === 0) tolDsis[dsi] = true;
+    }
+  }
+
+  var rows = Object.keys(repData).sort().map(function(rep) {
+    return { rep:rep, isTotal:false, b0_7:repData[rep].b0_7, b8_14:repData[rep].b8_14, b15_30:repData[rep].b15_30, b31_60:repData[rep].b31_60 };
+  });
+  rows.unshift({ rep:'Grand Total', isTotal:true, b0_7:totals.b0_7, b8_14:totals.b8_14, b15_30:totals.b15_30, b31_60:totals.b31_60 });
   return rows;
 }
 
