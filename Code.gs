@@ -152,9 +152,13 @@ function _buildTolRow(row, col, allRows) {
   var d = rawDate instanceof Date ? rawDate : (rawDate ? new Date(rawDate) : null);
   var productCounts = {}, statusCounts = {};
   (allRows || [row]).forEach(function(r) {
-    var pt = String(tCol(r,col,'PRODUCT_TYPE')||'').trim();
-    if (pt) productCounts[pt] = (productCounts[pt]||0) + 1;
-    var st = String(tCol(r,col,'DTR_STATUS')||'').trim() || 'Null';
+    var ptRaw = tCol(r,col,'PRODUCT_TYPE');
+    if (!(ptRaw instanceof Date)) {
+      var pt = String(ptRaw||'').trim();
+      if (pt) productCounts[pt] = (productCounts[pt]||0) + 1;
+    }
+    var stRaw = tCol(r,col,'DTR_STATUS');
+    var st = (stRaw instanceof Date) ? 'Null' : (String(stRaw||'').trim() || 'Null');
     statusCounts[st] = (statusCounts[st]||0) + 1;
   });
   return {
@@ -225,9 +229,9 @@ function readDayAfterOrders(ss, officeId) {
     targets.push(new Date(today.getTime()-86400000).getTime()); // yesterday
   }
 
-  var dsiRows = {}, dsiCols = {};
+  var dsiRows = {}, dsiCols = {}, tolDsis = {};
 
-  // Source 1: Tableau tabs (TOL + AOR) — office-filtered by OWNER_OFFICE
+  // Source 1: Tableau tabs (TOL + AOR) — office-filtered by OWNER_OFFICE. TOL primary; AOR fills missing DSIs only.
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
     var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
@@ -237,11 +241,13 @@ function readDayAfterOrders(ss, officeId) {
     for (var i = 0; i < filtered.length; i++) {
       var row = filtered[i];
       var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
+      if (t === 1 && tolDsis[dsi]) continue; // AOR: skip DSIs already sourced from TOL
       var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
       if (targets.indexOf(od.getTime()) === -1) continue;
       if (!dsiRows[dsi]) { dsiRows[dsi] = []; dsiCols[dsi] = col; }
       dsiRows[dsi].push(row);
     }
+    if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
   }
 
   // Source 2: Local sales sheet (_Sales_elevate) — catches orders not yet in Tableau sync
@@ -365,8 +371,8 @@ function _isExcludedStatus(s) {
 function readMasterTracker(ss, officeId) {
   var today = new Date(); today.setHours(0,0,0,0);
   var cutoff = new Date(today.getTime() - 119 * 86400000); // 120-day inclusive window
-  var dsiRows = {}, dsiCols = {};
-  // Source 1: Tableau (TOL + AOR), office-filtered
+  var dsiRows = {}, dsiCols = {}, tolDsis = {};
+  // Source 1: Tableau (TOL + AOR), office-filtered. TOL is primary; AOR fills missing DSIs only.
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
     var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
@@ -376,11 +382,13 @@ function readMasterTracker(ss, officeId) {
     for (var i = 0; i < filtered.length; i++) {
       var row = filtered[i];
       var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
+      if (t === 1 && tolDsis[dsi]) continue; // AOR: skip DSIs already sourced from TOL
       var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
       if (od.getTime() < cutoff.getTime()) continue;
       if (!dsiRows[dsi]) { dsiRows[dsi] = []; dsiCols[dsi] = col; }
       dsiRows[dsi].push(row);
     }
+    if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
   }
   // Source 2: Local sales sheet — fills in DSIs not yet synced to Tableau
   var salesSheet = ss.getSheetByName(officeTab(TAB.SALES, officeId));
@@ -425,8 +433,8 @@ function readMasterTracker(ss, officeId) {
 function readCompletedOrders(ss, officeId) {
   var today = new Date(); today.setHours(0,0,0,0);
   var cutoff = new Date(today.getTime() - 119 * 86400000); // 120-day inclusive window
-  var dsiRows = {}, dsiCols = {};
-  // Source 1: Tableau (TOL + AOR), office-filtered
+  var dsiRows = {}, dsiCols = {}, tolDsis = {};
+  // Source 1: Tableau (TOL + AOR), office-filtered. TOL is primary; AOR fills missing DSIs only.
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
     var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
@@ -436,11 +444,13 @@ function readCompletedOrders(ss, officeId) {
     for (var i = 0; i < filtered.length; i++) {
       var row = filtered[i];
       var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
+      if (t === 1 && tolDsis[dsi]) continue; // AOR: skip DSIs already sourced from TOL
       var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
       if (od.getTime() < cutoff.getTime()) continue;
       if (!dsiRows[dsi]) { dsiRows[dsi] = []; dsiCols[dsi] = col; }
       dsiRows[dsi].push(row);
     }
+    if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
   }
   // Source 2: Local sales sheet — fills in DSIs not yet synced to Tableau
   var salesSheet = ss.getSheetByName(officeTab(TAB.SALES, officeId));
