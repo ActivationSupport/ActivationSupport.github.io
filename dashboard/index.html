@@ -325,7 +325,7 @@ var OFFICE_COLORS = { midspire:'#1F4E78', viridian:'#1E5631', elevate:'#2E75B6',
 var CFG = {};
 var SESSION = {};
 var DATA = {};
-var CURRENT_TAB = 'dayafter';
+var CURRENT_TAB = 'master';
 
 function loadConfig() {
   var params = new URLSearchParams(window.location.search);
@@ -544,7 +544,8 @@ function switchOffice(newOfficeId) {
 
 var ALL_ROLES = ['master-admin','owner','admin','activator','rep'];
 var TABS = [
-  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',     roles: ALL_ROLES },
+  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES },
+  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ALL_ROLES },
   { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ALL_ROLES },
   { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ALL_ROLES },
   { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ALL_ROLES },
@@ -646,6 +647,7 @@ function renderTab(id) {
   }
   switch(id) {
     case 'actrates':    c.innerHTML = renderActRates();    break;
+    case 'master':      c.innerHTML = renderCallTable(repFilter(DATA.masterTracker||[]), 'Master Tracker', 'No orders found.'); break;
     case 'dayafter':    c.innerHTML = renderCallTable(repFilter(DATA.dayAfterOrders||[]), 'Day-After Calls', 'No day-after orders found.'); break;
     case 'delivered':   c.innerHTML = renderCallTable(repFilter(DATA.deliveredOrders||[]), 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
     case 'issues':      c.innerHTML = renderCallTable(repFilter(issueFilter(DATA.orderIssues||[])), 'Order Issues', 'No order issues found.'); break;
@@ -898,7 +900,7 @@ function renderCallTable(orders, title, emptyMsg) {
 // ── ORDER LOOKUP — call list data first, AOR as fallback ─────────────────
 function buildOrderLookup() {
   var map = {};
-  (DATA.dayAfterOrders||[]).concat(DATA.deliveredOrders||[]).concat(DATA.orderIssues||[]).forEach(function(o) {
+  (DATA.masterTracker||[]).concat(DATA.dayAfterOrders||[]).concat(DATA.deliveredOrders||[]).concat(DATA.orderIssues||[]).forEach(function(o) {
     if (o.dsi && !map[o.dsi]) map[o.dsi] = o;
   });
   (DATA.aorData||[]).forEach(function(r) {
