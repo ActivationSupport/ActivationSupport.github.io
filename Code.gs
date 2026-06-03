@@ -300,12 +300,10 @@ function readOrderIssues(ss, officeId) {
     var qualifies = rows.some(function(r) { return _isIssueStatus(tCol(r,col,'DTR_STATUS')); });
     if (!qualifies) return;
     var result = _buildTolRow(rows[0], col, rows);
-    // Set issueType from first qualifying line
-    var trigger = rows.filter(function(r) { return _isIssueStatus(tCol(r,col,'DTR_STATUS')); })[0];
-    var sl = String(tCol(trigger,col,'DTR_STATUS')||'').toLowerCase();
-    result.issueType = sl.indexOf('porting') !== -1 ? 'Porting' :
-                       sl.indexOf('valid payment') !== -1 ? 'Pending Payment' :
-                       sl.indexOf('byod') !== -1 ? 'BYOD' : 'Pending Order Port';
+    var seen = {};
+    result.issueStatuses = rows
+      .map(function(r) { return String(tCol(r,col,'DTR_STATUS')||'').trim(); })
+      .filter(function(s) { return _isIssueStatus(s) && s && !seen[s] && (seen[s]=true); });
     results.push(result);
   });
   return results;
