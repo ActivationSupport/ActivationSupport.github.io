@@ -1908,28 +1908,66 @@ function _runElevateNotesMigration_(dryRun) {
   var SOURCE_ID = '1cOib-GVI_bYOgILGP5wBQdQg2ri2bZ0yEmApmv03PM0';
   var OFFICE_ID = 'elevate';
   var TABS      = ['Master Tracker', 'Completed Orders', 'Order Issues'];
-  var COL_DSI   = 4, COL_NOTES = 11, COL_NOTE_UPDATED = 14, COL_ORDER_DATE = 1;
+  var COL_DSI = 4, COL_NOTES = 11, COL_NOTE_UPDATED = 14, COL_ORDER_DATE = 1;
+  var YEAR = 2026;
 
   var INITIALS = { 'GF':'Gavon Fuller', 'AM':'Angel Milan', 'BP':'Brandon Purkett' };
 
   function extractAuthor(text) {
-    // [Jun 2 — Angel Milan] full-name format
     var m1 = text.match(/^\[([^\]—–]+)[—–]\s*([^\]]+)\]/);
     if (m1) return m1[2].trim();
-    // 5/29 AM - date + initials
-    var m2 = text.match(/^\d{1,2}\/\d{1,2}\s{0,3}([A-Za-z]{2,3})\s*[-–]/);
+    var m2 = text.match(/^\d{1,2}\/\d{1,2}\s{0,3}([A-Za-z]{2,3})(?:\s|[-–])/);
     if (m2) return INITIALS[m2[1].toUpperCase()] || m2[1].toUpperCase();
-    // AM - just initials
     var m3 = text.match(/^([A-Za-z]{2,3})\s*[-–]/);
     if (m3) return INITIALS[m3[1].toUpperCase()] || m3[1].toUpperCase();
     return 'Import';
   }
 
-  function parseTs(raw, fallbackRaw) {
+  function extractDate(text) {
+    var m1 = text.match(/^\[(\w+\s+\d+)/);
+    if (m1) { var d1 = new Date(m1[1] + ' ' + YEAR); if (!isNaN(d1.getTime())) return d1; }
+    var m2 = text.match(/^(\d{1,2})\/(\d{1,2})/);
+    if (m2) { var d2 = new Date(YEAR, parseInt(m2[1])-1, parseInt(m2[2])); if (!isNaN(d2.getTime())) return d2; }
+    return null;
+  }
+
+  function startsEntry(line) {
+    return /^(\[\w+\s+\d+[^\]]*[—–-]|\d{1,2}\/\d{1,2}\s)/.test(line);
+  }
+
+  function hasContent(text) {
+    var s = text
+      .replace(/^\[[^\]]+\]\s*/, '')
+      .replace(/^\d{1,2}\/\d{1,2}\s*[A-Za-z]{0,3}\s*[-–]?\s*/, '')
+      .replace(/^[A-Za-z]{2,3}\s*[-–]\s*/, '')
+      .trim();
+    return s.length > 1;
+  }
+
+  function splitEntries(cell) {
+    // Split by newlines first, grouping continuation lines with their entry
+    var lines = cell.split(/[\n\r]+/);
+    var entries = [], cur = '';
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim(); if (!line) continue;
+      if (startsEntry(line) && cur) { entries.push(cur.trim()); cur = line; }
+      else { cur = cur ? cur + ' ' + line : line; }
+    }
+    if (cur.trim()) entries.push(cur.trim());
+    // If only one chunk, try splitting inline on date patterns
+    if (entries.length === 1) {
+      var parts = cell.split(/(?=\[\w+\s+\d+[^\]]*[—–-])|(?=\d{1,2}\/\d{1,2}\s+[A-Za-z])/);
+      parts = parts.map(function(p){ return p.trim(); }).filter(function(p){ return p; });
+      if (parts.length > 1) return parts;
+    }
+    return entries;
+  }
+
+  function parseTs(raw, fb) {
     if (raw instanceof Date && !isNaN(raw.getTime())) return raw;
     if (raw && String(raw).trim()) { var d = new Date(raw); if (!isNaN(d.getTime())) return d; }
-    if (fallbackRaw instanceof Date && !isNaN(fallbackRaw.getTime())) return fallbackRaw;
-    if (fallbackRaw) { var d2 = new Date(fallbackRaw); if (!isNaN(d2.getTime())) return d2; }
+    if (fb instanceof Date && !isNaN(fb.getTime())) return fb;
+    if (fb) { var d2 = new Date(fb); if (!isNaN(d2.getTime())) return d2; }
     return new Date();
   }
 
@@ -1943,7 +1981,6 @@ function _runElevateNotesMigration_(dryRun) {
     destSS = sid ? SpreadsheetApp.openById(sid) : SpreadsheetApp.getActiveSpreadsheet();
   } catch(e) { Logger.log('ERROR opening dest: ' + e.message); return; }
 
-  // Prepare (or find) the destination notes sheet
   var notesTabName = '_Notes_' + OFFICE_ID;
   var notesSheet = destSS.getSheetByName(notesTabName);
   if (!notesSheet && !dryRun) {
@@ -1953,38 +1990,43 @@ function _runElevateNotesMigration_(dryRun) {
     notesSheet.setFrozenRows(1);
   }
 
-  var seen = {};   // deduplicate by dsi+noteText across tabs
-  var totalRows = [], totalSkipped = 0;
+  var seen = {}, totalRows = [], totalSkipped = 0;
 
   TABS.forEach(function(tabName) {
     var sheet = sourceSS.getSheetByName(tabName);
     if (!sheet) { Logger.log('TAB NOT FOUND: ' + tabName); return; }
     var data = sheet.getDataRange().getValues();
-    // Row 0 = title, Row 1 = column headers, data from Row 2
     var tabRows = [], tabSkipped = 0;
 
     for (var i = 2; i < data.length; i++) {
-      var row = data[i];
-      var dsi      = String(row[COL_DSI]           || '').trim();
-      var noteText = String(row[COL_NOTES]          || '').trim();
-      var noteUpd  = row[COL_NOTE_UPDATED];
-      var orderDt  = row[COL_ORDER_DATE];
+      var row    = data[i];
+      var dsi    = String(row[COL_DSI]    || '').trim();
+      var cell   = String(row[COL_NOTES]  || '').trim();
+      var noteUpd = row[COL_NOTE_UPDATED];
+      var orderDt = row[COL_ORDER_DATE];
 
-      if (!dsi || !noteText) { tabSkipped++; continue; }
+      if (!dsi || !cell) { tabSkipped++; continue; }
 
-      var key = dsi + '|' + noteText;
-      if (seen[key]) { tabSkipped++; continue; }
-      seen[key] = true;
+      var finalTs   = parseTs(noteUpd, orderDt);
+      var orderDate = parseTs(orderDt, null);
+      var entries   = splitEntries(cell);
 
-      var ts         = parseTs(noteUpd, orderDt);
-      var authorName = extractAuthor(noteText);
-      tabRows.push([dsi, ts, '', authorName, noteText, 'activation']);
+      for (var e = 0; e < entries.length; e++) {
+        var txt = entries[e];
+        if (!hasContent(txt)) { tabSkipped++; continue; }
+        var key = dsi + '|' + txt;
+        if (seen[key]) { tabSkipped++; continue; }
+        seen[key] = true;
+        // Last entry gets the exact Note Updated timestamp; earlier entries get extracted date only
+        var ts = (e === entries.length - 1) ? finalTs : (extractDate(txt) || orderDate);
+        tabRows.push([dsi, ts, '', extractAuthor(txt), txt, 'activation']);
+      }
     }
 
     Logger.log('[' + tabName + '] will import: ' + tabRows.length + ' | skipped: ' + tabSkipped);
     if (dryRun) {
-      tabRows.slice(0, 3).forEach(function(r) {
-        Logger.log('  DSI=' + r[0] + ' | Author=' + r[3] + ' | ts=' + r[1] + ' | note=' + String(r[4]).slice(0,60));
+      tabRows.slice(0, 5).forEach(function(r) {
+        Logger.log('  DSI=' + r[0] + ' | Author=' + r[3] + ' | ts=' + r[1] + ' | note=' + String(r[4]).slice(0,70));
       });
     }
     totalRows = totalRows.concat(tabRows);
@@ -1994,7 +2036,6 @@ function _runElevateNotesMigration_(dryRun) {
   Logger.log('\nTOTAL to import: ' + totalRows.length + ' | total skipped: ' + totalSkipped);
   if (dryRun) { Logger.log('DRY RUN — nothing written. Run importElevateNotes() to apply.'); return; }
 
-  // Write in one batch
   if (totalRows.length > 0) {
     var startRow = notesSheet.getLastRow() + 1;
     notesSheet.getRange(startRow, 1, totalRows.length, 6).setValues(totalRows);
