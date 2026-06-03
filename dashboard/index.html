@@ -787,9 +787,15 @@ function openNotesModal(dsi, customer, rep) {
   _modalDsi = dsi;
   var notes = (DATA.notes||{})[dsi] || [];
   var rating = (DATA.ratings||{})[dsi] || '';
+  var role = SESSION.role || 'rep';
+  var canAddActivation = role==='master-admin' || role==='activator';
+  var canAddRep = role==='master-admin' || role==='owner' || role==='admin' || role==='rep';
 
-  var sorted = notes.slice().sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
-  var notesHtml = sorted.length ? sorted.map(_noteItemHtml).join('') : '<div class="nm-empty">No notes yet.</div>';
+  var actNotes = notes.filter(function(n){ return (n.noteType||'activation')==='activation'; });
+  var repNotes = notes.filter(function(n){ return n.noteType==='rep' || n.noteType==='note'; });
+
+  var actHistHtml = actNotes.length ? actNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No activation notes yet.</div>';
+  var repHistHtml = repNotes.length ? repNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No rep notes yet.</div>';
 
   var ratingHtml = RATING_OPTS.map(function(r) {
     var active = r===rating ? ' active-'+( r==='No Answer'?'na': r.replace(' Stars','').replace(' Star','') ) : '';
@@ -801,10 +807,12 @@ function openNotesModal(dsi, customer, rep) {
     '<div class="nm-sub">'+(rep?esc(rep):'')+'</div>';
 
   document.getElementById('modal-body').innerHTML =
-    '<div class="nm-section-label nm-act-label">Notes</div>' +
-    '<div class="nm-history" id="nm-notes-hist">'+notesHtml+'</div>' +
-    '<textarea class="nm-textarea" id="nm-note-input" placeholder="Add a note…"></textarea>' +
-    '<button class="nm-add-btn" onclick="modalAddNote()" style="margin-bottom:14px">ADD NOTE</button>' +
+    '<div class="nm-section-label nm-act-label">Activation Notes</div>' +
+    '<div class="nm-history" id="nm-act-hist">'+actHistHtml+'</div>' +
+    (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…"></textarea><button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
+    '<div class="nm-section-label nm-rep-label" style="margin-top:8px">Rep Notes</div>' +
+    '<div class="nm-history" id="nm-rep-hist">'+repHistHtml+'</div>' +
+    (canAddRep ? '<textarea class="nm-textarea" id="nm-rep-input" placeholder="Add rep note…"></textarea><button class="nm-add-btn nm-rep-add-btn" onclick="modalAddNote(\'rep\')" style="margin-bottom:14px">ADD REP NOTE</button>' : '') +
     '<div class="nm-section-label" style="margin-top:8px">Rating</div>' +
     '<div class="nm-rating-row" id="nm-rating-row">'+ratingHtml+'</div>' +
     '<div class="nm-actions"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
@@ -832,17 +840,20 @@ function modalSetRating(rating) {
   apiPost({ action:'setRating', dsi:_modalDsi, rating:rating, updatedBy:SESSION.email });
 }
 
-function modalAddNote() {
-  var input = document.getElementById('nm-note-input');
+function modalAddNote(noteType) {
+  noteType = noteType || 'activation';
+  var inputId = noteType === 'rep' ? 'nm-rep-input' : 'nm-act-input';
+  var histId  = noteType === 'rep' ? 'nm-rep-hist'  : 'nm-act-hist';
+  var input = document.getElementById(inputId);
   if (!input) return;
   var text = input.value.trim(); if (!text) return;
   input.value = ''; input.disabled = true;
   var now = new Date().toISOString();
-  var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text, noteType:'note' };
+  var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text, noteType:noteType };
   if (!DATA.notes) DATA.notes = {};
   if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
   DATA.notes[_modalDsi].push(entry);
-  var hist = document.getElementById('nm-notes-hist');
+  var hist = document.getElementById(histId);
   if (hist) {
     hist.querySelectorAll('.nm-empty').forEach(function(e) { e.remove(); });
     hist.innerHTML += _noteItemHtml(entry);
@@ -850,7 +861,7 @@ function modalAddNote() {
   }
   var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
   if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
-  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:'note', authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
     .then(function() { input.disabled = false; })
     .catch(function() { input.disabled = false; });
 }
