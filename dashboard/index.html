@@ -548,6 +548,7 @@ var TABS = [
   { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ALL_ROLES },
   { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ALL_ROLES },
   { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ALL_ROLES },
+  { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES },
   { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ALL_ROLES },
   { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ALL_ROLES },
   { id: 'actrates',    icon: '📊', label: 'Activation Rates',    roles: ALL_ROLES },
@@ -651,6 +652,7 @@ function renderTab(id) {
     case 'dayafter':    c.innerHTML = renderCallTable(repFilter(DATA.dayAfterOrders||[]), 'Day-After Calls', 'No day-after orders found.'); break;
     case 'delivered':   c.innerHTML = renderCallTable(repFilter(DATA.deliveredOrders||[]), 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
     case 'issues':      c.innerHTML = renderCallTable(repFilter(issueFilter(DATA.orderIssues||[])), 'Order Issues', 'No order issues found.'); break;
+    case 'completed':   c.innerHTML = renderCallTable(repFilter(DATA.completedOrders||[]), 'Completed Order Log', 'No completed orders found.'); break;
     case 'noanswer':    c.innerHTML = renderNoAnswerTable(); break;
     case 'escalations': c.innerHTML = renderEscalationsTable(); break;
     case 'churn':       c.innerHTML = renderChurn();       break;
@@ -777,22 +779,17 @@ function ensureTableauNames(cb) {
 // ── NOTES MODAL ───────────────────────────────────────────────────────────
 var _modalDsi = '';
 
+function _noteItemHtml(n) {
+  return '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(n.ts)+' &mdash; '+esc(n.authorName)+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
+}
+
 function openNotesModal(dsi, customer, rep) {
   _modalDsi = dsi;
   var notes = (DATA.notes||{})[dsi] || [];
   var rating = (DATA.ratings||{})[dsi] || '';
-  var role = SESSION.role || 'rep';
-  var canAddActivation = role==='master-admin' || role==='activator';
-  var canAddRep = role==='master-admin' || role==='owner' || role==='admin' || role==='rep';
 
-  function noteItem(n) {
-    return '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(n.ts)+' &mdash; '+esc(n.authorName)+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
-  }
-  var actNotes = notes.filter(function(n){ return (n.noteType||'activation')==='activation'; });
-  var repNotes = notes.filter(function(n){ return n.noteType==='rep'; });
-
-  var actHistHtml = actNotes.length ? actNotes.map(noteItem).join('') : '<div class="nm-empty">No activation notes yet.</div>';
-  var repHistHtml = repNotes.length ? repNotes.map(noteItem).join('') : '<div class="nm-empty">No rep notes yet.</div>';
+  var sorted = notes.slice().sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+  var notesHtml = sorted.length ? sorted.map(_noteItemHtml).join('') : '<div class="nm-empty">No notes yet.</div>';
 
   var ratingHtml = RATING_OPTS.map(function(r) {
     var active = r===rating ? ' active-'+( r==='No Answer'?'na': r.replace(' Stars','').replace(' Star','') ) : '';
@@ -804,12 +801,10 @@ function openNotesModal(dsi, customer, rep) {
     '<div class="nm-sub">'+(rep?esc(rep):'')+'</div>';
 
   document.getElementById('modal-body').innerHTML =
-    '<div class="nm-section-label nm-act-label">Activation Notes</div>' +
-    '<div class="nm-history" id="nm-act-hist">'+actHistHtml+'</div>' +
-    (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…"></textarea><button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
-    '<div class="nm-section-label nm-rep-label" style="margin-top:8px">Rep Notes</div>' +
-    '<div class="nm-history" id="nm-rep-hist">'+repHistHtml+'</div>' +
-    (canAddRep ? '<textarea class="nm-textarea" id="nm-rep-input" placeholder="Add rep note…"></textarea><button class="nm-add-btn nm-rep-add-btn" onclick="modalAddNote(\'rep\')" style="margin-bottom:14px">ADD REP NOTE</button>' : '') +
+    '<div class="nm-section-label nm-act-label">Notes</div>' +
+    '<div class="nm-history" id="nm-notes-hist">'+notesHtml+'</div>' +
+    '<textarea class="nm-textarea" id="nm-note-input" placeholder="Add a note…"></textarea>' +
+    '<button class="nm-add-btn" onclick="modalAddNote()" style="margin-bottom:14px">ADD NOTE</button>' +
     '<div class="nm-section-label" style="margin-top:8px">Rating</div>' +
     '<div class="nm-rating-row" id="nm-rating-row">'+ratingHtml+'</div>' +
     '<div class="nm-actions"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
@@ -837,28 +832,25 @@ function modalSetRating(rating) {
   apiPost({ action:'setRating', dsi:_modalDsi, rating:rating, updatedBy:SESSION.email });
 }
 
-function modalAddNote(noteType) {
-  noteType = noteType || 'activation';
-  var inputId = noteType === 'rep' ? 'nm-rep-input' : 'nm-act-input';
-  var histId  = noteType === 'rep' ? 'nm-rep-hist'  : 'nm-act-hist';
-  var input = document.getElementById(inputId);
+function modalAddNote() {
+  var input = document.getElementById('nm-note-input');
   if (!input) return;
   var text = input.value.trim(); if (!text) return;
   input.value = ''; input.disabled = true;
   var now = new Date().toISOString();
-  var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text, noteType:noteType };
+  var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text, noteType:'note' };
   if (!DATA.notes) DATA.notes = {};
   if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
   DATA.notes[_modalDsi].push(entry);
-  var hist = document.getElementById(histId);
+  var hist = document.getElementById('nm-notes-hist');
   if (hist) {
     hist.querySelectorAll('.nm-empty').forEach(function(e) { e.remove(); });
-    hist.innerHTML += '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(now)+' &mdash; '+esc(SESSION.name)+'</div><div class="nm-note-text">'+esc(text)+'</div></div>';
+    hist.innerHTML += _noteItemHtml(entry);
     hist.scrollTop = hist.scrollHeight;
   }
   var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
   if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
-  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:'note', authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
     .then(function() { input.disabled = false; })
     .catch(function() { input.disabled = false; });
 }
@@ -900,7 +892,7 @@ function renderCallTable(orders, title, emptyMsg) {
 // ── ORDER LOOKUP — call list data first, AOR as fallback ─────────────────
 function buildOrderLookup() {
   var map = {};
-  (DATA.masterTracker||[]).concat(DATA.dayAfterOrders||[]).concat(DATA.deliveredOrders||[]).concat(DATA.orderIssues||[]).forEach(function(o) {
+  (DATA.masterTracker||[]).concat(DATA.completedOrders||[]).concat(DATA.dayAfterOrders||[]).concat(DATA.deliveredOrders||[]).concat(DATA.orderIssues||[]).forEach(function(o) {
     if (o.dsi && !map[o.dsi]) map[o.dsi] = o;
   });
   (DATA.aorData||[]).forEach(function(r) {
