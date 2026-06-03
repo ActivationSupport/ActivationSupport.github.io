@@ -123,6 +123,16 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .call-table th{text-align:left;padding:10px 14px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);white-space:nowrap}
 .sort-th{cursor:pointer;user-select:none}
 .sort-th:hover{color:var(--text)}
+/* ── ACTIVATION RATES ── */
+.ar-cell{text-align:center;padding:4px 8px}
+.ar-badge{display:inline-block;padding:5px 10px;border-radius:5px;font-weight:700;font-size:.82rem;line-height:1.4;min-width:64px;text-align:center}
+.ar-green{background:#1b5e20;color:#a5d6a7}
+.ar-yellow{background:#e65100;color:#fff}
+.ar-red{background:#b71c1c;color:#ffcdd2}
+.ar-blue{background:#0d47a1;color:#90caf9}
+.ar-rep{padding:10px 14px;font-size:.875rem;color:var(--text)}
+.ar-grand-row{border-top:2px solid rgba(255,255,255,.15);border-bottom:2px solid rgba(255,255,255,.15)}
+.ar-grand-rep{font-weight:700;color:var(--blue2)}
 .dd-filter{position:relative;display:inline-block}
 .dd-btn{padding:7px 12px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.84rem;background:#1e1e1e;color:var(--text);cursor:pointer;white-space:nowrap}
 .dd-btn:hover{border-color:var(--blue2);color:var(--blue2)}
@@ -689,23 +699,40 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
 function renderActRates() {
   var rows = DATA.activationRates || [];
-  if (!rows.length) return noData('No activation rate data yet. Tableau sync runs nightly.');
-  return '<div class="card"><div class="card-header dark">Activation Rates by Rep</div><div class="card-body">' +
-  '<div class="filter-row"><input id="f-rates" placeholder="Search rep or office…"></div>' +
-  '<div class="tbl-wrap"><table id="rates-table"><thead><tr>' +
-  '<th>Owner & Office</th><th>Activation Color</th>' +
-  '<th>0-7 Days</th><th>8-14 Days</th><th>15-30 Days</th><th>31-60 Days</th>' +
-  '</tr></thead><tbody>' +
-  rows.map(function(r) {
-    function pct(v){ var n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
-    var color = String(r['Activation Color']||'').toLowerCase();
-    var rowStyle = color==='green'?'background:#f0fff4':color==='yellow'?'background:#fffbeb':color==='red'?'background:#fff5f5':'';
-    return '<tr style="'+rowStyle+'"><td>'+esc(r['Owner & Office'])+'</td>' +
-    '<td>'+esc(r['Activation Color'])+'</td>' +
-    '<td>'+pct(r['0-7 Days'])+'</td><td>'+pct(r['8-14 Days'])+'</td>' +
-    '<td>'+pct(r['15-30 Days'])+'</td><td>'+pct(r['31-60 Days'])+'</td></tr>';
-  }).join('') +
-  '</tbody></table></div></div></div>';
+  if (!rows.length) return noData('No activation rate data yet.');
+  var role = SESSION.role || 'rep';
+  var myName = (SESSION.tableauName || '').toLowerCase();
+  var display = (role === 'rep' && myName)
+    ? rows.filter(function(r) { return !r.isTotal && r.rep.toLowerCase() === myName; })
+    : rows;
+  if (!display.length) return noData('No activation data found for your name.');
+
+  function arCell(b, isTotal) {
+    if (!isTotal && b.t === 0) return '<td></td>';
+    if (b.t === 0) return '<td class="ar-cell"><div class="ar-badge ar-blue">(0/0)<br>—</div></td>';
+    var pct = Math.round(b.a / b.t * 100);
+    var cls = pct >= 80 ? 'ar-green' : pct >= 60 ? 'ar-yellow' : 'ar-red';
+    return '<td class="ar-cell"><div class="ar-badge ' + cls + '">(' + b.a + '/' + b.t + ')<br>' + pct + '%</div></td>';
+  }
+
+  var body = display.map(function(r) {
+    var repTd = r.isTotal
+      ? '<td class="ar-rep ar-grand-rep">Grand Total</td>'
+      : '<td class="ar-rep">' + esc(r.rep) + '</td>';
+    return '<tr' + (r.isTotal ? ' class="ar-grand-row"' : '') + '>' +
+      repTd +
+      arCell(r.b0_7,  r.isTotal) +
+      arCell(r.b8_14, r.isTotal) +
+      arCell(r.b15_30,r.isTotal) +
+      arCell(r.b31_60,r.isTotal) +
+    '</tr>';
+  }).join('');
+
+  return '<div class="card"><div class="card-header dark">Activation Rates</div><div class="card-body">' +
+    '<div class="filter-row"><input id="f-rates" placeholder="Search rep…"></div>' +
+    '<div class="tbl-wrap"><table id="rates-table"><thead><tr>' +
+    '<th>Rep</th><th>0-7 Days</th><th>8-14 Days</th><th>15-30 Days</th><th>31-60 Days</th>' +
+    '</tr></thead><tbody>' + body + '</tbody></table></div></div></div>';
 }
 
 // ── CALL TABLE HELPERS ────────────────────────────────────────────────────
