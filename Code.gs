@@ -354,6 +354,74 @@ function readOrderIssues(ss, officeId) {
   return results;
 }
 
+// ── MASTER TRACKER ───────────────────────────────────────────────────────
+// Shows all orders in a 120-day window from both Tableau and local sales.
+// Excludes DSIs where every single line is Active, Canceled, Disconnected, or Posted.
+function _isExcludedStatus(s) {
+  var sl = String(s||'').toLowerCase().trim();
+  return sl === 'active' || sl === 'posted' ||
+         sl.indexOf('cancel') !== -1 || sl.indexOf('disco') !== -1;
+}
+function readMasterTracker(ss, officeId) {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var cutoff = new Date(today.getTime() - 119 * 86400000); // 120-day inclusive window
+  var dsiRows = {}, dsiCols = {};
+  // Source 1: Tableau (TOL + AOR), office-filtered
+  var tabs = [TABLEAU_TAB, AOR_TAB];
+  for (var t = 0; t < tabs.length; t++) {
+    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
+    var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
+    var col = buildTableauColumnMap(sheetData[0]);
+    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
+    for (var i = 0; i < filtered.length; i++) {
+      var row = filtered[i];
+      var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
+      var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
+      if (od.getTime() < cutoff.getTime()) continue;
+      if (!dsiRows[dsi]) { dsiRows[dsi] = []; dsiCols[dsi] = col; }
+      dsiRows[dsi].push(row);
+    }
+  }
+  // Source 2: Local sales sheet — fills in DSIs not yet synced to Tableau
+  var salesSheet = ss.getSheetByName(officeTab(TAB.SALES, officeId));
+  if (salesSheet) {
+    var salesData = salesSheet.getDataRange().getValues();
+    for (var j = 1; j < salesData.length; j++) {
+      var sr = salesData[j];
+      var sDsi = String(sr[OL.DSI]||'').trim();
+      if (dsiRows[sDsi]) continue;
+      var sDate = _parseDateLocal(sr[OL.DATE_OF_SALE]);
+      if (!sDate || sDate.getTime() < cutoff.getTime()) continue;
+      var key = sDsi || ('_s' + j);
+      var pCounts = {};
+      if (Number(sr[OL.CELL])||0)     pCounts['WIRELESS'] = Number(sr[OL.CELL]);
+      if (Number(sr[OL.AIR])||0)      pCounts['AIR/AWB']  = Number(sr[OL.AIR]);
+      if (Number(sr[OL.FIBER])||0)    pCounts['FIBER']    = Number(sr[OL.FIBER]);
+      if (Number(sr[OL.VOIP_QTY])||0) pCounts['VOIP']     = Number(sr[OL.VOIP_QTY]);
+      if (Number(sr[OL.DTV])||0)      pCounts['DTV']      = Number(sr[OL.DTV]);
+      var sStatus = String(sr[OL.STATUS]||'').trim() || 'Pending';
+      var sCounts = {}; sCounts[sStatus] = 1;
+      dsiRows[key] = [{ _fromSales:true, dsi:sDsi, rep:String(sr[OL.REP_NAME]||'').trim(),
+        orderDate:sDate.toISOString().split('T')[0], productCounts:pCounts, statusCounts:sCounts,
+        unitCount:Number(sr[OL.UNITS])||0, spe:String(sr[OL.CLIENT_NAME]||'').trim(),
+        installDate:String(sr[OL.INSTALL_DATE]||'').trim() }];
+      dsiCols[key] = null;
+    }
+  }
+  // Exclude DSIs where ALL lines have excluded statuses
+  var results = [];
+  Object.keys(dsiRows).forEach(function(dsi) {
+    var rows = dsiRows[dsi]; var col = dsiCols[dsi];
+    if (rows[0]._fromSales) {
+      if (!_isExcludedStatus(Object.keys(rows[0].statusCounts)[0]||'')) results.push(rows[0]);
+      return;
+    }
+    if (rows.every(function(r) { return _isExcludedStatus(tCol(r,col,'DTR_STATUS')); })) return;
+    results.push(_buildTolRow(rows[0], col, rows));
+  });
+  return results;
+}
+
 // ── NOTES & RATINGS ──────────────────────────────────────────────────────
 function readNotes(ss, officeId) {
   var sheet = ss.getSheetByName('_Notes_'+officeId); if (!sheet) return {};
@@ -526,6 +594,7 @@ function doGet(e) {
       dayAfterOrders: readDayAfterOrders(ss, officeId),
       deliveredOrders: readDeliveredNotActive(ss, officeId),
       orderIssues: readOrderIssues(ss, officeId),
+      masterTracker: readMasterTracker(ss, officeId),
       notes: readNotes(ss, officeId),
       ratings: readRatings(ss, officeId),
       guestRoster: readCrossOfficeMembers(ss, officeId)
