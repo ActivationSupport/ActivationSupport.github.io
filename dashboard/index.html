@@ -140,11 +140,6 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .sp-dark-orange{background:#2a1200;color:#cc6010}
 .sp-default{background:#2a2a2a;color:#999}
 
-/* issue badge */
-.issue-tag{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:8px;background:#3a2c00;color:#f0b429;margin-right:4px}
-.issue-tag.porting{background:#3d1010;color:#e87070}
-.issue-tag.payment{background:#3a2c00;color:#f0b429}
-.issue-tag.byod{background:#0d2a4a;color:#5ba3e8}
 
 /* rating pill */
 .rating-pill{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap}
@@ -191,7 +186,6 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .add-note-row input:focus{border-color:var(--blue2)}
 .add-note-row button{padding:7px 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .add-note-row button:hover{background:#2563a8}
-.issue-badge{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;background:#3a2c00;color:#f0b429;margin-left:6px}
 
 /* ── DSI TOAST ── */
 #dsi-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e3a5f;color:#fff;padding:10px 22px;border-radius:8px;font-size:.85rem;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:400;white-space:nowrap}
@@ -896,10 +890,11 @@ function renderIssuesTable(orders) {
     '<th>Rep</th><th>DSI</th><th>Date</th><th>Product</th><th>Issue</th><th>Status</th><th>Rating</th><th>Notes</th>' +
     '</tr></thead><tbody>' +
     callTableRows(orders, function(o) {
-      var tag = o.issueType==='Porting'?'porting':o.issueType==='Pending Payment'?'payment':'byod';
-      var extra = '<span class="issue-tag '+tag+'">'+esc(o.issueType)+'</span>';
-      if (o.issueType==='Porting'&&o.heldBackLines>0) extra += '<span class="issue-tag porting">'+o.heldBackLines+' line'+(o.heldBackLines>1?'s':'')+' held</span>';
-      return '<td>'+extra+'</td>';
+      var statuses = o.issueStatuses || [];
+      var tags = statuses.map(function(s) {
+        return '<span class="sp '+spCls(s)+'">'+esc(s)+'</span>';
+      }).join(' ');
+      return '<td>'+(tags||'—')+'</td>';
     }) +
     '</tbody></table></div></div></div>';
 }
