@@ -622,6 +622,19 @@ function repFilter(orders) {
   if (!tn) return [];
   return orders.filter(function(o) { return o.rep === tn; });
 }
+function isIssueStatus(s) {
+  var sl = String(s||'').toLowerCase().trim();
+  return sl.indexOf('porting issue') !== -1 ||
+         sl.indexOf('port approved') !== -1 ||
+         sl.indexOf('pending order port') !== -1 ||
+         sl.indexOf('byod') !== -1 ||
+         sl.indexOf('pending valid payment') !== -1;
+}
+function issueFilter(orders) {
+  return orders.filter(function(o) {
+    return Object.keys(o.statusCounts||{}).some(isIssueStatus);
+  });
+}
 
 // ── RENDER TABS ───────────────────────────────────────────────────────────
 function renderTab(id) {
@@ -635,7 +648,7 @@ function renderTab(id) {
     case 'actrates':    c.innerHTML = renderActRates();    break;
     case 'dayafter':    c.innerHTML = renderCallTable(repFilter(DATA.dayAfterOrders||[]), 'Day-After Calls', 'No day-after orders found.'); break;
     case 'delivered':   c.innerHTML = renderCallTable(repFilter(DATA.deliveredOrders||[]), 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
-    case 'issues':      c.innerHTML = '<div class="empty">Order Issues — coming soon.</div>'; break;
+    case 'issues':      c.innerHTML = renderCallTable(repFilter(issueFilter(DATA.orderIssues||[])), 'Order Issues', 'No order issues found.'); break;
     case 'noanswer':    c.innerHTML = renderNoAnswerTable(); break;
     case 'escalations': c.innerHTML = renderEscalationsTable(); break;
     case 'churn':       c.innerHTML = renderChurn();       break;
