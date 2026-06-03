@@ -264,10 +264,10 @@ function readDeliveredNotActive(ss, officeId) {
 
 function _isIssueStatus(dtrStatus) {
   var sl = String(dtrStatus||'').toLowerCase().trim();
-  return sl.indexOf('porting') !== -1 ||
-         sl.indexOf('valid payment') !== -1 ||
+  return sl.indexOf('porting issue') !== -1 ||
+         sl.indexOf('pending valid payment') !== -1 ||
          sl.indexOf('byod') !== -1 ||
-         sl.indexOf('order port') !== -1;
+         sl.indexOf('pending order port') !== -1;
 }
 function readOrderIssues(ss, officeId) {
   // Collect rows from TOL first, then AOR for DSIs not in TOL
