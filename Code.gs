@@ -206,26 +206,48 @@ function _readBothLogs(ss, officeId, processFn) {
   return results;
 }
 
+function _parseDateLocal(raw) {
+  if (raw instanceof Date) { var d=new Date(raw.getTime()); d.setHours(0,0,0,0); return d; }
+  var s=String(raw).trim(); var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) { var d2=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); return d2; }
+  var d3=new Date(s); if (!isNaN(d3.getTime())) { d3.setHours(0,0,0,0); return d3; }
+  return null;
+}
 function readDayAfterOrders(ss, officeId) {
   var today = new Date(); today.setHours(0,0,0,0);
-  var dow = today.getDay(); // 0=Sun,1=Mon,...,6=Sat
+  var dow = today.getDay();
   var targets = [];
   if (dow === 1) {
-    // Monday: show Fri + Sat + Sun
-    targets.push(new Date(today.getTime() - 3 * 86400000).getTime()); // Friday
-    targets.push(new Date(today.getTime() - 2 * 86400000).getTime()); // Saturday
-    targets.push(new Date(today.getTime() - 1 * 86400000).getTime()); // Sunday
+    targets.push(new Date(today.getTime()-3*86400000).getTime()); // Fri
+    targets.push(new Date(today.getTime()-2*86400000).getTime()); // Sat
+    targets.push(new Date(today.getTime()-1*86400000).getTime()); // Sun
   } else {
-    targets.push(new Date(today.getTime() - 86400000).getTime()); // yesterday
+    targets.push(new Date(today.getTime()-86400000).getTime()); // yesterday
   }
-
-  return _readBothLogs(ss, officeId, function(row, col, dsi, allRows) {
-    var raw = tCol(row,col,'ORDER_DATE'); if (!raw) return null;
-    var od = raw instanceof Date ? raw : new Date(raw); if (isNaN(od.getTime())) return null;
-    od.setHours(0,0,0,0);
-    if (targets.indexOf(od.getTime()) === -1) return null;
-    return _buildTolRow(row, col, allRows);
+  // Scan BOTH logs independently — check every row's date, then deduplicate by DSI.
+  // This ensures a DSI whose yesterday entry is only in AOR (but has an older TOL entry)
+  // is not silently dropped.
+  var dsiRows={}, dsiCols={};
+  var tabs=[TABLEAU_TAB,AOR_TAB];
+  for (var t=0;t<tabs.length;t++) {
+    var sheet=ss.getSheetByName(tabs[t]); if (!sheet) continue;
+    var sheetData=sheet.getDataRange().getValues(); if (sheetData.length<2) continue;
+    var col=buildTableauColumnMap(sheetData[0]);
+    var filtered=_filterByOffice(sheetData.slice(1),col,officeId);
+    for (var i=0;i<filtered.length;i++) {
+      var row=filtered[i];
+      var dsi=String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
+      var od=_parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
+      if (targets.indexOf(od.getTime())===-1) continue;
+      if (!dsiRows[dsi]) { dsiRows[dsi]=[]; dsiCols[dsi]=col; }
+      dsiRows[dsi].push(row);
+    }
+  }
+  var results=[];
+  Object.keys(dsiRows).forEach(function(dsi) {
+    results.push(_buildTolRow(dsiRows[dsi][0],dsiCols[dsi],dsiRows[dsi]));
   });
+  return results;
 }
 
 function readDeliveredNotActive(ss, officeId) {
