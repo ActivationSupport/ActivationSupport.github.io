@@ -263,6 +263,56 @@ function readDeliveredNotActive(ss, officeId) {
 }
 
 
+// ── ORDER ISSUES ─────────────────────────────────────────────────────────
+// Qualifies if ANY line on a DSI has one of these DTR_STATUS values:
+// Porting Issue, Port Approved, Pending Order Port, BYOD, Pending Valid Payment
+function _isIssueStatus(s) {
+  var sl = String(s||'').toLowerCase().trim();
+  return sl === 'porting issue'        || sl.indexOf('porting issue') !== -1 ||
+         sl === 'port approved'        || sl.indexOf('port approved') !== -1 ||
+         sl === 'pending order port'   || sl.indexOf('pending order port') !== -1 ||
+         sl === 'byod'                 || sl.indexOf('byod') !== -1 ||
+         sl === 'pending valid payment'|| sl.indexOf('pending valid payment') !== -1;
+}
+function readOrderIssues(ss, officeId) {
+  // Collect all rows per DSI from TOL, then AOR for DSIs not in TOL
+  var tolRows = {}, tolCols = {}, aorRows = {}, aorCols = {};
+  var tabs = [TABLEAU_TAB, AOR_TAB];
+  for (var t = 0; t < tabs.length; t++) {
+    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
+    var data = sheet.getDataRange().getValues(); if (data.length < 2) continue;
+    var col = buildTableauColumnMap(data[0]);
+    var rows = _filterByOffice(data.slice(1), col, officeId);
+    var store = t === 0 ? tolRows : aorRows;
+    var storeCols = t === 0 ? tolCols : aorCols;
+    for (var i = 0; i < rows.length; i++) {
+      var dsi = String(tCol(rows[i],col,'DSI')||'').trim(); if (!dsi) continue;
+      if (!store[dsi]) { store[dsi] = []; storeCols[dsi] = col; }
+      store[dsi].push(rows[i]);
+    }
+  }
+  // Merge: TOL primary, AOR fills in DSIs not in TOL
+  var dsiRows = {}, dsiCols = {};
+  Object.keys(tolRows).forEach(function(d) { dsiRows[d] = tolRows[d]; dsiCols[d] = tolCols[d]; });
+  Object.keys(aorRows).forEach(function(d) {
+    if (!dsiRows[d]) { dsiRows[d] = aorRows[d]; dsiCols[d] = aorCols[d]; }
+  });
+  // 29-day window
+  var today = new Date(); today.setHours(0,0,0,0);
+  var cutoff = new Date(today.getTime() - 28 * 86400000);
+  var results = [];
+  Object.keys(dsiRows).forEach(function(dsi) {
+    var rows = dsiRows[dsi]; var col = dsiCols[dsi];
+    // Date window check
+    var od = _parseDateLocal(tCol(rows[0],col,'ORDER_DATE'));
+    if (!od || od.getTime() < cutoff.getTime()) return;
+    // Must have at least one qualifying status line
+    if (!rows.some(function(r) { return _isIssueStatus(tCol(r,col,'DTR_STATUS')); })) return;
+    results.push(_buildTolRow(rows[0], col, rows));
+  });
+  return results;
+}
+
 // ── NOTES & RATINGS ──────────────────────────────────────────────────────
 function readNotes(ss, officeId) {
   var sheet = ss.getSheetByName('_Notes_'+officeId); if (!sheet) return {};
@@ -434,7 +484,7 @@ function doGet(e) {
       activationRates: readActivationRates(ss),
       dayAfterOrders: readDayAfterOrders(ss, officeId),
       deliveredOrders: readDeliveredNotActive(ss, officeId),
-      orderIssues: [],
+      orderIssues: readOrderIssues(ss, officeId),
       notes: readNotes(ss, officeId),
       ratings: readRatings(ss, officeId),
       guestRoster: readCrossOfficeMembers(ss, officeId)
