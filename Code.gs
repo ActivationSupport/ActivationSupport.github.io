@@ -526,28 +526,6 @@ function doGet(e) {
       rnFiltered.forEach(function(row){ var n=String(tCol(row,rnCol,'REP')||'').trim(); if (n) rnNames[n]=true; });
       return jsonResponse({ names:Object.keys(rnNames).sort() });
     }
-    if (action === 'debugDsi') {
-      var targetDsi=(e.parameter&&e.parameter.dsi)||'';
-      var today=new Date(); today.setHours(0,0,0,0);
-      var yesterday=new Date(today.getTime()-86400000);
-      var lines=['TODAY='+today.toDateString(),'YESTERDAY='+yesterday.toDateString(),'OFFICE_MATCH_STRING='+_officeMatch(officeId)];
-      [TABLEAU_TAB,AOR_TAB].forEach(function(tabName){
-        var s=ss.getSheetByName(tabName); if(!s){lines.push(tabName+':MISSING');return;}
-        var d=s.getDataRange().getValues(); var col=buildTableauColumnMap(d[0]); var found=0;
-        for(var i=1;i<d.length;i++){
-          if(String(tCol(d[i],col,'DSI')||'').trim()!==targetDsi) continue; found++;
-          var raw=tCol(d[i],col,'ORDER_DATE'); var od=_parseDateLocal(raw);
-          var owner=String(tCol(d[i],col,'OWNER_OFFICE')||'');
-          lines.push('['+tabName+'] rawDate='+String(raw)+' | parsed='+(od?od.toDateString():'null')+
-            ' | matchYest='+(od?(od.getTime()===yesterday.getTime()):false)+
-            ' | passOffice='+( owner.toLowerCase().indexOf(_officeMatch(officeId))!==-1 )+
-            ' | rep='+String(tCol(d[i],col,'REP')||'')+
-            ' | status='+String(tCol(d[i],col,'DTR_STATUS')||''));
-        }
-        if(!found) lines.push('['+tabName+'] DSI NOT FOUND');
-      });
-      return jsonResponse({debug:lines});
-    }
     if (action === 'readTableauDetail') {
       const dsi = (e.parameter && e.parameter.dsi) || '';
       return jsonResponse({ devices: readTableauDetail(ss, dsi) });
