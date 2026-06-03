@@ -262,53 +262,53 @@ function readDeliveredNotActive(ss, officeId) {
   });
 }
 
+function _isIssueStatus(dtrStatus) {
+  var sl = String(dtrStatus||'').toLowerCase().trim();
+  return sl.indexOf('porting') !== -1 ||
+         sl.indexOf('valid payment') !== -1 ||
+         sl.indexOf('byod') !== -1 ||
+         sl.indexOf('order port') !== -1;
+}
 function readOrderIssues(ss, officeId) {
-  var portLines = {}, byDsi = {}, dsiAllRows = {}, dsiCols = {}, tolDsis = {};
+  // Collect rows from TOL first, then AOR for DSIs not in TOL
+  var tolRows = {}, tolCols = {}, aorRows = {}, aorCols = {};
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
     var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
     var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
     var col = buildTableauColumnMap(sheetData[0]);
     var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
+    var store = t === 0 ? tolRows : aorRows;
+    var storeCols = t === 0 ? tolCols : aorCols;
     for (var i = 0; i < filtered.length; i++) {
       var row = filtered[i];
       var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
-      if (t === 1 && tolDsis[dsi]) continue;
-      var portCarrier = String(tCol(row,col,'PORT_CARRIER')||'').trim();
-      var productType = String(tCol(row,col,'PRODUCT_TYPE')||'').toLowerCase();
-      var dtrStatus   = String(tCol(row,col,'DTR_STATUS')||'').toLowerCase();
-      var isPorting   = portCarrier.length > 0;
-      var isBYOD      = productType.indexOf('byod') !== -1;
-      var isPayment   = dtrStatus.indexOf('valid payment') !== -1 || dtrStatus.indexOf('payment') !== -1;
-      if (isPorting) portLines[dsi] = (portLines[dsi]||0) + 1;
-      if (isPorting||isBYOD||isPayment) {
-        if (!dsiAllRows[dsi]) { dsiAllRows[dsi] = []; dsiCols[dsi] = col; }
-        dsiAllRows[dsi].push(row);
-        if (!byDsi[dsi]) {
-          var r = _buildTolRow(row, col);
-          r.issueType = isPorting ? 'Porting' : isPayment ? 'Pending Payment' : 'BYOD';
-          byDsi[dsi] = r;
-        }
-      }
+      if (!store[dsi]) { store[dsi] = []; storeCols[dsi] = col; }
+      store[dsi].push(row);
     }
-    if (t === 0) { Object.keys(byDsi).forEach(function(d) { tolDsis[d] = true; }); }
   }
-  return Object.keys(byDsi).map(function(dsi) {
-    var result = byDsi[dsi];
-    result.heldBackLines = portLines[dsi]||0;
-    if (dsiAllRows[dsi]) {
-      var productCounts = {}, statusCounts = {};
-      dsiAllRows[dsi].forEach(function(r) {
-        var pt = String(tCol(r,dsiCols[dsi],'PRODUCT_TYPE')||'').trim();
-        if (pt) productCounts[pt] = (productCounts[pt]||0) + 1;
-        var st = String(tCol(r,dsiCols[dsi],'DTR_STATUS')||'').trim() || 'Null';
-        statusCounts[st] = (statusCounts[st]||0) + 1;
-      });
-      result.productCounts = productCounts;
-      result.statusCounts = statusCounts;
-    }
-    return result;
+  // Merge: prefer TOL rows; fall back to AOR for DSIs not in TOL
+  var dsiRows = {}, dsiCols = {};
+  Object.keys(tolRows).forEach(function(dsi) { dsiRows[dsi] = tolRows[dsi]; dsiCols[dsi] = tolCols[dsi]; });
+  Object.keys(aorRows).forEach(function(dsi) {
+    if (!dsiRows[dsi]) { dsiRows[dsi] = aorRows[dsi]; dsiCols[dsi] = aorCols[dsi]; }
   });
+  // Qualify DSIs where ANY line has an issue DTR_STATUS
+  var results = [];
+  Object.keys(dsiRows).forEach(function(dsi) {
+    var rows = dsiRows[dsi]; var col = dsiCols[dsi];
+    var qualifies = rows.some(function(r) { return _isIssueStatus(tCol(r,col,'DTR_STATUS')); });
+    if (!qualifies) return;
+    var result = _buildTolRow(rows[0], col, rows);
+    // Set issueType from first qualifying line
+    var trigger = rows.filter(function(r) { return _isIssueStatus(tCol(r,col,'DTR_STATUS')); })[0];
+    var sl = String(tCol(trigger,col,'DTR_STATUS')||'').toLowerCase();
+    result.issueType = sl.indexOf('porting') !== -1 ? 'Porting' :
+                       sl.indexOf('valid payment') !== -1 ? 'Pending Payment' :
+                       sl.indexOf('byod') !== -1 ? 'BYOD' : 'Pending Order Port';
+    results.push(result);
+  });
+  return results;
 }
 
 // ── NOTES & RATINGS ──────────────────────────────────────────────────────
