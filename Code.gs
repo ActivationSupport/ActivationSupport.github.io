@@ -415,6 +415,30 @@ function doGet(e) {
       rnFiltered.forEach(function(row){ var n=String(tCol(row,rnCol,'REP')||'').trim(); if (n) rnNames[n]=true; });
       return jsonResponse({ names:Object.keys(rnNames).sort() });
     }
+    if (action === 'debugDsi') {
+      var targetDsi=(e.parameter&&e.parameter.dsi)||'';
+      var today=new Date(); today.setHours(0,0,0,0);
+      var yesterday=new Date(today.getTime()-86400000);
+      var out={ targetDsi:targetDsi, serverDate:today.toISOString(), yesterday:yesterday.toISOString(), tabs:{} };
+      [TABLEAU_TAB,AOR_TAB].forEach(function(tabName){
+        var s=ss.getSheetByName(tabName); if(!s){out.tabs[tabName]='MISSING';return;}
+        var d=s.getDataRange().getValues(); var col=buildTableauColumnMap(d[0]);
+        var found=[];
+        for(var i=1;i<d.length;i++){
+          var dsiVal=String(tCol(d[i],col,'DSI')||'').trim();
+          if(targetDsi&&dsiVal!==targetDsi) continue;
+          var raw=tCol(d[i],col,'ORDER_DATE');
+          var od=_parseDateLocal(raw);
+          found.push({ dsi:dsiVal, rawDate:String(raw), parsedDate:od?od.toISOString():'null',
+            matchesYesterday:od?od.getTime()===yesterday.getTime():false,
+            ownerOffice:String(tCol(d[i],col,'OWNER_OFFICE')||''), rep:String(tCol(d[i],col,'REP')||''),
+            dtrStatus:String(tCol(d[i],col,'DTR_STATUS')||''), officeMatch:_officeMatch(officeId),
+            passesOfficeFilter:String(tCol(d[i],col,'OWNER_OFFICE')||'').toLowerCase().indexOf(_officeMatch(officeId))!==-1 });
+        }
+        out.tabs[tabName]=found;
+      });
+      return jsonResponse(out);
+    }
     if (action === 'readTableauDetail') {
       const dsi = (e.parameter && e.parameter.dsi) || '';
       return jsonResponse({ devices: readTableauDetail(ss, dsi) });
