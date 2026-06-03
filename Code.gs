@@ -1908,10 +1908,22 @@ function _runElevateNotesMigration_(dryRun) {
   var SOURCE_ID = '1cOib-GVI_bYOgILGP5wBQdQg2ri2bZ0yEmApmv03PM0';
   var OFFICE_ID = 'elevate';
   var TABS      = ['Master Tracker', 'Completed Orders', 'Order Issues'];
-  var COL_DSI = 4, COL_NOTES = 11, COL_NOTE_UPDATED = 14, COL_ORDER_DATE = 1;
+  var COL_DSI = 4, COL_NOTES = 11, COL_RATING = 12, COL_NOTE_UPDATED = 14, COL_ORDER_DATE = 1;
   var YEAR = 2026;
 
   var INITIALS = { 'GF':'Gavon Fuller', 'AM':'Angel Milan', 'BP':'Brandon Purkett' };
+
+  function mapRating(raw) {
+    var s = String(raw||'').trim(); if (!s) return '';
+    if (s.indexOf('📵') !== -1 || s.toLowerCase().indexOf('no answer') !== -1) return 'No Answer';
+    var stars = (s.match(/⭐/g) || []).length;
+    if (stars === 1) return '1 Star';
+    if (stars === 2) return '2 Stars';
+    if (stars === 3) return '3 Stars';
+    if (stars === 4) return '4 Stars';
+    if (stars === 5) return '5 Stars';
+    return '';
+  }
 
   function extractAuthor(text) {
     var m1 = text.match(/^\[([^\]—–]+)[—–]\s*([^\]]+)\]/);
@@ -1991,6 +2003,7 @@ function _runElevateNotesMigration_(dryRun) {
   }
 
   var seen = {}, totalRows = [], totalSkipped = 0;
+  var ratingsMap = {}; // dsi → portal rating string (first non-empty across tabs wins)
 
   TABS.forEach(function(tabName) {
     var sheet = sourceSS.getSheetByName(tabName);
@@ -2001,11 +2014,19 @@ function _runElevateNotesMigration_(dryRun) {
     for (var i = 2; i < data.length; i++) {
       var row    = data[i];
       var dsi    = String(row[COL_DSI]    || '').trim();
-      var cell   = String(row[COL_NOTES]  || '').trim();
+      if (!dsi) { tabSkipped++; continue; }
+
+      // Collect rating
+      if (!ratingsMap[dsi]) {
+        var mapped = mapRating(row[COL_RATING]);
+        if (mapped) ratingsMap[dsi] = mapped;
+      }
+
+      var cell    = String(row[COL_NOTES]       || '').trim();
       var noteUpd = row[COL_NOTE_UPDATED];
       var orderDt = row[COL_ORDER_DATE];
 
-      if (!dsi || !cell) { tabSkipped++; continue; }
+      if (!cell) { tabSkipped++; continue; }
 
       var finalTs   = parseTs(noteUpd, orderDt);
       var orderDate = parseTs(orderDt, null);
@@ -2017,13 +2038,12 @@ function _runElevateNotesMigration_(dryRun) {
         var key = dsi + '|' + txt;
         if (seen[key]) { tabSkipped++; continue; }
         seen[key] = true;
-        // Last entry gets the exact Note Updated timestamp; earlier entries get extracted date only
         var ts = (e === entries.length - 1) ? finalTs : (extractDate(txt) || orderDate);
         tabRows.push([dsi, ts, '', extractAuthor(txt), txt, 'activation']);
       }
     }
 
-    Logger.log('[' + tabName + '] will import: ' + tabRows.length + ' | skipped: ' + tabSkipped);
+    Logger.log('[' + tabName + '] will import: ' + tabRows.length + ' notes | skipped: ' + tabSkipped);
     if (dryRun) {
       tabRows.slice(0, 5).forEach(function(r) {
         Logger.log('  DSI=' + r[0] + ' | Author=' + r[3] + ' | ts=' + r[1] + ' | note=' + String(r[4]).slice(0,70));
@@ -2033,12 +2053,46 @@ function _runElevateNotesMigration_(dryRun) {
     totalSkipped += tabSkipped;
   });
 
-  Logger.log('\nTOTAL to import: ' + totalRows.length + ' | total skipped: ' + totalSkipped);
-  if (dryRun) { Logger.log('DRY RUN — nothing written. Run importElevateNotes() to apply.'); return; }
+  var ratingDsis = Object.keys(ratingsMap);
+  Logger.log('\nTOTAL notes to import: ' + totalRows.length + ' | skipped: ' + totalSkipped);
+  Logger.log('TOTAL ratings to import: ' + ratingDsis.length);
+  if (dryRun) {
+    ratingDsis.slice(0, 5).forEach(function(d) { Logger.log('  DSI=' + d + ' | Rating=' + ratingsMap[d]); });
+    Logger.log('DRY RUN — nothing written. Run importElevateNotes() to apply.');
+    return;
+  }
 
+  // Write notes
   if (totalRows.length > 0) {
     var startRow = notesSheet.getLastRow() + 1;
     notesSheet.getRange(startRow, 1, totalRows.length, 6).setValues(totalRows);
   }
-  Logger.log('DONE — wrote ' + totalRows.length + ' notes to ' + notesTabName);
+  Logger.log('Wrote ' + totalRows.length + ' notes to ' + notesTabName);
+
+  // Write ratings — upsert existing rows, append new ones
+  var ratingsTabName = '_Ratings_' + OFFICE_ID;
+  var ratingsSheet = destSS.getSheetByName(ratingsTabName);
+  if (!ratingsSheet) {
+    ratingsSheet = destSS.insertSheet(ratingsTabName);
+    ratingsSheet.appendRow(['dsi','rating','lastUpdated','updatedBy']);
+    ratingsSheet.getRange(1,1,1,4).setFontWeight('bold');
+    ratingsSheet.setFrozenRows(1);
+  }
+  var existingData = ratingsSheet.getDataRange().getValues();
+  var existingRows = {};
+  for (var r = 1; r < existingData.length; r++) {
+    existingRows[String(existingData[r][0]||'').trim()] = r + 1;
+  }
+  var newRatingRows = [], now = new Date();
+  ratingDsis.forEach(function(d) {
+    if (existingRows[d]) {
+      ratingsSheet.getRange(existingRows[d], 2, 1, 3).setValues([[ratingsMap[d], now, 'migration']]);
+    } else {
+      newRatingRows.push([d, ratingsMap[d], now, 'migration']);
+    }
+  });
+  if (newRatingRows.length > 0) {
+    ratingsSheet.getRange(ratingsSheet.getLastRow()+1, 1, newRatingRows.length, 4).setValues(newRatingRows);
+  }
+  Logger.log('DONE — wrote ' + totalRows.length + ' notes and ' + ratingDsis.length + ' ratings to ' + OFFICE_ID);
 }
