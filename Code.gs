@@ -1900,3 +1900,104 @@ function discoverElevateSheet() {
     }
   });
 }
+
+function previewElevateNotes()  { _runElevateNotesMigration_(true);  }
+function importElevateNotes()   { _runElevateNotesMigration_(false); }
+
+function _runElevateNotesMigration_(dryRun) {
+  var SOURCE_ID = '1cOib-GVI_bYOgILGP5wBQdQg2ri2bZ0yEmApmv03PM0';
+  var OFFICE_ID = 'elevate';
+  var TABS      = ['Master Tracker', 'Completed Orders', 'Order Issues'];
+  var COL_DSI   = 4, COL_NOTES = 11, COL_NOTE_UPDATED = 14, COL_ORDER_DATE = 1;
+
+  var INITIALS = { 'GF':'Gavon Fuller', 'AM':'Angel Milan', 'BP':'Brandon Purkett' };
+
+  function extractAuthor(text) {
+    // [Jun 2 — Angel Milan] full-name format
+    var m1 = text.match(/^\[([^\]—–]+)[—–]\s*([^\]]+)\]/);
+    if (m1) return m1[2].trim();
+    // 5/29 AM - date + initials
+    var m2 = text.match(/^\d{1,2}\/\d{1,2}\s{0,3}([A-Za-z]{2,3})\s*[-–]/);
+    if (m2) return INITIALS[m2[1].toUpperCase()] || m2[1].toUpperCase();
+    // AM - just initials
+    var m3 = text.match(/^([A-Za-z]{2,3})\s*[-–]/);
+    if (m3) return INITIALS[m3[1].toUpperCase()] || m3[1].toUpperCase();
+    return 'Import';
+  }
+
+  function parseTs(raw, fallbackRaw) {
+    if (raw instanceof Date && !isNaN(raw.getTime())) return raw;
+    if (raw && String(raw).trim()) { var d = new Date(raw); if (!isNaN(d.getTime())) return d; }
+    if (fallbackRaw instanceof Date && !isNaN(fallbackRaw.getTime())) return fallbackRaw;
+    if (fallbackRaw) { var d2 = new Date(fallbackRaw); if (!isNaN(d2.getTime())) return d2; }
+    return new Date();
+  }
+
+  var sourceSS;
+  try { sourceSS = SpreadsheetApp.openById(SOURCE_ID); }
+  catch(e) { Logger.log('ERROR opening source: ' + e.message); return; }
+
+  var destSS;
+  try {
+    var sid = PropertiesService.getScriptProperties().getProperty('SHEET_ID') || '';
+    destSS = sid ? SpreadsheetApp.openById(sid) : SpreadsheetApp.getActiveSpreadsheet();
+  } catch(e) { Logger.log('ERROR opening dest: ' + e.message); return; }
+
+  // Prepare (or find) the destination notes sheet
+  var notesTabName = '_Notes_' + OFFICE_ID;
+  var notesSheet = destSS.getSheetByName(notesTabName);
+  if (!notesSheet && !dryRun) {
+    notesSheet = destSS.insertSheet(notesTabName);
+    notesSheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText','noteType']);
+    notesSheet.getRange(1,1,1,6).setFontWeight('bold');
+    notesSheet.setFrozenRows(1);
+  }
+
+  var seen = {};   // deduplicate by dsi+noteText across tabs
+  var totalRows = [], totalSkipped = 0;
+
+  TABS.forEach(function(tabName) {
+    var sheet = sourceSS.getSheetByName(tabName);
+    if (!sheet) { Logger.log('TAB NOT FOUND: ' + tabName); return; }
+    var data = sheet.getDataRange().getValues();
+    // Row 0 = title, Row 1 = column headers, data from Row 2
+    var tabRows = [], tabSkipped = 0;
+
+    for (var i = 2; i < data.length; i++) {
+      var row = data[i];
+      var dsi      = String(row[COL_DSI]           || '').trim();
+      var noteText = String(row[COL_NOTES]          || '').trim();
+      var noteUpd  = row[COL_NOTE_UPDATED];
+      var orderDt  = row[COL_ORDER_DATE];
+
+      if (!dsi || !noteText) { tabSkipped++; continue; }
+
+      var key = dsi + '|' + noteText;
+      if (seen[key]) { tabSkipped++; continue; }
+      seen[key] = true;
+
+      var ts         = parseTs(noteUpd, orderDt);
+      var authorName = extractAuthor(noteText);
+      tabRows.push([dsi, ts, '', authorName, noteText, 'activation']);
+    }
+
+    Logger.log('[' + tabName + '] will import: ' + tabRows.length + ' | skipped: ' + tabSkipped);
+    if (dryRun) {
+      tabRows.slice(0, 3).forEach(function(r) {
+        Logger.log('  DSI=' + r[0] + ' | Author=' + r[3] + ' | ts=' + r[1] + ' | note=' + String(r[4]).slice(0,60));
+      });
+    }
+    totalRows = totalRows.concat(tabRows);
+    totalSkipped += tabSkipped;
+  });
+
+  Logger.log('\nTOTAL to import: ' + totalRows.length + ' | total skipped: ' + totalSkipped);
+  if (dryRun) { Logger.log('DRY RUN — nothing written. Run importElevateNotes() to apply.'); return; }
+
+  // Write in one batch
+  if (totalRows.length > 0) {
+    var startRow = notesSheet.getLastRow() + 1;
+    notesSheet.getRange(startRow, 1, totalRows.length, 6).setValues(totalRows);
+  }
+  Logger.log('DONE — wrote ' + totalRows.length + ' notes to ' + notesTabName);
+}
