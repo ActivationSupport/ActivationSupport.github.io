@@ -17,6 +17,13 @@ var OFFICE_OWNER_MAP = {
   'ignite': 'ignite solutions, inc.'
 };
 var RATINGS_VALID = ['No Answer','1 Star','2 Stars','3 Stars','4 Stars','5 Stars'];
+var _SHEET_CACHE = {};
+function _getSheetData(ss, tabName) {
+  if (_SHEET_CACHE[tabName] !== undefined) return _SHEET_CACHE[tabName];
+  var sheet = ss.getSheetByName(tabName);
+  _SHEET_CACHE[tabName] = sheet ? sheet.getDataRange().getValues() : null;
+  return _SHEET_CACHE[tabName];
+}
 function officeTab(base, officeId) { return base + '_' + officeId; }
 const DEFAULT_OFFICE_ID = 'midspire';
 function buildTeamEmojiMaps(ss, officeId) {
@@ -187,8 +194,7 @@ function _readBothLogs(ss, officeId, processFn) {
   var dsiRows = {}, dsiCols = {}, tolDsis = {};
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
-    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
-    var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
+    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
     var col = buildTableauColumnMap(sheetData[0]);
     var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
     for (var i = 0; i < filtered.length; i++) {
@@ -234,8 +240,7 @@ function readDayAfterOrders(ss, officeId) {
   // Source 1: Tableau tabs (TOL + AOR) — office-filtered by OWNER_OFFICE. TOL primary; AOR fills missing DSIs only.
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
-    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
-    var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
+    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
     var col = buildTableauColumnMap(sheetData[0]);
     var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
     for (var i = 0; i < filtered.length; i++) {
@@ -375,8 +380,7 @@ function readMasterTracker(ss, officeId) {
   // Source 1: Tableau (TOL + AOR), office-filtered. TOL is primary; AOR fills missing DSIs only.
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
-    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
-    var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
+    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
     var col = buildTableauColumnMap(sheetData[0]);
     var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
     for (var i = 0; i < filtered.length; i++) {
@@ -437,8 +441,7 @@ function readCompletedOrders(ss, officeId) {
   // Source 1: Tableau (TOL + AOR), office-filtered. TOL is primary; AOR fills missing DSIs only.
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
-    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
-    var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
+    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
     var col = buildTableauColumnMap(sheetData[0]);
     var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
     for (var i = 0; i < filtered.length; i++) {
@@ -889,8 +892,7 @@ function readChurnReport(ss) {
 
 // === readAOR() — Read shared _TableauAOR tab ===
 function readAOR(ss) {
-  var sheet=ss.getSheetByName(AOR_TAB); if (!sheet) return [];
-  var data=sheet.getDataRange().getValues(); if (data.length<2) return [];
+  var data=_getSheetData(ss,AOR_TAB); if (!data||data.length<2) return [];
   var headers=data[0].map(function(h) { return String(h).trim(); });
   var rows=[];
   for (var i=1;i<data.length;i++) {
@@ -904,8 +906,7 @@ function readActRateLines(ss, officeId) {
   var lines = [], tolDsis = {};
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
-    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
-    var sheetData = sheet.getDataRange().getValues(); if (sheetData.length < 2) continue;
+    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
     var col = buildTableauColumnMap(sheetData[0]);
     var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
     for (var i = 0; i < filtered.length; i++) {
@@ -1089,10 +1090,8 @@ function buildDsiEmailMap(ss, officeId) {
 }
 
 function readTableauSummary(ss, officeId) {
-  var sheet=ss.getSheetByName(TABLEAU_TAB);
-  if (!sheet) return { dsiSummary:{}, repSummary:{} };
-  var data=sheet.getDataRange().getValues();
-  if (data.length<2) return { dsiSummary:{}, repSummary:{} };
+  var data=_getSheetData(ss,TABLEAU_TAB);
+  if (!data||data.length<2) return { dsiSummary:{}, repSummary:{} };
   var col=buildTableauColumnMap(data[0]);
   var maps=buildDsiEmailMap(ss,officeId); var dsiEmailMap=maps.dsiToEmail; var emailToDsis=maps.emailToDsis;
   var thirtyDaysAgo=new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30); thirtyDaysAgo.setHours(0,0,0,0);
