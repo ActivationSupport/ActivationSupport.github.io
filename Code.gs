@@ -589,7 +589,7 @@ function doGet(e) {
     if (action === 'readDelivered') return jsonResponse({ orders: readDeliveredNotActive(ss, officeId) });
     if (action === 'readIssues') return jsonResponse({ orders: readOrderIssues(ss, officeId) });
     if (action === 'readCompleted') return jsonResponse({ orders: readCompletedOrders(ss, officeId) });
-    if (action === 'readActRateLines') return jsonResponse({ actRateLines: readActRateLines(ss, officeId), _v: 6 });
+    if (action === 'readActRateLines') return jsonResponse({ actRateLines: readActRateLines(ss, officeId), _v: 8 });
     if (action === 'readNotes') return jsonResponse({ notes: readNotes(ss, officeId) });
     if (action === 'readRatings') return jsonResponse({ ratings: readRatings(ss, officeId) });
     if (action === 'readRepNames') {
