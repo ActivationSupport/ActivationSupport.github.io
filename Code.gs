@@ -902,7 +902,7 @@ function readAOR(ss) {
 }
 
 function readActRateLines(ss, officeId) {
-  var anchor = new Date(); anchor.setHours(0,0,0,0); // today inclusive (diff=0)
+  var anchor = new Date(); anchor.setHours(0,0,0,0);
   var lines = [];
   var sheetData = _getSheetData(ss, TABLEAU_TAB); if (!sheetData || sheetData.length < 2) return lines;
   var col = buildTableauColumnMap(sheetData[0]);
@@ -914,13 +914,14 @@ function readActRateLines(ss, officeId) {
     var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
     var diff = Math.floor((anchor.getTime() - od.getTime()) / 86400000);
     if (diff < 0 || diff > 60) continue;
-    var osRaw = tCol(row,col,'ORDER_STATUS');
-    var orderStatus = (osRaw instanceof Date) ? '' : String(osRaw||'').trim();
     var ptRaw = tCol(row,col,'PRODUCT_TYPE');
     var product = (ptRaw instanceof Date) ? '' : String(ptRaw||'').trim();
     var pl = product.toLowerCase();
     if (pl.indexOf('voip') !== -1 || pl.indexOf('voice') !== -1) continue;
-    lines.push({ rep:rep, diff:diff, product:product||'Unknown', status:orderStatus });
+    var totalVol = Number(tCol(row,col,'TOTAL_VOLUME')) || 0;
+    var totalActs = Number(tCol(row,col,'TOTAL_ACTS')) || 0;
+    if (totalVol === 0) continue;
+    lines.push({ rep:rep, diff:diff, product:product||'Unknown', vol:totalVol, acts:totalActs });
   }
   return lines;
 }

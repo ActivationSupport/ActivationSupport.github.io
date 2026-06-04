@@ -761,14 +761,13 @@ function _buildArTable(repFilter, prodFilter) {
   });
 
   function bkt(d) { return d<=7?'b0_7':d<=14?'b8_14':d<=30?'b15_30':'b31_60'; }
-  function act(s) { return (s||'').trim().toLowerCase() === 'approved'; }
 
   var repData={}, totals={b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
   filtered.forEach(function(l) {
-    var b=bkt(l.diff), av=act(l.status)?1:0;
+    var b=bkt(l.diff);
     if(!repData[l.rep]) repData[l.rep]={b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
-    repData[l.rep][b].t++; repData[l.rep][b].a+=av;
-    totals[b].t++;         totals[b].a+=av;
+    repData[l.rep][b].t+=(l.vol||0); repData[l.rep][b].a+=(l.acts||0);
+    totals[b].t+=(l.vol||0);         totals[b].a+=(l.acts||0);
   });
 
   function cell(b, isTotal) {

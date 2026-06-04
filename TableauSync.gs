@@ -62,7 +62,6 @@ var REPORTS = {
       'sp.Order Date (copy)',
       'Order Time (Timezone)',
       'sp.SPM Number',
-      'spe.Name',
       'spe.Account BAN',
       'Product Type (Broken Out)',
       'CRU/IRU',
@@ -79,9 +78,11 @@ var REPORTS = {
       'Auto Bill Pay',
       'B2B Rep Volume Bonus Tiers',
       'Tier Bonus Payout/DNQ Reason',
-      'DD Date'
+      'DD Date',
+      'Total Volume',
+      'Total Activations'
     ],
-    deduplicateKey: ['sp.SPM Number', 'spe.Name']
+    deduplicateKey: ['sp.SPM Number', 'Product Type (Broken Out)']
   },
 
   'b2b-churn': {
