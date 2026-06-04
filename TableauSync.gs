@@ -62,7 +62,6 @@ var REPORTS = {
       'sp.Order Date (copy)',
       'Order Time (Timezone)',
       'sp.SPM Number',
-      'spe.Account BAN',
       'Product Type (Broken Out)',
       'CRU/IRU',
       'DTR Status (enriched)',
