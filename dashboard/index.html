@@ -700,6 +700,8 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function renderActRates() {
   var rows = DATA.activationRates || [];
   if (!rows.length) return noData('No activation rate data yet.');
+  // Guard: old format (pre-redeploy) doesn't have b0_7 — show friendly message
+  if (!rows[0] || !rows[0].hasOwnProperty('b0_7')) return noData('Activation Rates requires a Code.gs redeploy. Deploy a new version then hard-refresh the portal.');
   var role = SESSION.role || 'rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
   var display = (role === 'rep' && myName)
