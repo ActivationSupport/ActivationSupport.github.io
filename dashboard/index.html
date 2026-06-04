@@ -706,15 +706,14 @@ function renderActRates() {
   if (_AR_LINES) return _renderActRatesWithData();
   if (_AR_LOADING) return '<div class="empty">Loading activation rates…</div>';
   _AR_LOADING = true;
-  api({ action: 'readActRateLines' }, function(resp) {
+  api({ action: 'readActRateLines' }).then(function(resp) {
     _AR_LOADING = false;
-    if (resp && resp.actRateLines) {
-      _AR_LINES = resp.actRateLines;
-    } else {
-      _AR_LINES = [];
-    }
-    var c = document.getElementById('tab-content');
+    _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
+    var c = document.getElementById('main-content');
     if (c) c.innerHTML = _renderActRatesWithData();
+  }).catch(function() {
+    _AR_LOADING = false;
+    _AR_LINES = [];
   });
   return '<div class="empty">Loading activation rates…</div>';
 }
