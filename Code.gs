@@ -639,7 +639,7 @@ function doGet(e) {
       settings: readSettings(ss, officeId),
       churnReport: readChurnReport(ss),
       aorData: readAOR(ss),
-      activationRates: readActivationRates(ss, officeId),
+      actRateLines: readActRateLines(ss, officeId),
       dayAfterOrders: readDayAfterOrders(ss, officeId),
       deliveredOrders: readDeliveredNotActive(ss, officeId),
       orderIssues: readOrderIssues(ss, officeId),
@@ -899,26 +899,9 @@ function readAOR(ss) {
   return rows;
 }
 
-function readActivationRates(ss, officeId) {
+function readActRateLines(ss, officeId) {
   var today = new Date(); today.setHours(0,0,0,0);
-
-  function getBucket(od) {
-    var diff = Math.floor((today.getTime() - od.getTime()) / 86400000);
-    if (diff < 0 || diff > 60) return null;
-    if (diff <= 7)  return 'b0_7';
-    if (diff <= 14) return 'b8_14';
-    if (diff <= 30) return 'b15_30';
-    return 'b31_60';
-  }
-
-  function isActiveLine(status) {
-    var s = String(status||'').trim().toLowerCase();
-    return s === 'active' || s === 'posted' || s.startsWith('disconnect');
-  }
-
-  var repData = {}, tolDsis = {};
-  var totals = { b0_7:{t:0,a:0}, b8_14:{t:0,a:0}, b15_30:{t:0,a:0}, b31_60:{t:0,a:0} };
-
+  var lines = [], tolDsis = {};
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
     var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
@@ -929,23 +912,19 @@ function readActivationRates(ss, officeId) {
       var row = filtered[i];
       var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
       if (t === 1 && tolDsis[dsi]) continue;
-      var rep = String(tCol(row,col,'REP')||'').trim(); if (!rep) continue;
-      var od  = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
-      var bkt = getBucket(od); if (!bkt) continue;
-      var stRaw = tCol(row,col,'DTR_STATUS');
-      var active = !(stRaw instanceof Date) && isActiveLine(String(stRaw||''));
-      if (!repData[rep]) repData[rep] = { b0_7:{t:0,a:0}, b8_14:{t:0,a:0}, b15_30:{t:0,a:0}, b31_60:{t:0,a:0} };
-      repData[rep][bkt].t++; if (active) repData[rep][bkt].a++;
-      totals[bkt].t++;       if (active) totals[bkt].a++;
       if (t === 0) tolDsis[dsi] = true;
+      var rep = String(tCol(row,col,'REP')||'').trim(); if (!rep) continue;
+      var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
+      var diff = Math.floor((today.getTime() - od.getTime()) / 86400000);
+      if (diff < 0 || diff > 60) continue;
+      var stRaw = tCol(row,col,'DTR_STATUS');
+      var status = (stRaw instanceof Date) ? '' : String(stRaw||'').trim();
+      var ptRaw = tCol(row,col,'PRODUCT_TYPE');
+      var product = (ptRaw instanceof Date) ? '' : String(ptRaw||'').trim();
+      lines.push({ rep:rep, diff:diff, product:product||'Unknown', status:status });
     }
   }
-
-  var rows = Object.keys(repData).sort().map(function(rep) {
-    return { rep:rep, isTotal:false, b0_7:repData[rep].b0_7, b8_14:repData[rep].b8_14, b15_30:repData[rep].b15_30, b31_60:repData[rep].b31_60 };
-  });
-  rows.unshift({ rep:'Grand Total', isTotal:true, b0_7:totals.b0_7, b8_14:totals.b8_14, b15_30:totals.b15_30, b31_60:totals.b31_60 });
-  return rows;
+  return lines;
 }
 
 function writeSetting(body, ss, officeId) {
