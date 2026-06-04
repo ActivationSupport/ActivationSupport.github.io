@@ -698,12 +698,54 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
 function renderActRates() {
-  var rows = DATA.activationRates || [];
-  if (!rows.length) return noData('No activation rate data yet.');
-  // Guard: old format (pre-redeploy) doesn't have b0_7 — show friendly message
-  if (!rows[0] || !rows[0].hasOwnProperty('b0_7')) return noData('Activation Rates requires a Code.gs redeploy. Deploy a new version then hard-refresh the portal.');
+  // masterTracker (pending) + completedOrders (resolved) = all orders in 120-day window
+  var allOrders = (DATA.masterTracker||[]).concat(DATA.completedOrders||[]);
+  if (!allOrders.length) return noData('No order data available. Tableau sync runs nightly.');
+
+  var today = new Date(); today.setHours(0,0,0,0);
+
+  function getBucket(orderDate) {
+    if (!orderDate) return null;
+    var d = new Date(orderDate); d.setHours(0,0,0,0);
+    var diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
+    if (diff < 0 || diff > 60) return null;
+    if (diff <= 7)  return 'b0_7';
+    if (diff <= 14) return 'b8_14';
+    if (diff <= 30) return 'b15_30';
+    return 'b31_60';
+  }
+
+  function countLines(sc) {
+    var t = 0, a = 0;
+    Object.keys(sc||{}).forEach(function(s) {
+      var n = sc[s]||0; t += n;
+      var sl = s.toLowerCase();
+      if (sl === 'active' || sl === 'posted' || sl.startsWith('disconnect')) a += n;
+    });
+    return { t:t, a:a };
+  }
+
+  var repData = {};
+  var totals = { b0_7:{t:0,a:0}, b8_14:{t:0,a:0}, b15_30:{t:0,a:0}, b31_60:{t:0,a:0} };
+
+  allOrders.forEach(function(o) {
+    if (!o.rep || !o.orderDate) return;
+    var bkt = getBucket(o.orderDate); if (!bkt) return;
+    var lines = countLines(o.statusCounts);
+    if (!lines.t) return;
+    if (!repData[o.rep]) repData[o.rep] = { b0_7:{t:0,a:0}, b8_14:{t:0,a:0}, b15_30:{t:0,a:0}, b31_60:{t:0,a:0} };
+    repData[o.rep][bkt].t += lines.t; repData[o.rep][bkt].a += lines.a;
+    totals[bkt].t += lines.t;         totals[bkt].a += lines.a;
+  });
+
   var role = SESSION.role || 'rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
+
+  var rows = Object.keys(repData).sort().map(function(rep) {
+    return { rep:rep, isTotal:false, b0_7:repData[rep].b0_7, b8_14:repData[rep].b8_14, b15_30:repData[rep].b15_30, b31_60:repData[rep].b31_60 };
+  });
+  rows.unshift({ rep:'Grand Total', isTotal:true, b0_7:totals.b0_7, b8_14:totals.b8_14, b15_30:totals.b15_30, b31_60:totals.b31_60 });
+
   var display = (role === 'rep' && myName)
     ? rows.filter(function(r) { return !r.isTotal && r.rep.toLowerCase() === myName; })
     : rows;
