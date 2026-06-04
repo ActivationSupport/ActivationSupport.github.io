@@ -761,7 +761,7 @@ function _buildArTable(repFilter, prodFilter) {
   });
 
   function bkt(d) { return d<=7?'b0_7':d<=14?'b8_14':d<=30?'b15_30':'b31_60'; }
-  function act(s) { var sl=(s||'').toLowerCase(); return sl==='active'||sl.startsWith('disconnect'); }
+  function act(s) { var sl=(s||'').toLowerCase(); return sl==='posted'||sl.startsWith('disconnect'); }
 
   var repData={}, totals={b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
   filtered.forEach(function(l) {
