@@ -700,10 +700,27 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
 var _AR_LINES = null;
+var _AR_LOADING = false;
 
 function renderActRates() {
-  _AR_LINES = DATA.actRateLines || null;
-  if (!_AR_LINES || !_AR_LINES.length) return noData('No activation rate data. Redeploy Code.gs and hard-refresh.');
+  if (_AR_LINES) return _renderActRatesWithData();
+  if (_AR_LOADING) return '<div class="empty">Loading activation rates…</div>';
+  _AR_LOADING = true;
+  api({ action: 'readActRateLines' }, function(resp) {
+    _AR_LOADING = false;
+    if (resp && resp.actRateLines) {
+      _AR_LINES = resp.actRateLines;
+    } else {
+      _AR_LINES = [];
+    }
+    var c = document.getElementById('tab-content');
+    if (c) c.innerHTML = _renderActRatesWithData();
+  });
+  return '<div class="empty">Loading activation rates…</div>';
+}
+
+function _renderActRatesWithData() {
+  if (!_AR_LINES || !_AR_LINES.length) return noData('No activation rate data available.');
 
   var role = SESSION.role || 'rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
