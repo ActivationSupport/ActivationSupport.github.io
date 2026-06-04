@@ -77,7 +77,23 @@ var REPORTS = {
       'Auto Bill Pay',
       'B2B Rep Volume Bonus Tiers',
       'Tier Bonus Payout/DNQ Reason',
-      'DD Date',
+      'DD Date'
+    ],
+    deduplicateKey: ['sp.SPM Number', 'spe.Name']
+  },
+
+  'b2b-act-rates-measures': {
+    viewContentUrl: 'ATTTRACKER-B2B/sheets/ORDERLOG',
+    customViewId: '78113e5a-eeb6-48d0-87cf-f3a3901380c0',
+    tabName: 'B2B Act Rates',
+    dateRangeDays: 60,
+    dateFilterColumn: 'sp.Order Date (copy)',
+    columns: [
+      'Owner & Office',
+      'Rep',
+      'sp.Order Date (copy)',
+      'sp.SPM Number',
+      'Product Type (Broken Out)',
       'Measure Names',
       'Measure Values'
     ],
@@ -172,6 +188,14 @@ var TARGETS = [
     sourceTab:    'Activation Rates',
     sheetId:      '115Nn7KbwbdlWFzZPkx_fw2hbNnGXdIsoDk6buSmCsBw',
     tabName:      '_TableauActivationRates',
+    filterColumn: null,
+    campaignType: 'att-b2b'
+  },
+  {
+    reportKey:    'b2b-act-rates-measures',
+    sourceTab:    'B2B Act Rates',
+    sheetId:      '115Nn7KbwbdlWFzZPkx_fw2hbNnGXdIsoDk6buSmCsBw',
+    tabName:      '_TableauActRates',
     filterColumn: null,
     campaignType: 'att-b2b'
   }
