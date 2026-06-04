@@ -589,7 +589,7 @@ function doGet(e) {
     if (action === 'readDelivered') return jsonResponse({ orders: readDeliveredNotActive(ss, officeId) });
     if (action === 'readIssues') return jsonResponse({ orders: readOrderIssues(ss, officeId) });
     if (action === 'readCompleted') return jsonResponse({ orders: readCompletedOrders(ss, officeId) });
-    if (action === 'readActRateLines') return jsonResponse({ actRateLines: readActRateLines(ss, officeId) });
+    if (action === 'readActRateLines') return jsonResponse({ actRateLines: readActRateLines(ss, officeId), _v: 3 });
     if (action === 'readNotes') return jsonResponse({ notes: readNotes(ss, officeId) });
     if (action === 'readRatings') return jsonResponse({ ratings: readRatings(ss, officeId) });
     if (action === 'readRepNames') {
@@ -903,27 +903,24 @@ function readAOR(ss) {
 
 function readActRateLines(ss, officeId) {
   var today = new Date(); today.setHours(0,0,0,0);
-  var lines = [], tolDsis = {};
-  var tabs = [TABLEAU_TAB, AOR_TAB];
-  for (var t = 0; t < tabs.length; t++) {
-    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
-    var col = buildTableauColumnMap(sheetData[0]);
-    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
-    for (var i = 0; i < filtered.length; i++) {
-      var row = filtered[i];
-      var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
-      if (t === 1 && tolDsis[dsi]) continue;
-      if (t === 0) tolDsis[dsi] = true;
-      var rep = String(tCol(row,col,'REP')||'').trim(); if (!rep) continue;
-      var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
-      var diff = Math.floor((today.getTime() - od.getTime()) / 86400000);
-      if (diff < 0 || diff > 60) continue;
-      var stRaw = tCol(row,col,'DTR_STATUS');
-      var status = (stRaw instanceof Date) ? '' : String(stRaw||'').trim();
-      var ptRaw = tCol(row,col,'PRODUCT_TYPE');
-      var product = (ptRaw instanceof Date) ? '' : String(ptRaw||'').trim();
-      lines.push({ rep:rep, diff:diff, product:product||'Unknown', status:status });
-    }
+  var lines = [];
+  var sheetData = _getSheetData(ss, TABLEAU_TAB); if (!sheetData || sheetData.length < 2) return lines;
+  var col = buildTableauColumnMap(sheetData[0]);
+  var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
+  for (var i = 0; i < filtered.length; i++) {
+    var row = filtered[i];
+    var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
+    var rep = String(tCol(row,col,'REP')||'').trim(); if (!rep) continue;
+    var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
+    var diff = Math.floor((today.getTime() - od.getTime()) / 86400000);
+    if (diff < 0 || diff > 60) continue;
+    var stRaw = tCol(row,col,'DTR_STATUS');
+    var status = (stRaw instanceof Date) ? '' : String(stRaw||'').trim();
+    var ptRaw = tCol(row,col,'PRODUCT_TYPE');
+    var product = (ptRaw instanceof Date) ? '' : String(ptRaw||'').trim();
+    var pl = product.toLowerCase();
+    if (pl.indexOf('voip') !== -1 || pl.indexOf('voice') !== -1) continue;
+    lines.push({ rep:rep, diff:diff, product:product||'Unknown', status:status });
   }
   return lines;
 }
