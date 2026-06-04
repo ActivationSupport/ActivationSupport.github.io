@@ -81,7 +81,8 @@ const TOL_HEADER_MAP = {
   "b2b rep volume bonus tiers": "BONUS_TIERS", "bonus tiers": "BONUS_TIERS",
   "tier bonus payout/dnq reason": "PAYOUT_REASON", "payout reason": "PAYOUT_REASON",
   "unit count": "UNIT_COUNT", "total volume": "TOTAL_VOLUME",
-  "total activations": "TOTAL_ACTS", "total acts": "TOTAL_ACTS"
+  "total activations": "TOTAL_ACTS", "total acts": "TOTAL_ACTS",
+  "measure names": "MEASURE_NAMES", "measure values": "MEASURE_VALUES"
 };
 function buildTableauColumnMap(headerRow) {
   var col = {};
@@ -903,8 +904,8 @@ function readAOR(ss) {
 
 function readActRateLines(ss, officeId) {
   var anchor = new Date(); anchor.setHours(0,0,0,0);
-  var lines = [];
-  var sheetData = _getSheetData(ss, TABLEAU_TAB); if (!sheetData || sheetData.length < 2) return lines;
+  var groups = {};
+  var sheetData = _getSheetData(ss, TABLEAU_TAB); if (!sheetData || sheetData.length < 2) return [];
   var col = buildTableauColumnMap(sheetData[0]);
   var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
   for (var i = 0; i < filtered.length; i++) {
@@ -918,11 +919,18 @@ function readActRateLines(ss, officeId) {
     var product = (ptRaw instanceof Date) ? '' : String(ptRaw||'').trim();
     var pl = product.toLowerCase();
     if (pl.indexOf('voip') !== -1 || pl.indexOf('voice') !== -1) continue;
-    var totalVol = Number(tCol(row,col,'TOTAL_VOLUME')) || 0;
-    var totalActs = Number(tCol(row,col,'TOTAL_ACTS')) || 0;
-    if (totalVol === 0) continue;
-    lines.push({ rep:rep, diff:diff, product:product||'Unknown', vol:totalVol, acts:totalActs });
+    var measureName = String(tCol(row,col,'MEASURE_NAMES')||'').trim();
+    var measureValue = Number(tCol(row,col,'MEASURE_VALUES')) || 0;
+    var key = dsi + '|' + product;
+    if (!groups[key]) groups[key] = { rep:rep, diff:diff, product:product||'Unknown', vol:0, acts:0 };
+    if (measureName === 'Total Volume') groups[key].vol = measureValue;
+    if (measureName === 'Total Activations') groups[key].acts = measureValue;
   }
+  var lines = [];
+  Object.keys(groups).forEach(function(k) {
+    var g = groups[k];
+    if (g.vol > 0) lines.push({ rep:g.rep, diff:g.diff, product:g.product, vol:g.vol, acts:g.acts });
+  });
   return lines;
 }
 

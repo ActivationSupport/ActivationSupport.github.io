@@ -78,10 +78,10 @@ var REPORTS = {
       'B2B Rep Volume Bonus Tiers',
       'Tier Bonus Payout/DNQ Reason',
       'DD Date',
-      'Total Volume',
-      'Total Activations'
+      'Measure Names',
+      'Measure Values'
     ],
-    deduplicateKey: ['sp.SPM Number', 'Product Type (Broken Out)']
+    deduplicateKey: ['sp.SPM Number', 'Product Type (Broken Out)', 'Measure Names']
   },
 
   'b2b-churn': {
