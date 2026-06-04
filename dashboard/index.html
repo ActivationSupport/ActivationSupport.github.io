@@ -133,6 +133,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .ar-rep{padding:10px 14px;font-size:.875rem;color:var(--text)}
 .ar-grand-row{border-top:2px solid rgba(255,255,255,.15);border-bottom:2px solid rgba(255,255,255,.15)}
 .ar-grand-rep{font-weight:700;color:var(--blue2)}
+.ar-select{padding:7px 10px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.84rem;background:#1e1e1e;color:var(--text);cursor:pointer;margin-right:8px}
+.ar-select:focus{outline:none;border-color:var(--blue2)}
 .dd-filter{position:relative;display:inline-block}
 .dd-btn{padding:7px 12px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.84rem;background:#1e1e1e;color:var(--text);cursor:pointer;white-space:nowrap}
 .dd-btn:hover{border-color:var(--blue2);color:var(--blue2)}
@@ -697,86 +699,83 @@ function fmtDate(v) {
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
+var _AR_LINES = null;
+
 function renderActRates() {
-  // masterTracker (pending) + completedOrders (resolved) = all orders in 120-day window
-  var allOrders = (DATA.masterTracker||[]).concat(DATA.completedOrders||[]);
-  if (!allOrders.length) return noData('No order data available. Tableau sync runs nightly.');
-
-  var today = new Date(); today.setHours(0,0,0,0);
-
-  function getBucket(orderDate) {
-    if (!orderDate) return null;
-    var d = new Date(orderDate); d.setHours(0,0,0,0);
-    var diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
-    if (diff < 0 || diff > 60) return null;
-    if (diff <= 7)  return 'b0_7';
-    if (diff <= 14) return 'b8_14';
-    if (diff <= 30) return 'b15_30';
-    return 'b31_60';
-  }
-
-  function countLines(sc) {
-    var t = 0, a = 0;
-    Object.keys(sc||{}).forEach(function(s) {
-      var n = sc[s]||0; t += n;
-      var sl = s.toLowerCase();
-      if (sl === 'active' || sl === 'posted' || sl.startsWith('disconnect')) a += n;
-    });
-    return { t:t, a:a };
-  }
-
-  var repData = {};
-  var totals = { b0_7:{t:0,a:0}, b8_14:{t:0,a:0}, b15_30:{t:0,a:0}, b31_60:{t:0,a:0} };
-
-  allOrders.forEach(function(o) {
-    if (!o.rep || !o.orderDate) return;
-    var bkt = getBucket(o.orderDate); if (!bkt) return;
-    var lines = countLines(o.statusCounts);
-    if (!lines.t) return;
-    if (!repData[o.rep]) repData[o.rep] = { b0_7:{t:0,a:0}, b8_14:{t:0,a:0}, b15_30:{t:0,a:0}, b31_60:{t:0,a:0} };
-    repData[o.rep][bkt].t += lines.t; repData[o.rep][bkt].a += lines.a;
-    totals[bkt].t += lines.t;         totals[bkt].a += lines.a;
-  });
+  _AR_LINES = DATA.actRateLines || null;
+  if (!_AR_LINES || !_AR_LINES.length) return noData('No activation rate data. Redeploy Code.gs and hard-refresh.');
 
   var role = SESSION.role || 'rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
+  var isRep = role === 'rep' && !!myName;
 
-  var rows = Object.keys(repData).sort().map(function(rep) {
-    return { rep:rep, isTotal:false, b0_7:repData[rep].b0_7, b8_14:repData[rep].b8_14, b15_30:repData[rep].b15_30, b31_60:repData[rep].b31_60 };
-  });
-  rows.unshift({ rep:'Grand Total', isTotal:true, b0_7:totals.b0_7, b8_14:totals.b8_14, b15_30:totals.b15_30, b31_60:totals.b31_60 });
+  var repSet = {}, prodSet = {};
+  _AR_LINES.forEach(function(l) { repSet[l.rep]=true; if(l.product) prodSet[l.product]=true; });
+  var reps = Object.keys(repSet).sort();
+  var prods = Object.keys(prodSet).sort();
 
-  var display = (role === 'rep' && myName)
-    ? rows.filter(function(r) { return !r.isTotal && r.rep.toLowerCase() === myName; })
-    : rows;
-  if (!display.length) return noData('No activation data found for your name.');
-
-  function arCell(b, isTotal) {
-    if (!isTotal && b.t === 0) return '<td></td>';
-    if (b.t === 0) return '<td class="ar-cell"><div class="ar-badge ar-blue">(0/0)<br>—</div></td>';
-    var pct = Math.round(b.a / b.t * 100);
-    var cls = pct >= 80 ? 'ar-green' : pct >= 60 ? 'ar-yellow' : 'ar-red';
-    return '<td class="ar-cell"><div class="ar-badge ' + cls + '">(' + b.a + '/' + b.t + ')<br>' + pct + '%</div></td>';
-  }
-
-  var body = display.map(function(r) {
-    var repTd = r.isTotal
-      ? '<td class="ar-rep ar-grand-rep">Grand Total</td>'
-      : '<td class="ar-rep">' + esc(r.rep) + '</td>';
-    return '<tr' + (r.isTotal ? ' class="ar-grand-row"' : '') + '>' +
-      repTd +
-      arCell(r.b0_7,  r.isTotal) +
-      arCell(r.b8_14, r.isTotal) +
-      arCell(r.b15_30,r.isTotal) +
-      arCell(r.b31_60,r.isTotal) +
-    '</tr>';
-  }).join('');
+  var filterHtml = isRep ? '' :
+    '<div class="filter-row">' +
+    '<select class="ar-select" id="ar-rep-sel" onchange="refreshActRates()"><option value="">All Reps</option>' +
+    reps.map(function(r){ return '<option value="'+esc(r)+'">'+esc(r)+'</option>'; }).join('') + '</select>' +
+    '<select class="ar-select" id="ar-prod-sel" onchange="refreshActRates()"><option value="">All Products</option>' +
+    prods.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('') + '</select>' +
+    '</div>';
 
   return '<div class="card"><div class="card-header dark">Activation Rates</div><div class="card-body">' +
-    '<div class="filter-row"><input id="f-rates" placeholder="Search rep…"></div>' +
-    '<div class="tbl-wrap"><table id="rates-table"><thead><tr>' +
-    '<th>Rep</th><th>0-7 Days</th><th>8-14 Days</th><th>15-30 Days</th><th>31-60 Days</th>' +
-    '</tr></thead><tbody>' + body + '</tbody></table></div></div></div>';
+    filterHtml + '<div id="ar-table-wrap">' + _buildArTable('','') + '</div></div></div>';
+}
+
+function refreshActRates() {
+  var rs = document.getElementById('ar-rep-sel'), ps = document.getElementById('ar-prod-sel');
+  var wrap = document.getElementById('ar-table-wrap');
+  if (wrap) wrap.innerHTML = _buildArTable(rs ? rs.value : '', ps ? ps.value : '');
+}
+
+function _buildArTable(repFilter, prodFilter) {
+  if (!_AR_LINES) return '';
+  var role = SESSION.role || 'rep';
+  var myName = (SESSION.tableauName || '').toLowerCase();
+
+  var filtered = _AR_LINES.filter(function(l) {
+    if (role === 'rep' && myName && l.rep.toLowerCase() !== myName) return false;
+    if (repFilter && l.rep !== repFilter) return false;
+    if (prodFilter && l.product !== prodFilter) return false;
+    return true;
+  });
+
+  function bkt(d) { return d<=7?'b0_7':d<=14?'b8_14':d<=30?'b15_30':'b31_60'; }
+  function act(s) { var sl=(s||'').toLowerCase(); return sl==='active'||sl==='posted'||sl.startsWith('disconnect'); }
+
+  var repData={}, totals={b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
+  filtered.forEach(function(l) {
+    var b=bkt(l.diff), av=act(l.status)?1:0;
+    if(!repData[l.rep]) repData[l.rep]={b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
+    repData[l.rep][b].t++; repData[l.rep][b].a+=av;
+    totals[b].t++;         totals[b].a+=av;
+  });
+
+  function cell(b, isTotal) {
+    if (!isTotal && b.t===0) return '<td></td>';
+    if (b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-blue">(0/0)<br>—</div></td>';
+    var pct=Math.round(b.a/b.t*100);
+    var cls=pct>=80?'ar-green':pct>=60?'ar-yellow':'ar-red';
+    return '<td class="ar-cell"><div class="ar-badge '+cls+'">('+b.a+'/'+b.t+')<br>'+pct+'%</div></td>';
+  }
+
+  var repRows = Object.keys(repData).sort().map(function(rep) {
+    var d=repData[rep];
+    return '<tr><td class="ar-rep">'+esc(rep)+'</td>'+cell(d.b0_7,false)+cell(d.b8_14,false)+cell(d.b15_30,false)+cell(d.b31_60,false)+'</tr>';
+  }).join('');
+
+  if (!repRows) return '<div class="empty">No data for the selected filters.</div>';
+
+  var grandRow = (role!=='rep') ?
+    '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+cell(totals.b0_7,true)+cell(totals.b8_14,true)+cell(totals.b15_30,true)+cell(totals.b31_60,true)+'</tr>' : '';
+
+  return '<div class="tbl-wrap"><table class="call-table"><thead><tr>' +
+    '<th>Rep</th><th>0–7 Days</th><th>8–14 Days</th><th>15–30 Days</th><th>31–60 Days</th>' +
+    '</tr></thead><tbody>'+grandRow+repRows+'</tbody></table></div>';
 }
 
 // ── CALL TABLE HELPERS ────────────────────────────────────────────────────
