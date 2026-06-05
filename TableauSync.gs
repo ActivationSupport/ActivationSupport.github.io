@@ -119,13 +119,6 @@ var REPORTS = {
     columns: null
   },
 
-  'b2b-act-rates-totals': {
-    viewContentUrl: 'ATTTRACKER-B2B/sheets/ACTIVATIONRATES',
-    tabName: 'Act Rates Totals',
-    columns: null
-    // No customViewId → REST API path → returns office-level total rows (Activation Total sub-sheet)
-  }
-
   // Future: add NDS reports here
   // 'nds-order-log': { ... }
 };
@@ -169,14 +162,6 @@ var TARGETS = [
     sourceTab:    'Activation Rates',
     sheetId:      '115Nn7KbwbdlWFzZPkx_fw2hbNnGXdIsoDk6buSmCsBw',
     tabName:      '_TableauActivationRates',
-    filterColumn: null,
-    campaignType: 'att-b2b'
-  },
-  {
-    reportKey:    'b2b-act-rates-totals',
-    sourceTab:    'Act Rates Totals',
-    sheetId:      '115Nn7KbwbdlWFzZPkx_fw2hbNnGXdIsoDk6buSmCsBw',
-    tabName:      '_TableauActRateTotals',
     filterColumn: null,
     campaignType: 'att-b2b'
   }

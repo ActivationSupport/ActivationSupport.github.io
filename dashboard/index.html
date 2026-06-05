@@ -758,44 +758,38 @@ function _buildArTable(repFilter) {
     return true;
   });
 
-  var repLines = filtered.filter(function(l){ return l.rep !== '__total__'; });
-  var totalLines = filtered.filter(function(l){ return l.rep === '__total__'; });
-
-  var repData={}, totals={b0_7:{t:0,a:0,c:''},b8_14:{t:0,a:0,c:''},b15_30:{t:0,a:0,c:''},b31_60:{t:0,a:0,c:''}};
-  repLines.forEach(function(l) {
+  var repData={}, totals={b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
+  filtered.forEach(function(l) {
     var b=BKT_MAP[l.bucket]; if (!b) return;
-    if(!repData[l.rep]) repData[l.rep]={b0_7:{t:0,a:0,c:''},b8_14:{t:0,a:0,c:''},b15_30:{t:0,a:0,c:''},b31_60:{t:0,a:0,c:''}};
-    repData[l.rep][b].t+=(l.vol||0); repData[l.rep][b].a+=(l.acts||0); repData[l.rep][b].c=l.color||'';
+    if(!repData[l.rep]) repData[l.rep]={b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
+    repData[l.rep][b].t+=(l.vol||0); repData[l.rep][b].a+=(l.acts||0);
+    totals[b].t+=(l.vol||0);         totals[b].a+=(l.acts||0);
   });
-  if (totalLines.length) {
-    totalLines.forEach(function(l) {
-      var b=BKT_MAP[l.bucket]; if (!b) return;
-      totals[b].t=(l.vol||0); totals[b].a=(l.acts||0); totals[b].c=l.color||'';
-    });
-  } else {
-    repLines.forEach(function(l) {
-      var b=BKT_MAP[l.bucket]; if (!b) return;
-      totals[b].t+=(l.vol||0); totals[b].a+=(l.acts||0);
-    });
+
+  function bktCls(bktKey, pct) {
+    if (bktKey==='b0_7')   return pct>=21?'ar-green':pct>=10?'ar-yellow':'ar-red';
+    if (bktKey==='b8_14')  return pct>=71?'ar-green':pct>=51?'ar-yellow':'ar-red';
+    if (bktKey==='b15_30') return pct>=75?'ar-green':pct>=70?'ar-yellow':'ar-red';
+    if (bktKey==='b31_60') return pct>=86?'ar-green':pct>=79?'ar-yellow':'ar-red';
+    return pct>=80?'ar-green':pct>=60?'ar-yellow':'ar-red';
   }
 
-  function cell(b, isTotal) {
+  function cell(b, bktKey, isTotal) {
     if (!isTotal && b.t===0) return '<td></td>';
     if (b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-blue">(0/0)<br>—</div></td>';
     var pct=Math.round(b.a/b.t*100);
-    var cls = b.c==='green'?'ar-green':b.c==='red'?'ar-red':b.c?'ar-yellow':(pct>=80?'ar-green':pct>=60?'ar-yellow':'ar-red');
-    return '<td class="ar-cell"><div class="ar-badge '+cls+'">('+b.a+'/'+b.t+')<br>'+pct+'%</div></td>';
+    return '<td class="ar-cell"><div class="ar-badge '+bktCls(bktKey,pct)+'">('+b.a+'/'+b.t+')<br>'+pct+'%</div></td>';
   }
 
   var repRows = Object.keys(repData).sort().map(function(rep) {
     var d=repData[rep];
-    return '<tr><td class="ar-rep">'+esc(rep)+'</td>'+cell(d.b0_7,false)+cell(d.b8_14,false)+cell(d.b15_30,false)+cell(d.b31_60,false)+'</tr>';
+    return '<tr><td class="ar-rep">'+esc(rep)+'</td>'+cell(d.b0_7,'b0_7',false)+cell(d.b8_14,'b8_14',false)+cell(d.b15_30,'b15_30',false)+cell(d.b31_60,'b31_60',false)+'</tr>';
   }).join('');
 
   if (!repRows) return '<div class="empty">No data for the selected filters.</div>';
 
   var grandRow = (role!=='rep') ?
-    '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+cell(totals.b0_7,true)+cell(totals.b8_14,true)+cell(totals.b15_30,true)+cell(totals.b31_60,true)+'</tr>' : '';
+    '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+cell(totals.b0_7,'b0_7',true)+cell(totals.b8_14,'b8_14',true)+cell(totals.b15_30,'b15_30',true)+cell(totals.b31_60,'b31_60',true)+'</tr>' : '';
 
   return '<div class="tbl-wrap"><table class="call-table"><thead><tr>' +
     '<th>Rep</th><th>0–7 Days</th><th>8–14 Days</th><th>15–30 Days</th><th>31–60 Days</th>' +

@@ -908,36 +908,18 @@ function readAOR(ss) {
 }
 
 function readActRateLines(ss, officeId) {
+  var sheetData = _getSheetData(ss, '_TableauActivationRates'); if (!sheetData || sheetData.length < 2) return [];
+  var col = buildTableauColumnMap(sheetData[0]);
+  var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
   var lines = [];
-  // Per-rep rows
-  var sheetData = _getSheetData(ss, '_TableauActivationRates');
-  if (sheetData && sheetData.length >= 2) {
-    var col = buildTableauColumnMap(sheetData[0]);
-    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
-    for (var i = 0; i < filtered.length; i++) {
-      var row = filtered[i];
-      var rep = String(tCol(row,col,'REP')||'').trim(); if (!rep) continue;
-      var bucket = String(tCol(row,col,'ACTIVATION_BUCKET')||'').trim(); if (!bucket) continue;
-      var vol = Number(tCol(row,col,'SALES_VOL')) || 0;
-      var acts = Number(tCol(row,col,'SALES_ACTS')) || 0;
-      var color = String(tCol(row,col,'ACTIVATION_COLOR')||'').trim().toLowerCase();
-      if (vol <= 0) continue;
-      lines.push({ rep:rep, bucket:bucket, vol:vol, acts:acts, color:color });
-    }
-  }
-  // Office-level total rows (for Grand Total row coloring)
-  var totalsData = _getSheetData(ss, '_TableauActRateTotals');
-  if (totalsData && totalsData.length >= 2) {
-    var tcol = buildTableauColumnMap(totalsData[0]);
-    var tfiltered = _filterByOffice(totalsData.slice(1), tcol, officeId);
-    for (var j = 0; j < tfiltered.length; j++) {
-      var trow = tfiltered[j];
-      var tbucket = String(tCol(trow,tcol,'ACTIVATION_BUCKET')||'').trim(); if (!tbucket) continue;
-      var tvol = Number(tCol(trow,tcol,'SALES_VOL')) || 0;
-      var tacts = Number(tCol(trow,tcol,'SALES_ACTS')) || 0;
-      var tcolor = String(tCol(trow,tcol,'ACTIVATION_COLOR')||'').trim().toLowerCase();
-      lines.push({ rep:'__total__', bucket:tbucket, vol:tvol, acts:tacts, color:tcolor });
-    }
+  for (var i = 0; i < filtered.length; i++) {
+    var row = filtered[i];
+    var rep = String(tCol(row,col,'REP')||'').trim(); if (!rep) continue;
+    var bucket = String(tCol(row,col,'ACTIVATION_BUCKET')||'').trim(); if (!bucket) continue;
+    var vol = Number(tCol(row,col,'SALES_VOL')) || 0;
+    var acts = Number(tCol(row,col,'SALES_ACTS')) || 0;
+    if (vol <= 0) continue;
+    lines.push({ rep:rep, bucket:bucket, vol:vol, acts:acts });
   }
   return lines;
 }
