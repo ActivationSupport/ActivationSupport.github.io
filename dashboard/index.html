@@ -133,6 +133,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .ar-rep{padding:10px 14px;font-size:.875rem;color:var(--text)}
 .ar-grand-row{border-top:2px solid rgba(255,255,255,.15);border-bottom:2px solid rgba(255,255,255,.15)}
 .ar-grand-rep{font-weight:700;color:var(--blue2)}
+.ar-sub{font-size:.7rem;color:#888;margin-top:3px;white-space:nowrap}
 .ar-select{padding:7px 10px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.84rem;background:#1e1e1e;color:var(--text);cursor:pointer;margin-right:8px}
 .ar-select:focus{outline:none;border-color:var(--blue2)}
 .dd-filter{position:relative;display:inline-block}
@@ -1168,18 +1169,74 @@ function renderEscalationsTable() {
 }
 
 // ── CHURN ─────────────────────────────────────────────────────────────────
+var CHURN_BUCKETS = ['0-30 Day', '30 Day', '60 Day', '90 Day', '120 Day'];
+
+function _churnCls(color) {
+  var c = String(color||'').toLowerCase();
+  return c==='green'?'ar-green':c==='yellow'?'ar-yellow':c==='red'?'ar-red':'';
+}
+
+function _buildChurnRepMap(rows, repFilter) {
+  var repMap = {}, repList = [];
+  (rows||[]).forEach(function(r) {
+    if (!r.rep || CHURN_BUCKETS.indexOf(r.bucket) === -1) return;
+    if (repFilter && r.rep !== repFilter) return;
+    if (!repMap[r.rep]) { repMap[r.rep] = {}; repList.push(r.rep); }
+    repMap[r.rep][r.bucket] = r;
+  });
+  repList.sort();
+  return { repMap: repMap, repList: repList };
+}
+
+function _churnTableHtml(repList, repMap) {
+  function cell(d) {
+    if (!d) return '<td class="ar-cell"><span class="ar-badge" style="opacity:.25">—</span></td>';
+    return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">'+esc(d.churnRate)+'</span>' +
+      '<div class="ar-sub">'+d.activated+' acts · '+d.disconnects+' disco</div></td>';
+  }
+  function totalCell(bkt) {
+    var acts=0, disco=0;
+    repList.forEach(function(rep){ var d=repMap[rep][bkt]; if(d){acts+=d.activated;disco+=d.disconnects;} });
+    if (!acts) return '<td class="ar-cell"><span class="ar-badge" style="opacity:.25">—</span></td>';
+    var pct = disco/acts*100;
+    var cls = pct<=5?'ar-green':pct<=12?'ar-yellow':'ar-red';
+    return '<td class="ar-cell"><span class="ar-badge '+cls+'">'+pct.toFixed(1)+'%</span>' +
+      '<div class="ar-sub">'+acts+' acts · '+disco+' disco</div></td>';
+  }
+  var hdr = '<th style="min-width:160px">Rep</th>' +
+    CHURN_BUCKETS.map(function(b){return '<th style="min-width:100px">'+esc(b)+'</th>';}).join('');
+  var grandRow = SESSION.role!=='rep'
+    ? '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+CHURN_BUCKETS.map(totalCell).join('')+'</tr>'
+    : '';
+  var repRows = repList.map(function(rep){
+    return '<tr><td class="ar-rep">'+esc(rep)+'</td>'+CHURN_BUCKETS.map(function(bkt){return cell(repMap[rep][bkt]);}).join('')+'</tr>';
+  }).join('');
+  return '<div class="tbl-wrap"><table><thead><tr>'+hdr+'</tr></thead><tbody>'+grandRow+repRows+'</tbody></table></div>';
+}
+
 function renderChurn() {
   var rows = DATA.churnReport || [];
   if (!rows.length) return noData('No churn data yet. Tableau sync runs nightly.');
-  var headers = Object.keys(rows[0]).filter(function(k) { return !k.startsWith('_blank'); });
-  return '<div class="card"><div class="card-header dark">Churn Report</div><div class="card-body">' +
-  '<div class="filter-row"><input id="f-churn" placeholder="Search rep…"></div>' +
-  '<div class="tbl-wrap"><table id="churn-table"><thead><tr>' +
-  headers.map(function(h) { return '<th>'+esc(h)+'</th>'; }).join('') +
-  '</tr></thead><tbody>' +
-  rows.map(function(r) {
-    return '<tr>' + headers.map(function(h) { return '<td>'+esc(r[h])+'</td>'; }).join('') + '</tr>';
-  }).join('') + '</tbody></table></div></div></div>';
+  var allReps = [];
+  var seen = {};
+  (rows).forEach(function(r){ if(r.rep&&!seen[r.rep]){seen[r.rep]=true;allReps.push(r.rep);} });
+  allReps.sort();
+  var repSel = '<select class="ar-select" id="churn-rep-sel" onchange="refreshChurn()">' +
+    '<option value="">All Reps</option>' +
+    allReps.map(function(n){return '<option value="'+esc(n)+'">'+esc(n)+'</option>';}).join('') + '</select>';
+  var built = _buildChurnRepMap(rows, '');
+  return '<div class="card"><div class="card-header dark">Churn Report — ICD</div><div class="card-body">' +
+    '<div class="filter-row">'+repSel+'</div>' +
+    '<div id="churn-table-wrap">'+_churnTableHtml(built.repList, built.repMap)+'</div>' +
+    '</div></div>';
+}
+
+function refreshChurn() {
+  var sel = document.getElementById('churn-rep-sel');
+  var filter = sel ? sel.value : '';
+  var built = _buildChurnRepMap(DATA.churnReport||[], filter);
+  var wrap = document.getElementById('churn-table-wrap');
+  if (wrap) wrap.innerHTML = _churnTableHtml(built.repList, built.repMap);
 }
 
 // ── PEOPLE ────────────────────────────────────────────────────────────────
