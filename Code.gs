@@ -84,6 +84,7 @@ const TOL_HEADER_MAP = {
   "total activations": "TOTAL_ACTS", "total acts": "TOTAL_ACTS",
   "measure names": "MEASURE_NAMES", "measure values": "MEASURE_VALUES",
   "activation bucket": "ACTIVATION_BUCKET",
+  "activation color": "ACTIVATION_COLOR",
   "sales (all)  (activations)": "SALES_ACTS",
   "sales (all) activation rate": "SALES_ACT_RATE",
   "sales (all)": "SALES_VOL"
@@ -917,8 +918,9 @@ function readActRateLines(ss, officeId) {
     var bucket = String(tCol(row,col,'ACTIVATION_BUCKET')||'').trim(); if (!bucket) continue;
     var vol = Number(tCol(row,col,'SALES_VOL')) || 0;
     var acts = Number(tCol(row,col,'SALES_ACTS')) || 0;
+    var color = String(tCol(row,col,'ACTIVATION_COLOR')||'').trim().toLowerCase();
     if (vol <= 0) continue;
-    lines.push({ rep:rep, bucket:bucket, vol:vol, acts:acts });
+    lines.push({ rep:rep, bucket:bucket, vol:vol, acts:acts, color:color });
   }
   return lines;
 }
