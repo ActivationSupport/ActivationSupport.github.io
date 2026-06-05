@@ -82,24 +82,6 @@ var REPORTS = {
     deduplicateKey: ['sp.SPM Number', 'spe.Name']
   },
 
-  'b2b-act-rates-measures': {
-    viewContentUrl: 'ATTTRACKER-B2B/sheets/ORDERLOG',
-    customViewId: '78113e5a-eeb6-48d0-87cf-f3a3901380c0',
-    tabName: 'B2B Act Rates',
-    dateRangeDays: 60,
-    dateFilterColumn: 'sp.Order Date (copy)',
-    columns: [
-      'Owner & Office',
-      'Rep',
-      'sp.Order Date (copy)',
-      'sp.SPM Number',
-      'Product Type (Broken Out)',
-      'Measure Names',
-      'Measure Values'
-    ],
-    deduplicateKey: ['sp.SPM Number', 'Product Type (Broken Out)', 'Measure Names']
-  },
-
   'b2b-churn': {
     viewContentUrl: 'ATTTRACKER-B2B/sheets/CHURNRATES',
     customViewId: 'c928f902-8feb-4783-838b-f6df0405a3ed',
@@ -134,15 +116,7 @@ var REPORTS = {
     viewContentUrl: 'ATTTRACKER-B2B/sheets/ACTIVATIONRATES',
     customViewId: 'ff0ac9e9-c421-425e-899e-fed400f567dd',
     tabName: 'Activation Rates',
-    columns: [
-      'Owner & Office',
-      'Activation Color',
-      '0-7 Days',
-      '8-14 Days',
-      '15-30 Days',
-      '31-60 Days'
-    ],
-    deduplicateKey: ['Owner & Office']
+    columns: null
   }
 
   // Future: add NDS reports here
@@ -188,14 +162,6 @@ var TARGETS = [
     sourceTab:    'Activation Rates',
     sheetId:      '115Nn7KbwbdlWFzZPkx_fw2hbNnGXdIsoDk6buSmCsBw',
     tabName:      '_TableauActivationRates',
-    filterColumn: null,
-    campaignType: 'att-b2b'
-  },
-  {
-    reportKey:    'b2b-act-rates-measures',
-    sourceTab:    'B2B Act Rates',
-    sheetId:      '115Nn7KbwbdlWFzZPkx_fw2hbNnGXdIsoDk6buSmCsBw',
-    tabName:      '_TableauActRates',
     filterColumn: null,
     campaignType: 'att-b2b'
   }

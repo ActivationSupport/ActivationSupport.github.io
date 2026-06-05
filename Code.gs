@@ -82,7 +82,11 @@ const TOL_HEADER_MAP = {
   "tier bonus payout/dnq reason": "PAYOUT_REASON", "payout reason": "PAYOUT_REASON",
   "unit count": "UNIT_COUNT", "total volume": "TOTAL_VOLUME",
   "total activations": "TOTAL_ACTS", "total acts": "TOTAL_ACTS",
-  "measure names": "MEASURE_NAMES", "measure values": "MEASURE_VALUES"
+  "measure names": "MEASURE_NAMES", "measure values": "MEASURE_VALUES",
+  "activation bucket": "ACTIVATION_BUCKET",
+  "sales (all)  (activations)": "SALES_ACTS",
+  "sales (all) activation rate": "SALES_ACT_RATE",
+  "sales (all)": "SALES_VOL"
 };
 function buildTableauColumnMap(headerRow) {
   var col = {};
@@ -590,7 +594,7 @@ function doGet(e) {
     if (action === 'readDelivered') return jsonResponse({ orders: readDeliveredNotActive(ss, officeId) });
     if (action === 'readIssues') return jsonResponse({ orders: readOrderIssues(ss, officeId) });
     if (action === 'readCompleted') return jsonResponse({ orders: readCompletedOrders(ss, officeId) });
-    if (action === 'readActRateLines') return jsonResponse({ actRateLines: readActRateLines(ss, officeId), _v: 12 });
+    if (action === 'readActRateLines') return jsonResponse({ actRateLines: readActRateLines(ss, officeId), _v: 13 });
     if (action === 'readNotes') return jsonResponse({ notes: readNotes(ss, officeId) });
     if (action === 'readRatings') return jsonResponse({ ratings: readRatings(ss, officeId) });
     if (action === 'readRepNames') {
@@ -903,34 +907,19 @@ function readAOR(ss) {
 }
 
 function readActRateLines(ss, officeId) {
-  var anchor = new Date(); anchor.setHours(0,0,0,0);
-  var groups = {};
-  var sheetData = _getSheetData(ss, '_TableauActRates'); if (!sheetData || sheetData.length < 2) return [];
+  var sheetData = _getSheetData(ss, '_TableauActivationRates'); if (!sheetData || sheetData.length < 2) return [];
   var col = buildTableauColumnMap(sheetData[0]);
   var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
+  var lines = [];
   for (var i = 0; i < filtered.length; i++) {
     var row = filtered[i];
-    var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
     var rep = String(tCol(row,col,'REP')||'').trim(); if (!rep) continue;
-    var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
-    var diff = Math.floor((anchor.getTime() - od.getTime()) / 86400000);
-    if (diff < 0 || diff > 60) continue;
-    var ptRaw = tCol(row,col,'PRODUCT_TYPE');
-    var product = (ptRaw instanceof Date) ? '' : String(ptRaw||'').trim();
-    var pl = product.toLowerCase();
-    if (pl.indexOf('voip') !== -1 || pl.indexOf('voice') !== -1) continue;
-    var measureName = String(tCol(row,col,'MEASURE_NAMES')||'').trim();
-    var measureValue = Number(tCol(row,col,'MEASURE_VALUES')) || 0;
-    var key = dsi + '|' + product;
-    if (!groups[key]) groups[key] = { rep:rep, diff:diff, product:product||'Unknown', vol:0, acts:0 };
-    if (measureName === 'Total Volume') groups[key].vol = measureValue;
-    if (measureName === 'Total Activations') groups[key].acts = measureValue;
+    var bucket = String(tCol(row,col,'ACTIVATION_BUCKET')||'').trim(); if (!bucket) continue;
+    var vol = Number(tCol(row,col,'SALES_VOL')) || 0;
+    var acts = Number(tCol(row,col,'SALES_ACTS')) || 0;
+    if (vol <= 0) continue;
+    lines.push({ rep:rep, bucket:bucket, vol:vol, acts:acts });
   }
-  var lines = [];
-  Object.keys(groups).forEach(function(k) {
-    var g = groups[k];
-    if (g.vol > 0) lines.push({ rep:g.rep, diff:g.diff, product:g.product, vol:g.vol, acts:g.acts });
-  });
   return lines;
 }
 
