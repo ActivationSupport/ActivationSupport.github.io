@@ -1189,21 +1189,30 @@ function _buildChurnRepMap(rows, repFilter) {
 
 function _churnTableHtml(repList, repMap) {
   function fmtN(n) { return Number(n).toLocaleString(); }
+  function fmtRate(r) {
+    var s = String(r == null ? '' : r).trim();
+    if (s.indexOf('%') !== -1) return s;
+    var n = parseFloat(s);
+    if (isNaN(n)) return '0.0%';
+    // Google Sheets stores "16.2%" as 0.162 — convert back
+    return (n <= 1 ? n * 100 : n).toFixed(1) + '%';
+  }
   function cell(d) {
     if (!d) return '<td class="ar-cell"></td>';
-    return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">('+fmtN(d.disconnects)+'/'+fmtN(d.activated)+')<br>'+esc(d.churnRate)+'</span></td>';
+    return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">('+fmtN(d.disconnects)+'/'+fmtN(d.activated)+')<br>'+fmtRate(d.churnRate)+'</span></td>';
   }
   function totalCell(bkt) {
     var acts=0, disco=0;
     repList.forEach(function(rep){ var d=repMap[rep][bkt]; if(d){acts+=d.activated;disco+=d.disconnects;} });
     if (!acts) return '<td class="ar-cell"></td>';
     var pct = disco/acts*100;
+    var pctR = Math.round(pct*10)/10; // round to 1dp for threshold comparison
     var cls;
-    if      (bkt==='0-30 Day') cls = pct<=2.4 ?'ar-green':pct<=3.0 ?'ar-yellow':'ar-red';
-    else if (bkt==='30 Day')   cls = pct<=4.9 ?'ar-green':pct<=6.9 ?'ar-yellow':'ar-red';
-    else if (bkt==='60 Day')   cls = pct<=8.9 ?'ar-green':pct<=9.9 ?'ar-yellow':'ar-red';
-    else if (bkt==='90 Day')   cls = pct<=10.9?'ar-green':pct<=13.9?'ar-yellow':'ar-red';
-    else if (bkt==='120 Day')  cls = pct<=13.9?'ar-green':pct<=17.9?'ar-yellow':'ar-red';
+    if      (bkt==='0-30 Day') cls = pctR<=2.4 ?'ar-green':pctR<=3.0 ?'ar-yellow':'ar-red';
+    else if (bkt==='30 Day')   cls = pctR<=4.9 ?'ar-green':pctR<=6.9 ?'ar-yellow':'ar-red';
+    else if (bkt==='60 Day')   cls = pctR<=8.9 ?'ar-green':pctR<=9.9 ?'ar-yellow':'ar-red';
+    else if (bkt==='90 Day')   cls = pctR<=10.9?'ar-green':pctR<=13.9?'ar-yellow':'ar-red';
+    else if (bkt==='120 Day')  cls = pctR<=13.9?'ar-green':pctR<=17.9?'ar-yellow':'ar-red';
     else                       cls = 'ar-blue';
     return '<td class="ar-cell"><span class="ar-badge '+cls+'">('+fmtN(disco)+'/'+fmtN(acts)+')<br>'+pct.toFixed(1)+'%</span></td>';
   }
