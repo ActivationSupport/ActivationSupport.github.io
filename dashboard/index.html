@@ -1189,22 +1189,21 @@ function _buildChurnRepMap(rows, repFilter) {
 }
 
 function _churnTableHtml(repList, repMap) {
+  function fmtN(n) { return Number(n).toLocaleString(); }
   function cell(d) {
-    if (!d) return '<td class="ar-cell"><span class="ar-badge" style="opacity:.25">—</span></td>';
-    return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">'+esc(d.churnRate)+'</span>' +
-      '<div class="ar-sub">'+d.activated+' acts · '+d.disconnects+' disco</div></td>';
+    if (!d) return '<td class="ar-cell"></td>';
+    return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">('+fmtN(d.disconnects)+'/'+fmtN(d.activated)+')<br>'+esc(d.churnRate)+'</span></td>';
   }
   function totalCell(bkt) {
     var acts=0, disco=0;
     repList.forEach(function(rep){ var d=repMap[rep][bkt]; if(d){acts+=d.activated;disco+=d.disconnects;} });
-    if (!acts) return '<td class="ar-cell"><span class="ar-badge" style="opacity:.25">—</span></td>';
+    if (!acts) return '<td class="ar-cell"></td>';
     var pct = disco/acts*100;
-    var cls = pct<=5?'ar-green':pct<=12?'ar-yellow':'ar-red';
-    return '<td class="ar-cell"><span class="ar-badge '+cls+'">'+pct.toFixed(1)+'%</span>' +
-      '<div class="ar-sub">'+acts+' acts · '+disco+' disco</div></td>';
+    var cls = pct<6?'ar-green':pct<10?'ar-yellow':'ar-red';
+    return '<td class="ar-cell"><span class="ar-badge '+cls+'">('+fmtN(disco)+'/'+fmtN(acts)+')<br>'+pct.toFixed(1)+'%</span></td>';
   }
   var hdr = '<th style="min-width:160px">Rep</th>' +
-    CHURN_BUCKETS.map(function(b){return '<th style="min-width:100px">'+esc(b)+'</th>';}).join('');
+    CHURN_BUCKETS.map(function(b){return '<th style="min-width:110px">'+esc(b)+'</th>';}).join('');
   var grandRow = SESSION.role!=='rep'
     ? '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+CHURN_BUCKETS.map(totalCell).join('')+'</tr>'
     : '';
