@@ -62,6 +62,7 @@ var REPORTS = {
       'sp.Order Date (copy)',
       'Order Time (Timezone)',
       'sp.SPM Number',
+      'spe.Name',
       'Product Type (Broken Out)',
       'CRU/IRU',
       'DTR Status (enriched)',
@@ -78,7 +79,7 @@ var REPORTS = {
       'Tier Bonus Payout/DNQ Reason',
       'DD Date'
     ],
-    deduplicateKey: ['sp.SPM Number', 'sp.Order Date (copy)', 'Product Type (Broken Out)']
+    deduplicateKey: ['sp.SPM Number', 'spe.Name']
   },
 
   'b2b-churn': {
