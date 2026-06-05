@@ -896,6 +896,40 @@ function listWorkbookViews() {
   }
 }
 
+function testActRatesTotalsDownload() {
+  var config = _getConfig();
+  var auth = _tableauSignIn(config);
+  var VIEW_ID = 'd5efaccd-2962-477d-9897-1c7e51252fc6'; // ACTIVATION RATES dashboard
+  try {
+    var url = config.server + '/api/' + TABLEAU_API_VERSION
+      + '/sites/' + auth.siteId + '/views/' + VIEW_ID + '/data';
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: { 'X-Tableau-Auth': auth.token },
+      muteHttpExceptions: true
+    });
+    var code = resp.getResponseCode();
+    Logger.log('HTTP ' + code);
+    if (code !== 200) { Logger.log(resp.getContentText().substring(0, 300)); return; }
+    var data = _parseCsv(resp.getContentText());
+    Logger.log('Rows: ' + (data.length - 1) + ' | Columns: ' + data[0].length);
+    Logger.log('Headers: ' + JSON.stringify(data[0]));
+    // log unique Rep values
+    var repIdx = data[0].indexOf('Rep');
+    var ownerIdx = data[0].indexOf('Owner & Office');
+    var repVals = {};
+    for (var i = 1; i < Math.min(data.length, 300); i++) {
+      var r = data[i][repIdx] || '', o = (data[i][ownerIdx] || '').substring(0, 40);
+      repVals[r + ' | ' + o] = true;
+    }
+    var keys = Object.keys(repVals);
+    Logger.log('=== ' + keys.length + ' UNIQUE Rep|Office combos (first 300 rows) ===');
+    for (var k = 0; k < keys.length; k++) Logger.log(keys[k]);
+  } finally {
+    _tableauSignOut(config, auth.token);
+  }
+}
+
 function listUniqueOwnerOffice() {
   var config = _getConfig();
   var ss = SpreadsheetApp.openById(config.sheetId);
