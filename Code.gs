@@ -76,7 +76,6 @@ const TOL_HEADER_MAP = {
   "max posted": "MAX_POSTED", "first streaming date": "FIRST_STREAMING",
   "first streaming": "FIRST_STREAMING", "voice line count": "VOICE_LINE_COUNT",
   "spe.tn type": "TN_TYPE", "tn type": "TN_TYPE",
-  "spe.phone": "PHONE", "phone": "PHONE",
   "spe.install date": "INSTALL_DATE", "install date": "INSTALL_DATE",
   "b2b rep volume bonus tiers": "BONUS_TIERS", "bonus tiers": "BONUS_TIERS",
   "tier bonus payout/dnq reason": "PAYOUT_REASON", "payout reason": "PAYOUT_REASON",
@@ -187,7 +186,6 @@ function _buildTolRow(row, col, allRows) {
     orderStatus:   String(tCol(row,col,'ORDER_STATUS')||'').trim(),
     portCarrier:   String(tCol(row,col,'PORT_CARRIER')||'').trim(),
     discoReason:   String(tCol(row,col,'DISCO_REASON')||'').trim(),
-    phone:         String(tCol(row,col,'PHONE')||'').trim(),
     installDate:   String(tCol(row,col,'INSTALL_DATE')||'').trim(),
     unitCount:     Number(tCol(row,col,'UNIT_COUNT'))||0
   };
@@ -1134,7 +1132,7 @@ function readTableauSummary(ss, officeId) {
       }
     }
     s.devices.push({ spe:spe, productType:productType, cruIru:String(tCol(row,col,'CRU_IRU')||'').trim(),
-      dtrStatus:dtrStatus, discoReason:discoReason, phone:String(tCol(row,col,'PHONE')||'').trim(),
+      dtrStatus:dtrStatus, discoReason:discoReason,
       tnType:String(tCol(row,col,'TN_TYPE')||'').trim(), orderStatus:String(tCol(row,col,'ORDER_STATUS')||'').trim(),
       postedDate:String(tCol(row,col,'POSTED_DATE')||'').trim(), installDate:String(tCol(row,col,'INSTALL_DATE')||'').trim(),
       firstStreaming:String(tCol(row,col,'FIRST_STREAMING')||'').trim() });
@@ -1225,7 +1223,7 @@ function readTableauDetail(ss, dsi) {
     var row=data[i]; if (String(tCol(row,col,'DSI')||'').trim()!==targetDsi) continue;
     devices.push({ spe:String(tCol(row,col,'SPE')||'').trim(), productType:String(tCol(row,col,'PRODUCT_TYPE')||'').trim(),
       cruIru:String(tCol(row,col,'CRU_IRU')||'').trim(), dtrStatus:String(tCol(row,col,'DTR_STATUS')||'').trim(),
-      discoReason:String(tCol(row,col,'DISCO_REASON')||'').trim(), phone:String(tCol(row,col,'PHONE')||'').trim(),
+      discoReason:String(tCol(row,col,'DISCO_REASON')||'').trim(),
       tnType:String(tCol(row,col,'TN_TYPE')||'').trim(), orderStatus:String(tCol(row,col,'ORDER_STATUS')||'').trim(),
       postedDate:String(tCol(row,col,'POSTED_DATE')||'').trim(), installDate:String(tCol(row,col,'INSTALL_DATE')||'').trim() });
   }

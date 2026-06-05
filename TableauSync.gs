@@ -70,7 +70,6 @@ var REPORTS = {
       'Order Status',
       'Voice Line Count',
       'spe.TN Type',
-      'spe.Phone',
       'IF/OOF',
       'Package',
       'spe.Install Date',
@@ -79,7 +78,7 @@ var REPORTS = {
       'Tier Bonus Payout/DNQ Reason',
       'DD Date'
     ],
-    deduplicateKey: ['sp.SPM Number', 'spe.Name']
+    deduplicateKey: ['sp.SPM Number', 'sp.Order Date (copy)', 'Product Type (Broken Out)']
   },
 
   'b2b-churn': {
@@ -98,7 +97,6 @@ var REPORTS = {
     columns: [
       'Owner & Office',
       'Rep',
-      'Customer Name',
       'sp.SPM Number',
       'Product Type (Broken out lvl 2)',
       'sp.Order Date (copy)',
@@ -108,7 +106,7 @@ var REPORTS = {
       'SPE.DTR Current Due Date (date)',
       'Unit Count'
     ],
-    deduplicateKey: ['sp.SPM Number', 'Customer Name']
+    deduplicateKey: ['sp.SPM Number', 'sp.Order Date (copy)']
   },
 
   'b2b-activation-rates': {
