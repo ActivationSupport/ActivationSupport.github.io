@@ -859,6 +859,29 @@ function logColumnHeaders() {
   }
 }
 
+function listWorkbookViews() {
+  var config = _getConfig();
+  var auth = _tableauSignIn(config);
+  try {
+    var url = config.server + '/api/' + TABLEAU_API_VERSION
+      + '/sites/' + auth.siteId + '/views'
+      + '?filter=workbookName:eq:ATTTRACKER-B2B&pageSize=100';
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: { 'X-Tableau-Auth': auth.token, 'Accept': 'application/json' },
+      muteHttpExceptions: true
+    });
+    var json = JSON.parse(resp.getContentText());
+    var views = (json.views && json.views.view) ? json.views.view : [];
+    Logger.log('=== ' + views.length + ' VIEWS IN ATTTRACKER-B2B ===');
+    for (var i = 0; i < views.length; i++) {
+      Logger.log('[' + i + '] name="' + views[i].name + '" contentUrl="' + views[i].contentUrl + '"');
+    }
+  } finally {
+    _tableauSignOut(config, auth.token);
+  }
+}
+
 function listUniqueOwnerOffice() {
   var config = _getConfig();
   var ss = SpreadsheetApp.openById(config.sheetId);
