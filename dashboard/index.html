@@ -1199,7 +1199,13 @@ function _churnTableHtml(repList, repMap) {
     repList.forEach(function(rep){ var d=repMap[rep][bkt]; if(d){acts+=d.activated;disco+=d.disconnects;} });
     if (!acts) return '<td class="ar-cell"></td>';
     var pct = disco/acts*100;
-    var cls = pct<6?'ar-green':pct<10?'ar-yellow':'ar-red';
+    var cls;
+    if      (bkt==='0-30 Day') cls = pct<=2.4 ?'ar-green':pct<=3.0 ?'ar-yellow':'ar-red';
+    else if (bkt==='30 Day')   cls = pct<=4.9 ?'ar-green':pct<=6.9 ?'ar-yellow':'ar-red';
+    else if (bkt==='60 Day')   cls = pct<=8.9 ?'ar-green':pct<=9.9 ?'ar-yellow':'ar-red';
+    else if (bkt==='90 Day')   cls = pct<=10.9?'ar-green':pct<=13.9?'ar-yellow':'ar-red';
+    else if (bkt==='120 Day')  cls = pct<=13.9?'ar-green':pct<=17.9?'ar-yellow':'ar-red';
+    else                       cls = 'ar-blue';
     return '<td class="ar-cell"><span class="ar-badge '+cls+'">('+fmtN(disco)+'/'+fmtN(acts)+')<br>'+pct.toFixed(1)+'%</span></td>';
   }
   var hdr = '<th style="min-width:160px">Rep</th>' +
