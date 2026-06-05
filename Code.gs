@@ -647,7 +647,7 @@ function doGet(e) {
       teamCustomizations: readTeamCustomizations(ss, officeId),
       unlockRequests: readUnlockRequests(ss, officeId),
       settings: readSettings(ss, officeId),
-      churnReport: readChurnReport(ss),
+      churnReport: readChurnReport(ss, officeId),
       aorData: readAOR(ss),
       dayAfterOrders: readDayAfterOrders(ss, officeId),
       deliveredOrders: readDeliveredNotActive(ss, officeId),
@@ -876,22 +876,32 @@ function readSettings(ss, officeId) {
   return result;
 }
 
-function readChurnReport(ss) {
-  const sheet=ss.getSheetByName(CHURN_REPORT_TAB); if (!sheet) return [];
-  const data=sheet.getDataRange().getValues(); if (data.length<2) return [];
-  const rawHeaders=data[0].map((h)=>String(h).trim());
-  var metricTypeCol=-1;
-  var KNOWN_METRICS=['Activated SPE/SP','Disconnect count (SPE/SP)','Churn Rate'];
-  for (var ri=1;ri<Math.min(data.length,20);ri++) {
-    for (var ci=0;ci<data[ri].length;ci++) {
-      if (KNOWN_METRICS.indexOf(String(data[ri][ci]||'').trim())!==-1) { metricTypeCol=ci; break; }
-    }
-    if (metricTypeCol!==-1) break;
+function readChurnReport(ss, officeId) {
+  var data = _getSheetData(ss, CHURN_REPORT_TAB); if (!data || data.length < 2) return [];
+  var headers = data[0].map(function(h) { return String(h).trim(); });
+  var bucketIdx = headers.indexOf('Churn Buckets');
+  var officeIdx = -1;
+  for (var hi = 0; hi < headers.length; hi++) {
+    if (headers[hi].toUpperCase() === 'OWNER & OFFICE') { officeIdx = hi; break; }
   }
-  const headers=rawHeaders.map((h,j)=>{ if (j===metricTypeCol) return 'metricType'; return h===''?('_blank_'+j):h; });
-  const rows=[];
-  for (let i=1;i<data.length;i++) {
-    const row={}; headers.forEach((h,j)=>{ row[h]=data[i][j]!==undefined&&data[i][j]!==null?data[i][j]:''; }); rows.push(row);
+  var repIdx   = headers.indexOf('Rep');
+  var colorIdx = headers.indexOf('30-60 Color Churn (copy)');
+  var actIdx   = headers.indexOf('Activated SPE/SP');
+  var rateIdx  = headers.indexOf('Churn Rate');
+  var discoIdx = headers.indexOf('Disconnect count (SPE/SP)');
+  var match = officeId ? (OFFICE_OWNER_MAP[officeId] || '').toLowerCase() : '';
+  var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (match && officeIdx !== -1 && String(row[officeIdx]||'').toLowerCase().indexOf(match) === -1) continue;
+    rows.push({
+      bucket:      String(row[bucketIdx] || '').trim(),
+      rep:         String(row[repIdx]    || '').trim(),
+      color:       String(row[colorIdx]  || '').trim(),
+      activated:   Number(row[actIdx])   || 0,
+      churnRate:   String(row[rateIdx]   || '').trim(),
+      disconnects: Number(row[discoIdx]) || 0
+    });
   }
   return rows;
 }

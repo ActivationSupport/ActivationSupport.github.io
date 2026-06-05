@@ -86,8 +86,7 @@ var REPORTS = {
     viewContentUrl: 'ATTTRACKER-B2B/sheets/CHURNRATES',
     customViewId: 'c928f902-8feb-4783-838b-f6df0405a3ed',
     tabName: 'Churn Rates',
-    columns: null,  // null = pull ALL columns
-    deduplicateKey: ['Rep', 'Churn Buckets']
+    columns: null
   },
 
   'b2b-aor': {
@@ -925,6 +924,70 @@ function testActRatesTotalsDownload() {
     var keys = Object.keys(repVals);
     Logger.log('=== ' + keys.length + ' UNIQUE Rep|Office combos (first 300 rows) ===');
     for (var k = 0; k < keys.length; k++) Logger.log(keys[k]);
+  } finally {
+    _tableauSignOut(config, auth.token);
+  }
+}
+
+function testChurnCustomView() {
+  var config = _getConfig();
+  var auth = _tableauSignIn(config);
+  var CUSTOM_VIEW_ID = 'c928f902-8feb-4783-838b-f6df0405a3ed'; // existing b2b-churn custom view
+  try {
+    Logger.log('Testing custom view: ' + CUSTOM_VIEW_ID);
+    var csv = _downloadCustomViewData(config, auth.token, auth.siteId, CUSTOM_VIEW_ID);
+    var data = _parseCsv(csv);
+    Logger.log('Rows: ' + (data.length - 1) + ' | Columns: ' + data[0].length);
+    Logger.log('=== HEADERS ===');
+    Logger.log(JSON.stringify(data[0]));
+    Logger.log('=== SAMPLE ROWS (first 8) ===');
+    for (var i = 1; i <= Math.min(8, data.length - 1); i++) {
+      Logger.log('Row ' + i + ': ' + JSON.stringify(data[i]));
+    }
+  } catch (e) {
+    Logger.log('Custom view failed: ' + e.message);
+  } finally {
+    _tableauSignOut(config, auth.token);
+  }
+}
+
+function testChurnDownload() {
+  var config = _getConfig();
+  var auth = _tableauSignIn(config);
+  var VIEW_ID = '728d4433-de48-42c8-9bdc-eecd31e79c2a'; // CHURN RATES view
+  try {
+    var url = config.server + '/api/' + TABLEAU_API_VERSION
+      + '/sites/' + auth.siteId + '/views/' + VIEW_ID + '/data';
+    Logger.log('Fetching: ' + url);
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: { 'X-Tableau-Auth': auth.token },
+      muteHttpExceptions: true
+    });
+    var code = resp.getResponseCode();
+    Logger.log('HTTP ' + code);
+    if (code !== 200) { Logger.log(resp.getContentText().substring(0, 300)); return; }
+    var data = _parseCsv(resp.getContentText());
+    Logger.log('Rows: ' + (data.length - 1) + ' | Columns: ' + data[0].length);
+    Logger.log('=== HEADERS ===');
+    Logger.log(JSON.stringify(data[0]));
+    Logger.log('=== SAMPLE ROWS (first 5) ===');
+    for (var i = 1; i <= Math.min(5, data.length - 1); i++) {
+      var row = {};
+      for (var j = 0; j < data[0].length; j++) row[data[0][j]] = data[i][j];
+      Logger.log('Row ' + i + ': ' + JSON.stringify(row));
+    }
+    // Unique values in each column (to understand structure)
+    Logger.log('=== UNIQUE VALUES PER COLUMN (up to 10 each) ===');
+    for (var c = 0; c < data[0].length; c++) {
+      var seen = {}, vals = [];
+      for (var r = 1; r < data.length; r++) {
+        var v = String(data[r][c] || '').trim();
+        if (v && !seen[v]) { seen[v] = true; vals.push(v); }
+        if (vals.length >= 10) break;
+      }
+      Logger.log('"' + data[0][c] + '": [' + vals.join(', ') + ']');
+    }
   } finally {
     _tableauSignOut(config, auth.token);
   }
