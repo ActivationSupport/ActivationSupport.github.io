@@ -864,8 +864,7 @@ function listWorkbookViews() {
   var auth = _tableauSignIn(config);
   try {
     var url = config.server + '/api/' + TABLEAU_API_VERSION
-      + '/sites/' + auth.siteId + '/views'
-      + '?filter=workbookName:eq:ATTTRACKER-B2B&pageSize=100';
+      + '/sites/' + auth.siteId + '/views?pageSize=200';
     var resp = UrlFetchApp.fetch(url, {
       method: 'get',
       headers: { 'X-Tableau-Auth': auth.token, 'Accept': 'application/json' },
@@ -873,9 +872,12 @@ function listWorkbookViews() {
     });
     var json = JSON.parse(resp.getContentText());
     var views = (json.views && json.views.view) ? json.views.view : [];
-    Logger.log('=== ' + views.length + ' VIEWS IN ATTTRACKER-B2B ===');
-    for (var i = 0; i < views.length; i++) {
-      Logger.log('[' + i + '] name="' + views[i].name + '" contentUrl="' + views[i].contentUrl + '"');
+    var matched = views.filter(function(v) {
+      return v.contentUrl && v.contentUrl.toUpperCase().indexOf('ATTTRACKER') !== -1;
+    });
+    Logger.log('=== ' + matched.length + ' ATTTRACKER VIEWS (of ' + views.length + ' total) ===');
+    for (var i = 0; i < matched.length; i++) {
+      Logger.log('[' + i + '] name="' + matched[i].name + '" contentUrl="' + matched[i].contentUrl + '"');
     }
   } finally {
     _tableauSignOut(config, auth.token);
