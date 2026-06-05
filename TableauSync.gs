@@ -863,21 +863,33 @@ function listWorkbookViews() {
   var config = _getConfig();
   var auth = _tableauSignIn(config);
   try {
-    var url = config.server + '/api/' + TABLEAU_API_VERSION
-      + '/sites/' + auth.siteId + '/views?pageSize=200';
-    var resp = UrlFetchApp.fetch(url, {
+    // Step 1: find the ATTTRACKER-B2B workbook ID
+    var wbUrl = config.server + '/api/' + TABLEAU_API_VERSION
+      + '/sites/' + auth.siteId + '/workbooks?filter=contentUrl:eq:ATTTRACKER-B2B&pageSize=10';
+    var wbResp = UrlFetchApp.fetch(wbUrl, {
       method: 'get',
       headers: { 'X-Tableau-Auth': auth.token, 'Accept': 'application/json' },
       muteHttpExceptions: true
     });
-    var json = JSON.parse(resp.getContentText());
-    var views = (json.views && json.views.view) ? json.views.view : [];
-    var matched = views.filter(function(v) {
-      return v.contentUrl && v.contentUrl.toUpperCase().indexOf('ATTTRACKER') !== -1;
+    var wbJson = JSON.parse(wbResp.getContentText());
+    var workbooks = (wbJson.workbooks && wbJson.workbooks.workbook) ? wbJson.workbooks.workbook : [];
+    if (!workbooks.length) { Logger.log('Workbook ATTTRACKER-B2B not found'); return; }
+    var workbookId = workbooks[0].id;
+    Logger.log('Workbook: "' + workbooks[0].name + '" id=' + workbookId);
+
+    // Step 2: list all views in that workbook
+    var vUrl = config.server + '/api/' + TABLEAU_API_VERSION
+      + '/sites/' + auth.siteId + '/workbooks/' + workbookId + '/views';
+    var vResp = UrlFetchApp.fetch(vUrl, {
+      method: 'get',
+      headers: { 'X-Tableau-Auth': auth.token, 'Accept': 'application/json' },
+      muteHttpExceptions: true
     });
-    Logger.log('=== ' + matched.length + ' ATTTRACKER VIEWS (of ' + views.length + ' total) ===');
-    for (var i = 0; i < matched.length; i++) {
-      Logger.log('[' + i + '] name="' + matched[i].name + '" contentUrl="' + matched[i].contentUrl + '"');
+    var vJson = JSON.parse(vResp.getContentText());
+    var views = (vJson.views && vJson.views.view) ? vJson.views.view : [];
+    Logger.log('=== ' + views.length + ' VIEWS IN WORKBOOK ===');
+    for (var i = 0; i < views.length; i++) {
+      Logger.log('[' + i + '] name="' + views[i].name + '" contentUrl="' + views[i].contentUrl + '" id="' + views[i].id + '"');
     }
   } finally {
     _tableauSignOut(config, auth.token);
