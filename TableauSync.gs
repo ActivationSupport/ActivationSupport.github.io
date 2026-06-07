@@ -62,6 +62,7 @@ var REPORTS = {
       'sp.Order Date (copy)',
       'Order Time (Timezone)',
       'sp.SPM Number',
+      'spe.Name',
       'Product Type (Broken Out)',
       'CRU/IRU',
       'DTR Status (enriched)',
@@ -70,7 +71,6 @@ var REPORTS = {
       'Order Status',
       'Voice Line Count',
       'spe.TN Type',
-      'spe.Phone',
       'IF/OOF',
       'Package',
       'spe.Install Date',
@@ -98,7 +98,6 @@ var REPORTS = {
     columns: [
       'Owner & Office',
       'Rep',
-      'Customer Name',
       'sp.SPM Number',
       'Product Type (Broken out lvl 2)',
       'sp.Order Date (copy)',
@@ -108,7 +107,7 @@ var REPORTS = {
       'SPE.DTR Current Due Date (date)',
       'Unit Count'
     ],
-    deduplicateKey: ['sp.SPM Number', 'Customer Name']
+    deduplicateKey: ['sp.SPM Number', 'sp.Order Date (copy)']
   },
 
   'b2b-activation-rates': {
