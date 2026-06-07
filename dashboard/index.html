@@ -1333,11 +1333,12 @@ function drSelectDate(date) {
 
 function drRefresh() {
   _DR_LOADING = true;
+  var selDate = _DR_SEL_DATE || _drTodayStr();
   var c = document.getElementById('main-content');
-  if (c) c.innerHTML = '<div class="card"><div class="card-body"><div class="empty">Generating report… this may take a moment.</div></div></div>';
-  apiPost({action:'generateDailyReport'}).then(function() {
+  if (c) c.innerHTML = '<div class="card"><div class="card-body"><div class="empty">Generating report for '+esc(selDate)+'… this may take a moment.</div></div></div>';
+  apiPost({action:'generateDailyReport', date:selDate}).then(function() {
     _DR_DATA = undefined;
-    return api({action:'readDailyReport', date:_DR_SEL_DATE||_drTodayStr()});
+    return api({action:'readDailyReport', date:selDate});
   }).then(function(r) {
     _DR_DATA = (r && r.report) ? r.report : null;
     _DR_LOADING = false;

@@ -950,12 +950,18 @@ function _getDailyReportSheet(ss, officeId) {
   return sheet;
 }
 
-function generateDailyReport(ss, officeId) {
-  var today = new Date(); today.setHours(0,0,0,0);
-  var todayStr = today.toISOString().split('T')[0];
-  var tomorrow = new Date(today.getTime() + 86400000);
+function generateDailyReport(ss, officeId, targetDateStr) {
+  // targetDateStr is YYYY-MM-DD; if omitted, defaults to today
+  var refDate;
+  if (targetDateStr) {
+    refDate = new Date(targetDateStr + 'T12:00:00'); refDate.setHours(0,0,0,0);
+  } else {
+    refDate = new Date(); refDate.setHours(0,0,0,0);
+  }
+  var todayStr = refDate.toISOString().split('T')[0];
+  var refTomorrow = new Date(refDate.getTime() + 86400000);
 
-  // TODAY'S NOTES — filter _Notes_ to entries timestamped today
+  // NOTES — filter _Notes_ to entries timestamped on refDate
   var notesSheet = ss.getSheetByName('_Notes_' + officeId);
   var todayNotes = [], todayDsiSet = {};
   if (notesSheet) {
@@ -964,14 +970,39 @@ function generateDailyReport(ss, officeId) {
       var dsi = String(nd[i][0]||'').trim(); if (!dsi) continue;
       var ts = nd[i][1] instanceof Date ? nd[i][1] : (nd[i][1] ? new Date(nd[i][1]) : null);
       if (!ts || isNaN(ts.getTime())) continue;
-      if (ts < today || ts >= tomorrow) continue;
+      if (ts < refDate || ts >= refTomorrow) continue;
       todayDsiSet[dsi] = true;
       todayNotes.push({ dsi:dsi, ts:ts.toISOString(), authorName:String(nd[i][3]||'').trim(), noteText:String(nd[i][4]||'').trim(), noteType:String(nd[i][5]||'activation').trim() });
     }
   }
 
-  // CALL LISTS
-  var dayAfterOrders  = readDayAfterOrders(ss, officeId);
+  // DAY-AFTER ORDERS — computed relative to refDate (not real today)
+  // If refDate is Monday: targets = Fri+Sat+Sun; otherwise: day before refDate
+  var dow = refDate.getDay();
+  var daTargets = dow===1
+    ? [new Date(refDate.getTime()-3*86400000).getTime(), new Date(refDate.getTime()-2*86400000).getTime(), new Date(refDate.getTime()-1*86400000).getTime()]
+    : [new Date(refDate.getTime()-86400000).getTime()];
+  var daDsiRows={}, daDsiCols={}, daTolDsis={};
+  var daTabs = [TABLEAU_TAB, AOR_TAB];
+  for (var dt=0; dt<daTabs.length; dt++) {
+    var daSD = _getSheetData(ss, daTabs[dt]); if (!daSD||daSD.length<2) continue;
+    var daCol = buildTableauColumnMap(daSD[0]);
+    var daFiltered = _filterByOffice(daSD.slice(1), daCol, officeId);
+    for (var dfi=0; dfi<daFiltered.length; dfi++) {
+      var daRow = daFiltered[dfi];
+      var daDsi = String(tCol(daRow,daCol,'DSI')||'').trim(); if (!daDsi) continue;
+      if (dt===1 && daTolDsis[daDsi]) continue;
+      var daOd = _parseDateLocal(tCol(daRow,daCol,'ORDER_DATE')); if (!daOd) continue;
+      if (daTargets.indexOf(daOd.getTime())===-1) continue;
+      if (!daDsiRows[daDsi]) { daDsiRows[daDsi]=[]; daDsiCols[daDsi]=daCol; }
+      daDsiRows[daDsi].push(daRow);
+    }
+    if (dt===0) Object.keys(daDsiRows).forEach(function(d){ daTolDsis[d]=true; });
+  }
+  var dayAfterOrders = [];
+  Object.keys(daDsiRows).forEach(function(d){ dayAfterOrders.push(_buildTolRow(daDsiRows[d][0], daDsiCols[d], daDsiRows[d])); });
+
+  // REMAINING CALL LISTS — current pipeline state (sheet doesn't store historical snapshots)
   var deliveredOrders = readDeliveredNotActive(ss, officeId);
   var orderIssues     = readOrderIssues(ss, officeId);
   var ratings         = readRatings(ss, officeId);
@@ -1124,6 +1155,8 @@ function getDailyReportDates(ss, officeId) {
 }
 
 function runNightlyDailyReports() {
+  var dow = new Date().getDay();
+  if (dow===0||dow===6) return; // skip Saturday (6) and Sunday (0)
   var sheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID')||'';
   var ss = sheetId ? SpreadsheetApp.openById(sheetId) : SpreadsheetApp.getActiveSpreadsheet();
   Object.keys(OFFICE_OWNER_MAP).forEach(function(officeId) {
@@ -1489,7 +1522,7 @@ function doPost(e) {
       case 'saveChallengeConfig': result=writeChallengeConfig(body,ss,officeId); break;
       case 'endChallenge':        result=writeEndChallenge(body,ss,officeId); break;
       case 'calculateBlood':      result=writeCalculateBlood(body,ss,officeId); break;
-      case 'generateDailyReport': result=generateDailyReport(ss,officeId); break;
+      case 'generateDailyReport': result=generateDailyReport(ss,officeId,body.date||null); break;
       case 'createOfficeTabs':    result=createOfficeTabs(body,ss); break;
       case 'migrateFromLegacy':   result=migrateFromLegacy(ss,officeId); break;
       case 'migrateFromExternal': result=migrateFromExternal(body,ss); break;
