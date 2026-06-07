@@ -631,6 +631,11 @@ function doGet(e) {
       var vaa = {}; vaa.email = (e.parameter && e.parameter.email) || ''; vaa.pin = (e.parameter && e.parameter.pin) || '';
       return jsonResponse(writeValidateAdminAccess(vaa, ss));
     }
+    if (action === 'getDailyReportDates') return jsonResponse({ dates: getDailyReportDates(ss, officeId) });
+    if (action === 'readDailyReport') {
+      var rdrDate = (e.parameter && e.parameter.date) || new Date().toISOString().split('T')[0];
+      return jsonResponse({ report: readDailyReport(ss, officeId, rdrDate) });
+    }
     let roster = readRoster(ss, officeId);
     const teamMaps = buildTeamEmojiMaps(ss, officeId);
     const peopleResult = readPeople(ss, officeId, roster, teamMaps.nameMap);
@@ -930,6 +935,206 @@ function readActRateLines(ss, officeId) {
     lines.push({ rep:rep, bucket:bucket, vol:vol, acts:acts });
   }
   return lines;
+}
+
+// ── DAILY REPORT ──────────────────────────────────────────────────────────
+function _getDailyReportSheet(ss, officeId) {
+  var tabName = '_DailyReports_' + officeId;
+  var sheet = ss.getSheetByName(tabName);
+  if (!sheet) {
+    sheet = ss.insertSheet(tabName);
+    sheet.appendRow(['date','generatedAt','reportJson']);
+    sheet.getRange(1,1,1,3).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function generateDailyReport(ss, officeId) {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var todayStr = today.toISOString().split('T')[0];
+  var tomorrow = new Date(today.getTime() + 86400000);
+
+  // TODAY'S NOTES — filter _Notes_ to entries timestamped today
+  var notesSheet = ss.getSheetByName('_Notes_' + officeId);
+  var todayNotes = [], todayDsiSet = {};
+  if (notesSheet) {
+    var nd = notesSheet.getDataRange().getValues();
+    for (var i = 1; i < nd.length; i++) {
+      var dsi = String(nd[i][0]||'').trim(); if (!dsi) continue;
+      var ts = nd[i][1] instanceof Date ? nd[i][1] : (nd[i][1] ? new Date(nd[i][1]) : null);
+      if (!ts || isNaN(ts.getTime())) continue;
+      if (ts < today || ts >= tomorrow) continue;
+      todayDsiSet[dsi] = true;
+      todayNotes.push({ dsi:dsi, ts:ts.toISOString(), authorName:String(nd[i][3]||'').trim(), noteText:String(nd[i][4]||'').trim(), noteType:String(nd[i][5]||'activation').trim() });
+    }
+  }
+
+  // CALL LISTS
+  var dayAfterOrders  = readDayAfterOrders(ss, officeId);
+  var deliveredOrders = readDeliveredNotActive(ss, officeId);
+  var orderIssues     = readOrderIssues(ss, officeId);
+  var ratings         = readRatings(ss, officeId);
+  var escDsis = Object.keys(ratings).filter(function(d){ return ratings[d]==='1 Star'||ratings[d]==='2 Stars'; });
+
+  var dayAfterDsiSet={}, deliveredDsiSet={}, issuesDsiSet={}, escDsiSet={};
+  dayAfterOrders.forEach(function(o){ if(o.dsi) dayAfterDsiSet[o.dsi]=true; });
+  deliveredOrders.forEach(function(o){ if(o.dsi) deliveredDsiSet[o.dsi]=true; });
+  orderIssues.forEach(function(o){ if(o.dsi) issuesDsiSet[o.dsi]=true; });
+  escDsis.forEach(function(d){ escDsiSet[d]=true; });
+
+  // Categorize today's notes by which call list the DSI belongs to
+  todayNotes.forEach(function(n) {
+    if      (escDsiSet[n.dsi])       n.category = 'escalation';
+    else if (dayAfterDsiSet[n.dsi])  n.category = 'dayafter';
+    else if (deliveredDsiSet[n.dsi]) n.category = 'delivered';
+    else if (issuesDsiSet[n.dsi])    n.category = 'issues';
+    else                             n.category = 'other';
+  });
+
+  var callCategories = {
+    dayAfterTotal:     dayAfterOrders.length,
+    dayAfterWorked:    dayAfterOrders.filter(function(o){ return o.dsi&&todayDsiSet[o.dsi]; }).length,
+    dayAfterNoAnswer:  dayAfterOrders.filter(function(o){ return o.dsi&&todayDsiSet[o.dsi]&&ratings[o.dsi]==='No Answer'; }).length,
+    deliveredWorked:   deliveredOrders.filter(function(o){ return o.dsi&&todayDsiSet[o.dsi]; }).length,
+    issuesWorked:      orderIssues.filter(function(o){ return o.dsi&&todayDsiSet[o.dsi]; }).length,
+    escalationsWorked: escDsis.filter(function(d){ return todayDsiSet[d]; }).length
+  };
+
+  // STATUS BREAKDOWN — Master Tracker pool (non-fully-completed DSIs, 120-day window)
+  var statusCustRows={}, statusTotalLines={};
+  var tolData = _getSheetData(ss, TABLEAU_TAB);
+  if (tolData && tolData.length >= 2) {
+    var sbCol = buildTableauColumnMap(tolData[0]);
+    var cutoff120 = new Date(today.getTime() - 119*86400000);
+    var dsiLineMap = {};
+    _filterByOffice(tolData.slice(1), sbCol, officeId).forEach(function(row) {
+      var d = String(tCol(row,sbCol,'DSI')||'').trim(); if (!d) return;
+      var od = _parseDateLocal(tCol(row,sbCol,'ORDER_DATE')); if (!od||od<cutoff120) return;
+      if (!dsiLineMap[d]) dsiLineMap[d] = [];
+      dsiLineMap[d].push(row);
+    });
+    Object.keys(dsiLineMap).forEach(function(d) {
+      var rows = dsiLineMap[d];
+      if (rows.every(function(r){ return _isExcludedStatus(tCol(r,sbCol,'DTR_STATUS')); })) return;
+      var seen = {};
+      rows.forEach(function(r) {
+        var st = String(tCol(r,sbCol,'DTR_STATUS')||'').trim()||'Null';
+        statusTotalLines[st] = (statusTotalLines[st]||0)+1;
+        if (!seen[st]) { seen[st]=true; statusCustRows[st]=(statusCustRows[st]||0)+1; }
+      });
+    });
+  }
+  var ST_ORDER = ['Porting Issue','Port Approved','Pending Order Port','Pending Shipment','Pending','Delivered','Shipped','Scheduled','BYOD','Null','Active','Backordered','Open','Posted','Canceled','Disconnected'];
+  var allSt = Object.keys(statusCustRows).sort(function(a,b){ var ia=ST_ORDER.indexOf(a),ib=ST_ORDER.indexOf(b); return (ia<0?999:ia)-(ib<0?999:ib); });
+  var totCust=0, totLines=0;
+  var statusBreakdown = allSt.map(function(s){ totCust+=statusCustRows[s]||0; totLines+=statusTotalLines[s]||0; return {status:s,customerRows:statusCustRows[s]||0,totalLines:statusTotalLines[s]||0}; });
+  statusBreakdown.push({status:'TOTAL',customerRows:totCust,totalLines:totLines});
+
+  // ACTIVATION BUCKETS — sum Sales(All) per bucket from _TableauActivationRates
+  var AR_BUCKETS = ['0-7 Days','8-14 Days','15-30 Days','31-60 Days'];
+  var arData = _getSheetData(ss, ACTIVATION_RATES_TAB);
+  var bktVol={}, bktActs={}, repArMap={};
+  if (arData && arData.length >= 2) {
+    var arCol = buildTableauColumnMap(arData[0]);
+    _filterByOffice(arData.slice(1), arCol, officeId).forEach(function(row) {
+      var rep=String(tCol(row,arCol,'REP')||'').trim(); if (!rep) return;
+      var bkt=String(tCol(row,arCol,'ACTIVATION_BUCKET')||'').trim(); if (!bkt) return;
+      var vol=Number(tCol(row,arCol,'SALES_VOL'))||0, acts=Number(tCol(row,arCol,'SALES_ACTS'))||0;
+      if (vol<=0) return;
+      bktVol[bkt]=(bktVol[bkt]||0)+vol; bktActs[bkt]=(bktActs[bkt]||0)+acts;
+      if (!repArMap[rep]) repArMap[rep]={};
+      repArMap[rep][bkt]={vol:vol,acts:acts};
+    });
+  }
+  var activationBuckets = AR_BUCKETS.map(function(b){ return {bucket:b,vol:bktVol[b]||0,acts:bktActs[b]||0}; });
+  var officeArTotal={}; AR_BUCKETS.forEach(function(b){ officeArTotal[b]={vol:bktVol[b]||0,acts:bktActs[b]||0}; });
+  var repArList = Object.keys(repArMap).sort(function(a,b){
+    var da=repArMap[a]['8-14 Days']||{vol:0,acts:0}, db=repArMap[b]['8-14 Days']||{vol:0,acts:0};
+    var ra=da.vol>0?da.acts/da.vol:1, rb=db.vol>0?db.acts/db.vol:1; return ra-rb;
+  });
+  var bottom5Ar = repArList.slice(0,5).map(function(rep){ return {rep:rep,buckets:repArMap[rep]}; });
+
+  // CHURN — top 5 reps by 0-30 Day churn rate
+  var churnRows = readChurnReport(ss, officeId);
+  var repChurnMap={}, officeTotalChurn={};
+  churnRows.forEach(function(r) {
+    if (!r.rep||!r.bucket) return;
+    if (!repChurnMap[r.rep]) repChurnMap[r.rep]={};
+    repChurnMap[r.rep][r.bucket]={acts:r.activated,disco:r.disconnects,color:r.color};
+    if (!officeTotalChurn[r.bucket]) officeTotalChurn[r.bucket]={acts:0,disco:0};
+    officeTotalChurn[r.bucket].acts  += r.activated;
+    officeTotalChurn[r.bucket].disco += r.disconnects;
+  });
+  var repChurnList = Object.keys(repChurnMap).sort(function(a,b){
+    var ba=repChurnMap[a]['0-30 Day']||{acts:0,disco:0}, bb=repChurnMap[b]['0-30 Day']||{acts:0,disco:0};
+    var ra=ba.acts>0?ba.disco/ba.acts:0, rb=bb.acts>0?bb.disco/bb.acts:0; return rb-ra;
+  });
+  var top5Churn = repChurnList.slice(0,5).map(function(rep){ return {rep:rep,buckets:repChurnMap[rep]}; });
+
+  // ESCALATIONS — 1-2 star DSIs with today's notes
+  var escalations = escDsis.map(function(d){ return {dsi:d,rating:ratings[d],todayNotes:todayNotes.filter(function(n){ return n.dsi===d; })}; });
+
+  var report = {
+    date:todayStr, generatedAt:new Date().toISOString(),
+    statusBreakdown:statusBreakdown, activationBuckets:activationBuckets,
+    callCategories:callCategories,
+    repActivation:{officeTotal:officeArTotal,bottom5:bottom5Ar},
+    repChurn:{officeTotal:officeTotalChurn,top5:top5Churn},
+    escalations:escalations, todayNotes:todayNotes
+  };
+
+  // SAVE — upsert row by date in _DailyReports_<officeId>
+  var drSheet = _getDailyReportSheet(ss, officeId);
+  var drData  = drSheet.getDataRange().getValues();
+  var nowStr  = new Date().toISOString();
+  var rJson   = JSON.stringify(report);
+  for (var ri = 1; ri < drData.length; ri++) {
+    if (String(drData[ri][0]).trim() === todayStr) {
+      drSheet.getRange(ri+1,1,1,3).setValues([[todayStr,nowStr,rJson]]);
+      return {ok:true,date:todayStr,action:'updated'};
+    }
+  }
+  drSheet.appendRow([todayStr,nowStr,rJson]);
+
+  // Auto-purge rows older than 365 days
+  var cutoff365 = new Date(today.getTime()-365*86400000).toISOString().split('T')[0];
+  var fresh = drSheet.getDataRange().getValues(); var toDel=[];
+  for (var fi=1;fi<fresh.length;fi++) { if (String(fresh[fi][0]).trim()<cutoff365) toDel.push(fi+1); }
+  for (var di=toDel.length-1;di>=0;di--) drSheet.deleteRow(toDel[di]);
+
+  return {ok:true,date:todayStr,action:'created'};
+}
+
+function readDailyReport(ss, officeId, date) {
+  var sheet = ss.getSheetByName('_DailyReports_'+officeId); if (!sheet) return null;
+  var data = sheet.getDataRange().getValues();
+  for (var i=1;i<data.length;i++) {
+    if (String(data[i][0]).trim()===date) { try { return JSON.parse(String(data[i][2])); } catch(e) { return null; } }
+  }
+  return null;
+}
+
+function getDailyReportDates(ss, officeId) {
+  var sheet = ss.getSheetByName('_DailyReports_'+officeId); if (!sheet) return [];
+  var data = sheet.getDataRange().getValues(); var dates=[];
+  for (var i=1;i<data.length;i++) { var d=String(data[i][0]).trim(); if (d) dates.push(d); }
+  dates.sort(function(a,b){ return b.localeCompare(a); });
+  return dates;
+}
+
+function runNightlyDailyReports() {
+  var sheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID')||'';
+  var ss = sheetId ? SpreadsheetApp.openById(sheetId) : SpreadsheetApp.getActiveSpreadsheet();
+  Object.keys(OFFICE_OWNER_MAP).forEach(function(officeId) {
+    try { generateDailyReport(ss, officeId); } catch(e) { Logger.log('Daily report error '+officeId+': '+e.message); }
+  });
+}
+
+function setupDailyReportTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function(t){ if (t.getHandlerFunction()==='runNightlyDailyReports') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('runNightlyDailyReports').timeBased().atHour(1).nearMinute(30).everyDays(1).create();
+  return {ok:true};
 }
 
 function writeSetting(body, ss, officeId) {
@@ -1284,6 +1489,7 @@ function doPost(e) {
       case 'saveChallengeConfig': result=writeChallengeConfig(body,ss,officeId); break;
       case 'endChallenge':        result=writeEndChallenge(body,ss,officeId); break;
       case 'calculateBlood':      result=writeCalculateBlood(body,ss,officeId); break;
+      case 'generateDailyReport': result=generateDailyReport(ss,officeId); break;
       case 'createOfficeTabs':    result=createOfficeTabs(body,ss); break;
       case 'migrateFromLegacy':   result=migrateFromLegacy(ss,officeId); break;
       case 'migrateFromExternal': result=migrateFromExternal(body,ss); break;
