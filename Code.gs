@@ -1131,6 +1131,7 @@ function generateDailyReport(ss, officeId, targetDateStr) {
     var arCol=buildTableauColumnMap(arData[0]);
     _filterByOffice(arData.slice(1),arCol,officeId).forEach(function(row){
       var rep=String(tCol(row,arCol,'REP')||'').trim(); if (!rep) return;
+      if (rep.toLowerCase()==='grand total') return;
       var bkt=String(tCol(row,arCol,'ACTIVATION_BUCKET')||'').trim(); if (!bkt) return;
       var vol=Number(tCol(row,arCol,'SALES_VOL'))||0,acts=Number(tCol(row,arCol,'SALES_ACTS'))||0;
       if (vol<=0) return;
@@ -1152,6 +1153,7 @@ function generateDailyReport(ss, officeId, targetDateStr) {
   var repChurnMap={},officeTotalChurn={};
   churnRows.forEach(function(r){
     if (!r.rep||!r.bucket) return;
+    if (r.rep.toLowerCase()==='grand total') return;
     if (!repChurnMap[r.rep]) repChurnMap[r.rep]={};
     repChurnMap[r.rep][r.bucket]={acts:r.activated,disco:r.disconnects,color:r.color};
     if (!officeTotalChurn[r.bucket]) officeTotalChurn[r.bucket]={acts:0,disco:0};
