@@ -247,6 +247,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-date-sel:focus{outline:none;border-color:var(--blue2)}
 .dr-refresh-btn{padding:.3rem .75rem;background:var(--blue2);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer}
 .dr-refresh-btn:hover{opacity:.85}
+.dr-copy-btn{padding:.3rem .75rem;background:#334155;color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer}
+.dr-copy-btn:hover{opacity:.85}
 .dr-gents{font-size:.73rem;color:#555;display:block;margin-top:.25rem}
 .dr-body{display:flex;flex-direction:column;gap:1.5rem;padding-top:.5rem}
 .dr-section{}
@@ -1374,6 +1376,7 @@ function _drBuildHtml() {
     '<div class="dr-controls">'+
       (opts.length?'<select class="dr-date-sel" onchange="drSelectDate(this.value)">'+opts.join('')+'</select>':'')+
       '<button class="dr-refresh-btn" onclick="drRefresh()">⟳ Refresh</button>'+
+      '<button class="dr-copy-btn" onclick="drCopyEmail()">📧 Copy for Email</button>'+
     '</div></div>';
 
   if (!rpt) {
@@ -1595,6 +1598,171 @@ function _drSectionEscalations(list) {
   return '<div class="dr-section"><div class="dr-sec-hdr">Escalations That Day '+
     '<span class="dr-subhdr">'+list.length+' orders rated 1–2 Stars</span></div>'+
     '<table class="dr-table"><thead><tr><th>Rating</th><th>DSI</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+
+// ── EMAIL COPY ───────────────────────────────────────────────────────────
+function drCopyEmail() {
+  if (!_DR_DATA) { _drToast('Generate a report first.'); return; }
+  var html = _drBuildEmailHtml();
+  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+    navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'})})]).then(function(){
+      _drToast('Copied! Paste into your email.');
+    }).catch(function(){ _drFallbackCopy(html); });
+  } else { _drFallbackCopy(html); }
+}
+function _drFallbackCopy(html) {
+  var el=document.createElement('div');
+  el.innerHTML=html;
+  el.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:.01;';
+  document.body.appendChild(el);
+  var r=document.createRange(); r.selectNodeContents(el);
+  var s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  try { document.execCommand('copy'); _drToast('Copied! Paste into your email.'); }
+  catch(e) { _drToast('Copy failed — try Chrome or Edge.'); }
+  s.removeAllRanges(); document.body.removeChild(el);
+}
+function _drToast(msg) {
+  var t=document.createElement('div');
+  t.textContent=msg;
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f8fafc;padding:10px 20px;border-radius:8px;font-size:14px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:none';
+  document.body.appendChild(t);
+  setTimeout(function(){if(document.body.contains(t))document.body.removeChild(t);},3000);
+}
+
+function _drBuildEmailHtml() {
+  var rpt=_DR_DATA; if (!rpt) return '';
+  var selDate=_DR_SEL_DATE||_drTodayStr();
+  var d=new Date(selDate+'T12:00:00');
+  var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var dayLabel=DN[d.getDay()]+', '+MN[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+
+  var TBL='border-collapse:collapse;width:100%;font-size:12px;margin:0';
+  var TH='border:1px solid #cbd5e1;padding:5px 9px;background:#f1f5f9;color:#0f172a;font-weight:700;text-align:left;white-space:nowrap';
+  var TD='border:1px solid #cbd5e1;padding:5px 9px;color:#111;vertical-align:top';
+  var TDG='border:1px solid #cbd5e1;padding:5px 9px;background:#f8fafc;font-weight:700;color:#111;vertical-align:top';
+  var SEC='background:#1e3a5f;color:#fff;font-size:13px;font-weight:700;padding:7px 10px;margin:0';
+  var BADGE='padding:2px 8px;border-radius:3px;font-weight:700;font-size:11px;white-space:nowrap;display:inline-block';
+  var GRN=BADGE+';background:#166534;color:#bbf7d0';
+  var YEL=BADGE+';background:#713f12;color:#fef9c3';
+  var RED=BADGE+';background:#991b1b;color:#fecaca';
+
+  var PILL_MAP={'pill-active':'background:#166534;color:#bbf7d0','pill-delivered':'background:#581c87;color:#e9d5ff','pill-shipped':'background:#92400e;color:#fef3c7','pill-pending':'background:#92400e;color:#fef3c7','pill-null':'background:#92400e;color:#fef3c7','pill-canceled':'background:#991b1b;color:#fecaca','pill-disco':'background:#7f1d1d;color:#fecaca','pill-issue':'background:#9a3412;color:#fed7aa','pill-issue2':'background:#7c2d12;color:#fed7aa','pill-pale':'background:#a16207;color:#fef9c3','':'background:#e2e8f0;color:#111'};
+  function ePill(text,cls){return '<span style="display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(text)+'</span>';}
+  function eHdr(t){return '<div style="'+SEC+'">'+t+'</div>';}
+  function eTbl(thead,tbody){return '<table style="'+TBL+'"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';}
+
+  function eArCls(vol,acts,bkt){
+    if (!vol) return BADGE+';background:#e2e8f0;color:#334155';
+    var p=acts/vol*100;
+    if (bkt==='0-7 Days')   return p>=21?GRN:p>=10?YEL:RED;
+    if (bkt==='8-14 Days')  return p>=71?GRN:p>=51?YEL:RED;
+    if (bkt==='15-30 Days') return p>=75?GRN:p>=70?YEL:RED;
+    if (bkt==='31-60 Days') return p>=86?GRN:p>=79?YEL:RED;
+    return BADGE+';background:#e2e8f0;color:#334155';
+  }
+  function eArCell(bd,bkt){
+    if (!bd||!bd.vol) return '<td style="'+TD+'"></td>';
+    var p=Math.round(bd.acts/bd.vol*100);
+    return '<td style="'+TD+'"><span style="'+eArCls(bd.vol,bd.acts,bkt)+'">('+bd.acts+'/'+bd.vol+')<br>'+p+'%</span></td>';
+  }
+  function eCrTotCls(bkt,pct){
+    var t={'0-30 Day':[2.4,3.0],'30 Day':[4.9,6.9],'60 Day':[8.9,9.9],'90 Day':[10.9,13.9],'120 Day':[13.9,17.9]};
+    var th=t[bkt]; if (!th) return BADGE+';background:#e2e8f0;color:#334155';
+    return pct<=th[0]?GRN:pct<=th[1]?YEL:RED;
+  }
+  function eCrRepCls(color){
+    var c=String(color||'').toLowerCase();
+    if (c.indexOf('green')!==-1) return GRN;
+    if (c.indexOf('red')!==-1||c.indexOf('orange')!==-1) return RED;
+    if (c.indexOf('yellow')!==-1||c.indexOf('blue')!==-1) return YEL;
+    return BADGE+';background:#e2e8f0;color:#334155';
+  }
+  function eCrCell(bd,bkt,isT){
+    if (!bd||!bd.acts) return '<td style="'+TD+'"></td>';
+    var disco=bd.disco||0,pct=disco/bd.acts*100;
+    return '<td style="'+TD+'"><span style="'+(isT?eCrTotCls(bkt,pct):eCrRepCls(bd.color||''))+'">('+disco+'/'+bd.acts+')<br>'+pct.toFixed(1)+'%</span></td>';
+  }
+
+  // Stat bar
+  var cats=rpt.callCategories||{};
+  var daT=cats.dayAfterTotal||0,daW=cats.dayAfterWorked||0;
+  var cov=daT>0?Math.round(daW/daT*100)+'%':'—';
+  function sPill(label,val,bg){return '<span style="background:'+(bg||'#1e3a5f')+';color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;font-weight:600;display:inline-block;margin:2px">'+val+' <span style="font-weight:400;font-size:11px">'+label+'</span></span>';}
+  var statBar=sPill('Day-After covered',daW+'/'+daT+' ('+cov+')')+sPill('Delivered worked',cats.deliveredWorked||0)+sPill('Issues worked',cats.issuesWorked||0)+sPill('No Answers',cats.noAnswerTotal||0,'#991b1b')+sPill('Escalations',cats.escalationTotal||0,'#991b1b');
+
+  // Status breakdown
+  var sbRows=(rpt.statusBreakdown||[]).map(function(r){
+    var isT=r.status==='TOTAL',td=isT?TDG:TD;
+    var badge=isT?'<strong>TOTAL</strong>':ePill(r.status,_DR_ST_CLS[r.status]||'');
+    return '<tr><td style="'+td+'">'+badge+'</td><td style="'+td+';text-align:right">'+r.customerRows+'</td><td style="'+td+';text-align:right">'+r.totalLines+'</td></tr>';
+  }).join('');
+  var statusSec=eHdr('Order Status Breakdown')+eTbl('<tr><th style="'+TH+'">Status</th><th style="'+TH+';text-align:right">Customers</th><th style="'+TH+';text-align:right">Lines</th></tr>',sbRows);
+
+  // Activation rates
+  var arSum=rpt.activationSummary||{},offAr=arSum.officeTotal||{},repAr=arSum.repImpact||[];
+  var arHdr='<tr><th style="'+TH+'">Rep</th>'+_DR_AR_BUCKETS.map(function(b){return '<th style="'+TH+'">'+b+'</th>';}).join('')+'</tr>';
+  var arTot='<tr><td style="'+TDG+'">Grand Total</td>'+_DR_AR_BUCKETS.map(function(b){return eArCell(offAr[b],b);}).join('')+'</tr>';
+  var arReps=repAr.map(function(r){return '<tr><td style="'+TD+'">'+esc(r.rep)+'</td>'+_DR_AR_BUCKETS.map(function(b){return eArCell(r.buckets[b],b);}).join('')+'</tr>';}).join('');
+  var arSec=eHdr('Activation Rates — office summary + bottom 5 reps')+eTbl(arHdr,arTot+arReps);
+
+  // Churn rates
+  var crSum=rpt.churnSummary||{},offCr=crSum.officeTotal||{},repCr=crSum.repImpact||[];
+  var CR_BKTS=['0-30 Day','30 Day','60 Day','90 Day','120 Day'];
+  var crHdr='<tr><th style="'+TH+'">Rep</th>'+CR_BKTS.map(function(b){return '<th style="'+TH+'">'+b+'</th>';}).join('')+'</tr>';
+  var crTot='<tr><td style="'+TDG+'">Grand Total</td>'+CR_BKTS.map(function(b){return eCrCell(offCr[b],b,true);}).join('')+'</tr>';
+  var crReps=repCr.map(function(r){return '<tr><td style="'+TD+'">'+esc(r.rep)+'</td>'+CR_BKTS.map(function(b){return eCrCell(r.buckets[b],b,false);}).join('')+'</tr>';}).join('');
+  var crSec=eHdr('Churn Rates — office summary + top 5 reps by 0-30 Day disconnects')+eTbl(crHdr,crTot+crReps);
+
+  // Calls worked
+  function eCwGroup(entries,label){
+    if (!entries||!entries.length) return '';
+    var rows=entries.map(function(e){
+      var prods=Object.keys(e.productCounts||{}).map(function(p){return '<span style="background:#e2e8f0;padding:1px 5px;border-radius:3px;font-size:10px;margin:1px;display:inline-block">'+esc(p)+' ×'+e.productCounts[p]+'</span>';}).join('');
+      var stats=Object.keys(e.statusCounts||{}).map(function(s){return ePill(s+' ×'+e.statusCounts[s],_DR_ST_CLS[s]||'');}).join(' ');
+      var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:1px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>';
+      return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+';white-space:nowrap">'+esc(_drFmtDate(e.orderDate))+'</td><td style="'+TD+'">'+prods+'</td><td style="'+TD+'">'+stats+'</td><td style="'+TD+'">'+notes+'</td></tr>';
+    }).join('');
+    return '<div style="margin-bottom:6px"><div style="background:#334155;color:#f1f5f9;font-size:12px;font-weight:700;padding:4px 9px">'+esc(label)+' ('+entries.length+')</div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Order Date</th><th style="'+TH+'">Products</th><th style="'+TH+'">Status</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>';
+  }
+  var cw=rpt.callsWorked||{};
+  var cwTotal=(cw.dayafter||[]).length+(cw.delivered||[]).length+(cw.issues||[]).length+(cw.other||[]).length;
+  var cwSec=cwTotal?eHdr('Calls Worked That Day ('+cwTotal+' orders)')+eCwGroup(cw.dayafter,'Day-After')+eCwGroup(cw.delivered,'Delivered Not Active')+eCwGroup(cw.issues,'Order Issues')+eCwGroup(cw.other,'Other'):'';
+
+  // No answers
+  var naList=rpt.noAnswers||[];
+  var naSec='';
+  if (naList.length) {
+    var naRows=naList.map(function(e){
+      var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>';
+      return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>';
+    }).join('');
+    naSec=eHdr('No Answers That Day ('+naList.length+')')+eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">Notes</th></tr>',naRows);
+  }
+
+  // Escalations
+  var escList=rpt.escalations||[];
+  var escSec='';
+  if (escList.length) {
+    var escRows=escList.map(function(e){
+      var rbg=e.rating==='1 Star'?'#991b1b':'#7f1d1d';
+      var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>';
+      return '<tr><td style="'+TD+';white-space:nowrap"><span style="background:'+rbg+';color:#fecaca;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700">'+esc(e.rating)+'</span></td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>';
+    }).join('');
+    escSec=eHdr('Escalations That Day ('+escList.length+')')+eTbl('<tr><th style="'+TH+'">Rating</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Notes</th></tr>',escRows);
+  }
+
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;background:#fff;max-width:960px;padding:16px">'+
+    '<h2 style="margin:0 0 2px;font-size:16px;color:#0f172a">Daily Call Report — '+esc(dayLabel)+'</h2>'+
+    '<p style="margin:0 0 10px;color:#64748b;font-size:11px">Generated: '+_drFmtTs(rpt.generatedAt)+'</p>'+
+    '<div style="margin-bottom:10px">'+statBar+'</div>'+
+    '<div style="margin-top:10px">'+statusSec+'</div>'+
+    '<div style="margin-top:10px">'+arSec+'</div>'+
+    '<div style="margin-top:10px">'+crSec+'</div>'+
+    (cwSec?'<div style="margin-top:10px">'+cwSec+'</div>':'')+
+    (naSec?'<div style="margin-top:10px">'+naSec+'</div>':'')+
+    (escSec?'<div style="margin-top:10px">'+escSec+'</div>':'')+
+    '</div>';
 }
 
 // ── PEOPLE ────────────────────────────────────────────────────────────────
