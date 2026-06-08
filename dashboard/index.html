@@ -1464,27 +1464,20 @@ function _drArCell(bktData,bkt) {
   return '<td class="ar-cell"><span class="ar-badge '+_drArCls(vol,acts,bkt)+'">('+acts+'/'+vol+')<br>'+p+'%</span></td>';
 }
 function _drSectionActivation(arSummary) {
-  var buckets=arSummary.buckets||[],repImpact=arSummary.repImpact||[];
-  if (!buckets.length&&!repImpact.length) return '';
-  var bktRows=buckets.map(function(b){
-    return '<tr><td>'+esc(b.bucket)+'</td><td class="dr-num">'+b.vol+'</td>'+
-      '<td class="dr-num">'+b.acts+'</td>'+
-      '<td class="dr-num"><span class="ar-badge '+_drArCls(b.vol,b.acts,b.bucket)+'">'+b.rate+'%</span></td></tr>';
-  }).join('');
-  var bktTable='<table class="dr-table" style="margin-bottom:.75rem"><thead><tr>'+
-    '<th>Bucket</th><th class="dr-num">Orders</th><th class="dr-num">Activated</th><th class="dr-num">Rate</th>'+
-    '</tr></thead><tbody>'+bktRows+'</tbody></table>';
-  var repHdr='<th style="min-width:130px">Rep — bottom 5 by 8-14 Day</th>'+
+  var officeTotal=arSummary.officeTotal||{},repImpact=arSummary.repImpact||[];
+  if (!Object.keys(officeTotal).length&&!repImpact.length) return '';
+  var hdr='<th>Rep</th>'+
     _DR_AR_BUCKETS.map(function(b){return '<th style="min-width:100px">'+esc(b)+'</th>';}).join('');
+  var totRow='<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+
+    _DR_AR_BUCKETS.map(function(b){return _drArCell(officeTotal[b],b);}).join('')+'</tr>';
   var repRows=repImpact.map(function(r){
     return '<tr><td class="ar-rep">'+esc(r.rep)+'</td>'+
       _DR_AR_BUCKETS.map(function(b){return _drArCell(r.buckets[b],b);}).join('')+'</tr>';
   }).join('');
-  var repTable=repImpact.length?'<div class="tbl-wrap"><table class="call-table"><thead><tr>'+
-    repHdr+'</tr></thead><tbody>'+repRows+'</tbody></table></div>':'';
   return '<div class="dr-section"><div class="dr-sec-hdr">Activation Rates '+
     '<span class="dr-subhdr">office summary + bottom 5 reps</span></div>'+
-    bktTable+repTable+'</div>';
+    '<div class="tbl-wrap"><table class="call-table"><thead><tr>'+hdr+
+    '</tr></thead><tbody>'+totRow+repRows+'</tbody></table></div></div>';
 }
 
 // ── CHURN RATES ───────────────────────────────────────────────────────────
@@ -1508,27 +1501,20 @@ function _drChurnCell(bktData,bkt,isTotal) {
   return '<td class="ar-cell"><span class="ar-badge '+cls+'">('+disco+'/'+acts+')<br>'+pct.toFixed(1)+'%</span></td>';
 }
 function _drSectionChurn(churnSummary) {
-  var buckets=churnSummary.buckets||[],repImpact=churnSummary.repImpact||[];
-  if (!buckets.length&&!repImpact.length) return '';
-  var bktRows=buckets.map(function(b){
-    return '<tr><td>'+esc(b.bucket)+'</td><td class="dr-num">'+b.activated+'</td>'+
-      '<td class="dr-num">'+b.disconnected+'</td>'+
-      '<td class="dr-num"><span class="ar-badge '+_drChurnTotalCls(b.bucket,b.rate)+'">'+b.rate.toFixed(1)+'%</span></td></tr>';
-  }).join('');
-  var bktTable='<table class="dr-table" style="margin-bottom:.75rem"><thead><tr>'+
-    '<th>Bucket</th><th class="dr-num">Activated</th><th class="dr-num">Disconnected</th><th class="dr-num">Rate</th>'+
-    '</tr></thead><tbody>'+bktRows+'</tbody></table>';
-  var repHdr='<th style="min-width:130px">Rep — most disco 0-30 Day</th>'+
+  var officeTotal=churnSummary.officeTotal||{},repImpact=churnSummary.repImpact||[];
+  if (!Object.keys(officeTotal).length&&!repImpact.length) return '';
+  var hdr='<th>Rep</th>'+
     _DR_CHURN_BUCKETS.map(function(b){return '<th style="min-width:90px">'+esc(b)+'</th>';}).join('');
+  var totRow='<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+
+    _DR_CHURN_BUCKETS.map(function(b){return _drChurnCell(officeTotal[b],b,true);}).join('')+'</tr>';
   var repRows=repImpact.map(function(r){
     return '<tr><td class="ar-rep">'+esc(r.rep)+'</td>'+
       _DR_CHURN_BUCKETS.map(function(b){return _drChurnCell(r.buckets[b],b,false);}).join('')+'</tr>';
   }).join('');
-  var repTable=repImpact.length?'<div class="tbl-wrap"><table class="call-table"><thead><tr>'+
-    repHdr+'</tr></thead><tbody>'+repRows+'</tbody></table></div>':'';
   return '<div class="dr-section"><div class="dr-sec-hdr">Churn Rates '+
     '<span class="dr-subhdr">office summary + top 5 reps by 0-30 Day disconnects</span></div>'+
-    bktTable+repTable+'</div>';
+    '<div class="tbl-wrap"><table class="call-table"><thead><tr>'+hdr+
+    '</tr></thead><tbody>'+totRow+repRows+'</tbody></table></div></div>';
 }
 
 // ── CALLS WORKED ──────────────────────────────────────────────────────────
