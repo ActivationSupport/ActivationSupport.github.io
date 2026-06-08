@@ -252,30 +252,35 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-section{}
 .dr-sec-hdr{font-size:.74rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#60a5fa;padding:.35rem .7rem;background:rgba(96,165,250,.07);border-left:3px solid #60a5fa;margin-bottom:.6rem;border-radius:0 4px 4px 0;display:flex;align-items:center;gap:.5rem}
 .dr-subhdr{font-size:.71rem;font-weight:400;letter-spacing:0;text-transform:none;color:#666}
-.dr-subhdr a{color:#666;text-decoration:none}
-.dr-subhdr a:hover{color:#aaa}
 .dr-table{width:100%;border-collapse:collapse;font-size:.83rem}
 .dr-table th{padding:.4rem .65rem;text-align:left;color:#888;font-weight:600;font-size:.73rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid #2a2a2a}
-.dr-table td{padding:.38rem .65rem;border-bottom:1px solid #1e1e1e;vertical-align:middle}
+.dr-table td{padding:.38rem .65rem;border-bottom:1px solid #1e1e1e;vertical-align:top}
 .dr-table tr:hover td{background:rgba(255,255,255,.025)}
 .dr-total-row td{font-weight:700;background:rgba(255,255,255,.04);border-top:1.5px solid #3a3a3a}
 .dr-num{text-align:right;font-variant-numeric:tabular-nums}
-.dr-na{color:#f87171;font-weight:700}
 .dr-muted{color:#555;font-size:.79rem}
-.dr-subrow td{color:#888;font-size:.81rem;border-bottom:1px solid #181818}
-.dr-status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;flex-shrink:0}
 .dr-note-item{margin-bottom:.3rem;font-size:.81rem;line-height:1.45;color:var(--text)}
 .dr-note-who{font-weight:600;color:#60a5fa}
 .dr-note-time{color:#555;font-size:.76rem;margin-left:.25rem}
-.dr-notes-cell{max-width:420px;min-width:180px}
-.dr-cat-badge{display:inline-block;padding:.12rem .45rem;border-radius:4px;font-size:.71rem;font-weight:700;white-space:nowrap}
-.dr-cat-da   {background:#1a3352;color:#93c5fd}
-.dr-cat-dna  {background:#2d1a52;color:#c4b5fd}
-.dr-cat-oi   {background:#3d2200;color:#fbbf24}
-.dr-cat-esc  {background:#4a1414;color:#fca5a5}
-.dr-cat-other{background:#232323;color:#888}
+.dr-notes-cell{max-width:400px;min-width:160px}
 .dr-no-report{text-align:center;padding:2.5rem 1rem;color:#555}
 .dr-no-report p{margin-bottom:1rem;font-size:.9rem}
+.pill-product{display:inline-block;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:3px;padding:.1rem .35rem;font-size:.73rem;margin:0 .1rem .1rem 0;white-space:nowrap}
+/* stat bar */
+.dr-stat-bar{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:.85rem}
+.dr-stat-pill{display:flex;align-items:center;gap:.3rem;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:.22rem .6rem;font-size:.79rem;color:#aaa}
+.dr-stat-pill strong{color:var(--text);font-variant-numeric:tabular-nums}
+/* calls worked */
+.dr-cw-group{margin-bottom:.9rem}
+.dr-cw-group-hdr{display:inline-flex;align-items:center;gap:.35rem;font-size:.76rem;font-weight:700;padding:.2rem .55rem;border-radius:4px;margin-bottom:.4rem}
+.dr-cw-da  {background:#1a3352;color:#93c5fd}
+.dr-cw-dna {background:#2d1a52;color:#c4b5fd}
+.dr-cw-oi  {background:#3d2200;color:#fbbf24}
+.dr-cw-other{background:#232323;color:#888}
+.dr-cw-cnt{background:rgba(255,255,255,.14);border-radius:3px;padding:0 .3rem;font-size:.69rem}
+/* badges */
+.dr-na-badge{background:#3d1a1a;color:#f87171;border-radius:4px;padding:.1rem .4rem;font-size:.71rem;font-weight:700}
+.dr-esc-badge{background:#4a1414;color:#fca5a5;border-radius:4px;padding:.1rem .4rem;font-size:.71rem;font-weight:700}
 /* ── RESPONSIVE ── */
 @media(max-width:640px){
   .sidebar{width:56px}
@@ -1292,7 +1297,7 @@ function refreshChurn() {
 }
 
 // ── DAILY REPORT ──────────────────────────────────────────────────────────
-var _DR_DATA = undefined; // undefined=not loaded, null=loaded but no report for date
+var _DR_DATA = undefined; // undefined=not loaded, null=no report for this date
 var _DR_DATES = null;
 var _DR_SEL_DATE = null;
 var _DR_LOADING = false;
@@ -1357,22 +1362,19 @@ function _drBuildHtml() {
   var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var dayLabel = DAY_NAMES[d.getDay()]+', '+MONTH_NAMES[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
 
-  // Date picker options — always include today
-  var dateSet = {};
-  dates.forEach(function(dt){ dateSet[dt]=true; });
-  var opts = [];
+  var dateSet={};
+  dates.forEach(function(dt){dateSet[dt]=true;});
+  var opts=[];
   if (!dateSet[todayStr]) opts.push('<option value="'+esc(todayStr)+'"'+(todayStr===selDate?' selected':'')+'>'+esc(todayStr)+'</option>');
-  dates.forEach(function(dt) { opts.push('<option value="'+esc(dt)+'"'+(dt===selDate?' selected':'')+'>'+esc(dt)+'</option>'); });
+  dates.forEach(function(dt){opts.push('<option value="'+esc(dt)+'"'+(dt===selDate?' selected':'')+'>'+esc(dt)+'</option>');});
 
   var genAt = rpt ? '<span class="dr-gents">Generated: '+_drFmtTs(rpt.generatedAt)+'</span>' : '';
-
   var header = '<div class="card-header dark dr-header">'+
     '<div><span class="dr-title">📋 Daily Call Report &mdash; '+esc(dayLabel)+'</span>'+genAt+'</div>'+
     '<div class="dr-controls">'+
-      (opts.length ? '<select class="dr-date-sel" onchange="drSelectDate(this.value)">'+opts.join('')+'</select>' : '')+
+      (opts.length?'<select class="dr-date-sel" onchange="drSelectDate(this.value)">'+opts.join('')+'</select>':'')+
       '<button class="dr-refresh-btn" onclick="drRefresh()">⟳ Refresh</button>'+
-    '</div>'+
-    '</div>';
+    '</div></div>';
 
   if (!rpt) {
     return '<div class="card">'+header+'<div class="card-body">'+
@@ -1382,217 +1384,231 @@ function _drBuildHtml() {
   }
 
   return '<div class="card">'+header+'<div class="card-body dr-body">'+
+    _drStatBar(rpt.callCategories||{})+
     _drSectionStatus(rpt.statusBreakdown||[])+
-    _drSectionBuckets(rpt.activationBuckets||[])+
-    _drSectionCallActivity(rpt.callCategories||{})+
-    _drSectionRepAr(rpt.repActivation||{})+
-    _drSectionRepChurn(rpt.repChurn||{})+
-    (rpt.escalations&&rpt.escalations.length ? _drSectionEscalations(rpt.escalations) : '')+
-    (rpt.todayNotes&&rpt.todayNotes.length   ? _drSectionNotes(rpt.todayNotes)         : '')+
+    _drSectionActivation(rpt.activationSummary||{})+
+    _drSectionChurn(rpt.churnSummary||{})+
+    _drSectionCallsWorked(rpt.callsWorked||{})+
+    _drSectionNoAnswers(rpt.noAnswers||[])+
+    _drSectionEscalations(rpt.escalations||[])+
     '</div></div>';
 }
 
 function _drFmtTs(iso) {
   if (!iso) return '';
-  var d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
+  var d=new Date(iso); if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' at '+
     d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
 }
+function _drFmtDate(iso) {
+  if (!iso) return '—';
+  var d=new Date(iso+'T12:00:00'); if (isNaN(d.getTime())) return iso;
+  var MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return MN[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+}
 
-// STATUS BREAKDOWN
+// ── STAT BAR ──────────────────────────────────────────────────────────────
+function _drStatBar(cats) {
+  function pill(label,val,cls){
+    return '<div class="dr-stat-pill">'+(cls?'<span class="'+cls+'">':'')+
+      '<strong>'+val+'</strong>'+(cls?'</span>':'')+' <span>'+label+'</span></div>';
+  }
+  var daT=cats.dayAfterTotal||0, daW=cats.dayAfterWorked||0;
+  var cov=daT>0?Math.round(daW/daT*100)+'%':'—';
+  return '<div class="dr-stat-bar">'+
+    pill('Day-After covered',daW+'/'+daT+' ('+cov+')')+
+    pill('Delivered worked',cats.deliveredWorked||0)+
+    pill('Issues worked',cats.issuesWorked||0)+
+    pill('No Answers',cats.noAnswerTotal||0,'dr-na-badge')+
+    pill('Escalations',cats.escalationTotal||0,'dr-esc-badge')+
+    '</div>';
+}
+
+// ── STATUS BREAKDOWN ──────────────────────────────────────────────────────
 var _DR_ST_CLS = {
-  'Active':'pill-active','Posted':'pill-active',
-  'Delivered':'pill-delivered',
-  'Shipped':'pill-shipped','Scheduled':'pill-null',
-  'Pending':'pill-pending','Pending Shipment':'pill-pending','Null':'pill-null',
-  'Canceled':'pill-canceled','Disconnected':'pill-disco',
-  'Porting Issue':'pill-issue','Port Approved':'pill-issue2',
-  'Pending Order Port':'pill-issue2','BYOD':'pill-issue',
-  'Pending Valid Payment':'pill-issue',
+  'Active':'pill-active','Posted':'pill-active','Confirmed':'pill-active','Delivered':'pill-delivered',
+  'Shipped':'pill-shipped','Scheduled':'pill-null','Pending':'pill-pending',
+  'Pending Shipment':'pill-pending','Null':'pill-null','Canceled':'pill-canceled',
+  'Disconnected':'pill-disco','Porting Issue':'pill-issue','Port Approved':'pill-issue2',
+  'Pending Order Port':'pill-issue2','BYOD':'pill-issue','Pending Valid Payment':'pill-issue',
   'Backordered':'pill-pale','Open':'pill-pale','TOTAL':''
 };
 function _drSectionStatus(rows) {
   if (!rows.length) return '';
-  var body = rows.map(function(r) {
-    var isTotal = r.status==='TOTAL';
-    var badge = isTotal ? '<strong>TOTAL</strong>' :
-      '<span class="status-pill '+esc(_DR_ST_CLS[r.status]||'')+'">'+esc(r.status)+'</span>';
+  var body=rows.map(function(r){
+    var isTotal=r.status==='TOTAL';
+    var badge=isTotal?'<strong>TOTAL</strong>':'<span class="status-pill '+esc(_DR_ST_CLS[r.status]||'')+'">'+esc(r.status)+'</span>';
     return '<tr'+(isTotal?' class="dr-total-row"':'')+'>'+
-      '<td>'+badge+'</td>'+
-      '<td class="dr-num">'+r.customerRows+'</td>'+
-      '<td class="dr-num">'+r.totalLines+'</td>'+
-      '</tr>';
+      '<td>'+badge+'</td><td class="dr-num">'+r.customerRows+'</td><td class="dr-num">'+r.totalLines+'</td></tr>';
   }).join('');
-  return '<div class="dr-section">'+
-    '<div class="dr-sec-hdr">Order Status Breakdown</div>'+
+  return '<div class="dr-section"><div class="dr-sec-hdr">Order Status Breakdown</div>'+
     '<table class="dr-table"><thead><tr>'+
-    '<th>Status</th><th class="dr-num">Customer Rows</th><th class="dr-num">Total Lines</th>'+
+    '<th>Status</th><th class="dr-num">Customers</th><th class="dr-num">Lines</th>'+
     '</tr></thead><tbody>'+body+'</tbody></table></div>';
 }
 
-// ACTIVATION BUCKETS
-function _drSectionBuckets(buckets) {
-  if (!buckets.length) return '';
-  var body = buckets.map(function(b) {
-    return '<tr><td>'+esc(b.bucket)+'</td><td class="dr-num">'+b.vol+'</td></tr>';
-  }).join('');
-  return '<div class="dr-section">'+
-    '<div class="dr-sec-hdr">Activation Buckets</div>'+
-    '<table class="dr-table"><thead><tr>'+
-    '<th>Bucket</th><th class="dr-num">Customer-Orders</th>'+
-    '</tr></thead><tbody>'+body+'</tbody></table></div>';
-}
-
-// CALL ACTIVITY
-function _drSectionCallActivity(cats) {
-  var total   = cats.dayAfterTotal||0;
-  var worked  = cats.dayAfterWorked||0;
-  var noAns   = cats.dayAfterNoAnswer||0;
-  var naPct   = worked>0 ? Math.round(noAns/worked*100) : 0;
-  var wPct    = total>0  ? Math.round(worked/total*100)  : 0;
-  return '<div class="dr-section">'+
-    '<div class="dr-sec-hdr">Today\'s Call Activity</div>'+
-    '<table class="dr-table"><thead><tr>'+
-    '<th>Category</th><th class="dr-num">Worked Today</th>'+
-    '</tr></thead><tbody>'+
-    '<tr><td><strong>Day-After Orders</strong> <span class="dr-muted">('+total+' on list &mdash; '+wPct+'% covered)</span></td><td class="dr-num">'+worked+'</td></tr>'+
-    '<tr class="dr-subrow"><td>&nbsp;&nbsp;&nbsp;&#8627; No Answer <span class="dr-muted">('+naPct+'% of worked)</span></td><td class="dr-num dr-na">'+noAns+'</td></tr>'+
-    '<tr><td>Delivered Not Active</td><td class="dr-num">'+cats.deliveredWorked+'</td></tr>'+
-    '<tr><td>Order Issues</td><td class="dr-num">'+cats.issuesWorked+'</td></tr>'+
-    '<tr><td>Escalations (1–2 Star)</td><td class="dr-num">'+cats.escalationsWorked+'</td></tr>'+
-    '</tbody></table></div>';
-}
-
-// REP ACTIVATION — bottom 5 by 8-14 Day
+// ── ACTIVATION RATES ──────────────────────────────────────────────────────
 var _DR_AR_BUCKETS = ['0-7 Days','8-14 Days','15-30 Days','31-60 Days'];
-function _drArCls(vol, acts, bkt) {
+function _drArCls(vol,acts,bkt) {
   if (!vol) return '';
-  var p = acts/vol*100;
+  var p=acts/vol*100;
   if (bkt==='0-7 Days')   return p>=21?'ar-green':p>=10?'ar-yellow':'ar-red';
   if (bkt==='8-14 Days')  return p>=71?'ar-green':p>=51?'ar-yellow':'ar-red';
   if (bkt==='15-30 Days') return p>=75?'ar-green':p>=70?'ar-yellow':'ar-red';
   if (bkt==='31-60 Days') return p>=86?'ar-green':p>=79?'ar-yellow':'ar-red';
   return '';
 }
-function _drArCell(bktData, bkt) {
+function _drArCell(bktData,bkt) {
   if (!bktData||!bktData.vol) return '<td class="ar-cell"></td>';
-  var vol=bktData.vol, acts=bktData.acts||0, p=acts/vol*100;
-  return '<td class="ar-cell"><span class="ar-badge '+_drArCls(vol,acts,bkt)+'">('+acts+'/'+vol+')<br>'+Math.round(p)+'%</span></td>';
+  var vol=bktData.vol,acts=bktData.acts||0,p=Math.round(acts/vol*100);
+  return '<td class="ar-cell"><span class="ar-badge '+_drArCls(vol,acts,bkt)+'">('+acts+'/'+vol+')<br>'+p+'%</span></td>';
 }
-function _drSectionRepAr(repAr) {
-  var offTot = repAr.officeTotal||{};
-  var bot5   = repAr.bottom5||[];
-  if (!bot5.length) return '';
-  var hdr = '<th style="min-width:140px">Rep</th>'+
-    _DR_AR_BUCKETS.map(function(b){ return '<th style="min-width:110px">'+esc(b)+'</th>'; }).join('');
-  var totRow = '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Office Total</td>'+
-    _DR_AR_BUCKETS.map(function(b){ return _drArCell(offTot[b],b); }).join('')+'</tr>';
-  var repRows = bot5.map(function(r){
-    return '<tr><td class="ar-rep">'+esc(r.rep)+'</td>'+
-      _DR_AR_BUCKETS.map(function(b){ return _drArCell(r.buckets[b],b); }).join('')+'</tr>';
+function _drSectionActivation(arSummary) {
+  var buckets=arSummary.buckets||[],repImpact=arSummary.repImpact||[];
+  if (!buckets.length&&!repImpact.length) return '';
+  var bktRows=buckets.map(function(b){
+    return '<tr><td>'+esc(b.bucket)+'</td><td class="dr-num">'+b.vol+'</td>'+
+      '<td class="dr-num">'+b.acts+'</td>'+
+      '<td class="dr-num"><span class="ar-badge '+_drArCls(b.vol,b.acts,b.bucket)+'">'+b.rate+'%</span></td></tr>';
   }).join('');
-  return '<div class="dr-section">'+
-    '<div class="dr-sec-hdr">Rep Performance — Activation Rate '+
-    '<span class="dr-subhdr">bottom 5 by 8-14 Day &bull; full list on Activation Rates tab</span></div>'+
-    '<div class="tbl-wrap"><table class="call-table"><thead><tr>'+hdr+'</tr></thead><tbody>'+totRow+repRows+'</tbody></table></div></div>';
+  var bktTable='<table class="dr-table" style="margin-bottom:.75rem"><thead><tr>'+
+    '<th>Bucket</th><th class="dr-num">Orders</th><th class="dr-num">Activated</th><th class="dr-num">Rate</th>'+
+    '</tr></thead><tbody>'+bktRows+'</tbody></table>';
+  var repHdr='<th style="min-width:130px">Rep — bottom 5 by 8-14 Day</th>'+
+    _DR_AR_BUCKETS.map(function(b){return '<th style="min-width:100px">'+esc(b)+'</th>';}).join('');
+  var repRows=repImpact.map(function(r){
+    return '<tr><td class="ar-rep">'+esc(r.rep)+'</td>'+
+      _DR_AR_BUCKETS.map(function(b){return _drArCell(r.buckets[b],b);}).join('')+'</tr>';
+  }).join('');
+  var repTable=repImpact.length?'<div class="tbl-wrap"><table class="call-table"><thead><tr>'+
+    repHdr+'</tr></thead><tbody>'+repRows+'</tbody></table></div>':'';
+  return '<div class="dr-section"><div class="dr-sec-hdr">Activation Rates '+
+    '<span class="dr-subhdr">office summary + bottom 5 reps</span></div>'+
+    bktTable+repTable+'</div>';
 }
 
-// REP CHURN — top 5 by 0-30 Day
+// ── CHURN RATES ───────────────────────────────────────────────────────────
 var _DR_CHURN_BUCKETS = ['0-30 Day','30 Day','60 Day','90 Day','120 Day'];
-var _DR_CHURN_THRESH = {
-  '0-30 Day': [2.4,3.0], '30 Day': [4.9,6.9], '60 Day': [8.9,9.9],
-  '90 Day': [10.9,13.9], '120 Day': [13.9,17.9]
-};
+var _DR_CHURN_THRESH  = {'0-30 Day':[2.4,3.0],'30 Day':[4.9,6.9],'60 Day':[8.9,9.9],'90 Day':[10.9,13.9],'120 Day':[13.9,17.9]};
 function _drChurnCls(color) {
-  var c = String(color||'').toLowerCase();
+  var c=String(color||'').toLowerCase();
   if (c.indexOf('green')!==-1) return 'ar-green';
   if (c.indexOf('red')!==-1||c.indexOf('orange')!==-1) return 'ar-red';
   if (c.indexOf('yellow')!==-1||c.indexOf('blue')!==-1) return 'ar-yellow';
   return '';
 }
-function _drChurnTotalCls(bkt, pct) {
-  var t = _DR_CHURN_THRESH[bkt]; if (!t) return '';
+function _drChurnTotalCls(bkt,pct) {
+  var t=_DR_CHURN_THRESH[bkt]; if (!t) return '';
   return pct<=t[0]?'ar-green':pct<=t[1]?'ar-yellow':'ar-red';
 }
-function _drChurnCell(bktData, bkt, isTotal) {
+function _drChurnCell(bktData,bkt,isTotal) {
   if (!bktData||!bktData.acts) return '<td class="ar-cell"></td>';
-  var disco=bktData.disco||0, acts=bktData.acts, pct=disco/acts*100;
-  var cls = isTotal ? _drChurnTotalCls(bkt,pct) : _drChurnCls(bktData.color);
+  var disco=bktData.disco||0,acts=bktData.acts,pct=disco/acts*100;
+  var cls=isTotal?_drChurnTotalCls(bkt,pct):_drChurnCls(bktData.color||'');
   return '<td class="ar-cell"><span class="ar-badge '+cls+'">('+disco+'/'+acts+')<br>'+pct.toFixed(1)+'%</span></td>';
 }
-function _drSectionRepChurn(repChurn) {
-  var offTot = repChurn.officeTotal||{};
-  var top5   = repChurn.top5||[];
-  if (!top5.length) return '';
-  var hdr = '<th style="min-width:140px">Rep</th>'+
-    _DR_CHURN_BUCKETS.map(function(b){ return '<th style="min-width:100px">'+esc(b)+'</th>'; }).join('');
-  var totRow = '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Office Total</td>'+
-    _DR_CHURN_BUCKETS.map(function(b){ return _drChurnCell(offTot[b],b,true); }).join('')+'</tr>';
-  var repRows = top5.map(function(r){
-    return '<tr><td class="ar-rep">'+esc(r.rep)+'</td>'+
-      _DR_CHURN_BUCKETS.map(function(b){ return _drChurnCell(r.buckets[b],b,false); }).join('')+'</tr>';
+function _drSectionChurn(churnSummary) {
+  var buckets=churnSummary.buckets||[],repImpact=churnSummary.repImpact||[];
+  if (!buckets.length&&!repImpact.length) return '';
+  var bktRows=buckets.map(function(b){
+    return '<tr><td>'+esc(b.bucket)+'</td><td class="dr-num">'+b.activated+'</td>'+
+      '<td class="dr-num">'+b.disconnected+'</td>'+
+      '<td class="dr-num"><span class="ar-badge '+_drChurnTotalCls(b.bucket,b.rate)+'">'+b.rate.toFixed(1)+'%</span></td></tr>';
   }).join('');
-  return '<div class="dr-section">'+
-    '<div class="dr-sec-hdr">Rep Performance — Churn Rate '+
-    '<span class="dr-subhdr">top 5 by 0-30 Day &bull; full list on Churn Report tab</span></div>'+
-    '<div class="tbl-wrap"><table class="call-table"><thead><tr>'+hdr+'</tr></thead><tbody>'+totRow+repRows+'</tbody></table></div></div>';
+  var bktTable='<table class="dr-table" style="margin-bottom:.75rem"><thead><tr>'+
+    '<th>Bucket</th><th class="dr-num">Activated</th><th class="dr-num">Disconnected</th><th class="dr-num">Rate</th>'+
+    '</tr></thead><tbody>'+bktRows+'</tbody></table>';
+  var repHdr='<th style="min-width:130px">Rep — most disco 0-30 Day</th>'+
+    _DR_CHURN_BUCKETS.map(function(b){return '<th style="min-width:90px">'+esc(b)+'</th>';}).join('');
+  var repRows=repImpact.map(function(r){
+    return '<tr><td class="ar-rep">'+esc(r.rep)+'</td>'+
+      _DR_CHURN_BUCKETS.map(function(b){return _drChurnCell(r.buckets[b],b,false);}).join('')+'</tr>';
+  }).join('');
+  var repTable=repImpact.length?'<div class="tbl-wrap"><table class="call-table"><thead><tr>'+
+    repHdr+'</tr></thead><tbody>'+repRows+'</tbody></table></div>':'';
+  return '<div class="dr-section"><div class="dr-sec-hdr">Churn Rates '+
+    '<span class="dr-subhdr">office summary + top 5 reps by 0-30 Day disconnects</span></div>'+
+    bktTable+repTable+'</div>';
 }
 
-// ESCALATIONS
-function _drSectionEscalations(escs) {
-  var lookup = buildOrderLookup();
-  var body = escs.map(function(e) {
-    var o = lookup[e.dsi]||{dsi:e.dsi,rep:'—'};
-    var rpCls = e.rating==='1 Star'?'rp-1':'rp-2';
-    var notesHtml = e.todayNotes&&e.todayNotes.length
-      ? e.todayNotes.map(function(n){
-          return '<div class="dr-note-item"><span class="dr-note-who">'+esc(n.authorName)+'</span> '+esc(n.noteText)+'</div>';
-        }).join('')
-      : '<span class="dr-muted">No notes today</span>';
+// ── CALLS WORKED ──────────────────────────────────────────────────────────
+function _drProductPills(pc) {
+  return Object.keys(pc||{}).map(function(p){
+    return '<span class="pill-product">'+esc(p)+' &times;'+pc[p]+'</span>';
+  }).join('');
+}
+function _drStatusPills(sc) {
+  return Object.keys(sc||{}).map(function(s){
+    return '<span class="status-pill '+esc(_DR_ST_CLS[s]||'')+'">'+esc(s)+' &times;'+sc[s]+'</span>';
+  }).join(' ');
+}
+function _drNoteItems(notes) {
+  if (!notes||!notes.length) return '<span class="dr-muted">No notes</span>';
+  return notes.map(function(n){
+    var timeStr='';
+    try{var td=new Date(n.ts);timeStr=td.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});}catch(e){}
+    return '<div class="dr-note-item"><span class="dr-note-who">'+esc(n.authorName||'Unknown')+'</span>'+
+      (timeStr?'<span class="dr-note-time"> '+esc(timeStr)+'</span>':'')+
+      ' — '+esc(n.noteText)+'</div>';
+  }).join('');
+}
+function _drCwGroup(entries,label,cls) {
+  if (!entries||!entries.length) return '';
+  var rows=entries.map(function(e){
+    return '<tr>'+
+      '<td style="white-space:nowrap">'+esc(e.rep||'—')+'</td>'+
+      '<td style="white-space:nowrap"><span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(e.dsi)+'\')">'+esc(e.dsi)+'</span></td>'+
+      '<td style="white-space:nowrap">'+esc(_drFmtDate(e.orderDate))+'</td>'+
+      '<td>'+_drProductPills(e.productCounts)+'</td>'+
+      '<td>'+_drStatusPills(e.statusCounts)+'</td>'+
+      '<td class="dr-notes-cell">'+_drNoteItems(e.notes)+'</td>'+
+      '</tr>';
+  }).join('');
+  return '<div class="dr-cw-group">'+
+    '<div class="dr-cw-group-hdr '+cls+'">'+esc(label)+' <span class="dr-cw-cnt">'+entries.length+'</span></div>'+
+    '<div class="tbl-wrap"><table class="dr-table"><thead><tr>'+
+    '<th>Rep</th><th>DSI</th><th>Order Date</th><th>Products</th><th>Status</th><th>Notes</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+function _drSectionCallsWorked(cw) {
+  var total=(cw.dayafter||[]).length+(cw.delivered||[]).length+(cw.issues||[]).length+(cw.other||[]).length;
+  if (!total) return '<div class="dr-section"><div class="dr-sec-hdr">Calls Worked That Day</div>'+
+    '<div class="dr-muted" style="padding:.5rem .25rem">No notes recorded for this date.</div></div>';
+  return '<div class="dr-section"><div class="dr-sec-hdr">Calls Worked That Day '+
+    '<span class="dr-subhdr">'+total+' orders with notes</span></div>'+
+    _drCwGroup(cw.dayafter||[],  'Day-After',           'dr-cw-da')+
+    _drCwGroup(cw.delivered||[], 'Delivered Not Active', 'dr-cw-dna')+
+    _drCwGroup(cw.issues||[],    'Order Issues',        'dr-cw-oi')+
+    _drCwGroup(cw.other||[],     'Other',               'dr-cw-other')+
+    '</div>';
+}
+
+// ── NO ANSWERS ────────────────────────────────────────────────────────────
+function _drSectionNoAnswers(list) {
+  if (!list||!list.length) return '';
+  var rows=list.map(function(e){
     return '<tr>'+
       '<td><span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(e.dsi)+'\')">'+esc(e.dsi)+'</span></td>'+
-      '<td><span class="rating-pill '+rpCls+'">'+esc(e.rating)+'</span></td>'+
-      '<td>'+esc(o.rep||'—')+'</td>'+
-      '<td class="dr-notes-cell">'+notesHtml+'</td>'+
-      '</tr>';
+      '<td class="dr-notes-cell">'+_drNoteItems(e.notes)+'</td></tr>';
   }).join('');
-  return '<div class="dr-section">'+
-    '<div class="dr-sec-hdr">Escalations (1–2 Star Orders)</div>'+
-    '<table class="dr-table"><thead><tr>'+
-    '<th>DSI</th><th>Rating</th><th>Rep</th><th>Today\'s Notes</th>'+
-    '</tr></thead><tbody>'+body+'</tbody></table></div>';
+  return '<div class="dr-section"><div class="dr-sec-hdr">No Answers That Day '+
+    '<span class="dr-subhdr">'+list.length+' orders marked No Answer</span></div>'+
+    '<table class="dr-table"><thead><tr><th>DSI</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
-// TODAY'S NOTES
-var _DR_CAT_LABEL = {dayafter:'Day-After',delivered:'Delivered N/A',issues:'Order Issues',escalation:'Escalation',other:'Other'};
-var _DR_CAT_CLS   = {dayafter:'dr-cat-da',delivered:'dr-cat-dna',issues:'dr-cat-oi',escalation:'dr-cat-esc',other:'dr-cat-other'};
-function _drSectionNotes(notes) {
-  // Group by DSI preserving first-seen order
-  var order=[], map={};
-  notes.forEach(function(n){ if (!map[n.dsi]){ map[n.dsi]=[]; order.push(n.dsi); } map[n.dsi].push(n); });
-  var body = order.map(function(dsi) {
-    var dsiNotes = map[dsi];
-    var cat = dsiNotes[0].category||'other';
-    var noteRows = dsiNotes.map(function(n){
-      var timeStr='';
-      try { var td=new Date(n.ts); timeStr=td.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); } catch(e){}
-      return '<div class="dr-note-item">'+
-        '<span class="dr-note-who">'+esc(n.authorName||'Unknown')+'</span>'+
-        (timeStr?'<span class="dr-note-time"> '+esc(timeStr)+'</span>':'')+
-        ' — '+esc(n.noteText)+'</div>';
-    }).join('');
+// ── ESCALATIONS ───────────────────────────────────────────────────────────
+function _drSectionEscalations(list) {
+  if (!list||!list.length) return '';
+  var rows=list.map(function(e){
+    var rpCls=e.rating==='1 Star'?'rp-1':'rp-2';
     return '<tr>'+
-      '<td style="white-space:nowrap"><span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(dsi)+'\')">'+esc(dsi)+'</span></td>'+
-      '<td><span class="dr-cat-badge '+esc(_DR_CAT_CLS[cat]||'dr-cat-other')+'">'+esc(_DR_CAT_LABEL[cat]||cat)+'</span></td>'+
-      '<td class="dr-notes-cell">'+noteRows+'</td>'+
-      '</tr>';
+      '<td><span class="rating-pill '+rpCls+'">'+esc(e.rating)+'</span></td>'+
+      '<td><span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(e.dsi)+'\')">'+esc(e.dsi)+'</span></td>'+
+      '<td class="dr-notes-cell">'+_drNoteItems(e.notes)+'</td></tr>';
   }).join('');
-  return '<div class="dr-section">'+
-    '<div class="dr-sec-hdr">Today\'s Notes <span class="dr-subhdr">('+notes.length+' entries across '+order.length+' orders)</span></div>'+
-    '<table class="dr-table"><thead><tr>'+
-    '<th>DSI</th><th>Category</th><th>Notes</th>'+
-    '</tr></thead><tbody>'+body+'</tbody></table></div>';
+  return '<div class="dr-section"><div class="dr-sec-hdr">Escalations That Day '+
+    '<span class="dr-subhdr">'+list.length+' orders rated 1–2 Stars</span></div>'+
+    '<table class="dr-table"><thead><tr><th>Rating</th><th>DSI</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 // ── PEOPLE ────────────────────────────────────────────────────────────────
