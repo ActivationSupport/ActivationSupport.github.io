@@ -938,6 +938,17 @@ function readActRateLines(ss, officeId) {
 }
 
 // ── DAILY REPORT ──────────────────────────────────────────────────────────
+// Normalize a sheet date cell to YYYY-MM-DD.
+// Google Sheets auto-converts "2026-06-07" strings to Date objects on write;
+// getValues() then returns a Date, not the original string.
+function _drNormDate(v) {
+  if (v instanceof Date) {
+    var y=v.getFullYear(), m=v.getMonth()+1, d=v.getDate();
+    return y+'-'+(m<10?'0':'')+m+'-'+(d<10?'0':'')+d;
+  }
+  return String(v).trim();
+}
+
 function _getDailyReportSheet(ss, officeId) {
   var tabName = '_DailyReports_' + officeId;
   var sheet = ss.getSheetByName(tabName);
@@ -946,211 +957,268 @@ function _getDailyReportSheet(ss, officeId) {
     sheet.appendRow(['date','generatedAt','reportJson']);
     sheet.getRange(1,1,1,3).setFontWeight('bold');
     sheet.setFrozenRows(1);
+    sheet.getRange(1,1,sheet.getMaxRows(),1).setNumberFormat('@STRING@');
   }
   return sheet;
 }
 
 function generateDailyReport(ss, officeId, targetDateStr) {
-  // targetDateStr is YYYY-MM-DD; if omitted, defaults to today
   var refDate;
   if (targetDateStr) {
-    refDate = new Date(targetDateStr + 'T12:00:00'); refDate.setHours(0,0,0,0);
+    refDate = new Date(targetDateStr+'T12:00:00'); refDate.setHours(0,0,0,0);
   } else {
     refDate = new Date(); refDate.setHours(0,0,0,0);
   }
   var todayStr = refDate.toISOString().split('T')[0];
-  var refTomorrow = new Date(refDate.getTime() + 86400000);
+  var refTomorrow = new Date(refDate.getTime()+86400000);
 
-  // NOTES — filter _Notes_ to entries timestamped on refDate
-  var notesSheet = ss.getSheetByName('_Notes_' + officeId);
-  var todayNotes = [], todayDsiSet = {};
+  // ── NOTES: entries timestamped on refDate ──
+  var notesSheet = ss.getSheetByName('_Notes_'+officeId);
+  var todayNotes=[], todayDsiSet={};
   if (notesSheet) {
-    var nd = notesSheet.getDataRange().getValues();
-    for (var i = 1; i < nd.length; i++) {
-      var dsi = String(nd[i][0]||'').trim(); if (!dsi) continue;
-      var ts = nd[i][1] instanceof Date ? nd[i][1] : (nd[i][1] ? new Date(nd[i][1]) : null);
-      if (!ts || isNaN(ts.getTime())) continue;
-      if (ts < refDate || ts >= refTomorrow) continue;
-      todayDsiSet[dsi] = true;
-      todayNotes.push({ dsi:dsi, ts:ts.toISOString(), authorName:String(nd[i][3]||'').trim(), noteText:String(nd[i][4]||'').trim(), noteType:String(nd[i][5]||'activation').trim() });
+    var nd=notesSheet.getDataRange().getValues();
+    for (var ni=1;ni<nd.length;ni++) {
+      var ndsi=String(nd[ni][0]||'').trim(); if (!ndsi) continue;
+      var nts=nd[ni][1] instanceof Date?nd[ni][1]:(nd[ni][1]?new Date(nd[ni][1]):null);
+      if (!nts||isNaN(nts.getTime())) continue;
+      if (nts<refDate||nts>=refTomorrow) continue;
+      todayDsiSet[ndsi]=true;
+      todayNotes.push({dsi:ndsi,ts:nts.toISOString(),authorName:String(nd[ni][3]||'').trim(),noteText:String(nd[ni][4]||'').trim()});
     }
   }
 
-  // DAY-AFTER ORDERS — computed relative to refDate (not real today)
-  // If refDate is Monday: targets = Fri+Sat+Sun; otherwise: day before refDate
-  var dow = refDate.getDay();
-  var daTargets = dow===1
-    ? [new Date(refDate.getTime()-3*86400000).getTime(), new Date(refDate.getTime()-2*86400000).getTime(), new Date(refDate.getTime()-1*86400000).getTime()]
-    : [new Date(refDate.getTime()-86400000).getTime()];
-  var daDsiRows={}, daDsiCols={}, daTolDsis={};
-  var daTabs = [TABLEAU_TAB, AOR_TAB];
-  for (var dt=0; dt<daTabs.length; dt++) {
-    var daSD = _getSheetData(ss, daTabs[dt]); if (!daSD||daSD.length<2) continue;
-    var daCol = buildTableauColumnMap(daSD[0]);
-    var daFiltered = _filterByOffice(daSD.slice(1), daCol, officeId);
-    for (var dfi=0; dfi<daFiltered.length; dfi++) {
-      var daRow = daFiltered[dfi];
-      var daDsi = String(tCol(daRow,daCol,'DSI')||'').trim(); if (!daDsi) continue;
-      if (dt===1 && daTolDsis[daDsi]) continue;
-      var daOd = _parseDateLocal(tCol(daRow,daCol,'ORDER_DATE')); if (!daOd) continue;
+  // ── RATINGS: entries updated on refDate ──
+  var noAnswerDsis=[], escalationRatings=[];
+  var ratingsSheet=ss.getSheetByName('_Ratings_'+officeId);
+  if (ratingsSheet) {
+    var ratData=ratingsSheet.getDataRange().getValues();
+    for (var rii=1;rii<ratData.length;rii++) {
+      var rDsi=String(ratData[rii][0]||'').trim(); if (!rDsi) continue;
+      var rRating=String(ratData[rii][1]||'').trim();
+      var rUpd=ratData[rii][2] instanceof Date?ratData[rii][2]:(ratData[rii][2]?new Date(String(ratData[rii][2])):null);
+      if (!rUpd||isNaN(rUpd.getTime())) continue;
+      if (rUpd<refDate||rUpd>=refTomorrow) continue;
+      if (rRating==='No Answer') noAnswerDsis.push(rDsi);
+      else if (rRating==='1 Star'||rRating==='2 Stars') escalationRatings.push({dsi:rDsi,rating:rRating});
+    }
+  }
+
+  // ── DAY-AFTER ORDERS ──
+  var dow=refDate.getDay();
+  var daTargets=dow===1
+    ?[new Date(refDate.getTime()-3*86400000).getTime(),new Date(refDate.getTime()-2*86400000).getTime(),new Date(refDate.getTime()-86400000).getTime()]
+    :[new Date(refDate.getTime()-86400000).getTime()];
+  var daDsiRows={},daDsiCols={},daTolDsis={};
+  var daTabs=[TABLEAU_TAB,AOR_TAB];
+  for (var dt=0;dt<daTabs.length;dt++) {
+    var daSD=_getSheetData(ss,daTabs[dt]); if (!daSD||daSD.length<2) continue;
+    var daCol=buildTableauColumnMap(daSD[0]);
+    var daFiltered=_filterByOffice(daSD.slice(1),daCol,officeId);
+    for (var dfi=0;dfi<daFiltered.length;dfi++) {
+      var daRow=daFiltered[dfi];
+      var daDsi=String(tCol(daRow,daCol,'DSI')||'').trim(); if (!daDsi) continue;
+      if (dt===1&&daTolDsis[daDsi]) continue;
+      var daOd=_parseDateLocal(tCol(daRow,daCol,'ORDER_DATE')); if (!daOd) continue;
       if (daTargets.indexOf(daOd.getTime())===-1) continue;
-      if (!daDsiRows[daDsi]) { daDsiRows[daDsi]=[]; daDsiCols[daDsi]=daCol; }
+      if (!daDsiRows[daDsi]){daDsiRows[daDsi]=[];daDsiCols[daDsi]=daCol;}
       daDsiRows[daDsi].push(daRow);
     }
-    if (dt===0) Object.keys(daDsiRows).forEach(function(d){ daTolDsis[d]=true; });
+    if (dt===0) Object.keys(daDsiRows).forEach(function(d){daTolDsis[d]=true;});
   }
-  var dayAfterOrders = [];
-  Object.keys(daDsiRows).forEach(function(d){ dayAfterOrders.push(_buildTolRow(daDsiRows[d][0], daDsiCols[d], daDsiRows[d])); });
-
-  // REMAINING CALL LISTS — current pipeline state (sheet doesn't store historical snapshots)
-  var deliveredOrders = readDeliveredNotActive(ss, officeId);
-  var orderIssues     = readOrderIssues(ss, officeId);
-  var ratings         = readRatings(ss, officeId);
-  var escDsis = Object.keys(ratings).filter(function(d){ return ratings[d]==='1 Star'||ratings[d]==='2 Stars'; });
-
-  var dayAfterDsiSet={}, deliveredDsiSet={}, issuesDsiSet={}, escDsiSet={};
-  dayAfterOrders.forEach(function(o){ if(o.dsi) dayAfterDsiSet[o.dsi]=true; });
-  deliveredOrders.forEach(function(o){ if(o.dsi) deliveredDsiSet[o.dsi]=true; });
-  orderIssues.forEach(function(o){ if(o.dsi) issuesDsiSet[o.dsi]=true; });
-  escDsis.forEach(function(d){ escDsiSet[d]=true; });
-
-  // Categorize today's notes by which call list the DSI belongs to
-  todayNotes.forEach(function(n) {
-    if      (escDsiSet[n.dsi])       n.category = 'escalation';
-    else if (dayAfterDsiSet[n.dsi])  n.category = 'dayafter';
-    else if (deliveredDsiSet[n.dsi]) n.category = 'delivered';
-    else if (issuesDsiSet[n.dsi])    n.category = 'issues';
-    else                             n.category = 'other';
+  var dayAfterOrders=[],dayAfterMap={};
+  Object.keys(daDsiRows).forEach(function(d){
+    var o=_buildTolRow(daDsiRows[d][0],daDsiCols[d],daDsiRows[d]);
+    dayAfterOrders.push(o); dayAfterMap[d]=o;
   });
 
-  var callCategories = {
-    dayAfterTotal:     dayAfterOrders.length,
-    dayAfterWorked:    dayAfterOrders.filter(function(o){ return o.dsi&&todayDsiSet[o.dsi]; }).length,
-    dayAfterNoAnswer:  dayAfterOrders.filter(function(o){ return o.dsi&&todayDsiSet[o.dsi]&&ratings[o.dsi]==='No Answer'; }).length,
-    deliveredWorked:   deliveredOrders.filter(function(o){ return o.dsi&&todayDsiSet[o.dsi]; }).length,
-    issuesWorked:      orderIssues.filter(function(o){ return o.dsi&&todayDsiSet[o.dsi]; }).length,
-    escalationsWorked: escDsis.filter(function(d){ return todayDsiSet[d]; }).length
+  // ── DELIVERED + ISSUES ──
+  var deliveredOrders=readDeliveredNotActive(ss,officeId);
+  var orderIssues=readOrderIssues(ss,officeId);
+  var deliveredMap={},issuesMap={};
+  deliveredOrders.forEach(function(o){if(o.dsi)deliveredMap[o.dsi]=o;});
+  orderIssues.forEach(function(o){if(o.dsi)issuesMap[o.dsi]=o;});
+  var dayAfterDsiSet={},deliveredDsiSet={},issuesDsiSet={};
+  dayAfterOrders.forEach(function(o){if(o.dsi)dayAfterDsiSet[o.dsi]=true;});
+  deliveredOrders.forEach(function(o){if(o.dsi)deliveredDsiSet[o.dsi]=true;});
+  orderIssues.forEach(function(o){if(o.dsi)issuesDsiSet[o.dsi]=true;});
+
+  // ── CALL ACTIVITY COUNTS ──
+  var callCategories={
+    dayAfterTotal:  dayAfterOrders.length,
+    dayAfterWorked: dayAfterOrders.filter(function(o){return o.dsi&&todayDsiSet[o.dsi];}).length,
+    deliveredWorked:deliveredOrders.filter(function(o){return o.dsi&&todayDsiSet[o.dsi];}).length,
+    issuesWorked:   orderIssues.filter(function(o){return o.dsi&&todayDsiSet[o.dsi];}).length,
+    noAnswerTotal:  noAnswerDsis.length,
+    escalationTotal:escalationRatings.length
   };
 
-  // STATUS BREAKDOWN — Master Tracker pool (non-fully-completed DSIs, 120-day window)
-  var statusCustRows={}, statusTotalLines={};
-  var tolData = _getSheetData(ss, TABLEAU_TAB);
-  if (tolData && tolData.length >= 2) {
-    var sbCol = buildTableauColumnMap(tolData[0]);
-    var cutoff120 = new Date(today.getTime() - 119*86400000);
-    var dsiLineMap = {};
-    _filterByOffice(tolData.slice(1), sbCol, officeId).forEach(function(row) {
-      var d = String(tCol(row,sbCol,'DSI')||'').trim(); if (!d) return;
-      var od = _parseDateLocal(tCol(row,sbCol,'ORDER_DATE')); if (!od||od<cutoff120) return;
-      if (!dsiLineMap[d]) dsiLineMap[d] = [];
+  // ── ORDER DETAIL LOOKUP for calls worked ──
+  var orderDetailMap={};
+  dayAfterOrders.forEach(function(o){if(o.dsi)orderDetailMap[o.dsi]=o;});
+  deliveredOrders.forEach(function(o){if(o.dsi&&!orderDetailMap[o.dsi])orderDetailMap[o.dsi]=o;});
+  orderIssues.forEach(function(o){if(o.dsi&&!orderDetailMap[o.dsi])orderDetailMap[o.dsi]=o;});
+  var otherDsis=Object.keys(todayDsiSet).filter(function(d){return !orderDetailMap[d];});
+  if (otherDsis.length>0) {
+    var otherSet={};
+    otherDsis.forEach(function(d){otherSet[d]=true;});
+    var fbData=_getSheetData(ss,TABLEAU_TAB);
+    if (fbData&&fbData.length>=2) {
+      var fbCol=buildTableauColumnMap(fbData[0]),fbDsiRows={};
+      _filterByOffice(fbData.slice(1),fbCol,officeId).forEach(function(row){
+        var d=String(tCol(row,fbCol,'DSI')||'').trim(); if (!otherSet[d]) return;
+        if (!fbDsiRows[d]) fbDsiRows[d]=[];
+        fbDsiRows[d].push(row);
+      });
+      Object.keys(fbDsiRows).forEach(function(d){
+        orderDetailMap[d]=_buildTolRow(fbDsiRows[d][0],fbCol,fbDsiRows[d]);
+      });
+    }
+  }
+
+  // ── CALLS WORKED: grouped by category with order details ──
+  var notesByDsi={};
+  todayNotes.forEach(function(n){
+    if (!notesByDsi[n.dsi]) notesByDsi[n.dsi]=[];
+    notesByDsi[n.dsi].push({ts:n.ts,authorName:n.authorName,noteText:n.noteText});
+  });
+  function _workedEntry(dsi){
+    var o=orderDetailMap[dsi]||{dsi:dsi,rep:'',orderDate:'',productCounts:{},statusCounts:{}};
+    return {dsi:dsi,rep:o.rep||'',orderDate:o.orderDate||'',productCounts:o.productCounts||{},statusCounts:o.statusCounts||{},notes:notesByDsi[dsi]||[]};
+  }
+  var callsWorked={dayafter:[],delivered:[],issues:[],other:[]};
+  Object.keys(todayDsiSet).forEach(function(dsi){
+    if      (dayAfterDsiSet[dsi])  callsWorked.dayafter.push(_workedEntry(dsi));
+    else if (deliveredDsiSet[dsi]) callsWorked.delivered.push(_workedEntry(dsi));
+    else if (issuesDsiSet[dsi])    callsWorked.issues.push(_workedEntry(dsi));
+    else                           callsWorked.other.push(_workedEntry(dsi));
+  });
+
+  // ── STATUS BREAKDOWN ──
+  var statusCustRows={},statusTotalLines={};
+  var tolData=_getSheetData(ss,TABLEAU_TAB);
+  if (tolData&&tolData.length>=2) {
+    var sbCol=buildTableauColumnMap(tolData[0]);
+    var cutoff120=new Date(refDate.getTime()-119*86400000);
+    var dsiLineMap={};
+    _filterByOffice(tolData.slice(1),sbCol,officeId).forEach(function(row){
+      var d=String(tCol(row,sbCol,'DSI')||'').trim(); if (!d) return;
+      var od=_parseDateLocal(tCol(row,sbCol,'ORDER_DATE')); if (!od||od<cutoff120) return;
+      if (!dsiLineMap[d]) dsiLineMap[d]=[];
       dsiLineMap[d].push(row);
     });
-    Object.keys(dsiLineMap).forEach(function(d) {
-      var rows = dsiLineMap[d];
-      if (rows.every(function(r){ return _isExcludedStatus(tCol(r,sbCol,'DTR_STATUS')); })) return;
-      var seen = {};
-      rows.forEach(function(r) {
-        var st = String(tCol(r,sbCol,'DTR_STATUS')||'').trim()||'Null';
-        statusTotalLines[st] = (statusTotalLines[st]||0)+1;
-        if (!seen[st]) { seen[st]=true; statusCustRows[st]=(statusCustRows[st]||0)+1; }
+    Object.keys(dsiLineMap).forEach(function(d){
+      var rows=dsiLineMap[d];
+      if (rows.every(function(r){return _isExcludedStatus(tCol(r,sbCol,'DTR_STATUS'));})) return;
+      var seen={};
+      rows.forEach(function(r){
+        var st=String(tCol(r,sbCol,'DTR_STATUS')||'').trim()||'Null';
+        statusTotalLines[st]=(statusTotalLines[st]||0)+1;
+        if (!seen[st]){seen[st]=true;statusCustRows[st]=(statusCustRows[st]||0)+1;}
       });
     });
   }
-  var ST_ORDER = ['Porting Issue','Port Approved','Pending Order Port','Pending Shipment','Pending','Delivered','Shipped','Scheduled','BYOD','Null','Active','Backordered','Open','Posted','Canceled','Disconnected'];
-  var allSt = Object.keys(statusCustRows).sort(function(a,b){ var ia=ST_ORDER.indexOf(a),ib=ST_ORDER.indexOf(b); return (ia<0?999:ia)-(ib<0?999:ib); });
-  var totCust=0, totLines=0;
-  var statusBreakdown = allSt.map(function(s){ totCust+=statusCustRows[s]||0; totLines+=statusTotalLines[s]||0; return {status:s,customerRows:statusCustRows[s]||0,totalLines:statusTotalLines[s]||0}; });
+  var ST_ORDER=['Porting Issue','Port Approved','Pending Order Port','Pending Shipment','Pending','Delivered','Shipped','Scheduled','BYOD','Null','Active','Backordered','Open','Posted','Canceled','Disconnected'];
+  var allSt=Object.keys(statusCustRows).sort(function(a,b){var ia=ST_ORDER.indexOf(a),ib=ST_ORDER.indexOf(b);return (ia<0?999:ia)-(ib<0?999:ib);});
+  var totCust=0,totLines=0;
+  var statusBreakdown=allSt.map(function(s){totCust+=statusCustRows[s]||0;totLines+=statusTotalLines[s]||0;return {status:s,customerRows:statusCustRows[s]||0,totalLines:statusTotalLines[s]||0};});
   statusBreakdown.push({status:'TOTAL',customerRows:totCust,totalLines:totLines});
 
-  // ACTIVATION BUCKETS — sum Sales(All) per bucket from _TableauActivationRates
-  var AR_BUCKETS = ['0-7 Days','8-14 Days','15-30 Days','31-60 Days'];
-  var arData = _getSheetData(ss, ACTIVATION_RATES_TAB);
-  var bktVol={}, bktActs={}, repArMap={};
-  if (arData && arData.length >= 2) {
-    var arCol = buildTableauColumnMap(arData[0]);
-    _filterByOffice(arData.slice(1), arCol, officeId).forEach(function(row) {
+  // ── ACTIVATION SUMMARY ──
+  var AR_BUCKETS=['0-7 Days','8-14 Days','15-30 Days','31-60 Days'];
+  var arData=_getSheetData(ss,ACTIVATION_RATES_TAB);
+  var bktVol={},bktActs={},repArMap={};
+  if (arData&&arData.length>=2) {
+    var arCol=buildTableauColumnMap(arData[0]);
+    _filterByOffice(arData.slice(1),arCol,officeId).forEach(function(row){
       var rep=String(tCol(row,arCol,'REP')||'').trim(); if (!rep) return;
       var bkt=String(tCol(row,arCol,'ACTIVATION_BUCKET')||'').trim(); if (!bkt) return;
-      var vol=Number(tCol(row,arCol,'SALES_VOL'))||0, acts=Number(tCol(row,arCol,'SALES_ACTS'))||0;
+      var vol=Number(tCol(row,arCol,'SALES_VOL'))||0,acts=Number(tCol(row,arCol,'SALES_ACTS'))||0;
       if (vol<=0) return;
       bktVol[bkt]=(bktVol[bkt]||0)+vol; bktActs[bkt]=(bktActs[bkt]||0)+acts;
       if (!repArMap[rep]) repArMap[rep]={};
       repArMap[rep][bkt]={vol:vol,acts:acts};
     });
   }
-  var activationBuckets = AR_BUCKETS.map(function(b){ return {bucket:b,vol:bktVol[b]||0,acts:bktActs[b]||0}; });
-  var officeArTotal={}; AR_BUCKETS.forEach(function(b){ officeArTotal[b]={vol:bktVol[b]||0,acts:bktActs[b]||0}; });
-  var repArList = Object.keys(repArMap).sort(function(a,b){
-    var da=repArMap[a]['8-14 Days']||{vol:0,acts:0}, db=repArMap[b]['8-14 Days']||{vol:0,acts:0};
-    var ra=da.vol>0?da.acts/da.vol:1, rb=db.vol>0?db.acts/db.vol:1; return ra-rb;
+  var activationBuckets=AR_BUCKETS.map(function(b){var v=bktVol[b]||0,a=bktActs[b]||0;return {bucket:b,vol:v,acts:a,rate:v>0?Math.round(a/v*1000)/10:0};});
+  var officeArTotal={}; AR_BUCKETS.forEach(function(b){var v=bktVol[b]||0,a=bktActs[b]||0;officeArTotal[b]={vol:v,acts:a};});
+  var repArList=Object.keys(repArMap).sort(function(a,b){
+    var da=repArMap[a]['8-14 Days']||{vol:0,acts:0},db=repArMap[b]['8-14 Days']||{vol:0,acts:0};
+    var ra=da.vol>0?da.acts/da.vol:1,rb=db.vol>0?db.acts/db.vol:1; return ra-rb;
   });
-  var bottom5Ar = repArList.slice(0,5).map(function(rep){ return {rep:rep,buckets:repArMap[rep]}; });
+  var bottom5Ar=repArList.slice(0,5).map(function(rep){return {rep:rep,buckets:repArMap[rep]};});
 
-  // CHURN — top 5 reps by 0-30 Day churn rate
-  var churnRows = readChurnReport(ss, officeId);
-  var repChurnMap={}, officeTotalChurn={};
-  churnRows.forEach(function(r) {
+  // ── CHURN SUMMARY ──
+  var churnRows=readChurnReport(ss,officeId);
+  var repChurnMap={},officeTotalChurn={};
+  churnRows.forEach(function(r){
     if (!r.rep||!r.bucket) return;
     if (!repChurnMap[r.rep]) repChurnMap[r.rep]={};
     repChurnMap[r.rep][r.bucket]={acts:r.activated,disco:r.disconnects,color:r.color};
     if (!officeTotalChurn[r.bucket]) officeTotalChurn[r.bucket]={acts:0,disco:0};
-    officeTotalChurn[r.bucket].acts  += r.activated;
-    officeTotalChurn[r.bucket].disco += r.disconnects;
+    officeTotalChurn[r.bucket].acts+=r.activated;
+    officeTotalChurn[r.bucket].disco+=r.disconnects;
   });
-  var repChurnList = Object.keys(repChurnMap).sort(function(a,b){
-    var ba=repChurnMap[a]['0-30 Day']||{acts:0,disco:0}, bb=repChurnMap[b]['0-30 Day']||{acts:0,disco:0};
-    var ra=ba.acts>0?ba.disco/ba.acts:0, rb=bb.acts>0?bb.disco/bb.acts:0; return rb-ra;
+  // Sort by highest raw disconnect count in 0-30 Day bucket
+  var repChurnList=Object.keys(repChurnMap).sort(function(a,b){
+    var ba=repChurnMap[a]['0-30 Day']||{acts:0,disco:0},bb=repChurnMap[b]['0-30 Day']||{acts:0,disco:0};
+    return bb.disco-ba.disco;
   });
-  var top5Churn = repChurnList.slice(0,5).map(function(rep){ return {rep:rep,buckets:repChurnMap[rep]}; });
+  var top5Churn=repChurnList.slice(0,5).map(function(rep){return {rep:rep,buckets:repChurnMap[rep]};});
+  var CHURN_BUCKETS=['0-30 Day','30 Day','60 Day','90 Day','120 Day'];
+  var churnBuckets=CHURN_BUCKETS.map(function(b){var d=officeTotalChurn[b]||{acts:0,disco:0};return {bucket:b,activated:d.acts,disconnected:d.disco,rate:d.acts>0?Math.round(d.disco/d.acts*1000)/10:0};});
 
-  // ESCALATIONS — 1-2 star DSIs with today's notes
-  var escalations = escDsis.map(function(d){ return {dsi:d,rating:ratings[d],todayNotes:todayNotes.filter(function(n){ return n.dsi===d; })}; });
+  // ── NO ANSWERS + ESCALATIONS WITH NOTES ──
+  var noAnswersOut=noAnswerDsis.map(function(dsi){return {dsi:dsi,notes:notesByDsi[dsi]||[]};});
+  var escalationsOut=escalationRatings.map(function(e){return {dsi:e.dsi,rating:e.rating,notes:notesByDsi[e.dsi]||[]};});
 
-  var report = {
+  var report={
     date:todayStr, generatedAt:new Date().toISOString(),
-    statusBreakdown:statusBreakdown, activationBuckets:activationBuckets,
     callCategories:callCategories,
-    repActivation:{officeTotal:officeArTotal,bottom5:bottom5Ar},
-    repChurn:{officeTotal:officeTotalChurn,top5:top5Churn},
-    escalations:escalations, todayNotes:todayNotes
+    statusBreakdown:statusBreakdown,
+    activationSummary:{buckets:activationBuckets,officeTotal:officeArTotal,repImpact:bottom5Ar},
+    churnSummary:{buckets:churnBuckets,officeTotal:officeTotalChurn,repImpact:top5Churn},
+    callsWorked:callsWorked,
+    noAnswers:noAnswersOut,
+    escalations:escalationsOut
   };
 
-  // SAVE — upsert row by date in _DailyReports_<officeId>
-  var drSheet = _getDailyReportSheet(ss, officeId);
-  var drData  = drSheet.getDataRange().getValues();
-  var nowStr  = new Date().toISOString();
-  var rJson   = JSON.stringify(report);
-  for (var ri = 1; ri < drData.length; ri++) {
-    if (String(drData[ri][0]).trim() === todayStr) {
-      drSheet.getRange(ri+1,1,1,3).setValues([[todayStr,nowStr,rJson]]);
+  // SAVE — upsert by date, append if new
+  var drSheet=_getDailyReportSheet(ss,officeId);
+  var drData=drSheet.getDataRange().getValues();
+  var nowStr=new Date().toISOString();
+  var rJson=JSON.stringify(report);
+  for (var upi=1;upi<drData.length;upi++) {
+    if (_drNormDate(drData[upi][0])===todayStr) {
+      drSheet.getRange(upi+1,1,1,3).setValues([[todayStr,nowStr,rJson]]);
       return {ok:true,date:todayStr,action:'updated'};
     }
   }
   drSheet.appendRow([todayStr,nowStr,rJson]);
 
   // Auto-purge rows older than 365 days
-  var cutoff365 = new Date(today.getTime()-365*86400000).toISOString().split('T')[0];
-  var fresh = drSheet.getDataRange().getValues(); var toDel=[];
-  for (var fi=1;fi<fresh.length;fi++) { if (String(fresh[fi][0]).trim()<cutoff365) toDel.push(fi+1); }
+  var cutoff365=new Date(refDate.getTime()-365*86400000).toISOString().split('T')[0];
+  var fresh=drSheet.getDataRange().getValues(); var toDel=[];
+  for (var fi=1;fi<fresh.length;fi++){if (_drNormDate(fresh[fi][0])<cutoff365) toDel.push(fi+1);}
   for (var di=toDel.length-1;di>=0;di--) drSheet.deleteRow(toDel[di]);
 
   return {ok:true,date:todayStr,action:'created'};
 }
 
 function readDailyReport(ss, officeId, date) {
-  var sheet = ss.getSheetByName('_DailyReports_'+officeId); if (!sheet) return null;
-  var data = sheet.getDataRange().getValues();
+  var sheet=ss.getSheetByName('_DailyReports_'+officeId); if (!sheet) return null;
+  var data=sheet.getDataRange().getValues();
   for (var i=1;i<data.length;i++) {
-    if (String(data[i][0]).trim()===date) { try { return JSON.parse(String(data[i][2])); } catch(e) { return null; } }
+    if (_drNormDate(data[i][0])===date) { try { return JSON.parse(String(data[i][2])); } catch(e) { return null; } }
   }
   return null;
 }
 
 function getDailyReportDates(ss, officeId) {
-  var sheet = ss.getSheetByName('_DailyReports_'+officeId); if (!sheet) return [];
-  var data = sheet.getDataRange().getValues(); var dates=[];
-  for (var i=1;i<data.length;i++) { var d=String(data[i][0]).trim(); if (d) dates.push(d); }
-  dates.sort(function(a,b){ return b.localeCompare(a); });
+  var sheet=ss.getSheetByName('_DailyReports_'+officeId); if (!sheet) return [];
+  var data=sheet.getDataRange().getValues();
+  var seen={},dates=[];
+  for (var i=1;i<data.length;i++){var d=_drNormDate(data[i][0]); if (!d||seen[d]) continue; seen[d]=true; dates.push(d);}
+  dates.sort(function(a,b){return b.localeCompare(a);});
   return dates;
 }
 
