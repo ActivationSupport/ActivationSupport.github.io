@@ -649,8 +649,8 @@ function showApp() {
 function _setSidebarOfficeLogo(officeId) {
   var el = document.getElementById('sb-office-name');
   var lg = OFFICE_LOGOS[officeId];
-  if (lg && lg.emblem) {
-    el.innerHTML = '<img src="'+lg.emblem+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="max-height:40px;max-width:168px;object-fit:contain">';
+  if (lg && lg.full) {
+    el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="max-height:36px;max-width:176px;object-fit:contain">';
   } else {
     el.textContent = OFFICE_NAMES[officeId] || '—';
   }
