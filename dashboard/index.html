@@ -71,7 +71,7 @@ nav{flex:1;padding:10px 0}
 
 /* ── MAIN ── */
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
-.topbar{background:var(--surface);padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar{background:var(--surface);padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .topbar h2{font-size:1.05rem;font-weight:700;color:var(--blue2)}
 .topbar-actions{display:flex;gap:8px;align-items:center}
 .refresh-btn{padding:6px 14px;background:#2a2a2a;color:var(--blue2);border:1px solid #3a3a3a;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
@@ -79,14 +79,14 @@ nav{flex:1;padding:10px 0}
 .content{padding:20px 24px;flex:1}
 
 /* ── CARDS ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.3);margin-bottom:16px;overflow:hidden;animation:cardFadeIn .18s ease}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.45);margin-bottom:16px;overflow:hidden;animation:cardFadeIn .18s ease}
 .card-header{background:transparent;color:var(--text);padding:14px 16px;font-size:.88rem;font-weight:700;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
 .card-header.dark{background:transparent}
 .card-body{padding:20px}
 
 /* ── STAT ROW ── */
 .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.3);text-align:center}
+.stat{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--blue2);border-radius:10px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,.45);text-align:center}
 .stat-val{font-size:2rem;font-weight:700;color:var(--blue2);line-height:1}
 .stat-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-top:4px}
 
@@ -161,7 +161,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .call-table tbody tr:hover td{background:rgba(74,159,212,.07)}
 .rep-name{font-weight:600;color:var(--text)}
 .dsi-link{color:var(--blue2);font-weight:600;cursor:pointer;text-decoration:none;transition:color .15s}
-.dsi-link:hover{text-decoration:underline}
+.dsi-link:hover{color:#fff;text-decoration:underline}
 
 /* status pills */
 .sp{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;margin-right:3px}
@@ -935,6 +935,7 @@ function statusPill(s) {
 }
 
 var SARA_URL = 'https://www.saraplus.com/e/ServicePages/Login.aspx';
+var _openedDsis = new Set();
 
 function clickDsi(dsi) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -945,9 +946,15 @@ function clickDsi(dsi) {
     document.body.appendChild(el); el.select(); document.execCommand('copy');
     document.body.removeChild(el);
   }
-  window.open(SARA_URL, '_blank');
-  showToast('Copied: ' + dsi);
+  if (!_openedDsis.has(dsi)) {
+    _openedDsis.add(dsi);
+    window.open(SARA_URL, '_blank');
+    showToast('Copied & opened SARA: ' + dsi);
+  } else {
+    showToast('Copied: ' + dsi);
+  }
 }
+function copyDsiAndOpen(dsi) { clickDsi(dsi); }
 
 function showToast(msg) {
   var t = document.getElementById('dsi-toast'); if (!t) return;
