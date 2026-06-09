@@ -678,7 +678,7 @@ function loadData() {
   TAB_CACHE = {};
   document.getElementById('main-content').innerHTML = '<div class="spinner">Loading data…</div>';
   api({}).then(function(res) {
-    if (res.error) { document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + res.error + '</div>'; return; }
+    if (res.error) { document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>'; return; }
     DATA = res;
     var roster = DATA.roster || {};
     var me = roster[SESSION.email];
@@ -760,7 +760,7 @@ function fmtDate(v) {
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
 
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;'); }
 
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
 var _AR_LINES = null;
