@@ -250,15 +250,19 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-copy-btn{padding:.3rem .75rem;background:#334155;color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer}
 .dr-copy-btn:hover{opacity:.85}
 .dr-gents{font-size:.73rem;color:#555;display:block;margin-top:.25rem}
-.dr-body{display:flex;flex-direction:column;gap:1.5rem;padding-top:.5rem}
+.dr-body{display:flex;flex-direction:column;gap:.85rem;padding-top:.5rem}
 .dr-section{}
-.dr-sec-hdr{font-size:.74rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#60a5fa;padding:.35rem .7rem;background:rgba(96,165,250,.07);border-left:3px solid #60a5fa;margin-bottom:.6rem;border-radius:0 4px 4px 0;display:flex;align-items:center;gap:.5rem}
+.dr-sec-hdr{font-size:.74rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#60a5fa;padding:.3rem .65rem;background:rgba(96,165,250,.07);border-left:3px solid #60a5fa;margin-bottom:.45rem;border-radius:0 4px 4px 0;display:flex;align-items:center;gap:.5rem}
 .dr-subhdr{font-size:.71rem;font-weight:400;letter-spacing:0;text-transform:none;color:#666}
-.dr-table{width:100%;border-collapse:collapse;font-size:.83rem}
-.dr-table th{padding:.4rem .65rem;text-align:left;color:#888;font-weight:600;font-size:.73rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid #2a2a2a}
-.dr-table td{padding:.38rem .65rem;border-bottom:1px solid #1e1e1e;vertical-align:top}
+.dr-table{width:100%;border-collapse:collapse;font-size:.81rem}
+.dr-table th{padding:.28rem .5rem;text-align:left;color:#888;font-weight:600;font-size:.71rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid #2a2a2a}
+.dr-table td{padding:.28rem .5rem;border-bottom:1px solid #1e1e1e;vertical-align:top}
 .dr-table tr:hover td{background:rgba(255,255,255,.025)}
 .dr-total-row td{font-weight:700;background:rgba(255,255,255,.04);border-top:1.5px solid #3a3a3a}
+/* status grid */
+.dr-status-grid{display:flex;flex-wrap:wrap;gap:5px;padding:.15rem .1rem}
+.dr-status-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.03);border:1px solid #252525;border-radius:5px;padding:3px 8px;font-size:.77rem}
+.dr-chip-counts{color:#666;font-size:.71rem;white-space:nowrap}
 .dr-num{text-align:right;font-variant-numeric:tabular-nums}
 .dr-muted{color:#555;font-size:.79rem}
 .dr-note-item{margin-bottom:.3rem;font-size:.81rem;line-height:1.45;color:var(--text)}
@@ -1438,16 +1442,17 @@ var _DR_ST_CLS = {
 };
 function _drSectionStatus(rows) {
   if (!rows.length) return '';
-  var body=rows.map(function(r){
-    var isTotal=r.status==='TOTAL';
-    var badge=isTotal?'<strong>TOTAL</strong>':'<span class="status-pill '+esc(_DR_ST_CLS[r.status]||'')+'">'+esc(r.status)+'</span>';
-    return '<tr'+(isTotal?' class="dr-total-row"':'')+'>'+
-      '<td>'+badge+'</td><td class="dr-num">'+r.customerRows+'</td><td class="dr-num">'+r.totalLines+'</td></tr>';
+  var total=rows.find(function(r){return r.status==='TOTAL';})||{customerRows:0,totalLines:0};
+  var chips=rows.filter(function(r){return r.status!=='TOTAL';}).map(function(r){
+    return '<div class="dr-status-chip">'+
+      '<span class="status-pill '+esc(_DR_ST_CLS[r.status]||'')+'">'+esc(r.status)+'</span>'+
+      '<span class="dr-chip-counts">'+r.customerRows+' cust &middot; '+r.totalLines+' ln</span>'+
+      '</div>';
   }).join('');
-  return '<div class="dr-section"><div class="dr-sec-hdr">Order Status Breakdown</div>'+
-    '<table class="dr-table"><thead><tr>'+
-    '<th>Status</th><th class="dr-num">Customers</th><th class="dr-num">Lines</th>'+
-    '</tr></thead><tbody>'+body+'</tbody></table></div>';
+  return '<div class="dr-section">'+
+    '<div class="dr-sec-hdr">Order Status Breakdown'+
+    '<span class="dr-subhdr">'+total.customerRows+' customers &middot; '+total.totalLines+' lines total</span></div>'+
+    '<div class="dr-status-grid">'+chips+'</div></div>';
 }
 
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
