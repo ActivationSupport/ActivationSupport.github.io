@@ -1952,12 +1952,14 @@ function _drBuildEmailHtml() {
   function eHousingCell(label,colorKey,data){
     if (!data||(!data.customers&&!data.lines)) return '';
     var hdrStyle=HOUSING_HDR[colorKey]||HOUSING_HDR['green'];
-    return '<div style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+
-      '<div style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700">'+
-        esc(label)+' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' customers &nbsp;·&nbsp; '+data.lines+' lines</span>'+
-      '</div>'+
+    return '<details style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+
+      '<summary style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;list-style:none;display:block">'+
+        esc(label)+
+        ' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' customers &nbsp;·&nbsp; '+data.lines+' lines</span>'+
+        '&nbsp;&nbsp;<span style="font-size:11px;opacity:.7">▾</span>'+
+      '</summary>'+
       '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+eSubCards(data.sub)+'</div>'+
-    '</div>';
+    '</details>';
   }
   var sbRaw=rpt.statusBreakdown||{};
   var sbTotal=Array.isArray(sbRaw)
