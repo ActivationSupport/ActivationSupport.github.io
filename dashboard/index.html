@@ -1627,8 +1627,8 @@ var _DR_CARD_STYLE = {
   '':                 'background:#161b22;border-color:#21262d'
 };
 function _toggleHousing(id, uid) {
-  var hdr  = document.getElementById('drhdr-' +id+'-'+uid);
-  var body = document.getElementById('drbody-'+id+'-'+uid);
+  var hdr  = document.getElementById('drhdr-' +id+uid);
+  var body = document.getElementById('drbody-'+id+uid);
   if (!body) return;
   var open = body.style.display === 'block';
   body.style.display = open ? 'none' : 'block';
