@@ -1093,8 +1093,8 @@ function generateDailyReport(ss, officeId, targetDateStr) {
     else                           callsWorked.other.push(_workedEntry(dsi));
   });
 
-  // ── STATUS BREAKDOWN ──
-  var statusCustRows={},statusTotalLines={};
+  // ── STATUS BREAKDOWN (housing cells) ──
+  var sbCustFiber={},sbLinesFiber={},sbCustOther={},sbLinesOther={};
   var tolData=_getSheetData(ss,TABLEAU_TAB);
   if (tolData&&tolData.length>=2) {
     var sbCol=buildTableauColumnMap(tolData[0]);
@@ -1108,20 +1108,44 @@ function generateDailyReport(ss, officeId, targetDateStr) {
     });
     Object.keys(dsiLineMap).forEach(function(d){
       var rows=dsiLineMap[d];
-      if (rows.every(function(r){return _isExcludedStatus(tCol(r,sbCol,'DTR_STATUS'));})) return;
+      var isFiber=rows.some(function(r){
+        var pt=String(tCol(r,sbCol,'PRODUCT_TYPE')||'').trim().toLowerCase();
+        return pt.indexOf('fiber')!==-1||pt.indexOf('internet')!==-1;
+      });
+      if (!isFiber&&rows.every(function(r){return _isExcludedStatus(tCol(r,sbCol,'DTR_STATUS'));})) return;
       var seen={};
       rows.forEach(function(r){
         var st=String(tCol(r,sbCol,'DTR_STATUS')||'').trim()||'Null';
-        statusTotalLines[st]=(statusTotalLines[st]||0)+1;
-        if (!seen[st]){seen[st]=true;statusCustRows[st]=(statusCustRows[st]||0)+1;}
+        if (isFiber){
+          sbLinesFiber[st]=(sbLinesFiber[st]||0)+1;
+          if (!seen[st]){seen[st]=true;sbCustFiber[st]=(sbCustFiber[st]||0)+1;}
+        } else {
+          sbLinesOther[st]=(sbLinesOther[st]||0)+1;
+          if (!seen[st]){seen[st]=true;sbCustOther[st]=(sbCustOther[st]||0)+1;}
+        }
       });
     });
   }
-  var ST_ORDER=['Porting Issue','Port Approved','Pending Order Port','Pending Shipment','Pending','Delivered','Shipped','Scheduled','BYOD','Null','Active','Backordered','Open','Posted','Canceled','Disconnected'];
-  var allSt=Object.keys(statusCustRows).sort(function(a,b){var ia=ST_ORDER.indexOf(a),ib=ST_ORDER.indexOf(b);return (ia<0?999:ia)-(ib<0?999:ib);});
-  var totCust=0,totLines=0;
-  var statusBreakdown=allSt.map(function(s){totCust+=statusCustRows[s]||0;totLines+=statusTotalLines[s]||0;return {status:s,customerRows:statusCustRows[s]||0,totalLines:statusTotalLines[s]||0};});
-  statusBreakdown.push({status:'TOTAL',customerRows:totCust,totalLines:totLines});
+  var HOUSING_DEF={
+    completedOrders:['Active','Posted','Canceled','Disconnected'],
+    orderIssues:    ['Porting Issue','Port Approved','Pending Order Port','BYOD','Pending Valid Payment'],
+    allPendingLines:['Delivered','Shipped','Open','Null','Confirmed','Pending','Pending Shipment','Backordered']
+  };
+  function _sbCell(cm,lm,sts){
+    var tc=0,tl=0,sub=[];
+    (sts||Object.keys(cm)).forEach(function(st){
+      var c=cm[st]||0,l=lm[st]||0; if(!c&&!l) return;
+      tc+=c;tl+=l;sub.push({status:st,customers:c,lines:l});
+    });
+    return {customers:tc,lines:tl,sub:sub};
+  }
+  var sbCompleted=_sbCell(sbCustOther,sbLinesOther,HOUSING_DEF.completedOrders);
+  var sbIssues   =_sbCell(sbCustOther,sbLinesOther,HOUSING_DEF.orderIssues);
+  var sbPending  =_sbCell(sbCustOther,sbLinesOther,HOUSING_DEF.allPendingLines);
+  var sbFiber    =_sbCell(sbCustFiber,sbLinesFiber,null);
+  var sbGrandC=sbCompleted.customers+sbIssues.customers+sbPending.customers+sbFiber.customers;
+  var sbGrandL=sbCompleted.lines+sbIssues.lines+sbPending.lines+sbFiber.lines;
+  var statusBreakdown={completedOrders:sbCompleted,orderIssues:sbIssues,allPendingLines:sbPending,fiber:sbFiber,total:{customers:sbGrandC,lines:sbGrandL}};
 
   // ── ACTIVATION SUMMARY ──
   var AR_BUCKETS=['0-7 Days','8-14 Days','15-30 Days','31-60 Days'];
