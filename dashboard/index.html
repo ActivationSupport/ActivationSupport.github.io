@@ -1736,13 +1736,34 @@ function _drBuildEmailHtml() {
   function sPill(label,val,bg){return '<span style="background:'+(bg||'#1e3a5f')+';color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;font-weight:600;display:inline-block;margin:2px">'+val+' <span style="font-weight:400;font-size:11px">'+label+'</span></span>';}
   var statBar=sPill('Day-After covered',daW+'/'+daT+' ('+cov+')')+sPill('Delivered worked',cats.deliveredWorked||0)+sPill('Issues worked',cats.issuesWorked||0)+sPill('No Answers',cats.noAnswerTotal||0,'#991b1b')+sPill('Escalations',cats.escalationTotal||0,'#991b1b');
 
-  // Status breakdown
-  var sbRows=(rpt.statusBreakdown||[]).map(function(r){
-    var isT=r.status==='TOTAL',td=isT?TDG:TD;
-    var badge=isT?'<strong>TOTAL</strong>':ePill(r.status,_DR_ST_CLS[r.status]||'');
-    return '<tr><td style="'+td+'">'+badge+'</td><td style="'+td+';text-align:right">'+r.customerRows+'</td><td style="'+td+';text-align:right">'+r.totalLines+'</td></tr>';
+  // Status breakdown — card layout matching portal
+  var EC={'pill-active':'background:#f0fdf4;border:1px solid #86efac','pill-delivered':'background:#faf5ff;border:1px solid #d8b4fe','pill-shipped':'background:#fffbeb;border:1px solid #fde68a','pill-pending':'background:#fffbeb;border:1px solid #fde68a','pill-null':'background:#f8fafc;border:1px solid #cbd5e1','pill-canceled':'background:#fef2f2;border:1px solid #fca5a5','pill-disco':'background:#fff1f2;border:1px solid #fda4af','pill-issue':'background:#fff7ed;border:1px solid #fdba74','pill-issue2':'background:#fff7ed;border:1px solid #fb923c','pill-pale':'background:#fefce8;border:1px solid #fef08a','':'background:#f8fafc;border:1px solid #e2e8f0'};
+  var sbTotal=(rpt.statusBreakdown||[]).find(function(r){return r.status==='TOTAL';})||{customerRows:0,totalLines:0};
+  var sbCards=(rpt.statusBreakdown||[]).filter(function(r){return r.status!=='TOTAL';}).map(function(r){
+    var cls=_DR_ST_CLS[r.status]||'';
+    return '<div style="display:inline-block;'+( EC[cls]||EC[''])+';border-radius:7px;padding:8px 10px;text-align:center;vertical-align:top;margin:3px;min-width:100px">'+
+      '<div style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(r.status)+'</div>'+
+      '<table style="width:100%;border-collapse:collapse;margin-top:5px"><tr>'+
+        '<td style="text-align:center;padding:2px 4px;border:none">'+
+          '<div style="font-size:18px;font-weight:700;color:#0f172a;line-height:1">'+r.customerRows+'</div>'+
+          '<div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:1px">Customers</div>'+
+        '</td>'+
+        '<td style="width:1px;background:#e2e8f0;padding:0;border:none"></td>'+
+        '<td style="text-align:center;padding:2px 4px;border:none">'+
+          '<div style="font-size:18px;font-weight:700;color:#0f172a;line-height:1">'+r.totalLines+'</div>'+
+          '<div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:1px">Lines</div>'+
+        '</td>'+
+      '</tr></table>'+
+      '</div>';
   }).join('');
-  var statusSec=eHdr('Order Status Breakdown')+eTbl('<tr><th style="'+TH+'">Status</th><th style="'+TH+';text-align:right">Customers</th><th style="'+TH+';text-align:right">Lines</th></tr>',sbRows);
+  var sbTotalBar='<table style="width:100%;border-collapse:collapse;background:#f0f9ff;border:1px solid #bae6fd;border-radius:7px;margin-top:4px"><tr>'+
+    '<td style="padding:9px 14px;border:none;font-size:12px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.06em">Total</td>'+
+    '<td style="padding:9px 14px;border:none;text-align:right">'+
+      '<span style="font-size:16px;font-weight:700;color:#0f172a">'+sbTotal.customerRows+'</span> <span style="font-size:11px;color:#64748b">customers</span>&nbsp;&nbsp;'+
+      '<span style="font-size:16px;font-weight:700;color:#0f172a">'+sbTotal.totalLines+'</span> <span style="font-size:11px;color:#64748b">lines</span>'+
+    '</td>'+
+  '</tr></table>';
+  var statusSec=eHdr('Order Status Breakdown')+'<div style="padding:6px 0">'+sbCards+'</div>'+sbTotalBar;
 
   // Activation rates
   var arSum=rpt.activationSummary||{},offAr=arSum.officeTotal||{},repAr=arSum.repImpact||[];
