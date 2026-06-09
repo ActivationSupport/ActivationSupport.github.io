@@ -260,10 +260,13 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-table tr:hover td{background:rgba(255,255,255,.025)}
 .dr-total-row td{font-weight:700;background:rgba(255,255,255,.04);border-top:1.5px solid #3a3a3a}
 /* status cards */
-.dr-status-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:6px;padding:.1rem 0}
+.dr-status-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;padding:.1rem 0}
 .dr-status-card{background:#161b22;border:1px solid #21262d;border-radius:7px;padding:8px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
-.dr-sc-num{font-size:1.35rem;font-weight:700;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
-.dr-sc-lines{font-size:.68rem;color:#555;white-space:nowrap}
+.dr-sc-metrics{display:flex;align-items:stretch;width:100%;margin-top:4px}
+.dr-sc-metric{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 2px}
+.dr-sc-divider{width:1px;background:rgba(255,255,255,.07);margin:2px 4px;align-self:stretch}
+.dr-sc-num{font-size:1.2rem;font-weight:700;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+.dr-sc-lbl{font-size:.6rem;color:#666;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
 .dr-sc-total{grid-column:1/-1;background:rgba(96,165,250,.05);border-color:#2a3a4a;flex-direction:row;justify-content:space-between;align-items:center;padding:7px 14px;gap:0}
 .dr-sc-total-label{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#60a5fa}
 .dr-sc-total-nums{display:flex;gap:1.5rem;align-items:baseline}
@@ -1446,14 +1449,38 @@ var _DR_ST_CLS = {
   'Pending Order Port':'pill-issue2','BYOD':'pill-issue','Pending Valid Payment':'pill-issue',
   'Backordered':'pill-pale','Open':'pill-pale','TOTAL':''
 };
+var _DR_CARD_STYLE = {
+  'pill-active':    'background:rgba(22,101,52,.18);border-color:rgba(22,101,52,.4)',
+  'pill-delivered': 'background:rgba(88,28,135,.18);border-color:rgba(88,28,135,.4)',
+  'pill-shipped':   'background:rgba(146,64,14,.18);border-color:rgba(146,64,14,.4)',
+  'pill-pending':   'background:rgba(146,64,14,.18);border-color:rgba(146,64,14,.4)',
+  'pill-null':      'background:rgba(100,116,139,.12);border-color:rgba(100,116,139,.3)',
+  'pill-canceled':  'background:rgba(153,27,27,.18);border-color:rgba(153,27,27,.4)',
+  'pill-disco':     'background:rgba(127,29,29,.2);border-color:rgba(127,29,29,.45)',
+  'pill-issue':     'background:rgba(154,52,18,.18);border-color:rgba(154,52,18,.4)',
+  'pill-issue2':    'background:rgba(124,45,18,.18);border-color:rgba(124,45,18,.4)',
+  'pill-pale':      'background:rgba(161,98,7,.14);border-color:rgba(161,98,7,.3)',
+  '':               'background:#161b22;border-color:#21262d'
+};
 function _drSectionStatus(rows) {
   if (!rows.length) return '';
   var total=rows.find(function(r){return r.status==='TOTAL';})||{customerRows:0,totalLines:0};
   var cards=rows.filter(function(r){return r.status!=='TOTAL';}).map(function(r){
-    return '<div class="dr-status-card">'+
-      '<span class="status-pill '+esc(_DR_ST_CLS[r.status]||'')+'">'+esc(r.status)+'</span>'+
-      '<div class="dr-sc-num">'+r.customerRows+'</div>'+
-      '<div class="dr-sc-lines">'+r.totalLines+' lines</div>'+
+    var cls=_DR_ST_CLS[r.status]||'';
+    var cardStyle=_DR_CARD_STYLE[cls]||_DR_CARD_STYLE[''];
+    return '<div class="dr-status-card" style="'+cardStyle+'">'+
+      '<span class="status-pill '+esc(cls)+'">'+esc(r.status)+'</span>'+
+      '<div class="dr-sc-metrics">'+
+        '<div class="dr-sc-metric">'+
+          '<div class="dr-sc-num">'+r.customerRows+'</div>'+
+          '<div class="dr-sc-lbl">Customers</div>'+
+        '</div>'+
+        '<div class="dr-sc-divider"></div>'+
+        '<div class="dr-sc-metric">'+
+          '<div class="dr-sc-num">'+r.totalLines+'</div>'+
+          '<div class="dr-sc-lbl">Lines</div>'+
+        '</div>'+
+      '</div>'+
       '</div>';
   }).join('');
   var totalCard='<div class="dr-status-card dr-sc-total">'+
