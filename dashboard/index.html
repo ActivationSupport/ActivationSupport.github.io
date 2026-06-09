@@ -157,6 +157,9 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .date-filter-wrap input[type=date]:focus{border-color:var(--blue2)}
 .clear-filters-btn{padding:7px 12px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.84rem;background:transparent;color:var(--text2);cursor:pointer;white-space:nowrap;transition:border-color .15s,color .15s}
 .clear-filters-btn:hover{border-color:#e87070;color:#e87070}
+.clear-filters-btn.active{border-color:var(--blue2);color:var(--blue2)}
+.clear-filters-btn.active:hover{border-color:#e87070;color:#e87070}
+.filter-active-badge{font-size:.72rem;font-weight:700;color:var(--blue2);white-space:nowrap}
 .call-table td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;color:var(--text)}
 .call-table tbody tr:last-child td{border-bottom:none}
 .call-table tbody tr:hover td{background:rgba(74,159,212,.07)}
@@ -1156,6 +1159,17 @@ function toggleDd(id, event) {
   if (!wasOpen) panel.classList.add('open');
 }
 
+function _updateFilterBadge() {
+  var inp = document.getElementById('f-ct');
+  var count = _activeFilters.products.length + _activeFilters.statuses.length +
+    (_activeFilters.dateFrom ? 1 : 0) + (_activeFilters.dateTo ? 1 : 0) +
+    (inp && inp.value ? 1 : 0);
+  var badge = document.getElementById('filter-active-badge');
+  var btn = document.querySelector('.clear-filters-btn');
+  if (badge) badge.textContent = count > 0 ? count + ' active' : '';
+  if (btn) btn.classList.toggle('active', count > 0);
+}
+
 function applyCallFilters() {
   _activeFilters.products = [];
   _activeFilters.statuses = [];
@@ -1169,6 +1183,7 @@ function applyCallFilters() {
   if (pb) pb.textContent = (_activeFilters.products.length ? 'Product ('+_activeFilters.products.length+')' : 'Product') + ' ▾';
   var sb = document.querySelector('#dd-status .dd-btn');
   if (sb) sb.textContent = (_activeFilters.statuses.length ? 'Status ('+_activeFilters.statuses.length+')' : 'Status') + ' ▾';
+  _updateFilterBadge();
 }
 
 function clearCallFilters() {
@@ -1180,6 +1195,7 @@ function clearCallFilters() {
   var pb = document.querySelector('#dd-product .dd-btn'); if (pb) pb.textContent = 'Product ▾';
   var sb = document.querySelector('#dd-status .dd-btn');  if (sb) sb.textContent = 'Status ▾';
   _applyView();
+  _updateFilterBadge();
 }
 
 function _buildFilterRow(searchId) {
@@ -1201,6 +1217,7 @@ function _buildFilterRow(searchId) {
     ddHtml('status','Status',Object.keys(statuses).sort()) +
     '<div class="date-filter-wrap"><span>From</span><input type="date" id="f-date-from" onchange="applyCallFilters()"><span>To</span><input type="date" id="f-date-to" onchange="applyCallFilters()"></div>' +
     '<button class="clear-filters-btn" onclick="clearCallFilters()">Clear</button>' +
+    '<span id="filter-active-badge" class="filter-active-badge"></span>' +
     '</div>';
 }
 
@@ -2038,6 +2055,7 @@ function bindFilters() {
             ? 'Showing all ' + _tabOrders.length + ' orders'
             : 'Showing ' + visible + ' of ' + _tabOrders.length + ' orders';
         }
+        _updateFilterBadge();
       }
     });
   });
