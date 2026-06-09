@@ -259,10 +259,16 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-table td{padding:.28rem .5rem;border-bottom:1px solid #1e1e1e;vertical-align:top}
 .dr-table tr:hover td{background:rgba(255,255,255,.025)}
 .dr-total-row td{font-weight:700;background:rgba(255,255,255,.04);border-top:1.5px solid #3a3a3a}
-/* status grid */
-.dr-status-grid{display:flex;flex-wrap:wrap;gap:5px;padding:.15rem .1rem}
-.dr-status-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.03);border:1px solid #252525;border-radius:5px;padding:3px 8px;font-size:.77rem}
-.dr-chip-counts{color:#666;font-size:.71rem;white-space:nowrap}
+/* status cards */
+.dr-status-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:6px;padding:.1rem 0}
+.dr-status-card{background:#161b22;border:1px solid #21262d;border-radius:7px;padding:8px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
+.dr-sc-num{font-size:1.35rem;font-weight:700;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+.dr-sc-lines{font-size:.68rem;color:#555;white-space:nowrap}
+.dr-sc-total{grid-column:1/-1;background:rgba(96,165,250,.05);border-color:#2a3a4a;flex-direction:row;justify-content:space-between;align-items:center;padding:7px 14px;gap:0}
+.dr-sc-total-label{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#60a5fa}
+.dr-sc-total-nums{display:flex;gap:1.5rem;align-items:baseline}
+.dr-sc-total-big{font-size:1.15rem;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.dr-sc-total-sub{font-size:.72rem;color:#555}
 .dr-num{text-align:right;font-variant-numeric:tabular-nums}
 .dr-muted{color:#555;font-size:.79rem}
 .dr-note-item{margin-bottom:.3rem;font-size:.81rem;line-height:1.45;color:var(--text)}
@@ -1443,16 +1449,23 @@ var _DR_ST_CLS = {
 function _drSectionStatus(rows) {
   if (!rows.length) return '';
   var total=rows.find(function(r){return r.status==='TOTAL';})||{customerRows:0,totalLines:0};
-  var chips=rows.filter(function(r){return r.status!=='TOTAL';}).map(function(r){
-    return '<div class="dr-status-chip">'+
+  var cards=rows.filter(function(r){return r.status!=='TOTAL';}).map(function(r){
+    return '<div class="dr-status-card">'+
       '<span class="status-pill '+esc(_DR_ST_CLS[r.status]||'')+'">'+esc(r.status)+'</span>'+
-      '<span class="dr-chip-counts">'+r.customerRows+' cust &middot; '+r.totalLines+' ln</span>'+
+      '<div class="dr-sc-num">'+r.customerRows+'</div>'+
+      '<div class="dr-sc-lines">'+r.totalLines+' lines</div>'+
       '</div>';
   }).join('');
+  var totalCard='<div class="dr-status-card dr-sc-total">'+
+    '<span class="dr-sc-total-label">Total</span>'+
+    '<div class="dr-sc-total-nums">'+
+      '<span><span class="dr-sc-total-big">'+total.customerRows+'</span> <span class="dr-sc-total-sub">customers</span></span>'+
+      '<span><span class="dr-sc-total-big">'+total.totalLines+'</span> <span class="dr-sc-total-sub">lines</span></span>'+
+    '</div>'+
+    '</div>';
   return '<div class="dr-section">'+
-    '<div class="dr-sec-hdr">Order Status Breakdown'+
-    '<span class="dr-subhdr">'+total.customerRows+' customers &middot; '+total.totalLines+' lines total</span></div>'+
-    '<div class="dr-status-grid">'+chips+'</div></div>';
+    '<div class="dr-sec-hdr">Order Status Breakdown</div>'+
+    '<div class="dr-status-cards">'+cards+totalCard+'</div></div>';
 }
 
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
