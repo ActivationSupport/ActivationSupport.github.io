@@ -375,7 +375,10 @@ tr:hover td{background:rgba(74,159,212,.07)}
     </div>
     <div class="main">
       <div class="topbar">
-        <h2 id="page-title">Dashboard</h2>
+        <div>
+          <h2 id="page-title">Dashboard</h2>
+          <p id="page-subtitle" style="font-size:.72rem;color:var(--text2);margin-top:1px"></p>
+        </div>
         <div class="topbar-actions">
           <span id="last-updated" style="font-size:.75rem;color:var(--text2)"></span>
           <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
@@ -656,17 +659,17 @@ function switchOffice(newOfficeId) {
 
 var ALL_ROLES = ['master-admin','owner','admin','activator','rep'];
 var TABS = [
-  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES, group: 'Call Logs' },
-  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ALL_ROLES, group: 'Call Logs' },
-  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ALL_ROLES, group: 'Call Logs' },
-  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ALL_ROLES, group: 'Call Logs' },
-  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ALL_ROLES, group: 'Call Logs' },
-  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ALL_ROLES, group: 'Call Logs' },
-  { id: 'dailyreport', icon: '📋', label: 'Daily Report',         roles: ALL_ROLES, group: 'Performance' },
-  { id: 'actrates',    icon: '📊', label: 'Activation Rates',     roles: ALL_ROLES, group: 'Performance' },
-  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ALL_ROLES, group: 'Performance' },
-  { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES, group: 'Performance' },
-  { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES, group: 'Team' },
+  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES, group: 'Call Logs',   sub: '120-day window' },
+  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ALL_ROLES, group: 'Call Logs',   sub: "Yesterday's deliveries" },
+  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ALL_ROLES, group: 'Call Logs',   sub: 'Open & delivered orders' },
+  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ALL_ROLES, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
+  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ALL_ROLES, group: 'Call Logs',   sub: '1 & 2 star ratings' },
+  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ALL_ROLES, group: 'Call Logs',   sub: 'No answer ratings' },
+  { id: 'dailyreport', icon: '📋', label: 'Daily Report',         roles: ALL_ROLES, group: 'Performance', sub: 'Office daily summary' },
+  { id: 'actrates',    icon: '📊', label: 'Activation Rates',     roles: ALL_ROLES, group: 'Performance', sub: 'Rep activation breakdown' },
+  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ALL_ROLES, group: 'Performance', sub: 'ICD disconnect breakdown' },
+  { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES, group: 'Performance', sub: 'Fully completed — 120-day window' },
+  { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES, group: 'Team',        sub: 'Roster & guests' },
 ];
 
 function buildNav() {
@@ -699,6 +702,7 @@ function switchTab(id) {
   });
   var tab = TABS.find(function(t) { return t.id === id; });
   document.getElementById('page-title').textContent = tab ? tab.label : id;
+  document.getElementById('page-subtitle').textContent = tab && tab.sub ? tab.sub : '';
   renderTab(id);
 }
 
