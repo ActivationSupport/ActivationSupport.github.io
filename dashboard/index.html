@@ -177,15 +177,36 @@ tr:hover td{background:rgba(74,159,212,.07)}
 
 /* status pills */
 .sp{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;margin-right:3px}
-.sp-active{background:#1a4a2a;color:#4caf7d}
-.sp-delivered{background:#2d1b4e;color:#b48ef0}
-.sp-yellow{background:#3a2c00;color:#f0c040}
-.sp-pale-yellow{background:#2e2600;color:#c9a855}
-.sp-canceled{background:#3d0d0d;color:#e87070}
-.sp-disconnected{background:#1a0505;color:#c03030}
-.sp-orange{background:#3d2000;color:#f08030}
-.sp-dark-orange{background:#2a1200;color:#cc6010}
-.sp-default{background:#2a2a2a;color:#999}
+.sp-active       {background:#0d2e1a;color:#4ade80}
+.sp-posted       {background:#0a2010;color:#22c55e}
+.sp-canceled     {background:#2a0a0a;color:#ef4444}
+.sp-disconnected {background:#1a0505;color:#b91c1c}
+.sp-orange-bright{background:#2a1400;color:#fb923c}
+.sp-orange       {background:#251200;color:#f97316}
+.sp-dark-orange  {background:#1a0c00;color:#ea580c}
+.sp-purple       {background:#1e0a35;color:#a855f7}
+.sp-yellow-bright{background:#2a2000;color:#facc15}
+.sp-yellow       {background:#2a1e00;color:#eab308}
+.sp-pale-yellow  {background:#252000;color:#c9a855}
+.sp-default      {background:#2a2a2a;color:#999}
+/* housing cells */
+.dr-housing-cell{border-radius:9px;margin-bottom:6px}
+.dr-housing-hdr{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;border:1px solid;border-radius:9px;transition:filter .15s;user-select:none}
+.dr-housing-hdr:hover{filter:brightness(1.12)}
+.dr-housing-hdr.open{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.dr-housing-label{font-size:.88rem;font-weight:700;flex:1}
+.dr-housing-counts{display:flex;gap:14px;font-size:.78rem;opacity:.8}
+.dr-housing-arrow{font-size:.72rem;opacity:.7;transition:transform .2s}
+.dr-housing-hdr.open .dr-housing-arrow{transform:rotate(180deg)}
+.dr-housing-body{padding:8px;border:1px solid;border-top:none;border-bottom-left-radius:9px;border-bottom-right-radius:9px;display:none}
+.dr-housing-hdr-green {background:rgba(22,163,74,.1); border-color:rgba(22,163,74,.28); color:#22c55e}
+.dr-housing-hdr-orange{background:rgba(249,115,22,.1);border-color:rgba(249,115,22,.28);color:#f97316}
+.dr-housing-hdr-purple{background:rgba(147,51,234,.1);border-color:rgba(147,51,234,.28);color:#a855f7}
+.dr-housing-hdr-yellow{background:rgba(234,179,8,.1); border-color:rgba(234,179,8,.28); color:#eab308}
+.dr-housing-body-green {border-color:rgba(22,163,74,.2)}
+.dr-housing-body-orange{border-color:rgba(249,115,22,.2)}
+.dr-housing-body-purple{border-color:rgba(147,51,234,.2)}
+.dr-housing-body-yellow{border-color:rgba(234,179,8,.2)}
 
 
 /* rating pill */
@@ -960,24 +981,25 @@ var RATING_OPTS = ['No Answer','1 Star','2 Stars','3 Stars','4 Stars','5 Stars']
 
 // ── STATUS PILL ───────────────────────────────────────────────────────────
 function spCls(s) {
-  if (!s) return 'sp-yellow';
+  if (!s) return 'sp-pale-yellow';
   var sl = s.toLowerCase().trim();
-  if (!sl || sl === 'null' || sl === '—' || sl === '-') return 'sp-yellow';
-  if (sl.indexOf('deliver') !== -1) return 'sp-delivered';
-  if (sl.indexOf('active') !== -1 || sl === 'posted') return 'sp-active';
-  if (sl.indexOf('cancel') !== -1) return 'sp-canceled';
-  if (sl.indexOf('disco') !== -1) return 'sp-disconnected';
-  if (sl.indexOf('port approv') !== -1) return 'sp-dark-orange';
-  if (sl.indexOf('order port') !== -1) return 'sp-dark-orange';
-  if (sl.indexOf('valid payment') !== -1 || (sl.indexOf('pend') !== -1 && sl.indexOf('payment') !== -1)) return 'sp-orange';
-  if (sl.indexOf('porting') !== -1 || (sl.indexOf('port') !== -1 && sl.indexOf('issue') !== -1)) return 'sp-orange';
-  if (sl.indexOf('byod') !== -1) return 'sp-orange';
-  if (sl.indexOf('backorder') !== -1 || sl.indexOf('back order') !== -1 || sl === 'open') return 'sp-pale-yellow';
-  if (sl.indexOf('ship') !== -1 || sl.indexOf('sched') !== -1 || sl.indexOf('pend') !== -1) return 'sp-yellow';
+  if (!sl || sl === 'null' || sl === '—' || sl === '-') return 'sp-pale-yellow';
+  if (sl === 'active')                                           return 'sp-active';
+  if (sl === 'posted' || sl === 'approved')                     return 'sp-posted';
+  if (sl.indexOf('cancel') !== -1)                              return 'sp-canceled';
+  if (sl.indexOf('disco') !== -1)                               return 'sp-disconnected';
+  if (sl === 'porting issue' || sl === 'pending valid payment') return 'sp-orange-bright';
+  if (sl === 'byod')                                            return 'sp-orange';
+  if (sl === 'port approved' || sl === 'pending order port')    return 'sp-dark-orange';
+  if (sl.indexOf('deliver') !== -1)                             return 'sp-purple';
+  if (sl.indexOf('ship') !== -1)                                return 'sp-yellow-bright';
+  if (sl === 'scheduled' || sl.indexOf('sched') !== -1)         return 'sp-yellow';
+  if (sl.indexOf('pend') !== -1 || sl === 'open' || sl === 'confirmed') return 'sp-pale-yellow';
+  if (sl.indexOf('backorder') !== -1 || sl.indexOf('back order') !== -1) return 'sp-pale-yellow';
   return 'sp-default';
 }
 function statusPill(s) {
-  if (!s) return '<span class="sp sp-yellow">Null</span>';
+  if (!s) return '<span class="sp sp-pale-yellow">Null</span>';
   return '<span class="sp ' + spCls(s) + '">' + esc(s) + '</span>';
 }
 
@@ -1582,57 +1604,93 @@ function _drStatBar(cats) {
 
 // ── STATUS BREAKDOWN ──────────────────────────────────────────────────────
 var _DR_ST_CLS = {
-  'Active':'pill-active','Posted':'pill-active','Confirmed':'pill-active','Delivered':'pill-delivered',
-  'Shipped':'pill-shipped','Scheduled':'pill-null','Pending':'pill-pending',
-  'Pending Shipment':'pill-pending','Null':'pill-null','Canceled':'pill-canceled',
-  'Disconnected':'pill-disco','Porting Issue':'pill-issue','Port Approved':'pill-issue2',
-  'Pending Order Port':'pill-issue2','BYOD':'pill-issue','Pending Valid Payment':'pill-issue',
-  'Backordered':'pill-pale','Open':'pill-pale','TOTAL':''
+  'Active':'sp-active','Posted':'sp-posted','Approved':'sp-posted','Confirmed':'sp-pale-yellow',
+  'Canceled':'sp-canceled','Disconnected':'sp-disconnected',
+  'Porting Issue':'sp-orange-bright','Pending Valid Payment':'sp-orange-bright',
+  'BYOD':'sp-orange','Port Approved':'sp-dark-orange','Pending Order Port':'sp-dark-orange',
+  'Delivered':'sp-purple','Shipped':'sp-yellow-bright','Scheduled':'sp-yellow',
+  'Pending':'sp-pale-yellow','Pending Shipment':'sp-pale-yellow',
+  'Null':'sp-pale-yellow','Open':'sp-pale-yellow','Backordered':'sp-pale-yellow','TOTAL':''
 };
 var _DR_CARD_STYLE = {
-  'pill-active':    'background:rgba(22,101,52,.18);border-color:rgba(22,101,52,.4)',
-  'pill-delivered': 'background:rgba(88,28,135,.18);border-color:rgba(88,28,135,.4)',
-  'pill-shipped':   'background:rgba(146,64,14,.18);border-color:rgba(146,64,14,.4)',
-  'pill-pending':   'background:rgba(146,64,14,.18);border-color:rgba(146,64,14,.4)',
-  'pill-null':      'background:rgba(100,116,139,.12);border-color:rgba(100,116,139,.3)',
-  'pill-canceled':  'background:rgba(153,27,27,.18);border-color:rgba(153,27,27,.4)',
-  'pill-disco':     'background:rgba(127,29,29,.2);border-color:rgba(127,29,29,.45)',
-  'pill-issue':     'background:rgba(154,52,18,.18);border-color:rgba(154,52,18,.4)',
-  'pill-issue2':    'background:rgba(124,45,18,.18);border-color:rgba(124,45,18,.4)',
-  'pill-pale':      'background:rgba(161,98,7,.14);border-color:rgba(161,98,7,.3)',
-  '':               'background:#161b22;border-color:#21262d'
+  'sp-active':        'background:rgba(74,222,128,.07);border-color:rgba(74,222,128,.22)',
+  'sp-posted':        'background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.22)',
+  'sp-canceled':      'background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.22)',
+  'sp-disconnected':  'background:rgba(185,28,28,.1); border-color:rgba(185,28,28,.28)',
+  'sp-orange-bright': 'background:rgba(251,146,60,.07);border-color:rgba(251,146,60,.22)',
+  'sp-orange':        'background:rgba(249,115,22,.07);border-color:rgba(249,115,22,.22)',
+  'sp-dark-orange':   'background:rgba(234,88,12,.07); border-color:rgba(234,88,12,.22)',
+  'sp-purple':        'background:rgba(168,85,247,.07);border-color:rgba(168,85,247,.22)',
+  'sp-yellow-bright': 'background:rgba(250,204,21,.07);border-color:rgba(250,204,21,.22)',
+  'sp-yellow':        'background:rgba(234,179,8,.07); border-color:rgba(234,179,8,.22)',
+  'sp-pale-yellow':   'background:rgba(254,240,138,.04);border-color:rgba(254,240,138,.14)',
+  '':                 'background:#161b22;border-color:#21262d'
 };
-function _drSectionStatus(rows) {
-  if (!rows.length) return '';
-  var total=rows.find(function(r){return r.status==='TOTAL';})||{customerRows:0,totalLines:0};
-  var cards=rows.filter(function(r){return r.status!=='TOTAL';}).map(function(r){
-    var cls=_DR_ST_CLS[r.status]||'';
-    var cardStyle=_DR_CARD_STYLE[cls]||_DR_CARD_STYLE[''];
-    return '<div class="dr-status-card" style="'+cardStyle+'">'+
-      '<span class="status-pill '+esc(cls)+'">'+esc(r.status)+'</span>'+
-      '<div class="dr-sc-metrics">'+
-        '<div class="dr-sc-metric">'+
-          '<div class="dr-sc-num">'+r.customerRows+'</div>'+
-          '<div class="dr-sc-lbl">Customers</div>'+
-        '</div>'+
-        '<div class="dr-sc-divider"></div>'+
-        '<div class="dr-sc-metric">'+
-          '<div class="dr-sc-num">'+r.totalLines+'</div>'+
-          '<div class="dr-sc-lbl">Lines</div>'+
-        '</div>'+
+function _toggleHousing(id, uid) {
+  var hdr  = document.getElementById('drhdr-' +id+'-'+uid);
+  var body = document.getElementById('drbody-'+id+'-'+uid);
+  if (!body) return;
+  var open = body.style.display === 'block';
+  body.style.display = open ? 'none' : 'block';
+  if (hdr) { open ? hdr.classList.remove('open') : hdr.classList.add('open'); }
+}
+
+function _drSectionStatus(sb) {
+  // Legacy: old reports saved as flat array
+  if (Array.isArray(sb)) {
+    if (!sb.length) return '';
+    var total=sb.find(function(r){return r.status==='TOTAL';})||{customerRows:0,totalLines:0};
+    var cards=sb.filter(function(r){return r.status!=='TOTAL';}).map(function(r){
+      var cls=_DR_ST_CLS[r.status]||'';
+      return '<div class="dr-status-card" style="'+(_DR_CARD_STYLE[cls]||_DR_CARD_STYLE[''])+'">'+
+        '<span class="sp '+cls+'" style="font-size:.7rem">'+esc(r.status)+'</span>'+
+        '<div class="dr-sc-metrics">'+
+          '<div class="dr-sc-metric"><div class="dr-sc-num">'+r.customerRows+'</div><div class="dr-sc-lbl">Customers</div></div>'+
+          '<div class="dr-sc-divider"></div>'+
+          '<div class="dr-sc-metric"><div class="dr-sc-num">'+r.totalLines+'</div><div class="dr-sc-lbl">Lines</div></div>'+
+        '</div></div>';
+    }).join('');
+    var tot='<div class="dr-status-card dr-sc-total"><span class="dr-sc-total-label">Total</span><div class="dr-sc-total-nums"><span><span class="dr-sc-total-big">'+total.customerRows+'</span> <span class="dr-sc-total-sub">customers</span></span><span><span class="dr-sc-total-big">'+total.totalLines+'</span> <span class="dr-sc-total-sub">lines</span></span></div></div>';
+    return '<div class="dr-section"><div class="dr-sec-hdr">Order Status Breakdown</div><div class="dr-status-cards">'+cards+tot+'</div></div>';
+  }
+  if (!sb || typeof sb !== 'object') return '';
+  var uid = '_'+Date.now();
+  function _subCards(sub) {
+    return (sub||[]).map(function(s){
+      var cls=_DR_ST_CLS[s.status]||'';
+      return '<div class="dr-status-card" style="'+(_DR_CARD_STYLE[cls]||_DR_CARD_STYLE[''])+'">'+
+        '<span class="sp '+cls+'" style="font-size:.7rem">'+esc(s.status)+'</span>'+
+        '<div class="dr-sc-metrics">'+
+          '<div class="dr-sc-metric"><div class="dr-sc-num">'+s.customers+'</div><div class="dr-sc-lbl">Customers</div></div>'+
+          '<div class="dr-sc-divider"></div>'+
+          '<div class="dr-sc-metric"><div class="dr-sc-num">'+s.lines+'</div><div class="dr-sc-lbl">Lines</div></div>'+
+        '</div></div>';
+    }).join('');
+  }
+  function _hCell(id, label, color, data) {
+    if (!data||(!data.customers&&!data.lines)) return '';
+    var hid='drhdr-'+id+uid, bid='drbody-'+id+uid;
+    return '<div class="dr-housing-cell">'+
+      '<div class="dr-housing-hdr dr-housing-hdr-'+color+'" id="'+hid+'" onclick="_toggleHousing(\''+id+'\',\''+uid+'\')">'+
+        '<span class="dr-housing-label">'+esc(label)+'</span>'+
+        '<div class="dr-housing-counts"><span>'+data.customers+' customers</span><span>'+data.lines+' lines</span></div>'+
+        '<span class="dr-housing-arrow">▾</span>'+
       '</div>'+
-      '</div>';
-  }).join('');
-  var totalCard='<div class="dr-status-card dr-sc-total">'+
-    '<span class="dr-sc-total-label">Total</span>'+
-    '<div class="dr-sc-total-nums">'+
-      '<span><span class="dr-sc-total-big">'+total.customerRows+'</span> <span class="dr-sc-total-sub">customers</span></span>'+
-      '<span><span class="dr-sc-total-big">'+total.totalLines+'</span> <span class="dr-sc-total-sub">lines</span></span>'+
-    '</div>'+
+      '<div class="dr-housing-body dr-housing-body-'+color+'" id="'+bid+'">'+
+        '<div class="dr-status-cards" style="padding:4px 0">'+_subCards(data.sub)+'</div>'+
+      '</div>'+
     '</div>';
+  }
+  var total=sb.total||{customers:0,lines:0};
+  var tot='<div class="dr-status-card dr-sc-total"><span class="dr-sc-total-label">Total</span><div class="dr-sc-total-nums"><span><span class="dr-sc-total-big">'+total.customers+'</span> <span class="dr-sc-total-sub">customers</span></span><span><span class="dr-sc-total-big">'+total.lines+'</span> <span class="dr-sc-total-sub">lines</span></span></div></div>';
   return '<div class="dr-section">'+
     '<div class="dr-sec-hdr">Order Status Breakdown</div>'+
-    '<div class="dr-status-cards">'+cards+totalCard+'</div></div>';
+    _hCell('co','Completed Orders','green', sb.completedOrders)+
+    _hCell('oi','Order Issues',    'orange',sb.orderIssues)+
+    _hCell('ap','All Pending Lines','purple',sb.allPendingLines)+
+    _hCell('fi','Fiber',           'yellow',sb.fiber)+
+    '<div class="dr-status-cards" style="margin-top:8px">'+tot+'</div>'+
+  '</div>';
 }
 
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
@@ -1832,7 +1890,7 @@ function _drBuildEmailHtml() {
   var YEL=BADGE+';background:#713f12;color:#fef9c3';
   var RED=BADGE+';background:#991b1b;color:#fecaca';
 
-  var PILL_MAP={'pill-active':'background:#166534;color:#bbf7d0','pill-delivered':'background:#581c87;color:#e9d5ff','pill-shipped':'background:#92400e;color:#fef3c7','pill-pending':'background:#92400e;color:#fef3c7','pill-null':'background:#92400e;color:#fef3c7','pill-canceled':'background:#991b1b;color:#fecaca','pill-disco':'background:#7f1d1d;color:#fecaca','pill-issue':'background:#9a3412;color:#fed7aa','pill-issue2':'background:#7c2d12;color:#fed7aa','pill-pale':'background:#a16207;color:#fef9c3','':'background:#e2e8f0;color:#111'};
+  var PILL_MAP={'sp-active':'background:#166534;color:#bbf7d0','sp-posted':'background:#14532d;color:#86efac','sp-canceled':'background:#991b1b;color:#fecaca','sp-disconnected':'background:#7f1d1d;color:#fecaca','sp-orange-bright':'background:#9a3412;color:#fed7aa','sp-orange':'background:#7c2d12;color:#fde68a','sp-dark-orange':'background:#6b2109;color:#fdba74','sp-purple':'background:#581c87;color:#e9d5ff','sp-yellow-bright':'background:#854d0e;color:#fef08a','sp-yellow':'background:#713f12;color:#fef9c3','sp-pale-yellow':'background:#a16207;color:#fef9c3','':'background:#e2e8f0;color:#111'};
   function ePill(text,cls){return '<span style="display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(text)+'</span>';}
   function eHdr(t){return '<div style="'+SEC+'">'+t+'</div>';}
   function eTbl(thead,tbody){return '<table style="'+TBL+'"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';}
@@ -1876,34 +1934,62 @@ function _drBuildEmailHtml() {
   function sPill(label,val,bg){return '<span style="background:'+(bg||'#1e3a5f')+';color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;font-weight:600;display:inline-block;margin:2px">'+val+' <span style="font-weight:400;font-size:11px">'+label+'</span></span>';}
   var statBar=sPill('Day-After covered',daW+'/'+daT+' ('+cov+')')+sPill('Delivered worked',cats.deliveredWorked||0)+sPill('Issues worked',cats.issuesWorked||0)+sPill('No Answers',cats.noAnswerTotal||0,'#991b1b')+sPill('Escalations',cats.escalationTotal||0,'#991b1b');
 
-  // Status breakdown — card layout matching portal
-  var EC={'pill-active':'background:#f0fdf4;border:1px solid #86efac','pill-delivered':'background:#faf5ff;border:1px solid #d8b4fe','pill-shipped':'background:#fffbeb;border:1px solid #fde68a','pill-pending':'background:#fffbeb;border:1px solid #fde68a','pill-null':'background:#f8fafc;border:1px solid #cbd5e1','pill-canceled':'background:#fef2f2;border:1px solid #fca5a5','pill-disco':'background:#fff1f2;border:1px solid #fda4af','pill-issue':'background:#fff7ed;border:1px solid #fdba74','pill-issue2':'background:#fff7ed;border:1px solid #fb923c','pill-pale':'background:#fefce8;border:1px solid #fef08a','':'background:#f8fafc;border:1px solid #e2e8f0'};
-  var sbTotal=(rpt.statusBreakdown||[]).find(function(r){return r.status==='TOTAL';})||{customerRows:0,totalLines:0};
-  var sbCards=(rpt.statusBreakdown||[]).filter(function(r){return r.status!=='TOTAL';}).map(function(r){
-    var cls=_DR_ST_CLS[r.status]||'';
-    return '<div style="display:inline-block;'+( EC[cls]||EC[''])+';border-radius:7px;padding:8px 10px;text-align:center;vertical-align:top;margin:3px;min-width:100px">'+
-      '<div style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(r.status)+'</div>'+
-      '<table style="width:100%;border-collapse:collapse;margin-top:5px"><tr>'+
-        '<td style="text-align:center;padding:2px 4px;border:none">'+
-          '<div style="font-size:18px;font-weight:700;color:#0f172a;line-height:1">'+r.customerRows+'</div>'+
-          '<div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:1px">Customers</div>'+
-        '</td>'+
-        '<td style="width:1px;background:#e2e8f0;padding:0;border:none"></td>'+
-        '<td style="text-align:center;padding:2px 4px;border:none">'+
-          '<div style="font-size:18px;font-weight:700;color:#0f172a;line-height:1">'+r.totalLines+'</div>'+
-          '<div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:1px">Lines</div>'+
-        '</td>'+
-      '</tr></table>'+
-      '</div>';
-  }).join('');
+  // Status breakdown — housing cells
+  var EC={'sp-active':'background:#f0fdf4;border:1px solid #86efac','sp-posted':'background:#f0fdf4;border:1px solid #4ade80','sp-canceled':'background:#fef2f2;border:1px solid #fca5a5','sp-disconnected':'background:#fff1f2;border:1px solid #fda4af','sp-orange-bright':'background:#fff7ed;border:1px solid #fdba74','sp-orange':'background:#fff7ed;border:1px solid #fb923c','sp-dark-orange':'background:#fff7ed;border:1px solid #f97316','sp-purple':'background:#faf5ff;border:1px solid #d8b4fe','sp-yellow-bright':'background:#fefce8;border:1px solid #fde047','sp-yellow':'background:#fefce8;border:1px solid #fde68a','sp-pale-yellow':'background:#fefce8;border:1px solid #fef08a','':'background:#f8fafc;border:1px solid #e2e8f0'};
+  var HOUSING_HDR={'green':'background:#f0fdf4;border:1px solid #86efac;color:#166534','orange':'background:#fff7ed;border:1px solid #fdba74;color:#9a3412','purple':'background:#faf5ff;border:1px solid #d8b4fe;color:#581c87','yellow':'background:#fefce8;border:1px solid #fde68a;color:#713f12'};
+  function eSubCards(sub){
+    return (sub||[]).map(function(s){
+      var cls=_DR_ST_CLS[s.status]||'';
+      return '<div style="display:inline-block;'+(EC[cls]||EC[''])+';border-radius:6px;padding:7px 9px;text-align:center;vertical-align:top;margin:3px;min-width:90px">'+
+        '<div style="padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(s.status)+'</div>'+
+        '<table style="width:100%;border-collapse:collapse;margin-top:4px"><tr>'+
+          '<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+s.customers+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Customers</div></td>'+
+          '<td style="width:1px;background:#e2e8f0;padding:0;border:none"></td>'+
+          '<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+s.lines+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Lines</div></td>'+
+        '</tr></table></div>';
+    }).join('');
+  }
+  function eHousingCell(label,colorKey,data){
+    if (!data||(!data.customers&&!data.lines)) return '';
+    var hdrStyle=HOUSING_HDR[colorKey]||HOUSING_HDR['green'];
+    return '<div style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+
+      '<div style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700">'+
+        esc(label)+' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' customers &nbsp;·&nbsp; '+data.lines+' lines</span>'+
+      '</div>'+
+      '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+eSubCards(data.sub)+'</div>'+
+    '</div>';
+  }
+  var sbRaw=rpt.statusBreakdown||{};
+  var sbTotal=Array.isArray(sbRaw)
+    ? (sbRaw.find(function(r){return r.status==='TOTAL';})||{customerRows:0,totalLines:0})
+    : (sbRaw.total||{customers:0,lines:0});
+  var sbTotCust=sbTotal.customers||sbTotal.customerRows||0;
+  var sbTotLines=sbTotal.lines||sbTotal.totalLines||0;
+  var sbContent='';
+  if (Array.isArray(sbRaw)) {
+    sbContent=sbRaw.filter(function(r){return r.status!=='TOTAL';}).map(function(r){
+      var cls=_DR_ST_CLS[r.status]||'';
+      return '<div style="display:inline-block;'+(EC[cls]||EC[''])+';border-radius:6px;padding:7px 9px;text-align:center;vertical-align:top;margin:3px;min-width:90px">'+
+        '<div style="padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(r.status)+'</div>'+
+        '<table style="width:100%;border-collapse:collapse;margin-top:4px"><tr>'+
+          '<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+r.customerRows+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Customers</div></td>'+
+          '<td style="width:1px;background:#e2e8f0;padding:0;border:none"></td>'+
+          '<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+r.totalLines+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Lines</div></td>'+
+        '</tr></table></div>';
+    }).join('');
+  } else {
+    sbContent=eHousingCell('Completed Orders','green', sbRaw.completedOrders)+
+              eHousingCell('Order Issues',    'orange',sbRaw.orderIssues)+
+              eHousingCell('All Pending Lines','purple',sbRaw.allPendingLines)+
+              eHousingCell('Fiber',           'yellow',sbRaw.fiber);
+  }
   var sbTotalBar='<table style="width:100%;border-collapse:collapse;background:#f0f9ff;border:1px solid #bae6fd;border-radius:7px;margin-top:4px"><tr>'+
     '<td style="padding:9px 14px;border:none;font-size:12px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.06em">Total</td>'+
     '<td style="padding:9px 14px;border:none;text-align:right">'+
-      '<span style="font-size:16px;font-weight:700;color:#0f172a">'+sbTotal.customerRows+'</span> <span style="font-size:11px;color:#64748b">customers</span>&nbsp;&nbsp;'+
-      '<span style="font-size:16px;font-weight:700;color:#0f172a">'+sbTotal.totalLines+'</span> <span style="font-size:11px;color:#64748b">lines</span>'+
-    '</td>'+
-  '</tr></table>';
-  var statusSec=eHdr('Order Status Breakdown')+'<div style="padding:6px 0">'+sbCards+'</div>'+sbTotalBar;
+      '<span style="font-size:16px;font-weight:700;color:#0f172a">'+sbTotCust+'</span> <span style="font-size:11px;color:#64748b">customers</span>&nbsp;&nbsp;'+
+      '<span style="font-size:16px;font-weight:700;color:#0f172a">'+sbTotLines+'</span> <span style="font-size:11px;color:#64748b">lines</span>'+
+    '</td></tr></table>';
+  var statusSec=eHdr('Order Status Breakdown')+'<div style="padding:6px 0">'+sbContent+'</div>'+sbTotalBar;
 
   // Activation rates
   var arSum=rpt.activationSummary||{},offAr=arSum.officeTotal||{},repAr=arSum.repImpact||[];
