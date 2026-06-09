@@ -20,10 +20,11 @@
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;height:100vh;overflow:hidden}
 
 /* ── LOGIN ── */
-#login-screen{position:fixed;inset:0;background:#111;display:flex;align-items:center;justify-content:center;z-index:100}
-.login-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
-.login-card h1{font-size:1.5rem;color:var(--blue2);margin-bottom:4px}
+#login-screen{position:fixed;inset:0;background:radial-gradient(ellipse at center,#162032 0%,#111 70%);display:flex;align-items:center;justify-content:center;z-index:100}
+.login-card{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--blue2);border-radius:10px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.login-card h1{font-size:1.7rem;color:var(--blue2);margin-bottom:24px}
 .login-card p{font-size:.85rem;color:var(--text2);margin-bottom:28px}
+#login-office-name{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:6px}
 .field{margin-bottom:16px}
 .field label{display:block;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:6px}
 .field input{width:100%;padding:10px 12px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.95rem;outline:none;transition:border .15s;background:#1e1e1e;color:var(--text)}
@@ -321,8 +322,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
-    <h1>Activation Support</h1>
     <p id="login-office-name">Loading office…</p>
+    <h1>Activation Support</h1>
 
     <!-- Step 1: email -->
     <div id="ls-email-step">
@@ -437,7 +438,7 @@ function loadConfig() {
     return false;
   }
   CFG = { officeId: officeId, officeName: OFFICE_NAMES[officeId] };
-  document.getElementById('login-office-name').textContent = CFG.officeName + ' — Activation Support';
+  document.getElementById('login-office-name').textContent = CFG.officeName;
   document.title = CFG.officeName + ' Dashboard';
   return true;
 }
