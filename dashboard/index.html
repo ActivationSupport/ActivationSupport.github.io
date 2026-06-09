@@ -52,6 +52,7 @@ nav{flex:1;padding:10px 0}
 .nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
 .nav-item.active{background:rgba(74,159,212,.15);color:var(--blue2);border-left-color:var(--blue2);font-weight:600}
 .nav-icon{font-size:1rem;width:20px;text-align:center}
+.nav-group-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.25);padding:14px 16px 4px;user-select:none}
 .sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08)}
 .sign-out{font-size:.78rem;color:rgba(255,255,255,.4);cursor:pointer;display:flex;align-items:center;gap:6px;transition:color .15s}
 .sign-out:hover{color:#fff}
@@ -304,7 +305,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 /* ── RESPONSIVE ── */
 @media(max-width:640px){
   .sidebar{width:56px}
-  .sidebar-header,.sidebar-office,.sidebar-name,.sidebar-user,.nav-item span,.sidebar-footer{display:none}
+  .sidebar-header,.sidebar-office,.sidebar-name,.sidebar-user,.nav-item span,.nav-group-label,.sidebar-footer{display:none}
   .nav-item{justify-content:center;padding:12px}
 }
 </style>
@@ -654,25 +655,33 @@ function switchOffice(newOfficeId) {
 
 var ALL_ROLES = ['master-admin','owner','admin','activator','rep'];
 var TABS = [
-  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES },
-  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ALL_ROLES },
-  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ALL_ROLES },
-  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ALL_ROLES },
-  { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES },
-  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ALL_ROLES },
-  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ALL_ROLES },
-  { id: 'actrates',    icon: '📊', label: 'Activation Rates',    roles: ALL_ROLES },
-  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ALL_ROLES },
-  { id: 'dailyreport', icon: '📋', label: 'Daily Report',         roles: ALL_ROLES },
-  { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES },
+  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES, group: 'Call Logs' },
+  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ALL_ROLES, group: 'Call Logs' },
+  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ALL_ROLES, group: 'Call Logs' },
+  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ALL_ROLES, group: 'Call Logs' },
+  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ALL_ROLES, group: 'Call Logs' },
+  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ALL_ROLES, group: 'Call Logs' },
+  { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES, group: 'Performance' },
+  { id: 'actrates',    icon: '📊', label: 'Activation Rates',     roles: ALL_ROLES, group: 'Performance' },
+  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ALL_ROLES, group: 'Performance' },
+  { id: 'dailyreport', icon: '📋', label: 'Daily Report',         roles: ALL_ROLES, group: 'Performance' },
+  { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES, group: 'Team' },
 ];
 
 function buildNav() {
   var role = SESSION.role || 'rep';
   var nav = document.getElementById('sidebar-nav');
   nav.innerHTML = '';
+  var lastGroup = null;
   TABS.forEach(function(t) {
     if (!t.roles.includes(role)) return;
+    if (t.group && t.group !== lastGroup) {
+      var lbl = document.createElement('div');
+      lbl.className = 'nav-group-label';
+      lbl.textContent = t.group;
+      nav.appendChild(lbl);
+      lastGroup = t.group;
+    }
     var el = document.createElement('div');
     el.className = 'nav-item' + (t.id === CURRENT_TAB ? ' active' : '');
     el.dataset.tab = t.id;
