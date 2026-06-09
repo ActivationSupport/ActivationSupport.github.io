@@ -112,6 +112,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .filter-row input,.filter-row select{padding:7px 10px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.84rem;outline:none;background:#1e1e1e;color:var(--text)}
 .filter-row input:focus,.filter-row select:focus{border-color:var(--blue2)}
 .filter-row input{flex:1;min-width:180px}
+.tbl-count{font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:8px}
 
 /* ── LOADING / EMPTY ── */
 .spinner{text-align:center;padding:48px;color:var(--text2);font-size:.9rem}
@@ -1103,6 +1104,13 @@ function _applyView() {
       tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
     });
   }
+  var countEl = document.getElementById('ct-count');
+  if (countEl) {
+    var visible = Array.from(document.querySelectorAll('#ct-table tbody tr')).filter(function(tr){ return tr.style.display !== 'none'; }).length;
+    countEl.textContent = visible === _tabOrders.length
+      ? 'Showing all ' + _tabOrders.length + ' orders'
+      : 'Showing ' + visible + ' of ' + _tabOrders.length + ' orders';
+  }
 }
 
 function sortCallTable(col) {
@@ -1206,6 +1214,7 @@ function renderCallTable(orders, title, emptyMsg) {
   _tabOrders = orders.slice(); _sortTblId = 'ct-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' };
   return '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-ct') +
+    '<div id="ct-count" class="tbl-count">Showing all '+orders.length+' orders</div>' +
     '<div class="call-table-wrap"><table class="call-table" id="ct-table"><thead><tr>' +
     _sortHeaders('ct-table') +
     '</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div></div></div>';
@@ -1996,6 +2005,15 @@ function bindFilters() {
       Array.from(tbl.querySelectorAll('tbody tr')).forEach(function(tr) {
         tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
       });
+      if (tblId === 'ct-table') {
+        var countEl = document.getElementById('ct-count');
+        if (countEl) {
+          var visible = Array.from(tbl.querySelectorAll('tbody tr')).filter(function(tr){ return tr.style.display !== 'none'; }).length;
+          countEl.textContent = visible === _tabOrders.length
+            ? 'Showing all ' + _tabOrders.length + ' orders'
+            : 'Showing ' + visible + ' of ' + _tabOrders.length + ' orders';
+        }
+      }
     });
   });
 }
