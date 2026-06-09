@@ -414,6 +414,9 @@ var OFFICE_COLORS = { midspire:'#1F4E78', viridian:'#1E5631', elevate:'#2E75B6',
 var CFG = {};
 var SESSION = {};
 var DATA = {};
+var SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 60 min inactivity
+var _lastActivity = Date.now();
+var _inactivityInterval = null;
 var CURRENT_TAB = 'master';
 
 function loadConfig() {
@@ -570,12 +573,29 @@ function doSetPin() {
 }
 
 function signOut() {
+  clearInterval(_inactivityInterval);
   sessionStorage.removeItem('as_session_' + CFG.officeId);
   DATA = {}; SESSION = {}; LOGIN_EMAIL = '';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   loginShowStep('email');
   document.getElementById('login-email').value = '';
+}
+
+function _startInactivityWatcher() {
+  _lastActivity = Date.now();
+  document.addEventListener('click',   function() { _lastActivity = Date.now(); });
+  document.addEventListener('keydown', function() { _lastActivity = Date.now(); });
+  clearInterval(_inactivityInterval);
+  _inactivityInterval = setInterval(function() {
+    if (document.getElementById('app').style.display === 'none') return;
+    if (Date.now() - _lastActivity > SESSION_TIMEOUT_MS) {
+      clearInterval(_inactivityInterval);
+      signOut();
+      var err = document.getElementById('login-error');
+      if (err) { err.textContent = 'Signed out due to inactivity.'; err.style.display = 'block'; }
+    }
+  }, 60000);
 }
 
 // ── APP INIT ─────────────────────────────────────────────────────────────
@@ -586,6 +606,7 @@ function showApp() {
   buildOfficeSwitcher();
   buildNav();
   loadData();
+  _startInactivityWatcher();
 }
 
 function buildOfficeSwitcher() { updateOfficeDropdown(); }
