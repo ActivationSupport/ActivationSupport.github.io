@@ -113,6 +113,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .filter-row input,.filter-row select{padding:7px 10px;border:1.5px solid rgba(255,255,255,.1);border-radius:6px;font-size:.84rem;outline:none;background:var(--surface);color:var(--text)}
 .filter-row input:focus,.filter-row select:focus{border-color:var(--blue2)}
 .filter-row input{flex:1;min-width:180px}
+#f-ct{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23b3b3b3' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:10px center;padding-left:32px}
 .tbl-count{font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:10px}
 
 /* ── LOADING / EMPTY ── */
@@ -150,9 +151,15 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dd-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:200;background:var(--surface2);border:1px solid rgba(255,255,255,.1);border-radius:8px;min-width:190px;padding:0 0 4px;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .dd-panel.open{display:block}
 .dd-panel-hdr{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);padding:10px 14px 6px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:2px}
-.dd-panel label{display:block;padding:8px 14px;font-size:.84rem;color:var(--text);cursor:pointer;transition:background .1s;line-height:1.5}
-.dd-panel label:hover{background:rgba(74,159,212,.1)}
-.dd-panel input[type=checkbox]{accent-color:var(--blue2);width:14px;height:14px;vertical-align:middle;margin-right:10px;cursor:pointer}
+.dd-panel label{display:block;padding:8px 14px;font-size:.84rem;color:var(--text);cursor:pointer;transition:background .1s,color .1s;line-height:1.5}
+.dd-panel label:hover{background:rgba(74,159,212,.08)}
+.dd-panel label:has(input:checked){background:rgba(74,159,212,.13);color:var(--blue2)}
+.dd-panel input[type=checkbox]{appearance:none;-webkit-appearance:none;width:15px;height:15px;border:1.5px solid rgba(255,255,255,.25);border-radius:4px;background:transparent;cursor:pointer;vertical-align:middle;margin-right:10px;position:relative;transition:background .15s,border-color .15s;top:-1px}
+.dd-panel input[type=checkbox]:checked{background:var(--blue2);border-color:var(--blue2)}
+.dd-panel input[type=checkbox]:checked::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:10px;line-height:1;font-weight:700}
+.dd-panel-actions{display:flex;gap:12px;padding:6px 14px 4px;border-top:1px solid rgba(255,255,255,.06);margin-top:2px}
+.dd-panel-actions span{font-size:.72rem;font-weight:600;color:var(--text2);cursor:pointer;transition:color .1s}
+.dd-panel-actions span:hover{color:var(--blue2)}
 .date-filter-wrap{display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);white-space:nowrap}
 .date-filter-wrap input[type=date]{padding:7px 8px;border:1.5px solid rgba(255,255,255,.1);border-radius:6px;font-size:.84rem;background:var(--surface);color:var(--text);cursor:pointer;outline:none;font-weight:400;text-transform:none;letter-spacing:0}
 .date-filter-wrap input[type=date]:focus{border-color:var(--blue2)}
@@ -1152,6 +1159,15 @@ function sortCallTable(col) {
   });
 }
 
+function ddSelectAll(ddId) {
+  document.querySelectorAll('#ddp-'+ddId+' input[type=checkbox]').forEach(function(cb){ cb.checked = true; });
+  applyCallFilters();
+}
+function ddClearAll(ddId) {
+  document.querySelectorAll('#ddp-'+ddId+' input[type=checkbox]').forEach(function(cb){ cb.checked = false; });
+  applyCallFilters();
+}
+
 function toggleDd(id, event) {
   if (event) event.stopPropagation();
   var panel = document.querySelector('#'+id+' .dd-panel');
@@ -1211,6 +1227,7 @@ function _buildFilterRow(searchId) {
       '<div class="dd-panel" id="ddp-'+ddId+'">' +
       '<div class="dd-panel-hdr">Filter by '+label+'</div>' +
       items.map(function(v){ return '<label><input type="checkbox" value="'+esc(v)+'" onchange="applyCallFilters()"> '+esc(v)+'</label>'; }).join('') +
+      '<div class="dd-panel-actions"><span onclick="ddSelectAll(\''+ddId+'\')">Select all</span><span onclick="ddClearAll(\''+ddId+'\')">Clear</span></div>' +
       '</div></div>';
   }
   return '<div class="filter-row">' +
