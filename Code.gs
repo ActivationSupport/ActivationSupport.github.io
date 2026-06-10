@@ -636,6 +636,7 @@ function doGet(e) {
       var rdrDate = (e.parameter && e.parameter.date) || new Date().toISOString().split('T')[0];
       return jsonResponse({ report: readDailyReport(ss, officeId, rdrDate) });
     }
+    if (action === 'readPostedSales') return jsonResponse({ sales: readPostedSales(ss, officeId) });
     let roster = readRoster(ss, officeId);
     const teamMaps = buildTeamEmojiMaps(ss, officeId);
     const peopleResult = readPeople(ss, officeId, roster, teamMaps.nameMap);
@@ -1617,6 +1618,7 @@ function doPost(e) {
       case 'endChallenge':        result=writeEndChallenge(body,ss,officeId); break;
       case 'calculateBlood':      result=writeCalculateBlood(body,ss,officeId); break;
       case 'generateDailyReport': result=generateDailyReport(ss,officeId,body.date||null); break;
+      case 'postSale':            result=writePostSale(body,ss,officeId); break;
       case 'createOfficeTabs':    result=createOfficeTabs(body,ss); break;
       case 'migrateFromLegacy':   result=migrateFromLegacy(ss,officeId); break;
       case 'migrateFromExternal': result=migrateFromExternal(body,ss); break;
@@ -2227,5 +2229,108 @@ function migrateFromExternal(body, ss) {
   [TAB.TEAM_CUSTOM,TAB.OVERRIDES,TAB.UNLOCKS,TAB.SETTINGS].forEach(function(base) { getOrCreateSheet(ss,officeTab(base,officeId),base); });
   Logger.log(log.join('\n'));
   return { success:true, officeId:officeId, salesRows:salesSheet.getLastRow()-1, log:log };
+}
+
+// ── POST SALE ─────────────────────────────────────────────────────────────
+// Separate from _Sales_<officeId> — these are rep self-reported sales for the
+// Live Sales Tracker leaderboard. Never touches existing _Sales_ tabs.
+function _getPostedSalesSheet(ss, officeId) {
+  var tabName = '_PostedSales_' + officeId;
+  var sheet = ss.getSheetByName(tabName);
+  if (!sheet) {
+    sheet = ss.insertSheet(tabName);
+    sheet.appendRow(['Timestamp','Rep Email','Rep Name','Rep Team','Date of Sale','DSI',
+      'Account Type','Processed Via','Under Codes','Codes Used By','Trainee','Trainee Name',
+      'Air Qty','Wireless New','Wireless BYOD','Fiber Package','Fiber Install Date',
+      'VoIP Qty','DTV Qty','DTV Package','Notes','Units']);
+    sheet.getRange(1,1,1,22).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function writePostSale(body, ss, officeId) {
+  var email = String(body.repEmail||'').trim().toLowerCase();
+  if (!email) return { error: 'Missing repEmail' };
+  var dateOfSale = String(body.dateOfSale||'').trim();
+  if (!dateOfSale) return { error: 'Missing dateOfSale' };
+  var dsi = String(body.dsi||'').trim();
+  if (!dsi || dsi.length < 12) return { error: 'DSI must be at least 12 characters' };
+  var repName = String(body.repName||'').trim();
+  var repTeam = '';
+  try {
+    var rosterSheet = ss.getSheetByName(officeTab(TAB.ROSTER, officeId));
+    if (rosterSheet) {
+      var rData = rosterSheet.getDataRange().getValues();
+      for (var r = 1; r < rData.length; r++) {
+        if (String(rData[r][0]||'').trim().toLowerCase() === email) {
+          if (!repName) repName = String(rData[r][1]||'').trim();
+          repTeam = String(rData[r][2]||'').trim();
+          break;
+        }
+      }
+    }
+  } catch(e) {}
+  var airQty      = Number(body.airQty)||0;
+  var wirelessNew = Number(body.wirelessNew)||0;
+  var wirelessByod= Number(body.wirelessByod)||0;
+  var fiberPkg    = String(body.fiberPackage||'').trim();
+  var fiberDate   = String(body.fiberInstallDate||'').trim();
+  var voipQty     = Number(body.voipQty)||0;
+  var dtvQty      = Number(body.dtvQty)||0;
+  var dtvPkg      = String(body.dtvPackage||'').trim();
+  var units = airQty + wirelessNew + wirelessByod + (fiberPkg ? 1 : 0) + voipQty + dtvQty;
+  var sheet = _getPostedSalesSheet(ss, officeId);
+  sheet.appendRow([
+    new Date(), email, repName, repTeam,
+    new Date(dateOfSale + 'T12:00:00'), dsi,
+    String(body.accountType||'').trim(), String(body.processedVia||'Sara').trim(),
+    String(body.underSomeoneCodes||'No').trim(), String(body.codesUsedBy||'').trim().toLowerCase(),
+    String(body.trainee||'No').trim(), String(body.traineeName||'').trim(),
+    airQty, wirelessNew, wirelessByod, fiberPkg, fiberDate,
+    voipQty, dtvQty, dtvPkg, String(body.notes||'').trim(), units
+  ]);
+  return { ok: true, units: units };
+}
+
+function readPostedSales(ss, officeId) {
+  var sheet = ss.getSheetByName('_PostedSales_' + officeId);
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+  var sales = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var ts       = row[0] instanceof Date ? row[0].toISOString() : String(row[0]||'');
+    var saleDateRaw = row[4];
+    var saleDate = saleDateRaw instanceof Date ? saleDateRaw.toISOString().split('T')[0] : String(saleDateRaw||'').trim();
+    var fiRaw    = row[16];
+    var fiDate   = fiRaw instanceof Date ? fiRaw.toISOString().split('T')[0] : String(fiRaw||'').trim();
+    sales.push({
+      timestamp:         ts,
+      repEmail:          String(row[1]||'').trim(),
+      repName:           String(row[2]||'').trim(),
+      repTeam:           String(row[3]||'').trim(),
+      dateOfSale:        saleDate,
+      dsi:               String(row[5]||'').trim(),
+      accountType:       String(row[6]||'').trim(),
+      processedVia:      String(row[7]||'').trim(),
+      underSomeoneCodes: String(row[8]||'').trim(),
+      codesUsedBy:       String(row[9]||'').trim(),
+      trainee:           String(row[10]||'').trim(),
+      traineeName:       String(row[11]||'').trim(),
+      airQty:            Number(row[12])||0,
+      wirelessNew:       Number(row[13])||0,
+      wirelessByod:      Number(row[14])||0,
+      fiberPackage:      String(row[15]||'').trim(),
+      fiberInstallDate:  fiDate,
+      voipQty:           Number(row[17])||0,
+      dtvQty:            Number(row[18])||0,
+      dtvPackage:        String(row[19]||'').trim(),
+      notes:             String(row[20]||'').trim(),
+      units:             Number(row[21])||0
+    });
+  }
+  return sales;
 }
 
