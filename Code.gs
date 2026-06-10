@@ -637,6 +637,10 @@ function doGet(e) {
       return jsonResponse({ report: readDailyReport(ss, officeId, rdrDate) });
     }
     if (action === 'readPostedSales') return jsonResponse({ sales: readPostedSales(ss, officeId) });
+    if (action === 'readRepLineStats') {
+      var rls_email = (e.parameter && e.parameter.repEmail) || '';
+      return jsonResponse(readRepLineStats(ss, officeId, rls_email));
+    }
     let roster = readRoster(ss, officeId);
     const teamMaps = buildTeamEmojiMaps(ss, officeId);
     const peopleResult = readPeople(ss, officeId, roster, teamMaps.nameMap);
@@ -2332,5 +2336,32 @@ function readPostedSales(ss, officeId) {
     });
   }
   return sales;
+}
+
+function readRepLineStats(ss, officeId, repEmail) {
+  if (!repEmail) return { error: 'Missing repEmail' };
+  var roster = readRoster(ss, officeId);
+  var repInfo = roster[repEmail.toLowerCase()];
+  var tableauName = (repInfo && repInfo.tableauName) ? repInfo.tableauName.trim() : '';
+  if (!tableauName) return { noLink: true };
+  var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-120); cutoff.setHours(0,0,0,0);
+  var total=0, active=0, posted=0, canceled=0, disconnected=0;
+  _readBothLogs(ss, officeId, function(row, col, dsi, allRows) {
+    var rep = String(tCol(row,col,'REP')||'').trim();
+    if (rep !== tableauName) return null;
+    var od = _parseDateLocal(tCol(row,col,'ORDER_DATE'));
+    if (!od || od < cutoff) return null;
+    allRows.forEach(function(r) {
+      var st = String(tCol(r,col,'DTR_STATUS')||'').trim().toLowerCase();
+      total++;
+      if (st==='active') active++;
+      else if (st==='posted') posted++;
+      else if (st==='canceled') canceled++;
+      else if (st==='disconnected') disconnected++;
+    });
+    return true;
+  });
+  var pending = total - active - posted - canceled - disconnected;
+  return { tableauName:tableauName, total:total, active:active, posted:posted, canceled:canceled, disconnected:disconnected, pending:pending };
 }
 
