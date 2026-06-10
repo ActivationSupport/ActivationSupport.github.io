@@ -1160,6 +1160,7 @@ function modalAddNote(noteType) {
 // ── CALL TABLE ────────────────────────────────────────────────────────────
 var _tabOrders = [], _sortTblId = '', _sortState = { col: null, dir: 1 };
 var _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' };
+var _extraColFn = null;
 
 function _applyView() {
   var result = _tabOrders.filter(function(o) {
@@ -1189,7 +1190,7 @@ function _applyView() {
     });
   }
   var tbody = document.querySelector('#'+_sortTblId+' tbody');
-  if (tbody) tbody.innerHTML = callTableRows(result, null);
+  if (tbody) tbody.innerHTML = callTableRows(result, _extraColFn);
   var inp = document.getElementById('f-'+_sortTblId.replace('-table',''));
   if (inp && inp.value) {
     var q = inp.value.toLowerCase();
@@ -1329,7 +1330,7 @@ function _sortHeaders(tblId) {
 
 function renderCallTable(orders, title, emptyMsg) {
   if (!orders.length) return noData(emptyMsg);
-  _tabOrders = orders.slice(); _sortTblId = 'ct-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' };
+  _tabOrders = orders.slice(); _sortTblId = 'ct-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = null;
   return '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-ct') +
     '<div id="ct-count" class="tbl-count">Showing all '+orders.length+' orders</div>' +
@@ -1400,7 +1401,7 @@ function renderNoAnswerTable() {
     var db = b._daysSince === null ? 9999 : b._daysSince;
     return db - da;
   });
-  _tabOrders = orders.slice(); _sortTblId = 'na-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' };
+  _tabOrders = orders.slice(); _sortTblId = 'na-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = _lastCallCell;
   var headers = [['rep','Name'],['dsi','DSI'],['date','Date'],['product','Product']].map(function(c) {
     return '<th class="sort-th" data-col="'+c[0]+'" onclick="sortCallTable(\''+c[0]+'\')">'+c[1]+'</th>';
   }).join('') + '<th>Last Called</th><th class="sort-th" data-col="status" onclick="sortCallTable(\'status\')">Status</th><th>Rating</th><th>Notes</th>';
@@ -1421,7 +1422,7 @@ function renderEscalationsTable() {
     var o = lookup[dsi];
     return o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
   });
-  _tabOrders = orders.slice(); _sortTblId = 'esc-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' };
+  _tabOrders = orders.slice(); _sortTblId = 'esc-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = null;
   return '<div class="card"><div class="card-header dark">Escalations &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-esc') +
     '<div class="call-table-wrap"><table class="call-table" id="esc-table"><thead><tr>' +
