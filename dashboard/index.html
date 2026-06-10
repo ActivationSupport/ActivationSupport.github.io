@@ -2716,10 +2716,14 @@ function _lstUCls(n) {
   return n === 0 ? 'lst-u-red' : n <= 2 ? 'lst-u-orange' : n <= 5 ? 'lst-u-yellow' : 'lst-u-green';
 }
 
+var _LST_SKIP_UNLESS_SOLD = ['admin', 'master-admin'];
+
 function _lstAgg(sales, roster) {
   var ws = _lstWeekStart(), DAY = 86400000, agg = {};
   Object.keys(roster || {}).forEach(function(e) {
-    var r = roster[e]; if (r.deactivated) return;
+    var r = roster[e];
+    if (r.deactivated) return;
+    if (_LST_SKIP_UNLESS_SOLD.indexOf(r.rank) !== -1) return;
     agg[e] = {
       name: r.name || e, team: r.team || '', rank: r.rank || 'rep',
       orders: 0, units: 0,
@@ -2727,14 +2731,24 @@ function _lstAgg(sales, roster) {
     };
   });
   (sales || []).forEach(function(s) {
-    if (!s.dateOfSale || !agg[s.repEmail]) return;
+    if (!s.dateOfSale) return;
+    var email = s.repEmail;
+    if (!agg[email] && roster[email] && !roster[email].deactivated) {
+      var r = roster[email];
+      agg[email] = {
+        name: r.name || email, team: r.team || '', rank: r.rank || 'rep',
+        orders: 0, units: 0,
+        days: [0,1,2,3,4,5,6].map(function() { return { orders: 0, units: 0 }; })
+      };
+    }
+    if (!agg[email]) return;
     var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
     var diff = Math.floor((sd.getTime() - ws.getTime()) / DAY);
     if (diff < 0 || diff > 6) return;
-    agg[s.repEmail].orders++;
-    agg[s.repEmail].units += s.units || 0;
-    agg[s.repEmail].days[diff].orders++;
-    agg[s.repEmail].days[diff].units += s.units || 0;
+    agg[email].orders++;
+    agg[email].units += s.units || 0;
+    agg[email].days[diff].orders++;
+    agg[email].days[diff].units += s.units || 0;
   });
   return agg;
 }
@@ -2928,19 +2942,28 @@ function _lstWeeksTbl(leaders, reps) {
     return { start: s, end: new Date(s.getTime() + 7 * DAY),
       label: (m < 10 ? '0' : '') + m + '/' + (d < 10 ? '0' : '') + d };
   });
-  var wAgg = {};
-  Object.keys(DATA.roster || {}).forEach(function(e) {
-    var r = DATA.roster[e]; if (r.deactivated) return;
+  var wAgg = {}, roster = DATA.roster || {};
+  Object.keys(roster).forEach(function(e) {
+    var r = roster[e];
+    if (r.deactivated) return;
+    if (_LST_SKIP_UNLESS_SOLD.indexOf(r.rank) !== -1) return;
     wAgg[e] = { name: r.name, rank: r.rank,
       weeks: weeks.map(function() { return { orders: 0, units: 0 }; }) };
   });
   (_LST_SALES || []).forEach(function(s) {
-    if (!s.dateOfSale || !wAgg[s.repEmail]) return;
+    if (!s.dateOfSale) return;
+    var email = s.repEmail;
+    if (!wAgg[email] && roster[email] && !roster[email].deactivated) {
+      var r = roster[email];
+      wAgg[email] = { name: r.name, rank: r.rank,
+        weeks: weeks.map(function() { return { orders: 0, units: 0 }; }) };
+    }
+    if (!wAgg[email]) return;
     var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
     for (var i = 0; i < weeks.length; i++) {
       if (sd >= weeks[i].start && sd < weeks[i].end) {
-        wAgg[s.repEmail].weeks[i].orders++;
-        wAgg[s.repEmail].weeks[i].units += s.units || 0;
+        wAgg[email].weeks[i].orders++;
+        wAgg[email].weeks[i].units += s.units || 0;
         break;
       }
     }
