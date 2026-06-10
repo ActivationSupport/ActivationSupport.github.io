@@ -468,6 +468,44 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .lst-team-sub{font-size:9px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
 .lst-refresh-btn{font-size:11px;color:var(--blue2);cursor:pointer;font-weight:600;margin-left:12px;user-select:none}
 @media(max-width:640px){.lst-podium{grid-template-columns:1fr}}
+.lst-rep-link{cursor:pointer}
+.lst-rep-link:hover{color:var(--blue2);text-decoration:underline;text-underline-offset:2px}
+/* ── REP PROFILE ── */
+.rp-wrap{max-width:640px;margin:0 auto;padding:0 0 40px}
+.rp-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--blue2);cursor:pointer;letter-spacing:.06em;text-transform:uppercase;margin-bottom:20px;user-select:none}
+.rp-back:hover{opacity:.8}
+.rp-name{font-size:26px;font-weight:700;color:var(--text);margin-bottom:8px}
+.rp-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:24px}
+.rp-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--surface2);color:var(--text2);letter-spacing:.05em}
+.rp-badge.blue{background:rgba(74,159,212,.15);color:var(--blue2)}
+.rp-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
+.rp-card-title{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--text2);text-transform:uppercase;margin-bottom:14px}
+.rp-stats-row{display:flex;gap:12px;flex-wrap:wrap}
+.rp-stat{flex:1;text-align:center;padding:12px;background:var(--surface2);border-radius:8px;min-width:80px}
+.rp-stat-num{font-size:28px;font-weight:700;color:var(--blue2);line-height:1}
+.rp-stat-lbl{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-top:4px}
+.rp-pct-list{display:flex;flex-direction:column;gap:12px}
+.rp-pct-item{display:flex;flex-direction:column;gap:4px}
+.rp-pct-header{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.rp-pct-lbl{color:var(--text2)}
+.rp-pct-val{font-weight:700}
+.rp-pct-val.green{color:#4ade80}
+.rp-pct-val.orange{color:#fb923c}
+.rp-pct-val.red{color:#f87171}
+.rp-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}
+.rp-bar-fill{height:100%;border-radius:3px;transition:width .3s}
+.rp-tbl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rp-tbl-sel{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;padding:9px 10px;outline:none}
+.rp-tbl-sel:focus{border-color:var(--blue2)}
+.rp-save-btn{padding:9px 18px;border-radius:6px;border:none;background:var(--blue2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.rp-save-btn:disabled{opacity:.4;cursor:not-allowed}
+.rp-no-data{font-size:13px;color:var(--text2);font-style:italic}
+.rp-rate-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rp-rate-cell{text-align:center;padding:12px 8px;background:var(--surface2);border-radius:8px}
+.rp-rate-bkt{font-size:9px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.rp-rate-val{font-size:18px;font-weight:700;line-height:1}
+.rp-rate-sub{font-size:10px;color:var(--text2);margin-top:3px}
+@media(max-width:480px){.rp-rate-row{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -2810,7 +2848,7 @@ function _lstTopPerf(topAll, topTeams) {
     var d = item.d;
     return '<div class="lst-pod ' + podCls[i] + '">' +
       '<div class="lst-pod-medal">' + medals[i] + '</div>' +
-      '<div class="lst-pod-name">' + esc(d.name) + '</div>' +
+      '<div class="lst-pod-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(d.name) + '</div>' +
       '<div class="lst-pod-role">' + esc(_LST_RNKL[d.rank] || d.rank) + '</div>' +
       '<div class="lst-pod-stats">' +
         '<div class="lst-pod-stat"><div class="lst-pod-num">' + d.units + '</div><div class="lst-pod-lbl">UNITS</div></div>' +
@@ -2889,7 +2927,7 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
   function row(item, rank) {
     var d = item.d;
     var r = '<tr><td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name">' + esc(d.name) + '</div>' +
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(d.name) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[d.rank] || d.rank) + '</div></td>';
     for (var i = 0; i < 7; i++) {
       if (i > todayIdx) {
@@ -2979,7 +3017,7 @@ function _lstWeeksTbl(leaders, reps) {
   function row(item, rank) {
     var wr = wAgg[item.email]; if (!wr) return '';
     var r = '<tr><td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name">' + esc(wr.name) + '</div>' +
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(wr.name) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[wr.rank] || wr.rank) + '</div></td>';
     wr.weeks.forEach(function(w) {
       r += '<td style="color:var(--text2)">' + w.orders + '</td>';
@@ -3008,6 +3046,209 @@ function _lstWeeksTbl(leaders, reps) {
   h += totalRow('OFFICE TOTAL', leaders.concat(reps), 'lst-grand-row');
 
   return h + '</tbody>';
+}
+
+// ── REP PROFILE ───────────────────────────────────────────────────────────
+var _LST_PROFILE = null;
+var _LST_TBL_NAMES = null;
+
+function _lstShowRepProfile(email) {
+  _LST_PROFILE = email;
+  var c = document.getElementById('main-content');
+  c.innerHTML = skelLoader();
+  var p1 = api({ action:'readRepNames', officeId:CFG.officeId });
+  var p2 = api({ action:'readRepLineStats', officeId:CFG.officeId, repEmail:email });
+  var p3 = _AR_LINES ? null : api({ action:'readActRateLines' });
+  Promise.all(p3 ? [p1,p2,p3] : [p1,p2]).then(function(res) {
+    _LST_TBL_NAMES = res[0].names || [];
+    var lineStats = res[1];
+    if (res[2] && res[2].actRateLines) _AR_LINES = res[2].actRateLines;
+    c.innerHTML = _lstProfileHtml(email, lineStats, _LST_TBL_NAMES);
+  }).catch(function() {
+    c.innerHTML = '<div class="empty">Failed to load rep profile.</div>';
+  });
+}
+
+function lstBackToLeaderboard() {
+  _LST_PROFILE = null;
+  renderLiveSalesTracker();
+}
+
+function lstSaveTableauName(email, btn) {
+  var sel = document.getElementById('rp-tbl-sel');
+  if (!sel || !sel.value) return;
+  btn.disabled = true; btn.textContent = 'Saving…';
+  apiPost({ action:'setTableauName', email:email, tableauName:sel.value }).then(function(r) {
+    if (r && r.ok) {
+      if (DATA.roster && DATA.roster[email]) DATA.roster[email].tableauName = sel.value;
+      _lstShowRepProfile(email);
+    } else {
+      btn.disabled = false; btn.textContent = 'Save';
+      alert(r && r.error ? r.error : 'Error saving.');
+    }
+  }).catch(function() {
+    btn.disabled = false; btn.textContent = 'Save';
+    alert('Save failed.');
+  });
+}
+
+function _lstPct(n, total) { return total > 0 ? Math.round(n / total * 100) : 0; }
+
+function _lstProfileHtml(email, lineStats, tableauNames) {
+  var roster = DATA.roster || {};
+  var r = roster[email] || {};
+  var name = r.name || email;
+  var rank = r.rank || 'rep';
+  var team = r.team || '';
+  var tableauName = r.tableauName || '';
+  var role = SESSION.role || 'rep';
+  var canEdit = ['owner','admin','master-admin'].indexOf(role) !== -1;
+
+  // This week + all-time posted sales from _LST_SALES
+  var ws = _lstWeekStart(), DAY = 86400000;
+  var weekOrders=0, weekUnits=0, allOrders=0, allUnits=0;
+  (_LST_SALES||[]).forEach(function(s) {
+    if (s.repEmail !== email) return;
+    allOrders++; allUnits += s.units||0;
+    if (!s.dateOfSale) return;
+    var sd = new Date(s.dateOfSale+'T12:00:00'); sd.setHours(0,0,0,0);
+    var diff = Math.floor((sd.getTime()-ws.getTime())/DAY);
+    if (diff >= 0 && diff <= 6) { weekOrders++; weekUnits += s.units||0; }
+  });
+
+  var h = '<div class="rp-wrap">';
+  h += '<div class="rp-back" onclick="lstBackToLeaderboard()">← LEADERBOARD</div>';
+  h += '<div class="rp-name">' + esc(name) + '</div>';
+  h += '<div class="rp-meta">';
+  h += '<span class="rp-badge blue">' + esc(_LST_RNKL[rank]||rank) + '</span>';
+  if (team) h += '<span class="rp-badge">' + esc(team) + '</span>';
+  if (tableauName) h += '<span class="rp-badge">📊 ' + esc(tableauName) + '</span>';
+  h += '</div>';
+
+  // Tableau Name assignment (owner/admin only)
+  if (canEdit) {
+    h += '<div class="rp-card"><div class="rp-card-title">Tableau Name</div>';
+    if (tableauNames.length > 0) {
+      h += '<div class="rp-tbl-row">';
+      h += '<select class="rp-tbl-sel" id="rp-tbl-sel">';
+      h += '<option value="">— Select —</option>';
+      tableauNames.forEach(function(n) {
+        h += '<option value="'+esc(n)+'"'+(n===tableauName?' selected':'')+'>'+esc(n)+'</option>';
+      });
+      h += '</select>';
+      h += '<button class="rp-save-btn" onclick="lstSaveTableauName(\''+email+'\',this)">Save</button>';
+      h += '</div>';
+      if (!tableauName) h += '<div class="rp-no-data" style="margin-top:8px">No Tableau name linked — rates and line stats require this.</div>';
+    } else {
+      h += '<div class="rp-no-data">No Tableau names found. Run a sync first.</div>';
+    }
+    h += '</div>';
+  }
+
+  // Posted Sales stats
+  h += '<div class="rp-card"><div class="rp-card-title">Posted Sales</div>';
+  h += '<div class="rp-stats-row">';
+  h += '<div class="rp-stat"><div class="rp-stat-num">'+weekOrders+'</div><div class="rp-stat-lbl">Orders This Week</div></div>';
+  h += '<div class="rp-stat"><div class="rp-stat-num">'+weekUnits+'</div><div class="rp-stat-lbl">Units This Week</div></div>';
+  h += '<div class="rp-stat"><div class="rp-stat-num">'+allOrders+'</div><div class="rp-stat-lbl">All-Time Posted</div></div>';
+  h += '</div></div>';
+
+  if (!tableauName) {
+    h += '<div class="rp-card" style="text-align:center;padding:24px;color:var(--text2)">Link a Tableau name above to see line metrics and rates.</div>';
+    return h + '</div>';
+  }
+
+  // Line Stats
+  h += _lstLineStatsHtml(lineStats);
+  // Activation Rates
+  h += _lstRepArHtml(tableauName);
+  // Churn
+  h += _lstRepChurnHtml(tableauName);
+
+  return h + '</div>';
+}
+
+function _lstLineStatsHtml(ls) {
+  if (!ls || ls.noLink) return '';
+  if (ls.error) return '<div class="rp-card"><div class="rp-card-title">Line Stats</div><div class="rp-no-data">'+esc(ls.error)+'</div></div>';
+  var total = ls.total || 0;
+  if (!total) return '<div class="rp-card"><div class="rp-card-title">Line Stats</div><div class="rp-no-data">No lines found in the 120-day window.</div></div>';
+
+  var goodN = (ls.active||0) + (ls.posted||0);
+  var pendN = ls.pending||0;
+  var cancN = ls.canceled||0;
+  var goodP = _lstPct(goodN,total), pendP = _lstPct(pendN,total), cancP = _lstPct(cancN,total);
+
+  function pctRow(lbl, n, p, colorCls, barColor) {
+    return '<div class="rp-pct-item">' +
+      '<div class="rp-pct-header"><span class="rp-pct-lbl">'+lbl+'</span><span class="rp-pct-val '+colorCls+'">'+n+' lines &nbsp;'+p+'%</span></div>' +
+      '<div class="rp-bar"><div class="rp-bar-fill" style="width:'+p+'%;background:'+barColor+'"></div></div>' +
+      '</div>';
+  }
+
+  var h = '<div class="rp-card"><div class="rp-card-title">Line Stats — 120-day window</div>';
+  h += '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">'+total+' total lines</div>';
+  h += '<div class="rp-pct-list">';
+  h += pctRow('Active / Posted', goodN, goodP, 'green', '#4ade80');
+  h += pctRow('Pending (not Active, Posted, Canceled, or Disconnected)', pendN, pendP, 'orange', '#fb923c');
+  h += pctRow('Canceled', cancN, cancP, 'red', '#f87171');
+  h += '</div></div>';
+  return h;
+}
+
+function _lstRepArHtml(tableauName) {
+  if (!_AR_LINES || !_AR_LINES.length) return '<div class="rp-card"><div class="rp-card-title">Activation Rates</div><div class="rp-no-data">No data. Visit the Activation Rates tab first to load it.</div></div>';
+  var BKT = {'0-7 Days':'b0_7','8-14 Days':'b8_14','15-30 Days':'b15_30','31-60 Days':'b31_60'};
+  var bkts = {b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
+  _AR_LINES.forEach(function(l) {
+    if (l.rep !== tableauName) return;
+    var b = BKT[l.bucket]; if (!b) return;
+    bkts[b].t += l.vol||0; bkts[b].a += l.acts||0;
+  });
+  var hasData = Object.keys(bkts).some(function(k){ return bkts[k].t > 0; });
+  if (!hasData) return '<div class="rp-card"><div class="rp-card-title">Activation Rates</div><div class="rp-no-data">No activation rate data for this rep.</div></div>';
+
+  function arColor(k, pct) {
+    if (k==='b0_7')   return pct>=21?'#4ade80':pct>=10?'#fbbf24':'#f87171';
+    if (k==='b8_14')  return pct>=71?'#4ade80':pct>=51?'#fbbf24':'#f87171';
+    if (k==='b15_30') return pct>=75?'#4ade80':pct>=70?'#fbbf24':'#f87171';
+    if (k==='b31_60') return pct>=86?'#4ade80':pct>=79?'#fbbf24':'#f87171';
+    return 'var(--text2)';
+  }
+
+  var BKTS = [{k:'b0_7',lbl:'0–7 Days'},{k:'b8_14',lbl:'8–14 Days'},{k:'b15_30',lbl:'15–30 Days'},{k:'b31_60',lbl:'31–60 Days'}];
+  var h = '<div class="rp-card"><div class="rp-card-title">Activation Rates</div><div class="rp-rate-row">';
+  BKTS.forEach(function(bkt) {
+    var b = bkts[bkt.k], pct = b.t > 0 ? Math.round(b.a/b.t*100) : null;
+    var color = pct !== null ? arColor(bkt.k, pct) : 'var(--text2)';
+    h += '<div class="rp-rate-cell"><div class="rp-rate-bkt">'+bkt.lbl+'</div>';
+    h += '<div class="rp-rate-val" style="color:'+color+'">'+(pct!==null?pct+'%':'—')+'</div>';
+    if (pct !== null) h += '<div class="rp-rate-sub">('+b.a+'/'+b.t+')</div>';
+    h += '</div>';
+  });
+  return h + '</div></div>';
+}
+
+function _lstRepChurnHtml(tableauName) {
+  function fmtR(s) {
+    var str = String(s==null?'':s).trim();
+    if (str.indexOf('%')!==-1) return str;
+    var n = parseFloat(str); if (isNaN(n)) return '0.0%';
+    return (n<=1?n*100:n).toFixed(1)+'%';
+  }
+  var rows = (DATA.churnReport||[]).filter(function(r){ return r.rep===tableauName; });
+  if (!rows.length) return '<div class="rp-card"><div class="rp-card-title">Churn</div><div class="rp-no-data">No churn data for this rep.</div></div>';
+  var BKTS = ['0-30 Day','30 Day','60 Day','90 Day','120 Day'];
+  var rowMap = {}; rows.forEach(function(r){ rowMap[r.bucket]=r; });
+  var h = '<div class="rp-card"><div class="rp-card-title">Churn</div><div class="rp-rate-row" style="grid-template-columns:repeat(5,1fr)">';
+  BKTS.forEach(function(bkt) {
+    var r = rowMap[bkt];
+    h += '<div class="rp-rate-cell"><div class="rp-rate-bkt">'+bkt+'</div>';
+    if (!r) { h += '<div class="rp-rate-val" style="color:var(--text2)">—</div>'; }
+    else { h += '<div class="rp-rate-val">'+fmtR(r.churnRate)+'</div><div class="rp-rate-sub">'+r.disconnects+' disco</div>'; }
+    h += '</div>';
+  });
+  return h + '</div></div>';
 }
 
 // ── BOOT ─────────────────────────────────────────────────────────────────
