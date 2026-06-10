@@ -1370,15 +1370,12 @@ function _lastCallCell(o) {
   if (days === null) {
     label = 'Never';
     style = 'background:#2a2a2a;color:#888';
-  } else if (days === 0) {
-    label = 'Today';
+  } else if (days <= 2) {
+    label = days === 0 ? 'Today' : days + 'd ago';
     style = 'background:#0d2e1a;color:#4ade80';
-  } else if (days <= 3) {
-    label = days + 'd ago';
-    style = 'background:#2a1e00;color:#eab308';
   } else if (days <= 7) {
     label = days + 'd ago';
-    style = 'background:#251200;color:#f97316';
+    style = 'background:#2a1e00;color:#eab308';
   } else {
     label = days + 'd ago';
     style = 'background:#2a0a0a;color:#ef4444';
