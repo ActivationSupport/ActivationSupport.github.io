@@ -2511,7 +2511,8 @@ function _psProductCardHtml(key, icon, label, sel, detail) {
     '<div class="ps-check"></div>' +
     '<div class="ps-product-icon">' + icon + '</div>' +
     '<div class="ps-product-label">' + label + '</div>' +
-    detail + '</div>';
+    (detail ? '<div onclick="event.stopPropagation()">' + detail + '</div>' : '') +
+    '</div>';
 }
 function _psToggleProduct(key) {
   _PS_DATA.products[key] = !_PS_DATA.products[key];
