@@ -57,6 +57,10 @@ nav{flex:1;padding:10px 0}
 .sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08)}
 .sign-out{font-size:.78rem;color:rgba(255,255,255,.4);cursor:pointer;display:flex;align-items:center;gap:6px;transition:color .15s}
 .sign-out:hover{color:#fff}
+.dev-wrap{display:none;margin-bottom:10px;padding:8px;background:rgba(255,200,0,.06);border:1px solid rgba(255,200,0,.18);border-radius:6px}
+.dev-label{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,200,0,.55);margin-bottom:5px}
+.dev-sel{width:100%;background:#0d1117;border:1px solid rgba(255,200,0,.3);color:#ffe082;border-radius:5px;padding:5px 7px;font-size:.75rem;cursor:pointer}
+.dev-active{margin-top:5px;font-size:.68rem;color:#fbbf24;font-weight:600;text-align:center}
 
 /* ── OFFICE DROPDOWN (topbar) ── */
 .office-dd-wrap{position:relative;display:inline-block}
@@ -568,6 +572,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
       </div>
       <nav id="sidebar-nav"></nav>
       <div class="sidebar-footer">
+        <div class="dev-wrap" id="dev-toggle-wrap"></div>
         <div class="sign-out" onclick="signOut()">⬅ <span>Sign Out</span></div>
       </div>
     </div>
@@ -908,6 +913,33 @@ var TABS = [
   { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
 ];
 
+var _DEV_ROLE = null;
+
+function _devToggleHtml() {
+  var opts = PORTAL_ROLES
+    .filter(function(r){ return r !== 'master-admin'; })
+    .map(function(r){ return '<option value="'+r+'"'+(_DEV_ROLE===r?' selected':'')+'>'+(_ROLE_LABELS[r]||r)+'</option>'; }).join('');
+  return '<div class="dev-label">Preview as</div>' +
+    '<select class="dev-sel" onchange="_devSwitchRole(this.value)"><option value="">— Your Role —</option>'+opts+'</select>' +
+    (_DEV_ROLE ? '<div class="dev-active">👁 '+(_ROLE_LABELS[_DEV_ROLE]||_DEV_ROLE)+'</div>' : '');
+}
+
+function _devSwitchRole(role) {
+  _DEV_ROLE = role || null;
+  SESSION.role = _DEV_ROLE || SESSION._actualRole || 'master-admin';
+  var nameEl = document.getElementById('sb-user-name');
+  if (nameEl) nameEl.textContent = SESSION.name + ' · ' + (_DEV_ROLE ? '👁 '+(_ROLE_LABELS[_DEV_ROLE]||_DEV_ROLE) : SESSION._actualRole);
+  var wrap = document.getElementById('dev-toggle-wrap');
+  if (wrap) wrap.innerHTML = _devToggleHtml();
+  TAB_CACHE = {};
+  buildNav();
+  var tab = TABS.find(function(t){ return t.id === CURRENT_TAB; });
+  if (!tab || !tab.roles.includes(SESSION.role)) {
+    CURRENT_TAB = TABS.find(function(t){ return t.roles.includes(SESSION.role); }).id;
+  }
+  switchTab(CURRENT_TAB);
+}
+
 function buildNav() {
   var role = SESSION.role || 'client-rep';
   var nav = document.getElementById('sidebar-nav');
@@ -970,9 +1002,12 @@ function loadData() {
       SESSION.name = SESSION.email;
       SESSION.tableauName = '';
     }
+    SESSION._actualRole = SESSION.role;
     sessionStorage.setItem('as_session_' + (SESSION.homeOffice || CFG.officeId), JSON.stringify(SESSION));
     document.getElementById('sb-user-name').textContent = SESSION.name + ' · ' + SESSION.role;
     document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    var devWrap = document.getElementById('dev-toggle-wrap');
+    if (devWrap) { devWrap.style.display = SESSION._actualRole === 'master-admin' ? 'block' : 'none'; if (SESSION._actualRole === 'master-admin') devWrap.innerHTML = _devToggleHtml(); }
     buildNav();
     var tab = TABS.find(function(t) { return t.id === CURRENT_TAB; });
     if (!tab || !tab.roles.includes(SESSION.role)) {
