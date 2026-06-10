@@ -2495,11 +2495,10 @@ function _psStep2Html() {
     var dtvOpts = ['Entertainment','Choice','Ultimate','Premier'].map(function(p){
       return '<option value="' + p + '"' + (d.dtvPackage===p?' selected':'') + '>' + p + '</option>';
     }).join('');
-    dtvDetail = '<div class="ps-product-detail"><div class="ps-qty-row">';
-    dtvDetail += '<div class="ps-qty-col"><div class="ps-qty-label">QUANTITY</div><input class="ps-qty-input" type="number" min="0" value="' + (d.dtvQty||0) + '" oninput="_psQty(\'dtvQty\',this.value)"></div>';
-    dtvDetail += '<div class="ps-qty-col"><div class="ps-qty-label">PACKAGE</div>';
-    dtvDetail += '<select class="ps-select" onchange="_PS_DATA.dtvPackage=this.value"><option value="">Select...</option>' + dtvOpts + '</select></div>';
-    dtvDetail += '</div></div>';
+    dtvDetail = '<div class="ps-product-detail">';
+    dtvDetail += '<div class="ps-qty-label">PACKAGE</div>';
+    dtvDetail += '<select class="ps-select" onchange="_PS_DATA.dtvPackage=this.value"><option value="">Select...</option>' + dtvOpts + '</select>';
+    dtvDetail += '</div>';
   }
   h += _psProductCardHtml('dtv', '&#128250;', 'DirecTV', d.products.dtv, dtvDetail);
   h += '</div>';
@@ -2558,7 +2557,7 @@ function _psStep3Html() {
   if (d.products.wireless) { var wl=(d.wirelessNew||0)+(d.wirelessByod||0); h+='<div class="ps-product-line">Wireless ×'+wl+(d.wirelessNew?' ('+d.wirelessNew+' New)':'')+(d.wirelessByod?' ('+d.wirelessByod+' BYOD)':'')+'</div>'; }
   if (d.products.fiber) h+='<div class="ps-product-line">Fiber — '+esc(d.fiberPackage)+(d.fiberInstallDate?' | Install: '+d.fiberInstallDate:'')+'</div>';
   if (d.products.voip) h+='<div class="ps-product-line">VoIP ×'+(d.voipQty||0)+'</div>';
-  if (d.products.dtv) h+='<div class="ps-product-line">DirecTV ×'+(d.dtvQty||0)+(d.dtvPackage?' — '+esc(d.dtvPackage):'')+'</div>';
+  if (d.products.dtv) h+='<div class="ps-product-line">DirecTV'+(d.dtvPackage?' — '+esc(d.dtvPackage):'')+'</div>';
   h += '</div>';
   h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="_psGoStep(2)">BACK</button>';
   h += '<button class="ps-btn" id="ps-submit-btn" onclick="_psSubmit(this)">SUBMIT</button></div>';
@@ -2570,7 +2569,7 @@ function _psRRow(label, val) {
 function _psCalcUnits() {
   var d = _PS_DATA;
   return (d.products.air?1:0)+(d.wirelessNew||0)+(d.wirelessByod||0)+
-    (d.products.fiber&&d.fiberPackage?1:0)+(d.voipQty||0)+(d.dtvQty||0);
+    (d.products.fiber&&d.fiberPackage?1:0)+(d.voipQty||0)+(d.products.dtv?1:0);
 }
 function _psStep4Html() {
   var units = _psCalcUnits();
@@ -2596,7 +2595,7 @@ function _psSubmit(btn) {
     fiberPackage:d.products.fiber?d.fiberPackage:'',
     fiberInstallDate:d.products.fiber?d.fiberInstallDate:'',
     voipQty:d.products.voip?(d.voipQty||0):0,
-    dtvQty:d.products.dtv?(d.dtvQty||0):0,
+    dtvQty:d.products.dtv?1:0,
     dtvPackage:d.products.dtv?d.dtvPackage:'',
     notes:d.notes
   };
