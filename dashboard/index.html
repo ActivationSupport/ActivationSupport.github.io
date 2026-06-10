@@ -2754,7 +2754,7 @@ function _lstUCls(n) {
   return n === 0 ? 'lst-u-red' : n <= 2 ? 'lst-u-orange' : n <= 5 ? 'lst-u-yellow' : 'lst-u-green';
 }
 
-var _LST_SKIP_UNLESS_SOLD = ['admin', 'master-admin'];
+var _LST_SKIP_UNLESS_SOLD = ['master-admin','owner','admin','activator','manager','jd','l1'];
 
 function _lstAgg(sales, roster) {
   var ws = _lstWeekStart(), DAY = 86400000, agg = {};
