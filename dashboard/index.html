@@ -1159,7 +1159,7 @@ function modalAddNote(noteType) {
 
 // ── CALL TABLE ────────────────────────────────────────────────────────────
 var _tabOrders = [], _sortTblId = '', _sortState = { col: null, dir: 1 };
-var _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' };
+var _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '', lastCalled: '' };
 var _extraColFn = null;
 
 function _applyView() {
@@ -1174,6 +1174,13 @@ function _applyView() {
     }
     if (_activeFilters.dateFrom && o.orderDate < _activeFilters.dateFrom) return false;
     if (_activeFilters.dateTo   && o.orderDate > _activeFilters.dateTo)   return false;
+    if (_activeFilters.lastCalled) {
+      var d = o._daysSince === undefined ? _daysSinceLastNote(o.dsi) : o._daysSince;
+      if (_activeFilters.lastCalled === 'recent'  && !(d !== null && d <= 2))  return false;
+      if (_activeFilters.lastCalled === 'mid'     && !(d !== null && d >= 3 && d <= 7)) return false;
+      if (_activeFilters.lastCalled === 'overdue' && !(d !== null && d >= 8))  return false;
+      if (_activeFilters.lastCalled === 'never'   && d !== null)               return false;
+    }
     return true;
   });
   if (_sortState.col) {
@@ -1184,7 +1191,13 @@ function _applyView() {
       else if (col==='dsi')     { va=a.dsi||'';                                      vb=b.dsi||''; }
       else if (col==='date')    { va=a.orderDate||'';                                vb=b.orderDate||''; }
       else if (col==='product') { va=Object.keys(a.productCounts||{}).sort()[0]||''; vb=Object.keys(b.productCounts||{}).sort()[0]||''; }
-      else if (col==='status')  { va=Object.keys(a.statusCounts||{}).sort()[0]||''; vb=Object.keys(b.statusCounts||{}).sort()[0]||''; }
+      else if (col==='status')     { va=Object.keys(a.statusCounts||{}).sort()[0]||''; vb=Object.keys(b.statusCounts||{}).sort()[0]||''; }
+      else if (col==='lastcalled') {
+        var da2 = a._daysSince === undefined ? _daysSinceLastNote(a.dsi) : a._daysSince;
+        var db2 = b._daysSince === undefined ? _daysSinceLastNote(b.dsi) : b._daysSince;
+        va = da2 === null ? 9999 : da2; vb = db2 === null ? 9999 : db2;
+        return (va - vb) * _sortState.dir;
+      }
       else return 0;
       return va<vb ? -_sortState.dir : va>vb ? _sortState.dir : 0;
     });
@@ -1211,7 +1224,7 @@ function sortCallTable(col) {
   _sortState.dir = _sortState.col === col ? -_sortState.dir : 1;
   _sortState.col = col;
   _applyView();
-  var labels = { rep:'Name', dsi:'DSI', date:'Date', product:'Product', status:'Status' };
+  var labels = { rep:'Name', dsi:'DSI', date:'Date', product:'Product', status:'Status', lastcalled:'Last Called' };
   document.querySelectorAll('#'+_sortTblId+' th[data-col]').forEach(function(th) {
     th.textContent = (labels[th.dataset.col]||th.dataset.col) + (th.dataset.col===col ? (_sortState.dir===1?' ↑':' ↓') : '');
   });
@@ -1401,12 +1414,20 @@ function renderNoAnswerTable() {
     var db = b._daysSince === null ? 9999 : b._daysSince;
     return db - da;
   });
-  _tabOrders = orders.slice(); _sortTblId = 'na-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = _lastCallCell;
+  _tabOrders = orders.slice(); _sortTblId = 'na-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '', lastCalled: '' }; _extraColFn = _lastCallCell;
   var headers = [['rep','Name'],['dsi','DSI'],['date','Date'],['product','Product']].map(function(c) {
     return '<th class="sort-th" data-col="'+c[0]+'" onclick="sortCallTable(\''+c[0]+'\')">'+c[1]+'</th>';
-  }).join('') + '<th>Last Called</th><th class="sort-th" data-col="status" onclick="sortCallTable(\'status\')">Status</th><th>Rating</th><th>Notes</th>';
+  }).join('') + '<th class="sort-th" data-col="lastcalled" onclick="sortCallTable(\'lastcalled\')">Last Called</th><th class="sort-th" data-col="status" onclick="sortCallTable(\'status\')">Status</th><th>Rating</th><th>Notes</th>';
+  var lcFilter = '<select id="lc-filter" onchange="_activeFilters.lastCalled=this.value;_applyView()" style="height:32px;padding:0 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.82rem;cursor:pointer">' +
+    '<option value="">All Days</option>' +
+    '<option value="recent">&#x1F7E2; Recent (0–2d)</option>' +
+    '<option value="mid">&#x1F7E1; Due (3–7d)</option>' +
+    '<option value="overdue">&#x1F534; Overdue (8+d)</option>' +
+    '<option value="never">&#x26AA; Never Called</option>' +
+    '</select>';
   return '<div class="card"><div class="card-header dark">No Answer &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-na') +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' + lcFilter + '</div>' +
     '<div class="call-table-wrap"><table class="call-table" id="na-table"><thead><tr>' +
     headers +
     '</tr></thead><tbody>'+callTableRows(orders, _lastCallCell)+'</tbody></table></div></div></div>';
