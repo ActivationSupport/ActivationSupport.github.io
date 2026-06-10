@@ -712,7 +712,7 @@ function readRoster(ss, officeId) {
     var pinVal=String(data[i][6]||'').trim();
     var homePermissions=String(data[i][9]||'').trim()||officeId;
     result[email]={ name:String(data[i][1]||'').trim(), team:String(data[i][2]||'').trim(),
-      rank:String(data[i][3]||'rep').trim(),
+      rank:String(data[i][3]||'client-rep').trim(),
       deactivated:data[i][4]===true||String(data[i][4]).toUpperCase()==='TRUE',
       dateAdded:data[i][5]||'', hasPin:pinVal.length>0&&pinVal!=='undefined',
       phone:String(data[i][7]||'').trim(), tableauName:String(data[i][8]||'').trim(),
@@ -1637,7 +1637,7 @@ function writeAddRosterEntry(body, ss, officeId) {
   const sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
   const email=String(body.email||'').trim().toLowerCase(); if (!email) return { error:'missing email' };
   if (findRowCI(sheet,0,email)>0) return { error:'email already exists' };
-  sheet.appendRow([email,body.name||'',body.team||'',body.rank||'rep',false,new Date().toISOString().split('T')[0],'',body.phone||'','',body.permissions||officeId]);
+  sheet.appendRow([email,body.name||'',body.team||'',body.rank||'client-rep',false,new Date().toISOString().split('T')[0],'',body.phone||'','',body.permissions||officeId]);
   return { ok:true };
 }
 function writeUpdateRosterEntry(body, ss, officeId) {
