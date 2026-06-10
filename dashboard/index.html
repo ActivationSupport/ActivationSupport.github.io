@@ -406,6 +406,68 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .ps-success-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px}
 .ps-success-units{font-size:15px;color:var(--text2);margin-bottom:28px}
 .ps-success-units span{color:var(--blue2);font-weight:700;font-size:20px}
+/* ── LIVE SALES TRACKER ── */
+.lst-wrap{padding:0 0 48px}
+.lst-week-bar{display:flex;align-items:stretch;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:28px;overflow:hidden}
+.lst-week-stat{flex:1;text-align:center;padding:22px 16px}
+.lst-week-div{width:1px;background:var(--border);margin:16px 0}
+.lst-wk-lbl{font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--blue2);text-transform:uppercase;margin-bottom:8px}
+.lst-wk-num{font-size:44px;font-weight:700;color:var(--text);line-height:1}
+.lst-wk-num.blue{color:var(--blue2)}
+.lst-top-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.lst-sec-lbl{font-size:16px;font-weight:700;color:var(--text);letter-spacing:.04em;text-transform:uppercase}
+.lst-wk-tag{font-size:13px;color:var(--text2)}
+.lst-sub-lbl{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;margin:20px 0 10px}
+.lst-podium{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:4px}
+.lst-pod{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 12px;text-align:center;position:relative;overflow:hidden;min-height:60px}
+.lst-pod::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.lst-pod.gold::before{background:#F59E0B}
+.lst-pod.silver::before{background:#9CA3AF}
+.lst-pod.bronze::before{background:#CD7F32}
+.lst-pod-medal{font-size:26px;margin-bottom:6px}
+.lst-pod-emoji{font-size:22px;margin:4px 0}
+.lst-pod-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;line-height:1.25}
+.lst-pod-role{font-size:10px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+.lst-pod-stats{display:flex;justify-content:center;gap:16px}
+.lst-pod-stat{text-align:center}
+.lst-pod-num{font-size:26px;font-weight:700;color:var(--blue2);line-height:1}
+.lst-pod-num.sm{font-size:20px;color:var(--text2)}
+.lst-pod-lbl{font-size:9px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+.lst-board-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin:28px 0 12px}
+.lst-board-title{font-size:16px;font-weight:700;color:var(--text);letter-spacing:.04em;text-transform:uppercase}
+.lst-board-cnt{font-size:12px;color:var(--text2);margin-top:2px}
+.lst-view-toggle{display:flex;gap:4px}
+.lst-view-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;user-select:none}
+.lst-view-btn.active{background:var(--blue2);border-color:var(--blue2);color:#fff}
+.lst-tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+.lst-tbl{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+.lst-tbl th{padding:8px 10px;color:var(--text2);font-size:10px;font-weight:600;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--surface2);text-align:center}
+.lst-tbl th.ll{text-align:left}
+.lst-tbl td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;text-align:center}
+.lst-tbl td.ll{text-align:left}
+.lst-tbl tr:last-child td{border-bottom:none}
+.lst-rep-name{font-weight:600;color:var(--text);font-size:13px}
+.lst-rep-role{font-size:10px;color:var(--text2)}
+.lst-u-green{background:rgba(34,197,94,.18);color:#4ade80;font-weight:700}
+.lst-u-yellow{background:rgba(234,179,8,.18);color:#fbbf24;font-weight:700}
+.lst-u-orange{background:rgba(249,115,22,.18);color:#fb923c;font-weight:700}
+.lst-u-red{background:rgba(239,68,68,.18);color:#f87171;font-weight:700}
+.lst-dash{color:rgba(255,255,255,.2)}
+.lst-total-row td{background:rgba(74,159,212,.07);color:var(--blue2);font-weight:700}
+.lst-grand-row td{background:rgba(74,159,212,.13)!important}
+.lst-section-sep td{padding:4px 10px;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text2);background:var(--surface2)}
+.lst-team-rankings{margin-top:32px}
+.lst-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:12px}
+.lst-team-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px}
+.lst-team-card.first{border-color:#F59E0B;background:rgba(245,158,11,.06)}
+.lst-team-rnk{font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px}
+.lst-team-emo{font-size:20px;margin-bottom:4px}
+.lst-team-nm{font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px}
+.lst-team-u{font-size:22px;font-weight:700;color:var(--blue2)}
+.lst-team-o{font-size:13px;color:var(--text2);margin-left:6px}
+.lst-team-sub{font-size:9px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+.lst-refresh-btn{font-size:11px;color:var(--blue2);cursor:pointer;font-weight:600;margin-left:12px;user-select:none}
+@media(max-width:640px){.lst-podium{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -800,6 +862,7 @@ var TABS = [
   { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES, group: 'Performance', sub: 'Fully completed — 120-day window' },
   { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES, group: 'Team',        sub: 'Roster & guests' },
   { id: 'postsale',   icon: '➕', label: 'Post Sale',            roles: ALL_ROLES, group: 'Team',        sub: 'Log a new sale' },
+  { id: 'livesales',  icon: '🏆', label: 'Live Sales Tracker',   roles: ALL_ROLES, group: 'Team',        sub: "This week's leaderboard" },
 ];
 
 function buildNav() {
@@ -929,6 +992,7 @@ function renderTab(id) {
     case 'churn':       c.innerHTML = renderChurn();       break;
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
     case 'postsale':    c.innerHTML = renderPostSale();    break;
+    case 'livesales':   renderLiveSalesTracker();          break;
     default: c.innerHTML = '<div class="empty">Coming soon.</div>';
   }
   bindFilters();
@@ -2604,6 +2668,323 @@ function _psSubmit(btn) {
     if (res&&res.ok) { _PS_STEP=4; document.getElementById('main-content').innerHTML=renderPostSale(); }
     else { btn.disabled=false; btn.textContent='SUBMIT'; alert('Error: '+(res&&res.error?res.error:'Unknown error')); }
   }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert('Submission failed. Please try again.'); });
+}
+
+// ── LIVE SALES TRACKER ────────────────────────────────────────────────────
+var _LST_SALES = null;
+var _LST_VIEW = 'days';
+var _LST_DAYS = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+var _LST_RNKL = {
+  'master-admin':'Master Admin','owner':'Owner','admin':'Admin',
+  'activator':'Activator','rep':'Client Rep','manager':'Manager',
+  'jd':'JD','l1':'Team Leader'
+};
+var _LST_LDR_RANKS = ['master-admin','owner','admin','activator','manager','jd','l1'];
+
+function renderLiveSalesTracker() {
+  var c = document.getElementById('main-content');
+  if (_LST_SALES !== null) { c.innerHTML = _lstBuild(); return; }
+  c.innerHTML = skelLoader();
+  api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
+    _LST_SALES = res.sales || [];
+    c.innerHTML = _lstBuild();
+  }).catch(function() {
+    c.innerHTML = '<div class="empty">Failed to load sales data.</div>';
+  });
+}
+
+function lstSetView(v) {
+  _LST_VIEW = v;
+  document.getElementById('main-content').innerHTML = _lstBuild();
+}
+
+function lstRefresh() {
+  _LST_SALES = null;
+  renderLiveSalesTracker();
+}
+
+function _lstWeekStart() {
+  var n = new Date(), dow = n.getDay(), dfm = dow === 0 ? 6 : dow - 1;
+  var m = new Date(n); m.setDate(n.getDate() - dfm); m.setHours(0,0,0,0); return m;
+}
+
+function _lstTodayIdx() {
+  var d = new Date().getDay(); return d === 0 ? 6 : d - 1;
+}
+
+function _lstUCls(n) {
+  return n === 0 ? 'lst-u-red' : n <= 2 ? 'lst-u-orange' : n <= 5 ? 'lst-u-yellow' : 'lst-u-green';
+}
+
+function _lstAgg(sales, roster) {
+  var ws = _lstWeekStart(), DAY = 86400000, agg = {};
+  Object.keys(roster || {}).forEach(function(e) {
+    var r = roster[e]; if (r.deactivated) return;
+    agg[e] = {
+      name: r.name || e, team: r.team || '', rank: r.rank || 'rep',
+      orders: 0, units: 0,
+      days: [0,1,2,3,4,5,6].map(function() { return { orders: 0, units: 0 }; })
+    };
+  });
+  (sales || []).forEach(function(s) {
+    if (!s.dateOfSale || !agg[s.repEmail]) return;
+    var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
+    var diff = Math.floor((sd.getTime() - ws.getTime()) / DAY);
+    if (diff < 0 || diff > 6) return;
+    agg[s.repEmail].orders++;
+    agg[s.repEmail].units += s.units || 0;
+    agg[s.repEmail].days[diff].orders++;
+    agg[s.repEmail].days[diff].units += s.units || 0;
+  });
+  return agg;
+}
+
+function _lstTeamAgg(repAgg, teams) {
+  var tAgg = {};
+  Object.keys(teams || {}).forEach(function(tid) {
+    var t = teams[tid]; if (!t.name) return;
+    tAgg[t.name] = { name: t.name, emoji: t.emoji || '', orders: 0, units: 0, members: 0 };
+  });
+  Object.keys(repAgg).forEach(function(e) {
+    var r = repAgg[e]; if (!r.team) return;
+    if (!tAgg[r.team]) tAgg[r.team] = { name: r.team, emoji: '', orders: 0, units: 0, members: 0 };
+    tAgg[r.team].orders += r.orders;
+    tAgg[r.team].units += r.units;
+    tAgg[r.team].members++;
+  });
+  return tAgg;
+}
+
+function _lstBuild() {
+  var roster = DATA.roster || {}, teams = DATA.teams || {};
+  var repAgg = _lstAgg(_LST_SALES, roster);
+  var tAgg = _lstTeamAgg(repAgg, teams);
+  var todayIdx = _lstTodayIdx();
+
+  var all = Object.keys(repAgg).map(function(e) { return { email: e, d: repAgg[e] }; })
+    .sort(function(a, b) { return b.d.units - a.d.units || b.d.orders - a.d.orders; });
+  var leaders = all.filter(function(x) { return _LST_LDR_RANKS.indexOf(x.d.rank) !== -1; });
+  var reps    = all.filter(function(x) { return _LST_LDR_RANKS.indexOf(x.d.rank) === -1; });
+  var tArr = Object.keys(tAgg).map(function(k) { return tAgg[k]; })
+    .sort(function(a, b) { return b.units - a.units || b.orders - a.orders; });
+
+  var totOrd = all.reduce(function(s, x) { return s + x.d.orders; }, 0);
+  var totUni = all.reduce(function(s, x) { return s + x.d.units; }, 0);
+
+  return '<div class="lst-wrap">' +
+    _lstWeekBar(totOrd, totUni) +
+    _lstTopPerf(all.slice(0, 3), tArr.slice(0, 3)) +
+    _lstBoard(leaders, reps, tArr, todayIdx) +
+    '</div>';
+}
+
+function _lstWeekBar(ord, uni) {
+  return '<div class="lst-week-bar">' +
+    '<div class="lst-week-stat"><div class="lst-wk-lbl">WEEK ORDERS</div><div class="lst-wk-num">' + ord + '</div></div>' +
+    '<div class="lst-week-div"></div>' +
+    '<div class="lst-week-stat"><div class="lst-wk-lbl">WEEK UNITS</div><div class="lst-wk-num blue">' + uni + '</div></div>' +
+    '</div>';
+}
+
+function _lstTopPerf(topAll, topTeams) {
+  var medals = ['🥇','🥈','🥉'], podCls = ['gold','silver','bronze'];
+  var order = [1, 0, 2]; // render 2nd | 1st | 3rd
+
+  function indCard(i) {
+    var item = topAll[i];
+    if (!item) return '<div class="lst-pod ' + podCls[i] + '"></div>';
+    var d = item.d;
+    return '<div class="lst-pod ' + podCls[i] + '">' +
+      '<div class="lst-pod-medal">' + medals[i] + '</div>' +
+      '<div class="lst-pod-name">' + esc(d.name) + '</div>' +
+      '<div class="lst-pod-role">' + esc(_LST_RNKL[d.rank] || d.rank) + '</div>' +
+      '<div class="lst-pod-stats">' +
+        '<div class="lst-pod-stat"><div class="lst-pod-num">' + d.units + '</div><div class="lst-pod-lbl">UNITS</div></div>' +
+        '<div class="lst-pod-stat"><div class="lst-pod-num sm">' + d.orders + '</div><div class="lst-pod-lbl">ORDERS</div></div>' +
+      '</div></div>';
+  }
+
+  function teamCard(i) {
+    var t = topTeams[i];
+    if (!t) return '<div class="lst-pod ' + podCls[i] + '"></div>';
+    return '<div class="lst-pod ' + podCls[i] + '">' +
+      '<div class="lst-pod-medal">' + medals[i] + '</div>' +
+      '<div class="lst-pod-name">' + esc(t.name) + '</div>' +
+      (t.emoji ? '<div class="lst-pod-emoji">' + esc(t.emoji) + '</div>' : '') +
+      '<div class="lst-pod-stats">' +
+        '<div class="lst-pod-stat"><div class="lst-pod-num">' + t.units + '</div><div class="lst-pod-lbl">UNITS THIS WK</div></div>' +
+        '<div class="lst-pod-stat"><div class="lst-pod-num sm">' + t.orders + '</div><div class="lst-pod-lbl">ORDERS</div></div>' +
+      '</div></div>';
+  }
+
+  var h = '<div style="margin-bottom:32px">';
+  h += '<div class="lst-top-hdr"><div class="lst-sec-lbl">TOP PERFORMERS</div><div class="lst-wk-tag">This week</div></div>';
+  if (topAll.length > 0) {
+    h += '<div class="lst-sub-lbl">INDIVIDUALS</div>';
+    h += '<div class="lst-podium">' + indCard(order[0]) + indCard(order[1]) + indCard(order[2]) + '</div>';
+  }
+  if (topTeams.length > 0) {
+    h += '<div class="lst-sub-lbl">TEAMS</div>';
+    h += '<div class="lst-podium">' + teamCard(order[0]) + teamCard(order[1]) + teamCard(order[2]) + '</div>';
+  }
+  return h + '</div>';
+}
+
+function _lstBoard(leaders, reps, tArr, todayIdx) {
+  var h = '<div>';
+  h += '<div class="lst-board-hdr">';
+  h += '<div><div class="lst-board-title">OFFICE LEADERBOARD' +
+    '<span class="lst-refresh-btn" onclick="lstRefresh()" title="Refresh">↺</span></div>' +
+    '<div class="lst-board-cnt">' + leaders.length + ' leaders &middot; ' + reps.length + ' reps</div></div>';
+  h += '<div class="lst-view-toggle">' +
+    '<div class="lst-view-btn' + (_LST_VIEW === 'days' ? ' active' : '') + '" onclick="lstSetView(\'days\')">DAYS</div>' +
+    '<div class="lst-view-btn' + (_LST_VIEW === 'weeks' ? ' active' : '') + '" onclick="lstSetView(\'weeks\')">WEEKS</div>' +
+    '</div>';
+  h += '</div>';
+  h += '<div class="lst-tbl-wrap"><table class="lst-tbl">';
+  h += _LST_VIEW === 'days' ? _lstDaysTbl(leaders, reps, todayIdx) : _lstWeeksTbl(leaders, reps);
+  h += '</table></div>';
+
+  if (tArr.length > 0) {
+    h += '<div class="lst-team-rankings">';
+    h += '<div class="lst-sec-lbl">TEAM RANKINGS</div>';
+    h += '<div class="lst-team-grid">';
+    tArr.forEach(function(t, i) {
+      h += '<div class="lst-team-card' + (i === 0 ? ' first' : '') + '">' +
+        '<div class="lst-team-rnk">#' + (i + 1) + '</div>' +
+        (t.emoji ? '<div class="lst-team-emo">' + esc(t.emoji) + '</div>' : '') +
+        '<div class="lst-team-nm">' + esc(t.name) + '</div>' +
+        '<div><span class="lst-team-u">' + t.units + '</span><span class="lst-team-o">' + t.orders + ' orders</span></div>' +
+        '<div class="lst-team-sub">UNITS THIS WEEK &bull; ' + t.members + ' MEMBERS</div>' +
+        '</div>';
+    });
+    h += '</div></div>';
+  }
+  return h + '</div>';
+}
+
+function _lstDaysTbl(leaders, reps, todayIdx) {
+  var medals = ['🥇','🥈','🥉'];
+  var h = '<thead><tr>';
+  h += '<th style="width:36px">#</th><th class="ll" style="min-width:160px">NAME</th>';
+  _LST_DAYS.forEach(function(d) { h += '<th colspan="2">' + d + '</th>'; });
+  h += '</tr><tr><th></th><th></th>';
+  _LST_DAYS.forEach(function() { h += '<th>ORD</th><th>UNITS</th>'; });
+  h += '</tr></thead><tbody>';
+
+  function row(item, rank) {
+    var d = item.d;
+    var r = '<tr><td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
+    r += '<td class="ll"><div class="lst-rep-name">' + esc(d.name) + '</div>' +
+      '<div class="lst-rep-role">' + esc(_LST_RNKL[d.rank] || d.rank) + '</div></td>';
+    for (var i = 0; i < 7; i++) {
+      if (i > todayIdx) {
+        r += '<td class="lst-dash">—</td><td class="lst-dash">—</td>';
+      } else {
+        r += '<td style="color:var(--text2)">' + d.days[i].orders + '</td>';
+        r += '<td class="' + _lstUCls(d.days[i].units) + '">' + d.days[i].units + '</td>';
+      }
+    }
+    return r + '</tr>';
+  }
+
+  function dayTotals(items) {
+    return [0,1,2,3,4,5,6].map(function(i) {
+      return {
+        orders: items.reduce(function(s, x) { return s + x.d.days[i].orders; }, 0),
+        units:  items.reduce(function(s, x) { return s + x.d.days[i].units;  }, 0)
+      };
+    });
+  }
+
+  function totalRow(label, items, extraCls) {
+    var dt = dayTotals(items);
+    var r = '<tr class="lst-total-row' + (extraCls ? ' ' + extraCls : '') + '">';
+    r += '<td></td><td class="ll">' + label + '</td>';
+    for (var i = 0; i < 7; i++) {
+      if (i > todayIdx) { r += '<td class="lst-dash">—</td><td class="lst-dash">—</td>'; }
+      else { r += '<td>' + dt[i].orders + '</td><td class="' + _lstUCls(dt[i].units) + '">' + dt[i].units + '</td>'; }
+    }
+    return r + '</tr>';
+  }
+
+  h += '<tr class="lst-section-sep"><td colspan="' + (2 + 14) + '">LEADERS</td></tr>';
+  leaders.forEach(function(item, i) { h += row(item, i + 1); });
+  h += totalRow('👑 LEADER TOTAL', leaders);
+
+  h += '<tr class="lst-section-sep"><td colspan="' + (2 + 14) + '">CLIENT REPS</td></tr>';
+  reps.forEach(function(item, i) { h += row(item, i + 1); });
+  h += totalRow('⚡ REP TOTAL', reps);
+  h += totalRow('OFFICE TOTAL', leaders.concat(reps), 'lst-grand-row');
+
+  return h + '</tbody>';
+}
+
+function _lstWeeksTbl(leaders, reps) {
+  var ws = _lstWeekStart(), DAY = 86400000;
+  var weeks = [0,1,2,3,4].map(function(i) {
+    var s = new Date(ws.getTime() - i * 7 * DAY);
+    var m = s.getMonth() + 1, d = s.getDate();
+    return { start: s, end: new Date(s.getTime() + 7 * DAY),
+      label: (m < 10 ? '0' : '') + m + '/' + (d < 10 ? '0' : '') + d };
+  });
+  var wAgg = {};
+  Object.keys(DATA.roster || {}).forEach(function(e) {
+    var r = DATA.roster[e]; if (r.deactivated) return;
+    wAgg[e] = { name: r.name, rank: r.rank,
+      weeks: weeks.map(function() { return { orders: 0, units: 0 }; }) };
+  });
+  (_LST_SALES || []).forEach(function(s) {
+    if (!s.dateOfSale || !wAgg[s.repEmail]) return;
+    var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
+    for (var i = 0; i < weeks.length; i++) {
+      if (sd >= weeks[i].start && sd < weeks[i].end) {
+        wAgg[s.repEmail].weeks[i].orders++;
+        wAgg[s.repEmail].weeks[i].units += s.units || 0;
+        break;
+      }
+    }
+  });
+
+  var medals = ['🥇','🥈','🥉'];
+  var h = '<thead><tr><th style="width:36px">#</th><th class="ll" style="min-width:160px">NAME</th>';
+  weeks.forEach(function(w) { h += '<th colspan="2">' + w.label + '</th>'; });
+  h += '</tr><tr><th></th><th></th>';
+  weeks.forEach(function() { h += '<th>ORD</th><th>UNITS</th>'; });
+  h += '</tr></thead><tbody>';
+
+  function row(item, rank) {
+    var wr = wAgg[item.email]; if (!wr) return '';
+    var r = '<tr><td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
+    r += '<td class="ll"><div class="lst-rep-name">' + esc(wr.name) + '</div>' +
+      '<div class="lst-rep-role">' + esc(_LST_RNKL[wr.rank] || wr.rank) + '</div></td>';
+    wr.weeks.forEach(function(w) {
+      r += '<td style="color:var(--text2)">' + w.orders + '</td>';
+      r += '<td class="' + _lstUCls(w.units) + '">' + w.units + '</td>';
+    });
+    return r + '</tr>';
+  }
+
+  function totalRow(label, items, extraCls) {
+    var r = '<tr class="lst-total-row' + (extraCls ? ' ' + extraCls : '') + '">';
+    r += '<td></td><td class="ll">' + label + '</td>';
+    weeks.forEach(function(_, wi) {
+      var o = items.reduce(function(s, x) { return s + (wAgg[x.email] ? wAgg[x.email].weeks[wi].orders : 0); }, 0);
+      var u = items.reduce(function(s, x) { return s + (wAgg[x.email] ? wAgg[x.email].weeks[wi].units  : 0); }, 0);
+      r += '<td>' + o + '</td><td class="' + _lstUCls(u) + '">' + u + '</td>';
+    });
+    return r + '</tr>';
+  }
+
+  h += '<tr class="lst-section-sep"><td colspan="' + (2 + weeks.length * 2) + '">LEADERS</td></tr>';
+  leaders.forEach(function(item, i) { h += row(item, i + 1); });
+  h += totalRow('👑 LEADER TOTAL', leaders);
+  h += '<tr class="lst-section-sep"><td colspan="' + (2 + weeks.length * 2) + '">CLIENT REPS</td></tr>';
+  reps.forEach(function(item, i) { h += row(item, i + 1); });
+  h += totalRow('⚡ REP TOTAL', reps);
+  h += totalRow('OFFICE TOTAL', leaders.concat(reps), 'lst-grand-row');
+
+  return h + '</tbody>';
 }
 
 // ── BOOT ─────────────────────────────────────────────────────────────────
