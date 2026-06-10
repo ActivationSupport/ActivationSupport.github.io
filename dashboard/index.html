@@ -1353,6 +1353,36 @@ function buildOrderLookup() {
 }
 
 // ── NO ANSWER ─────────────────────────────────────────────────────────────
+function _daysSinceLastNote(dsi) {
+  var notes = (DATA.notes||{})[dsi];
+  if (!notes || !notes.length) return null;
+  var latest = notes.reduce(function(max, n) {
+    var t = n.ts ? new Date(n.ts).getTime() : 0;
+    return t > max ? t : max;
+  }, 0);
+  if (!latest) return null;
+  return Math.floor((Date.now() - latest) / 86400000);
+}
+
+function _lastCallCell(o) {
+  var days = _daysSinceLastNote(o.dsi);
+  var label, style;
+  if (days === null) {
+    label = 'Never';
+    style = 'background:#2a2a2a;color:#888';
+  } else if (days <= 2) {
+    label = days === 0 ? 'Today' : days + 'd ago';
+    style = 'background:#0d2e1a;color:#4ade80';
+  } else if (days <= 7) {
+    label = days + 'd ago';
+    style = 'background:#2a1e00;color:#eab308';
+  } else {
+    label = days + 'd ago';
+    style = 'background:#2a0a0a;color:#ef4444';
+  }
+  return '<td><span style="display:inline-block;padding:2px 9px;border-radius:10px;font-size:.75rem;font-weight:700;white-space:nowrap;'+style+'">'+label+'</span></td>';
+}
+
 function renderNoAnswerTable() {
   var ratings = DATA.ratings || {};
   var noAnswerDsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='No Answer'; });
@@ -1360,14 +1390,25 @@ function renderNoAnswerTable() {
   var lookup = buildOrderLookup();
   var orders = noAnswerDsis.map(function(dsi) {
     var o = lookup[dsi];
-    return o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
+    var base = o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
+    base._daysSince = _daysSinceLastNote(dsi);
+    return base;
+  });
+  // Sort: never-called first, then oldest call first
+  orders.sort(function(a, b) {
+    var da = a._daysSince === null ? 9999 : a._daysSince;
+    var db = b._daysSince === null ? 9999 : b._daysSince;
+    return db - da;
   });
   _tabOrders = orders.slice(); _sortTblId = 'na-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' };
+  var headers = [['rep','Name'],['dsi','DSI'],['date','Date'],['product','Product']].map(function(c) {
+    return '<th class="sort-th" data-col="'+c[0]+'" onclick="sortCallTable(\''+c[0]+'\')">'+c[1]+'</th>';
+  }).join('') + '<th>Last Called</th><th class="sort-th" data-col="status" onclick="sortCallTable(\'status\')">Status</th><th>Rating</th><th>Notes</th>';
   return '<div class="card"><div class="card-header dark">No Answer &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-na') +
     '<div class="call-table-wrap"><table class="call-table" id="na-table"><thead><tr>' +
-    _sortHeaders('na-table') +
-    '</tr></thead><tbody>'+callTableRows(orders,null)+'</tbody></table></div></div></div>';
+    headers +
+    '</tr></thead><tbody>'+callTableRows(orders, _lastCallCell)+'</tbody></table></div></div></div>';
 }
 
 // ── ESCALATIONS ───────────────────────────────────────────────────────────
