@@ -350,6 +350,62 @@ tr:hover td{background:rgba(74,159,212,.07)}
   .sidebar-header,.sidebar-office,.sidebar-name,.sidebar-user,.nav-item span,.nav-group-label,.sidebar-footer{display:none}
   .nav-item{justify-content:center;padding:12px}
 }
+/* ── POST SALE ── */
+.ps-wrap{max-width:520px;margin:0 auto;padding:24px 16px}
+.ps-header h2{font-size:24px;font-weight:700;color:var(--text);margin:0 0 2px}
+.ps-sub{font-size:13px;color:var(--blue2);margin:0 0 24px}
+.ps-steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:32px}
+.ps-step-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:2px solid var(--border);background:var(--surface);color:var(--text2);position:relative;z-index:1;flex-shrink:0}
+.ps-step-dot.active{background:var(--blue2);border-color:var(--blue2);color:#fff}
+.ps-step-dot.done{background:var(--blue2);border-color:var(--blue2);color:#fff}
+.ps-step-line{flex:1;height:2px;background:var(--border);max-width:60px}
+.ps-step-line.done{background:var(--blue2)}
+.ps-label{font-size:11px;font-weight:600;letter-spacing:.07em;color:var(--text2);text-transform:uppercase;margin-bottom:8px;margin-top:20px}
+.ps-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;padding:12px 14px;box-sizing:border-box;outline:none}
+.ps-input:focus{border-color:var(--blue2)}
+.ps-char-count{font-size:11px;color:var(--text2);margin-top:4px}
+.ps-char-count.warn{color:#f97316}
+.ps-toggle-row{display:flex;gap:8px}
+.ps-toggle{flex:1;padding:10px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;user-select:none}
+.ps-toggle.active{background:rgba(74,159,212,.12);border-color:var(--blue2);color:var(--blue2)}
+.ps-sub-field{margin-top:10px}
+.ps-textarea{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;padding:12px 14px;box-sizing:border-box;outline:none;resize:vertical;min-height:80px;font-family:inherit}
+.ps-textarea:focus{border-color:var(--blue2)}
+.ps-btn-row{display:flex;justify-content:flex-end;margin-top:28px}
+.ps-btn{padding:10px 28px;border-radius:8px;border:none;background:var(--blue2);color:#fff;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.03em}
+.ps-btn:disabled{opacity:.4;cursor:not-allowed}
+.ps-btn.secondary{background:var(--surface2);color:var(--text2);margin-right:8px}
+.ps-products{display:flex;flex-direction:column;gap:8px}
+.ps-product-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;position:relative;transition:border-color .15s}
+.ps-product-card.selected{border-color:var(--blue2);background:rgba(74,159,212,.06)}
+.ps-check{position:absolute;top:12px;right:12px;width:18px;height:18px;border-radius:50%;background:var(--blue2);display:none;align-items:center;justify-content:center}
+.ps-product-card.selected .ps-check{display:flex}
+.ps-check::after{content:'✓';font-size:11px;color:#fff;font-weight:700}
+.ps-product-icon{font-size:28px;text-align:center;margin-bottom:4px}
+.ps-product-label{font-size:13px;font-weight:600;text-align:center;color:var(--text)}
+.ps-product-detail{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.ps-qty-row{display:flex;gap:12px}
+.ps-qty-col{flex:1}
+.ps-qty-label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.ps-qty-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:15px;font-weight:600;padding:8px 10px;box-sizing:border-box;text-align:center;outline:none}
+.ps-qty-input:focus{border-color:var(--blue2)}
+.ps-total-lines{font-size:11px;color:var(--text2);margin-top:6px}
+.ps-select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;padding:9px 10px;box-sizing:border-box;outline:none;-webkit-appearance:auto}
+.ps-select:focus{border-color:var(--blue2)}
+.ps-review-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px}
+.ps-review-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.ps-review-title{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text2);text-transform:uppercase}
+.ps-edit-btn{font-size:12px;color:var(--blue2);cursor:pointer;font-weight:600}
+.ps-review-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04)}
+.ps-review-row .ps-rl{color:var(--text2)}
+.ps-review-row .ps-rv{color:var(--text);font-weight:600;text-align:right;max-width:60%;word-break:break-all}
+.ps-product-line{font-size:13px;color:var(--text);padding:5px 0}
+.ps-product-line::before{content:'✓ ';color:var(--blue2)}
+.ps-success{text-align:center;padding:60px 20px}
+.ps-success-icon{font-size:56px;margin-bottom:16px}
+.ps-success-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px}
+.ps-success-units{font-size:15px;color:var(--text2);margin-bottom:28px}
+.ps-success-units span{color:var(--blue2);font-weight:700;font-size:20px}
 </style>
 </head>
 <body>
@@ -743,6 +799,7 @@ var TABS = [
   { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ALL_ROLES, group: 'Performance', sub: 'ICD disconnect breakdown' },
   { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES, group: 'Performance', sub: 'Fully completed — 120-day window' },
   { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES, group: 'Team',        sub: 'Roster & guests' },
+  { id: 'postsale',   icon: '➕', label: 'Post Sale',            roles: ALL_ROLES, group: 'Team',        sub: 'Log a new sale' },
 ];
 
 function buildNav() {
@@ -871,6 +928,7 @@ function renderTab(id) {
     case 'escalations': c.innerHTML = renderEscalationsTable(); break;
     case 'churn':       c.innerHTML = renderChurn();       break;
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
+    case 'postsale':    c.innerHTML = renderPostSale();    break;
     default: c.innerHTML = '<div class="empty">Coming soon.</div>';
   }
   bindFilters();
@@ -2278,6 +2336,275 @@ function bindFilters() {
 // ── MODAL ─────────────────────────────────────────────────────────────────
 function closeModal() { document.getElementById('detail-modal').classList.remove('open'); }
 document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+// ── POST SALE ─────────────────────────────────────────────────────────────
+var _PS_STEP = 1;
+var _PS_DATA = null;
+
+function _psInit() {
+  if (_PS_DATA) return;
+  _PS_DATA = {
+    dateOfSale: new Date().toISOString().split('T')[0],
+    dsi: '', accountType: 'Consumer', processedVia: 'Sara',
+    underSomeoneCodes: 'No', codesUsedBy: '', trainee: 'No', traineeName: '', notes: '',
+    products: { air: false, wireless: false, fiber: false, voip: false, dtv: false },
+    airQty: 1, wirelessNew: 0, wirelessByod: 0,
+    fiberPackage: '', fiberInstallDate: '', voipQty: 0, dtvQty: 0, dtvPackage: ''
+  };
+}
+function resetPostSaleForm() {
+  _PS_STEP = 1; _PS_DATA = null; _psInit();
+  document.getElementById('main-content').innerHTML = renderPostSale();
+}
+function renderPostSale() {
+  _psInit();
+  var html = '<div class="ps-wrap">';
+  html += '<div class="ps-header"><h2>Post Sale</h2>';
+  html += '<p class="ps-sub">Logging sale for ' + esc(SESSION.name || SESSION.email) + '</p></div>';
+  html += _psStepIndicator();
+  if (_PS_STEP === 1)      html += _psStep1Html();
+  else if (_PS_STEP === 2) html += _psStep2Html();
+  else if (_PS_STEP === 3) html += _psStep3Html();
+  else                     html += _psStep4Html();
+  html += '</div>';
+  return html;
+}
+function _psStepIndicator() {
+  var h = '<div class="ps-steps">';
+  for (var i = 1; i <= 4; i++) {
+    if (i > 1) h += '<div class="ps-step-line' + (_PS_STEP > i - 1 ? ' done' : '') + '"></div>';
+    var cls = _PS_STEP === i ? 'active' : (_PS_STEP > i ? 'done' : '');
+    h += '<div class="ps-step-dot ' + cls + '">' + (_PS_STEP > i ? '&#10003;' : i) + '</div>';
+  }
+  return h + '</div>';
+}
+function _psStep1Html() {
+  var d = _PS_DATA;
+  var traineeOpts = '<option value="">Select name...</option>';
+  Object.keys(DATA.roster || {}).forEach(function(email) {
+    if (email === SESSION.email) return;
+    var r = DATA.roster[email]; if (r.deactivated) return;
+    traineeOpts += '<option value="' + esc(email) + '"' + (d.traineeName === email ? ' selected' : '') + '>' + esc(r.name || email) + '</option>';
+  });
+  var h = '';
+  h += '<div class="ps-label">DATE OF SALE</div>';
+  h += '<input class="ps-input" type="date" id="ps-date" value="' + d.dateOfSale + '" onchange="_PS_DATA.dateOfSale=this.value">';
+  h += '<div class="ps-label">DSI NUMBER</div>';
+  h += '<input class="ps-input" type="text" id="ps-dsi" placeholder="ENTER 12+ CHARACTER DSI" maxlength="30" value="' + esc(d.dsi) + '" oninput="_psDsiInput(this)">';
+  h += '<div class="ps-char-count' + (d.dsi.length > 0 && d.dsi.length < 12 ? ' warn' : '') + '" id="ps-dsi-count">' + d.dsi.length + '/12 min characters</div>';
+  h += '<div class="ps-label">TYPE OF ACCOUNT</div>';
+  h += '<div class="ps-toggle-row">';
+  h += '<div class="ps-toggle' + (d.accountType === 'Consumer' ? ' active' : '') + '" onclick="_psToggle(\'accountType\',\'Consumer\',this)">Consumer</div>';
+  h += '<div class="ps-toggle' + (d.accountType === 'Business' ? ' active' : '') + '" onclick="_psToggle(\'accountType\',\'Business\',this)">Business</div>';
+  h += '</div>';
+  h += '<div class="ps-label">DID YOU HAVE A TRAINEE?</div>';
+  h += '<div class="ps-toggle-row">';
+  h += '<div class="ps-toggle' + (d.trainee === 'Yes' ? ' active' : '') + '" onclick="_psToggleRerender(\'trainee\',\'Yes\')">Yes</div>';
+  h += '<div class="ps-toggle' + (d.trainee === 'No' ? ' active' : '') + '" onclick="_psToggleRerender(\'trainee\',\'No\')">No</div>';
+  h += '</div>';
+  if (d.trainee === 'Yes') {
+    h += '<div class="ps-sub-field"><div class="ps-label">WHO?</div>';
+    h += '<select class="ps-input" onchange="_PS_DATA.traineeName=this.value">' + traineeOpts + '</select></div>';
+  }
+  h += '<div class="ps-label">HOW WAS THIS ORDER PROCESSED?</div>';
+  h += '<div class="ps-toggle-row">';
+  h += '<div class="ps-toggle' + (d.processedVia === 'Sara' ? ' active' : '') + '" onclick="_psToggle(\'processedVia\',\'Sara\',this)">Sara</div>';
+  h += '<div class="ps-toggle' + (d.processedVia === 'Tower' ? ' active' : '') + '" onclick="_psToggle(\'processedVia\',\'Tower\',this)">Tower</div>';
+  h += '</div>';
+  h += '<div class="ps-label">WAS THIS SALE MADE UNDER SOMEONE ELSE\'S CODES?</div>';
+  h += '<div class="ps-toggle-row">';
+  h += '<div class="ps-toggle' + (d.underSomeoneCodes === 'Yes' ? ' active' : '') + '" onclick="_psToggleRerender(\'underSomeoneCodes\',\'Yes\')">Yes</div>';
+  h += '<div class="ps-toggle' + (d.underSomeoneCodes === 'No' ? ' active' : '') + '" onclick="_psToggleRerender(\'underSomeoneCodes\',\'No\')">No</div>';
+  h += '</div>';
+  if (d.underSomeoneCodes === 'Yes') {
+    h += '<div class="ps-sub-field"><div class="ps-label">WHOSE CODES?</div>';
+    h += '<input class="ps-input" type="text" placeholder="Name or email..." value="' + esc(d.codesUsedBy) + '" oninput="_PS_DATA.codesUsedBy=this.value"></div>';
+  }
+  h += '<div class="ps-label">ADDITIONAL NOTES <span style="font-weight:400;text-transform:none;color:var(--text2);letter-spacing:0">(optional)</span></div>';
+  h += '<textarea class="ps-textarea" placeholder="Any extra details about the account..." oninput="_PS_DATA.notes=this.value">' + esc(d.notes) + '</textarea>';
+  h += '<div class="ps-btn-row"><button class="ps-btn" onclick="_psNext1()">NEXT</button></div>';
+  return h;
+}
+function _psDsiInput(el) {
+  _PS_DATA.dsi = el.value;
+  var c = document.getElementById('ps-dsi-count'); if (!c) return;
+  c.textContent = el.value.length + '/12 min characters';
+  c.className = 'ps-char-count' + (el.value.length > 0 && el.value.length < 12 ? ' warn' : '');
+}
+function _psToggle(field, val, el) {
+  _PS_DATA[field] = val;
+  if (el) {
+    var row = el.closest('.ps-toggle-row');
+    if (row) row.querySelectorAll('.ps-toggle').forEach(function(t){ t.classList.remove('active'); });
+    el.classList.add('active');
+  }
+}
+function _psToggleRerender(field, val) {
+  _PS_DATA[field] = val;
+  document.getElementById('main-content').innerHTML = renderPostSale();
+}
+function _psNext1() {
+  var dsiEl = document.getElementById('ps-dsi');
+  var dateEl = document.getElementById('ps-date');
+  if (dsiEl) _PS_DATA.dsi = dsiEl.value.trim();
+  if (dateEl) _PS_DATA.dateOfSale = dateEl.value.trim();
+  if (!_PS_DATA.dateOfSale) { alert('Please enter a date of sale.'); return; }
+  if (_PS_DATA.dsi.length < 12) { alert('DSI must be at least 12 characters.'); return; }
+  _PS_STEP = 2;
+  document.getElementById('main-content').innerHTML = renderPostSale();
+}
+function _psStep2Html() {
+  var d = _PS_DATA;
+  var h = '<div class="ps-label" style="margin-top:0">SELECT PRODUCTS SOLD</div>';
+  h += '<div class="ps-products">';
+  // Air
+  h += _psProductCardHtml('air', '&#128752;', 'Internet Air', d.products.air, '');
+  // Wireless
+  var wDetail = '';
+  if (d.products.wireless) {
+    wDetail = '<div class="ps-product-detail"><div class="ps-qty-row">';
+    wDetail += '<div class="ps-qty-col"><div class="ps-qty-label">NEW PHONES</div><input class="ps-qty-input" type="number" min="0" value="' + (d.wirelessNew||0) + '" oninput="_psQty(\'wirelessNew\',this.value)"></div>';
+    wDetail += '<div class="ps-qty-col"><div class="ps-qty-label">BYODS</div><input class="ps-qty-input" type="number" min="0" value="' + (d.wirelessByod||0) + '" oninput="_psQty(\'wirelessByod\',this.value)"></div>';
+    wDetail += '</div><div class="ps-total-lines" id="ps-wl-total">Total lines: ' + ((d.wirelessNew||0)+(d.wirelessByod||0)) + '</div></div>';
+  }
+  h += _psProductCardHtml('wireless', '&#128241;', 'Wireless', d.products.wireless, wDetail);
+  // Fiber
+  var fDetail = '';
+  if (d.products.fiber) {
+    var fOpts = ['Fiber 300','Fiber 500','Fiber 1 Gig','Fiber 2 Gig','Fiber 5 Gig'].map(function(p){
+      return '<option value="' + p + '"' + (d.fiberPackage===p?' selected':'') + '>' + p + '</option>';
+    }).join('');
+    fDetail = '<div class="ps-product-detail">';
+    fDetail += '<div class="ps-qty-label">PACKAGE</div>';
+    fDetail += '<select class="ps-select" onchange="_PS_DATA.fiberPackage=this.value"><option value="">Select package...</option>' + fOpts + '</select>';
+    fDetail += '<div class="ps-qty-label" style="margin-top:10px">INSTALL DATE</div>';
+    fDetail += '<input class="ps-input" type="date" value="' + (d.fiberInstallDate||'') + '" onchange="_PS_DATA.fiberInstallDate=this.value">';
+    fDetail += '</div>';
+  }
+  h += _psProductCardHtml('fiber', '&#127760;', 'Fiber', d.products.fiber, fDetail);
+  // VoIP
+  var vDetail = '';
+  if (d.products.voip) {
+    vDetail = '<div class="ps-product-detail"><div class="ps-qty-label">QUANTITY OF LINES</div>';
+    vDetail += '<input class="ps-qty-input" type="number" min="0" style="width:100px" value="' + (d.voipQty||0) + '" oninput="_psQty(\'voipQty\',this.value)"></div>';
+  }
+  h += _psProductCardHtml('voip', '&#127911;', 'VoIP', d.products.voip, vDetail);
+  // DirecTV
+  var dtvDetail = '';
+  if (d.products.dtv) {
+    var dtvOpts = ['Entertainment','Choice','Ultimate','Premier'].map(function(p){
+      return '<option value="' + p + '"' + (d.dtvPackage===p?' selected':'') + '>' + p + '</option>';
+    }).join('');
+    dtvDetail = '<div class="ps-product-detail"><div class="ps-qty-row">';
+    dtvDetail += '<div class="ps-qty-col"><div class="ps-qty-label">QUANTITY</div><input class="ps-qty-input" type="number" min="0" value="' + (d.dtvQty||0) + '" oninput="_psQty(\'dtvQty\',this.value)"></div>';
+    dtvDetail += '<div class="ps-qty-col"><div class="ps-qty-label">PACKAGE</div>';
+    dtvDetail += '<select class="ps-select" onchange="_PS_DATA.dtvPackage=this.value"><option value="">Select...</option>' + dtvOpts + '</select></div>';
+    dtvDetail += '</div></div>';
+  }
+  h += _psProductCardHtml('dtv', '&#128250;', 'DirecTV', d.products.dtv, dtvDetail);
+  h += '</div>';
+  h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="_psGoStep(1)">BACK</button>';
+  h += '<button class="ps-btn" onclick="_psNext2()">NEXT</button></div>';
+  return h;
+}
+function _psProductCardHtml(key, icon, label, sel, detail) {
+  return '<div class="ps-product-card' + (sel ? ' selected' : '') + '" onclick="_psToggleProduct(\'' + key + '\')">' +
+    '<div class="ps-check"></div>' +
+    '<div class="ps-product-icon">' + icon + '</div>' +
+    '<div class="ps-product-label">' + label + '</div>' +
+    detail + '</div>';
+}
+function _psToggleProduct(key) {
+  _PS_DATA.products[key] = !_PS_DATA.products[key];
+  if (!_PS_DATA.products[key]) {
+    if (key==='wireless'){_PS_DATA.wirelessNew=0;_PS_DATA.wirelessByod=0;}
+    if (key==='fiber'){_PS_DATA.fiberPackage='';_PS_DATA.fiberInstallDate='';}
+    if (key==='voip') _PS_DATA.voipQty=0;
+    if (key==='dtv'){_PS_DATA.dtvQty=0;_PS_DATA.dtvPackage='';}
+  }
+  document.getElementById('main-content').innerHTML = renderPostSale();
+}
+function _psQty(field, val) {
+  _PS_DATA[field] = parseInt(val)||0;
+  if (field==='wirelessNew'||field==='wirelessByod') {
+    var t = document.getElementById('ps-wl-total');
+    if (t) t.textContent = 'Total lines: ' + ((_PS_DATA.wirelessNew||0)+(_PS_DATA.wirelessByod||0));
+  }
+}
+function _psNext2() {
+  if (!Object.keys(_PS_DATA.products).some(function(k){return _PS_DATA.products[k];})) { alert('Please select at least one product.'); return; }
+  if (_PS_DATA.products.fiber && !_PS_DATA.fiberPackage) { alert('Please select a Fiber package.'); return; }
+  _PS_STEP = 3;
+  document.getElementById('main-content').innerHTML = renderPostSale();
+}
+function _psGoStep(n) { _PS_STEP = n; document.getElementById('main-content').innerHTML = renderPostSale(); }
+function _psStep3Html() {
+  var d = _PS_DATA;
+  var h = '';
+  h += '<div class="ps-review-section">';
+  h += '<div class="ps-review-header"><div class="ps-review-title">SALE INFO</div><div class="ps-edit-btn" onclick="_psGoStep(1)">EDIT</div></div>';
+  h += _psRRow('Rep', SESSION.name||SESSION.email);
+  h += _psRRow('Date', d.dateOfSale);
+  h += _psRRow('DSI', d.dsi);
+  h += _psRRow('Account Type', d.accountType);
+  h += _psRRow('Processed Via', d.processedVia);
+  if (d.trainee==='Yes'&&d.traineeName) { var tn=(DATA.roster&&DATA.roster[d.traineeName])?DATA.roster[d.traineeName].name:d.traineeName; h+=_psRRow('Trainee',tn); }
+  if (d.underSomeoneCodes==='Yes'&&d.codesUsedBy) h+=_psRRow('Codes Used By',d.codesUsedBy);
+  if (d.notes) h+=_psRRow('Notes',d.notes);
+  h += '</div>';
+  h += '<div class="ps-review-section">';
+  h += '<div class="ps-review-header"><div class="ps-review-title">PRODUCTS</div><div class="ps-edit-btn" onclick="_psGoStep(2)">EDIT</div></div>';
+  if (d.products.air) h+='<div class="ps-product-line">Internet Air ×1</div>';
+  if (d.products.wireless) { var wl=(d.wirelessNew||0)+(d.wirelessByod||0); h+='<div class="ps-product-line">Wireless ×'+wl+(d.wirelessNew?' ('+d.wirelessNew+' New)':'')+(d.wirelessByod?' ('+d.wirelessByod+' BYOD)':'')+'</div>'; }
+  if (d.products.fiber) h+='<div class="ps-product-line">Fiber — '+esc(d.fiberPackage)+(d.fiberInstallDate?' | Install: '+d.fiberInstallDate:'')+'</div>';
+  if (d.products.voip) h+='<div class="ps-product-line">VoIP ×'+(d.voipQty||0)+'</div>';
+  if (d.products.dtv) h+='<div class="ps-product-line">DirecTV ×'+(d.dtvQty||0)+(d.dtvPackage?' — '+esc(d.dtvPackage):'')+'</div>';
+  h += '</div>';
+  h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="_psGoStep(2)">BACK</button>';
+  h += '<button class="ps-btn" id="ps-submit-btn" onclick="_psSubmit(this)">SUBMIT</button></div>';
+  return h;
+}
+function _psRRow(label, val) {
+  return '<div class="ps-review-row"><span class="ps-rl">'+label+'</span><span class="ps-rv">'+esc(String(val||''))+'</span></div>';
+}
+function _psCalcUnits() {
+  var d = _PS_DATA;
+  return (d.products.air?1:0)+(d.wirelessNew||0)+(d.wirelessByod||0)+
+    (d.products.fiber&&d.fiberPackage?1:0)+(d.voipQty||0)+(d.dtvQty||0);
+}
+function _psStep4Html() {
+  var units = _psCalcUnits();
+  return '<div class="ps-success"><div class="ps-success-icon">&#127881;</div>' +
+    '<div class="ps-success-title">Sale Posted!</div>' +
+    '<div class="ps-success-units"><span>' + units + '</span> unit' + (units!==1?'s':'') + ' logged</div>' +
+    '<button class="ps-btn" onclick="resetPostSaleForm()">Post Another Sale</button></div>';
+}
+function _psSubmit(btn) {
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  var d = _PS_DATA;
+  var traineeName = '';
+  if (d.trainee==='Yes'&&d.traineeName) traineeName=(DATA.roster&&DATA.roster[d.traineeName])?DATA.roster[d.traineeName].name:d.traineeName;
+  var payload = {
+    action:'postSale', key:API_KEY, officeId:CFG.officeId,
+    repEmail:SESSION.email, repName:SESSION.name||'',
+    dateOfSale:d.dateOfSale, dsi:d.dsi,
+    accountType:d.accountType, processedVia:d.processedVia,
+    underSomeoneCodes:d.underSomeoneCodes, codesUsedBy:d.codesUsedBy,
+    trainee:d.trainee, traineeName:traineeName,
+    airQty:d.products.air?1:0,
+    wirelessNew:d.wirelessNew||0, wirelessByod:d.wirelessByod||0,
+    fiberPackage:d.products.fiber?d.fiberPackage:'',
+    fiberInstallDate:d.products.fiber?d.fiberInstallDate:'',
+    voipQty:d.products.voip?(d.voipQty||0):0,
+    dtvQty:d.products.dtv?(d.dtvQty||0):0,
+    dtvPackage:d.products.dtv?d.dtvPackage:'',
+    notes:d.notes
+  };
+  apiPost(payload).then(function(res) {
+    if (res&&res.ok) { _PS_STEP=4; document.getElementById('main-content').innerHTML=renderPostSale(); }
+    else { btn.disabled=false; btn.textContent='SUBMIT'; alert('Error: '+(res&&res.error?res.error:'Unknown error')); }
+  }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert('Submission failed. Please try again.'); });
+}
 
 // ── BOOT ─────────────────────────────────────────────────────────────────
 document.addEventListener('click', function(e) {
