@@ -58,9 +58,11 @@ nav{flex:1;padding:10px 0}
 .sign-out{font-size:.78rem;color:rgba(255,255,255,.4);cursor:pointer;display:flex;align-items:center;gap:6px;transition:color .15s}
 .sign-out:hover{color:#fff}
 .dev-wrap{display:none;margin-bottom:10px;padding:8px;background:rgba(255,200,0,.06);border:1px solid rgba(255,200,0,.18);border-radius:6px}
-.dev-label{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,200,0,.55);margin-bottom:5px}
-.dev-sel{width:100%;background:#0d1117;border:1px solid rgba(255,200,0,.3);color:#ffe082;border-radius:5px;padding:5px 7px;font-size:.75rem;cursor:pointer}
-.dev-active{margin-top:5px;font-size:.68rem;color:#fbbf24;font-weight:600;text-align:center}
+.dev-label{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,200,0,.55);margin-bottom:6px}
+.dev-pills{display:flex;flex-wrap:wrap;gap:4px}
+.dev-pill{font-size:.68rem;padding:3px 7px;border-radius:20px;border:1px solid rgba(255,200,0,.3);background:transparent;color:rgba(255,200,0,.6);cursor:pointer;transition:all .15s;line-height:1.4}
+.dev-pill:hover{background:rgba(255,200,0,.12);color:#ffe082}
+.dev-pill.active{background:rgba(255,200,0,.22);border-color:#fbbf24;color:#fbbf24;font-weight:700}
 
 /* ── OFFICE DROPDOWN (topbar) ── */
 .office-dd-wrap{position:relative;display:inline-block}
@@ -916,16 +918,18 @@ var TABS = [
 var _DEV_ROLE = null;
 
 function _devToggleHtml() {
-  var opts = PORTAL_ROLES
+  var pills = PORTAL_ROLES
     .filter(function(r){ return r !== 'master-admin'; })
-    .map(function(r){ return '<option value="'+r+'"'+(_DEV_ROLE===r?' selected':'')+'>'+(_ROLE_LABELS[r]||r)+'</option>'; }).join('');
-  return '<div class="dev-label">Preview as</div>' +
-    '<select class="dev-sel" onchange="_devSwitchRole(this.value)"><option value="">— Your Role —</option>'+opts+'</select>' +
-    (_DEV_ROLE ? '<div class="dev-active">👁 '+(_ROLE_LABELS[_DEV_ROLE]||_DEV_ROLE)+'</div>' : '');
+    .map(function(r){
+      var active = _DEV_ROLE === r;
+      return '<button class="dev-pill'+(active?' active':'')+'" onclick="_devSwitchRole(\''+ r +'\')" title="'+(active?'Click to reset':'Preview as ')+(_ROLE_LABELS[r]||r)+'">'+(_ROLE_LABELS[r]||r)+'</button>';
+    }).join('');
+  return '<div class="dev-label">Preview as</div><div class="dev-pills">'+pills+'</div>';
 }
 
 function _devSwitchRole(role) {
-  _DEV_ROLE = role || null;
+  // Clicking the active role resets back to master-admin
+  _DEV_ROLE = (_DEV_ROLE === role) ? null : role;
   SESSION.role = _DEV_ROLE || SESSION._actualRole || 'master-admin';
   var nameEl = document.getElementById('sb-user-name');
   if (nameEl) nameEl.textContent = SESSION.name + ' · ' + (_DEV_ROLE ? '👁 '+(_ROLE_LABELS[_DEV_ROLE]||_DEV_ROLE) : SESSION._actualRole);
