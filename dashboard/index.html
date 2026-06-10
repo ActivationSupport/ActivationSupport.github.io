@@ -850,19 +850,19 @@ function switchOffice(newOfficeId) {
 
 var ALL_ROLES = ['master-admin','owner','admin','activator','rep'];
 var TABS = [
+  { id: 'postsale',    icon: '➕', label: 'Post Sale',            roles: ALL_ROLES, group: 'Sales',       sub: 'Log a new sale' },
   { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES, group: 'Call Logs',   sub: '120-day window' },
   { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ALL_ROLES, group: 'Call Logs',   sub: "Yesterday's deliveries" },
   { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ALL_ROLES, group: 'Call Logs',   sub: 'Open & delivered orders' },
   { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ALL_ROLES, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
   { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ALL_ROLES, group: 'Call Logs',   sub: '1 & 2 star ratings' },
   { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ALL_ROLES, group: 'Call Logs',   sub: 'No answer ratings' },
+  { id: 'livesales',   icon: '🏆', label: 'Live Sales Tracker',   roles: ALL_ROLES, group: 'Performance', sub: "This week's leaderboard" },
   { id: 'dailyreport', icon: '📋', label: 'Daily Report',         roles: ALL_ROLES, group: 'Performance', sub: 'Office daily summary' },
   { id: 'actrates',    icon: '📊', label: 'Activation Rates',     roles: ALL_ROLES, group: 'Performance', sub: 'Rep activation breakdown' },
   { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ALL_ROLES, group: 'Performance', sub: 'ICD disconnect breakdown' },
   { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES, group: 'Performance', sub: 'Fully completed — 120-day window' },
   { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES, group: 'Team',        sub: 'Roster & guests' },
-  { id: 'postsale',   icon: '➕', label: 'Post Sale',            roles: ALL_ROLES, group: 'Team',        sub: 'Log a new sale' },
-  { id: 'livesales',  icon: '🏆', label: 'Live Sales Tracker',   roles: ALL_ROLES, group: 'Team',        sub: "This week's leaderboard" },
 ];
 
 function buildNav() {
