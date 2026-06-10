@@ -886,25 +886,30 @@ function switchOffice(newOfficeId) {
   loadData();
 }
 
-var ALL_ROLES = ['master-admin','owner','admin','activator','rep'];
+// All 8 portal roles
+var ALL_ROLES  = ['master-admin','owner','admin','activator','client-rep','leader','jd','manager'];
+// Call-log tabs: not visible to client-rep or leader
+var ROLES_CALL = ['master-admin','owner','admin','activator','jd','manager'];
+// Rep-side tabs: not visible to activator
+var ROLES_REP  = ['master-admin','owner','admin','client-rep','leader','jd','manager'];
 var TABS = [
-  { id: 'postsale',    icon: '➕', label: 'Post Sale',            roles: ALL_ROLES, group: 'Sales',       sub: 'Log a new sale' },
-  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES, group: 'Call Logs',   sub: '120-day window' },
-  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ALL_ROLES, group: 'Call Logs',   sub: "Yesterday's deliveries" },
-  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ALL_ROLES, group: 'Call Logs',   sub: 'Open & delivered orders' },
-  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ALL_ROLES, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
-  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ALL_ROLES, group: 'Call Logs',   sub: '1 & 2 star ratings' },
-  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ALL_ROLES, group: 'Call Logs',   sub: 'No answer ratings' },
-  { id: 'livesales',   icon: '🏆', label: 'Live Sales Tracker',   roles: ALL_ROLES, group: 'Performance', sub: "This week's leaderboard" },
-  { id: 'dailyreport', icon: '📋', label: 'Daily Report',         roles: ALL_ROLES, group: 'Performance', sub: 'Office daily summary' },
-  { id: 'actrates',    icon: '📊', label: 'Activation Rates',     roles: ALL_ROLES, group: 'Performance', sub: 'Rep activation breakdown' },
-  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ALL_ROLES, group: 'Performance', sub: 'ICD disconnect breakdown' },
-  { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES, group: 'Performance', sub: 'Fully completed — 120-day window' },
-  { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES, group: 'Team',        sub: 'Roster & guests' },
+  { id: 'postsale',    icon: '➕', label: 'Post Sale',            roles: ROLES_REP,  group: 'Sales',       sub: 'Log a new sale' },
+  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES,  group: 'Call Logs',   sub: '120-day window' },
+  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
+  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
+  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ROLES_CALL, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
+  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ROLES_CALL, group: 'Call Logs',   sub: '1 & 2 star ratings' },
+  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ROLES_CALL, group: 'Call Logs',   sub: 'No answer ratings' },
+  { id: 'livesales',   icon: '🏆', label: 'Live Sales Tracker',   roles: ROLES_REP,  group: 'Performance', sub: "This week's leaderboard" },
+  { id: 'dailyreport', icon: '📋', label: 'Daily Report',         roles: ROLES_CALL, group: 'Performance', sub: 'Office daily summary' },
+  { id: 'actrates',    icon: '📊', label: 'Activation Rates',     roles: ROLES_REP,  group: 'Performance', sub: 'Rep activation breakdown' },
+  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },
+  { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
+  { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
 ];
 
 function buildNav() {
-  var role = SESSION.role || 'rep';
+  var role = SESSION.role || 'client-rep';
   var nav = document.getElementById('sidebar-nav');
   nav.innerHTML = '';
   var lastGroup = null;
@@ -957,11 +962,11 @@ function loadData() {
     var roster = DATA.roster || {};
     var me = roster[SESSION.email];
     if (me) {
-      SESSION.role = me.rank || 'rep';
+      SESSION.role = me.rank || 'client-rep';
       SESSION.name = me.name || SESSION.email;
       SESSION.tableauName = me.tableauName || '';
     } else if (!SESSION.role) {
-      SESSION.role = 'rep';
+      SESSION.role = 'client-rep';
       SESSION.name = SESSION.email;
       SESSION.tableauName = '';
     }
@@ -983,7 +988,7 @@ function refreshData() { TAB_CACHE = {}; loadData(); }
 
 // ── REP FILTER ────────────────────────────────────────────────────────────
 function repFilter(orders) {
-  if (SESSION.role !== 'rep') return orders;
+  if (['client-rep','leader'].indexOf(SESSION.role) === -1) return orders;
   var tn = (SESSION.tableauName || '').trim();
   if (!tn) return [];
   return orders.filter(function(o) { return o.rep === tn; });
@@ -1069,9 +1074,9 @@ function renderActRates() {
 function _renderActRatesWithData() {
   if (!_AR_LINES || !_AR_LINES.length) return noData('No activation rate data available.');
 
-  var role = SESSION.role || 'rep';
+  var role = SESSION.role || 'client-rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
-  var isRep = role === 'rep' && !!myName;
+  var isRep = (role === 'client-rep' || role === 'leader') && !!myName;
 
   var repSet = {};
   _AR_LINES.forEach(function(l) { repSet[l.rep]=true; });
@@ -1095,13 +1100,13 @@ function refreshActRates() {
 
 function _buildArTable(repFilter) {
   if (!_AR_LINES) return '';
-  var role = SESSION.role || 'rep';
+  var role = SESSION.role || 'client-rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
 
   var BKT_MAP = { '0-7 Days':'b0_7', '8-14 Days':'b8_14', '15-30 Days':'b15_30', '31-60 Days':'b31_60' };
 
   var filtered = _AR_LINES.filter(function(l) {
-    if (role === 'rep' && myName && l.rep.toLowerCase() !== myName) return false;
+    if ((role === 'client-rep' || role === 'leader') && myName && l.rep.toLowerCase() !== myName) return false;
     if (repFilter && l.rep !== repFilter) return false;
     return true;
   });
@@ -1136,7 +1141,7 @@ function _buildArTable(repFilter) {
 
   if (!repRows) return '<div class="empty">No data for the selected filters.</div>';
 
-  var grandRow = (role!=='rep') ?
+  var grandRow = (role!=='client-rep' && role!=='leader') ?
     '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+cell(totals.b0_7,'b0_7',true)+cell(totals.b8_14,'b8_14',true)+cell(totals.b15_30,'b15_30',true)+cell(totals.b31_60,'b31_60',true)+'</tr>' : '';
 
   return '<div class="tbl-wrap"><table class="call-table"><thead><tr>' +
@@ -1246,9 +1251,9 @@ function openNotesModal(dsi, customer, rep) {
   _modalDsi = dsi;
   var notes = (DATA.notes||{})[dsi] || [];
   var rating = (DATA.ratings||{})[dsi] || '';
-  var role = SESSION.role || 'rep';
+  var role = SESSION.role || 'client-rep';
   var canAddActivation = role==='master-admin' || role==='activator';
-  var canAddRep = role==='master-admin' || role==='owner' || role==='admin' || role==='rep';
+  var canAddRep = ['master-admin','owner','admin','activator','client-rep','leader','jd','manager'].indexOf(role) !== -1;
 
   var actNotes = notes.filter(function(n){ return (n.noteType||'activation')==='activation'; });
   var repNotes = notes.filter(function(n){ return n.noteType==='rep' || n.noteType==='note'; });
@@ -1671,7 +1676,7 @@ function _churnTableHtml(repList, repMap) {
   }
   var hdr = '<th style="min-width:160px">Rep</th>' +
     CHURN_BUCKETS.map(function(b){return '<th style="min-width:110px">'+esc(b)+'</th>';}).join('');
-  var grandRow = SESSION.role!=='rep'
+  var grandRow = (SESSION.role!=='client-rep' && SESSION.role!=='leader')
     ? '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+CHURN_BUCKETS.map(totalCell).join('')+'</tr>'
     : '';
   var repRows = repList.map(function(rep){
@@ -1683,6 +1688,15 @@ function _churnTableHtml(repList, repMap) {
 function renderChurn() {
   var rows = DATA.churnReport || [];
   if (!rows.length) return noData('No churn data yet. Tableau sync runs nightly.');
+  var role = SESSION.role || 'client-rep';
+  var isRepRole = role === 'client-rep' || role === 'leader';
+  if (isRepRole) {
+    var myName = (SESSION.tableauName || '').trim();
+    var built = _buildChurnRepMap(rows, myName);
+    return '<div class="card"><div class="card-header dark">Churn Report — ICD</div><div class="card-body">' +
+      '<div id="churn-table-wrap">'+_churnTableHtml(built.repList, built.repMap)+'</div>' +
+      '</div></div>';
+  }
   var allReps = [];
   var seen = {};
   (rows).forEach(function(r){ if(r.rep&&!seen[r.rep]){seen[r.rep]=true;allReps.push(r.rep);} });
@@ -2292,12 +2306,20 @@ function _drBuildEmailHtml() {
 }
 
 // ── PEOPLE ────────────────────────────────────────────────────────────────
-var PORTAL_ROLES = ['master-admin','owner','admin','activator','rep'];
+var PORTAL_ROLES = ['master-admin','owner','admin','activator','client-rep','leader','jd','manager'];
+var _ROLE_LABELS = {
+  'master-admin':'Master Admin','owner':'Owner','admin':'Admin',
+  'activator':'Activator','client-rep':'Client Rep','leader':'Team Leader',
+  'jd':'JD','manager':'Manager'
+};
 
 function renderPeople() {
   var roster = DATA.roster || {};
   var guestRoster = DATA.guestRoster || {};
-  var canEdit = SESSION.role==='master-admin' || SESSION.role==='owner' || SESSION.role==='admin';
+  var role = SESSION.role;
+  var isAdmin   = role === 'master-admin' || role === 'owner' || role === 'admin';
+  var isMgr     = role === 'jd' || role === 'manager';
+  var myEmail   = (SESSION.email || '').toLowerCase();
   var homeRows = Object.keys(roster).map(function(email) {
     return Object.assign({ email: email, isGuest: false }, roster[email]);
   });
@@ -2306,58 +2328,75 @@ function renderPeople() {
   });
   var rows = homeRows.concat(guestRows).sort(function(a,b) { return (a.name||'').localeCompare(b.name||''); });
   if (!rows.length) return noData('No people in the roster yet.');
-  var addBtn = canEdit ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
+  var addBtn = isAdmin ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
   return '<div class="card"><div class="card-header dark">People &amp; Roster</div><div class="card-body">' +
     addBtn +
     '<div class="filter-row"><input id="f-people" placeholder="Search name, email, role…"></div>' +
     '<div class="tbl-wrap"><table id="people-table"><thead><tr>' +
-    '<th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Status</th><th>Tableau Name</th><th>Office Access</th>' +
-    (canEdit ? '<th>Actions</th>' : '') +
+    '<th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Phone</th><th>Status</th><th>Tableau Name</th><th>Office Access</th><th>Actions</th>' +
     '</tr></thead><tbody>' +
-    rows.map(function(r) {
-      var statusBadge = r.deactivated ? '<span class="badge badge-red">Inactive</span>' : '<span class="badge badge-green">Active</span>';
-      var perms = (r.permissions || CFG.officeId).split(',').map(function(p) { return OFFICE_NAMES[p.trim()] || p.trim(); }).join(', ');
-      var nameCell = esc(r.name) + (r.isGuest ? ' <span style="font-size:.72rem;color:#888;font-weight:400">from ' + esc(OFFICE_NAMES[r.homeOffice]||r.homeOffice) + '</span>' : '');
-      var actions = '';
-      if (canEdit) {
-        if (!r.isGuest) {
-          actions = '<td style="white-space:nowrap">' +
-            '<button class="notes-btn" onclick="openEditPersonModal(\''+esc(r.email)+'\')">Edit</button>' +
-            (SESSION.role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson(\''+esc(r.email)+'\')">Remove</button>' : '') +
-            '</td>';
-        } else {
-          actions = '<td style="color:#aaa;font-size:.78rem">Managed in ' + esc(OFFICE_NAMES[r.homeOffice]||r.homeOffice) + '</td>';
-        }
+    rows.map(function(row) {
+      var statusBadge = row.deactivated ? '<span class="badge badge-red">Inactive</span>' : '<span class="badge badge-green">Active</span>';
+      var perms = (row.permissions || CFG.officeId).split(',').map(function(p) { return OFFICE_NAMES[p.trim()] || p.trim(); }).join(', ');
+      var nameCell = esc(row.name) + (row.isGuest ? ' <span style="font-size:.72rem;color:#888;font-weight:400">from ' + esc(OFFICE_NAMES[row.homeOffice]||row.homeOffice) + '</span>' : '');
+      var isSelf = row.email.toLowerCase() === myEmail;
+      var actions;
+      if (row.isGuest) {
+        actions = (isAdmin || isMgr) ? '<td style="color:#aaa;font-size:.78rem">Managed in ' + esc(OFFICE_NAMES[row.homeOffice]||row.homeOffice) + '</td>' : '<td></td>';
+      } else if (isAdmin) {
+        actions = '<td style="white-space:nowrap"><button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">Edit</button>' +
+          (role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson(\''+esc(row.email)+'\')">Remove</button>' : '') + '</td>';
+      } else if (isMgr) {
+        actions = '<td><button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">Edit</button></td>';
+      } else if (isSelf) {
+        actions = '<td><button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">Edit Phone</button></td>';
+      } else {
+        actions = '<td></td>';
       }
-      return '<tr'+(r.isGuest?' style="background:#fafafa;color:#555"':'')+'>'+
-        '<td>'+nameCell+'</td><td>'+esc(r.email)+'</td><td>'+esc(r.rank||'rep')+'</td><td>'+esc(r.team||'')+'</td><td>'+statusBadge+'</td><td>'+esc(r.tableauName||'—')+'</td><td>'+esc(perms)+'</td>'+actions+'</tr>';
+      return '<tr'+(row.isGuest?' style="background:#fafafa;color:#555"':'')+'>'+
+        '<td>'+nameCell+'</td><td>'+esc(row.email)+'</td><td>'+esc(_ROLE_LABELS[row.rank]||row.rank||'client-rep')+'</td><td>'+esc(row.team||'')+'</td><td>'+esc(row.phone||'—')+'</td><td>'+statusBadge+'</td><td>'+esc(row.tableauName||'—')+'</td><td>'+esc(perms)+'</td>'+actions+'</tr>';
     }).join('') + '</tbody></table></div></div></div>';
 }
 
 function buildPersonForm(email, person) {
   var p = person || {};
-  var rank = p.rank || 'rep';
+  var rank = p.rank || 'client-rep';
+  var role = SESSION.role;
+  var isSelf = email && email.toLowerCase() === (SESSION.email||'').toLowerCase();
+  var editLevel;
+  if (role === 'master-admin') editLevel = 'full';
+  else if (role === 'owner')   editLevel = 'owner';
+  else if (role === 'admin')   editLevel = 'admin';
+  else if (role === 'jd' || role === 'manager') editLevel = 'limited';
+  else editLevel = 'selfphone';
+  var canRole   = editLevel === 'full' || editLevel === 'owner';
+  var canPerms  = editLevel === 'full' || editLevel === 'owner';
+  var canStatus = editLevel === 'full' || editLevel === 'owner' || editLevel === 'admin';
+  var canBasic  = editLevel !== 'selfphone';
+  var fs = 'width:100%;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px';
+  var ds = ';background:#1e1e1e;color:#999';
   var perms = (p.permissions || CFG.officeId).split(',').map(function(o){ return o.trim(); });
-  var canEditRolePerms = SESSION.role === 'master-admin' || SESSION.role === 'owner';
-  var lockedNote = !canEditRolePerms ? '<span style="font-size:.72rem;color:#aaa;font-weight:400;margin-left:6px">Owner/Master Admin only</span>' : '';
-  var roleOpts = PORTAL_ROLES.map(function(r){ return '<option value="'+r+'"'+(r===rank?' selected':'')+'>'+r+'</option>'; }).join('');
+  var roleOpts = PORTAL_ROLES
+    .filter(function(ro) { return editLevel !== 'owner' || ro !== 'master-admin'; })
+    .map(function(ro) { return '<option value="'+ro+'"'+(ro===rank?' selected':'')+'>'+esc(_ROLE_LABELS[ro]||ro)+'</option>'; }).join('');
   var tableauOpts = '<option value="">— Not Assigned —</option>' +
     (PEOPLE_TABLEAU_NAMES||[]).map(function(n){ return '<option value="'+esc(n)+'"'+(n===(p.tableauName||'')?' selected':'')+'>'+esc(n)+'</option>'; }).join('');
   var officeChecks = Object.keys(OFFICE_NAMES).map(function(o){
-    return '<label style="display:flex;align-items:center;gap:6px;margin:4px 0;font-size:.85rem"><input type="checkbox" value="'+o+'"'+(perms.indexOf(o)!==-1?' checked':'')+(!canEditRolePerms?' disabled':'')+'>'+OFFICE_NAMES[o]+'</label>';
+    return '<label style="display:flex;align-items:center;gap:6px;margin:4px 0;font-size:.85rem"><input type="checkbox" value="'+o+'"'+(perms.indexOf(o)!==-1?' checked':'')+(canPerms?'':' disabled')+'>'+OFFICE_NAMES[o]+'</label>';
   }).join('');
   var isEdit = !!email;
-  return '<div class="field"><label>Name</label><input type="text" id="pf-name" value="'+esc(p.name||'')+'" style="width:100%;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px"></div>' +
-    '<div class="field"><label>Email</label><input type="email" id="pf-email" value="'+esc(email||'')+'"'+(isEdit?' readonly style="width:100%;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px;background:#1e1e1e"':' style="width:100%;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px"')+'></div>' +
-    '<div class="field"><label>Role'+lockedNote+'</label><select id="pf-role"'+(canEditRolePerms?'':' disabled')+' style="width:100%;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px'+(canEditRolePerms?'':';background:#1e1e1e;color:#999')+'">'+ roleOpts+'</select></div>' +
-    '<div class="field"><label>Team</label><input type="text" id="pf-team" value="'+esc(p.team||'')+'" style="width:100%;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px"></div>' +
-    '<div class="field"><label>Tableau Name</label><select id="pf-tableau" style="width:100%;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px">'+tableauOpts+'</select></div>' +
-    '<div class="field"><label>Office Permissions'+lockedNote+'</label><div id="pf-perms" style="padding:8px;border:1.5px solid #3a3a3a;border-radius:6px'+(canEditRolePerms?'':';background:#1e1e1e')+'">'+ officeChecks+'</div></div>' +
-    '<div class="field"><label>Status</label><select id="pf-status" style="width:100%;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px"><option value="false"'+(p.deactivated?'':' selected')+'>Active</option><option value="true"'+(p.deactivated?' selected':'')+'>Inactive</option></select></div>' +
-    '<div class="nm-actions">' +
-    '<button class="nm-add-btn" onclick="savePerson('+(isEdit?'\''+esc(email)+'\'':'null')+')">SAVE</button>' +
-    '<button class="nm-close-btn" onclick="closeModal()">CANCEL</button>' +
-    '</div>';
+  var lock = function(ok) { return ok ? '' : '<span style="font-size:.72rem;color:#aaa;font-weight:400;margin-left:6px">Read only</span>'; };
+  var html = '';
+  html += '<div class="field"><label>Name</label><input type="text" id="pf-name" value="'+esc(p.name||'')+'"'+(canBasic?'':' readonly')+' style="'+fs+(canBasic?'':ds)+'"></div>';
+  html += '<div class="field"><label>Email</label><input type="email" id="pf-email" value="'+esc(email||'')+'"'+(isEdit?' readonly style="'+fs+ds+'"':' style="'+fs+'"')+'></div>';
+  html += '<div class="field"><label>Phone</label><input type="text" id="pf-phone" value="'+esc(p.phone||'')+'" placeholder="e.g. 555-867-5309" style="'+fs+'"></div>';
+  html += '<div class="field"><label>Role'+lock(canRole)+'</label><select id="pf-role"'+(canRole?'':' disabled')+' style="'+fs+(canRole?'':ds)+'">'+ roleOpts+'</select></div>';
+  html += '<div class="field"><label>Team</label><input type="text" id="pf-team" value="'+esc(p.team||'')+'"'+(canBasic?'':' readonly')+' style="'+fs+(canBasic?'':ds)+'"></div>';
+  html += '<div class="field"><label>Tableau Name'+lock(canBasic)+'</label><select id="pf-tableau"'+(canBasic?'':' disabled')+' style="'+fs+(canBasic?'':ds)+'">'+tableauOpts+'</select></div>';
+  html += '<div class="field"><label>Office Permissions'+lock(canPerms)+'</label><div id="pf-perms" style="padding:8px;border:1.5px solid #3a3a3a;border-radius:6px'+(canPerms?'':';background:#1e1e1e')+'">'+ officeChecks+'</div></div>';
+  html += '<div class="field"><label>Status'+lock(canStatus)+'</label><select id="pf-status"'+(canStatus?'':' disabled')+' style="'+fs+(canStatus?'':ds)+'"><option value="false"'+(p.deactivated?'':' selected')+'>Active</option><option value="true"'+(p.deactivated?' selected':'')+'>Inactive</option></select></div>';
+  html += '<div class="nm-actions"><button class="nm-add-btn" onclick="savePerson('+(isEdit?'\''+esc(email)+'\'':'null')+')">SAVE</button><button class="nm-close-btn" onclick="closeModal()">CANCEL</button></div>';
+  return html;
 }
 
 function openAddPersonModal() {
@@ -2374,25 +2413,33 @@ function openEditPersonModal(email) {
 }
 
 function savePerson(existingEmail) {
-  var name = document.getElementById('pf-name').value.trim();
-  var email = document.getElementById('pf-email').value.trim().toLowerCase();
-  var team = document.getElementById('pf-team').value.trim();
-  var tableauName = document.getElementById('pf-tableau').value;
-  var deactivated = document.getElementById('pf-status').value === 'true';
-  var canEditRolePerms = SESSION.role === 'master-admin' || SESSION.role === 'owner';
-  var existing = existingEmail ? ((DATA.roster||{})[existingEmail] || {}) : {};
-  var role = canEditRolePerms ? document.getElementById('pf-role').value : (existing.rank || 'rep');
-  var checked = document.querySelectorAll('#pf-perms input[type=checkbox]:checked');
-  var permissions = canEditRolePerms
+  var emailVal  = document.getElementById('pf-email').value.trim().toLowerCase();
+  var phone     = document.getElementById('pf-phone').value.trim();
+  var role      = SESSION.role;
+  var editLevel;
+  if (role === 'master-admin') editLevel = 'full';
+  else if (role === 'owner')   editLevel = 'owner';
+  else if (role === 'admin')   editLevel = 'admin';
+  else if (role === 'jd' || role === 'manager') editLevel = 'limited';
+  else editLevel = 'selfphone';
+  var canRole   = editLevel === 'full' || editLevel === 'owner';
+  var canPerms  = editLevel === 'full' || editLevel === 'owner';
+  var canStatus = editLevel === 'full' || editLevel === 'owner' || editLevel === 'admin';
+  var canBasic  = editLevel !== 'selfphone';
+  var existing  = existingEmail ? ((DATA.roster||{})[existingEmail] || {}) : {};
+  var name        = canBasic  ? document.getElementById('pf-name').value.trim()    : (existing.name || '');
+  var team        = canBasic  ? document.getElementById('pf-team').value.trim()    : (existing.team || '');
+  var tableauName = canBasic  ? document.getElementById('pf-tableau').value        : (existing.tableauName || '');
+  var deactivated = canStatus ? document.getElementById('pf-status').value==='true': (existing.deactivated || false);
+  var rank        = canRole   ? document.getElementById('pf-role').value           : (existing.rank || 'client-rep');
+  var checked     = canPerms  ? document.querySelectorAll('#pf-perms input[type=checkbox]:checked') : null;
+  var permissions = canPerms
     ? (Array.from(checked).map(function(cb){ return cb.value; }).join(',') || CFG.officeId)
     : (existing.permissions || CFG.officeId);
-  if (!email) { alert('Email is required.'); return; }
-  var body = { name:name, rank:role, team:team, tableauName:tableauName, permissions:permissions, deactivated:deactivated };
-  if (existingEmail) {
-    body.action = 'updateRosterEntry'; body.email = existingEmail;
-  } else {
-    body.action = 'addRosterEntry'; body.email = email;
-  }
+  if (!emailVal) { alert('Email is required.'); return; }
+  var body = { name:name, rank:rank, team:team, tableauName:tableauName, phone:phone, permissions:permissions, deactivated:deactivated };
+  if (existingEmail) { body.action = 'updateRosterEntry'; body.email = existingEmail; }
+  else               { body.action = 'addRosterEntry';    body.email = emailVal; }
   apiPost(body).then(function(res) {
     if (res.ok) { closeModal(); refreshData(); }
     else alert(res.error || 'Save failed.');
@@ -2714,10 +2761,10 @@ var _LST_VIEW = 'days';
 var _LST_DAYS = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
 var _LST_RNKL = {
   'master-admin':'Master Admin','owner':'Owner','admin':'Admin',
-  'activator':'Activator','rep':'Client Rep','manager':'Manager',
-  'jd':'JD','l1':'Team Leader'
+  'activator':'Activator','client-rep':'Client Rep','manager':'Manager',
+  'jd':'JD','l1':'Team Leader','leader':'Team Leader'
 };
-var _LST_LDR_RANKS = ['master-admin','owner','admin','activator','manager','jd','l1'];
+var _LST_LDR_RANKS = ['master-admin','owner','admin','activator','manager','jd'];
 
 function renderLiveSalesTracker() {
   var c = document.getElementById('main-content');
@@ -2754,7 +2801,7 @@ function _lstUCls(n) {
   return n === 0 ? 'lst-u-red' : n <= 2 ? 'lst-u-orange' : n <= 5 ? 'lst-u-yellow' : 'lst-u-green';
 }
 
-var _LST_SKIP_UNLESS_SOLD = ['master-admin','owner','admin','activator','manager','jd','l1'];
+var _LST_SKIP_UNLESS_SOLD = ['master-admin','owner','admin','activator','manager','jd'];
 
 function _lstAgg(sales, roster) {
   var ws = _lstWeekStart(), DAY = 86400000, agg = {};
@@ -2763,7 +2810,7 @@ function _lstAgg(sales, roster) {
     if (r.deactivated) return;
     if (_LST_SKIP_UNLESS_SOLD.indexOf(r.rank) !== -1) return;
     agg[e] = {
-      name: r.name || e, team: r.team || '', rank: r.rank || 'rep',
+      name: r.name || e, team: r.team || '', rank: r.rank || 'client-rep',
       orders: 0, units: 0,
       days: [0,1,2,3,4,5,6].map(function() { return { orders: 0, units: 0 }; })
     };
@@ -2774,7 +2821,7 @@ function _lstAgg(sales, roster) {
     if (!agg[email] && roster[email] && !roster[email].deactivated) {
       var r = roster[email];
       agg[email] = {
-        name: r.name || email, team: r.team || '', rank: r.rank || 'rep',
+        name: r.name || email, team: r.team || '', rank: r.rank || 'client-rep',
         orders: 0, units: 0,
         days: [0,1,2,3,4,5,6].map(function() { return { orders: 0, units: 0 }; })
       };
@@ -3098,10 +3145,10 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   var roster = DATA.roster || {};
   var r = roster[email] || {};
   var name = r.name || email;
-  var rank = r.rank || 'rep';
+  var rank = r.rank || 'client-rep';
   var team = r.team || '';
   var tableauName = r.tableauName || '';
-  var role = SESSION.role || 'rep';
+  var role = SESSION.role || 'client-rep';
   var canEdit = ['owner','admin','master-admin'].indexOf(role) !== -1;
 
   // This week + all-time posted sales from _LST_SALES
