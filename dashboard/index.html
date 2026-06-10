@@ -843,6 +843,14 @@ function issueFilter(orders) {
     return Object.keys(o.statusCounts||{}).some(isIssueStatus);
   });
 }
+function _cutoff29() {
+  var d = new Date(); d.setDate(d.getDate() - 29);
+  return d.toISOString().slice(0, 10);
+}
+function within29Days(orders) {
+  var cutoff = _cutoff29();
+  return orders.filter(function(o) { return (o.orderDate || '') >= cutoff; });
+}
 
 // ── RENDER TABS ───────────────────────────────────────────────────────────
 function renderTab(id) {
@@ -856,7 +864,7 @@ function renderTab(id) {
     case 'actrates':    c.innerHTML = renderActRates();    break;
     case 'master':      c.innerHTML = renderCallTable(repFilter(DATA.masterTracker||[]), 'Master Tracker', 'No orders found.'); break;
     case 'dayafter':    c.innerHTML = renderCallTable(repFilter(DATA.dayAfterOrders||[]), 'Day-After Calls', 'No day-after orders found.'); break;
-    case 'delivered':   c.innerHTML = renderCallTable(repFilter(DATA.deliveredOrders||[]), 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
+    case 'delivered':   c.innerHTML = renderCallTable(repFilter(within29Days(DATA.deliveredOrders||[])), 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
     case 'issues':      c.innerHTML = renderCallTable(repFilter(issueFilter(DATA.orderIssues||[])), 'Order Issues', 'No order issues found.'); break;
     case 'completed':   c.innerHTML = renderCallTable(repFilter(DATA.completedOrders||[]), 'Completed Order Log', 'No completed orders found.'); break;
     case 'noanswer':    c.innerHTML = renderNoAnswerTable(); break;
@@ -1402,12 +1410,13 @@ function renderNoAnswerTable() {
   var noAnswerDsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='No Answer'; });
   if (!noAnswerDsis.length) return noData('No orders marked No Answer yet.');
   var lookup = buildOrderLookup();
+  var cutoff = _cutoff29();
   var orders = noAnswerDsis.map(function(dsi) {
     var o = lookup[dsi];
     var base = o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
     base._daysSince = _daysSinceLastNote(dsi);
     return base;
-  });
+  }).filter(function(o) { return (o.orderDate || '') >= cutoff; });
   // Sort: never-called first, then oldest call first
   orders.sort(function(a, b) {
     var da = a._daysSince === null ? 9999 : a._daysSince;
