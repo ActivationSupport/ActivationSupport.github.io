@@ -684,6 +684,13 @@ var OFFICE_LOGOS  = {
   elevate: { full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
   ignite:  { full:'assets/ignite-logo-full-standard.png',       emblem:'assets/ignite-logo-symbol-square.png' }
 };
+// Discord webhook URLs per office — leave blank to disable notifications for that office
+var DISCORD_WEBHOOKS = {
+  elevate:  '',
+  midspire: '',
+  viridian: '',
+  ignite:   ''
+};
 
 var CFG = {};
 var SESSION = {};
@@ -3345,6 +3352,37 @@ function _psStep4Html() {
     '<div class="ps-success-units"><span>' + units + '</span> unit' + (units!==1?'s':'') + ' logged</div>' +
     '<button class="ps-btn" onclick="resetPostSaleForm()">Post Another Sale</button></div>';
 }
+function _psNotifyDiscord(payload, units) {
+  var url = DISCORD_WEBHOOKS[CFG.officeId || ''];
+  if (!url) return;
+  var office = OFFICE_NAMES[CFG.officeId] || CFG.officeId || '';
+  var prods = [];
+  if (payload.airQty > 0)       prods.push('Air ×' + payload.airQty);
+  if (payload.wirelessNew > 0)  prods.push('Wireless New ×' + payload.wirelessNew);
+  if (payload.wirelessByod > 0) prods.push('Wireless BYOD ×' + payload.wirelessByod);
+  if (payload.fiberPackage)     prods.push('Fiber (' + payload.fiberPackage + ')');
+  if (payload.voipQty > 0)      prods.push('VoIP ×' + payload.voipQty);
+  if (payload.dtvQty > 0)       prods.push('DTV (' + (payload.dtvPackage || '1') + ')');
+  var body = {
+    embeds: [{
+      color: 0x4A9FD4,
+      title: '🎉 New Sale Posted — ' + office,
+      fields: [
+        { name: '👤 Rep',      value: payload.repName || payload.repEmail, inline: true },
+        { name: '📅 Date',     value: payload.dateOfSale || '—',           inline: true },
+        { name: '✨ Units',    value: String(units),                        inline: true },
+        { name: '📋 DSI',      value: payload.dsi || '—',                  inline: true },
+        { name: '📦 Products', value: prods.length ? prods.join(', ') : '—', inline: false }
+      ],
+      footer: { text: office + ' Portal' },
+      timestamp: new Date().toISOString()
+    }]
+  };
+  if (payload.notes) body.embeds[0].fields.push({ name: '📝 Notes', value: payload.notes, inline: false });
+  fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+    .catch(function() { /* silent — Discord notification is best-effort */ });
+}
+
 function _psSubmit(btn) {
   btn.disabled = true; btn.textContent = 'Submitting...';
   var d = _PS_DATA;
@@ -3367,7 +3405,11 @@ function _psSubmit(btn) {
     notes:d.notes
   };
   apiPost(payload).then(function(res) {
-    if (res&&res.ok) { _PS_STEP=4; document.getElementById('main-content').innerHTML=renderPostSale(); }
+    if (res&&res.ok) {
+      _PS_STEP=4;
+      document.getElementById('main-content').innerHTML=renderPostSale();
+      _psNotifyDiscord(payload, _psCalcUnits());
+    }
     else { btn.disabled=false; btn.textContent='SUBMIT'; alert('Error: '+(res&&res.error?res.error:'Unknown error')); }
   }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert('Submission failed. Please try again.'); });
 }
