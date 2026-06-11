@@ -512,6 +512,66 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .rp-rate-val{font-size:18px;font-weight:700;line-height:1}
 .rp-rate-sub{font-size:10px;color:var(--text2);margin-top:3px}
 @media(max-width:480px){.rp-rate-row{grid-template-columns:repeat(2,1fr)}}
+/* ── TEAMS TAB ── */
+.tm-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.tm-title{font-size:1.6rem;font-weight:800;color:var(--text);line-height:1.2}
+.tm-count{font-size:.8rem;color:var(--text2);margin-top:2px}
+.tm-hr{border:none;border-top:1px solid var(--border);margin:14px 0}
+.tm-table{width:100%;border-collapse:collapse}
+.tm-table th{font-size:.72rem;letter-spacing:.8px;font-weight:700;color:var(--text2);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.tm-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle}
+.tm-name-cell{min-width:160px}
+.tm-emoji-col{font-size:1.2rem;margin-right:8px;vertical-align:middle}
+.tm-name-link{background:none;border:none;color:var(--blue2);font-size:.92rem;font-weight:600;cursor:pointer;padding:0}
+.tm-name-link:hover{text-decoration:underline}
+.tm-parent-tag{font-size:.68rem;color:var(--text2);margin-left:6px}
+.tm-leader-cell{min-width:160px;font-size:.88rem;color:var(--text)}
+.tm-role-tag{color:var(--text2);font-size:.75rem}
+.tm-num-cell{text-align:center;font-size:.9rem;min-width:80px}
+.tm-act-cell{text-align:right;white-space:nowrap}
+.tm-btn-edit{background:#2a3a4a;border:1px solid rgba(74,159,212,.4);color:#4A9FD4;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;letter-spacing:.5px;transition:all .15s}
+.tm-btn-edit:hover{background:#3a4a5a}
+.tm-btn-del{background:#3a1a1a;border:1px solid rgba(248,113,113,.4);color:#f87171;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;letter-spacing:.5px;margin-left:4px;transition:all .15s}
+.tm-btn-del:hover{background:#4a2a2a}
+.tm-back{color:var(--text2);font-size:.82rem;cursor:pointer;margin-bottom:12px;display:inline-block}
+.tm-back:hover{color:var(--text)}
+.tm-detail-hdr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.tm-detail-em{font-size:2rem}
+.tm-detail-nm{font-size:1.6rem;font-weight:800;color:var(--text)}
+.tm-section-label{font-size:.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+.tm-breakdown-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tm-remarks-card{flex:0 0 200px;padding:14px;border-radius:8px;border:1.5px solid rgba(255,255,255,.1);background:var(--surface2)}
+.tm-remarks-label{font-size:.6rem;font-weight:700;letter-spacing:.8px;color:var(--text2);text-transform:uppercase;margin-bottom:4px}
+.tm-remarks-trend{font-size:.95rem;font-weight:700;margin-bottom:6px}
+.tm-remarks-sub{font-size:.72rem;color:var(--text2)}
+.tm-trend-up .tm-remarks-trend{color:#4ade80}
+.tm-trend-down .tm-remarks-trend{color:#f87171}
+.tm-trend-flat .tm-remarks-trend{color:#94a3b8}
+.tm-stat-pill{flex:1;min-width:80px;padding:12px 10px;text-align:center;background:var(--surface2);border-radius:8px;border:1.5px solid rgba(255,255,255,.08)}
+.tm-stat-val{font-size:1.3rem;font-weight:800;color:var(--text);display:block;margin-bottom:4px}
+.tm-stat-lbl{font-size:.6rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text2)}
+.tm-churn-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tm-churn-bkt{flex:1;min-width:80px;padding:12px;border-radius:8px;border:1.5px solid rgba(255,255,255,.1);text-align:center}
+.tm-bkt-label{font-size:.63rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;opacity:.7}
+.tm-bkt-rate{font-size:1.25rem;font-weight:800;margin-bottom:4px}
+.tm-bkt-sub{font-size:.7rem;opacity:.6}
+.tm-bkt-green{background:rgba(22,101,52,.35);border-color:rgba(74,222,128,.3);color:#4ade80}
+.tm-bkt-yellow{background:rgba(120,53,15,.35);border-color:rgba(251,191,36,.3);color:#fbbf24}
+.tm-bkt-red{background:rgba(127,29,29,.35);border-color:rgba(248,113,113,.3);color:#f87171}
+.tm-bkt-grey{background:var(--surface2);border-color:rgba(255,255,255,.1);color:var(--text2)}
+.tm-ldr-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.tm-ldr-table th{font-size:.65rem;letter-spacing:.5px;font-weight:700;color:var(--text2);padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)}
+.tm-ldr-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);text-align:center;vertical-align:middle}
+.tm-ldr-rank{width:28px;color:var(--text2);font-weight:600}
+.tm-ldr-name-cell{text-align:left!important;min-width:140px}
+.tm-ldr-name{color:var(--blue2);cursor:pointer;font-weight:600;font-size:.88rem}
+.tm-ldr-name:hover{text-decoration:underline}
+.tm-day-hdr{text-align:center;padding:6px 4px!important}
+.tm-sub-hdr{font-size:.6rem!important;color:var(--text2)!important;padding:3px 4px!important}
+.tm-day-cell{min-width:32px;font-size:.8rem;padding:5px 4px!important}
+.tm-unit-cell{font-weight:700}
+.tm-total-row{border-top:1.5px solid var(--border)!important;background:var(--surface2)}
+.tm-total-row td{font-weight:700}
 </style>
 </head>
 <body>
@@ -913,6 +973,7 @@ var TABS = [
   { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },
   { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
   { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
+  { id: 'teams',       icon: '🤝', label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
 ];
 
 var _DEV_ROLE = null;
@@ -1075,6 +1136,7 @@ function renderTab(id) {
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
     case 'postsale':    c.innerHTML = renderPostSale();    break;
     case 'livesales':   renderLiveSalesTracker();          break;
+    case 'teams':       renderTeamsTab();                  break;
     default: c.innerHTML = '<div class="empty">Coming soon.</div>';
   }
   bindFilters();
@@ -2509,6 +2571,403 @@ function deletePerson(email) {
 
 function noData(msg) {
   return '<div class="card"><div class="card-body"><div class="empty">'+esc(msg)+'</div></div></div>';
+}
+
+// ── TEAMS TAB ─────────────────────────────────────────────────────────────
+var _TM_VIEW = 'list';
+var _TM_DETAIL_ID = null;
+var _TM_LDR_VIEW = 'days';
+var _TM_EMOJIS = ['🏆','🦁','🐯','🦊','🐺','🦅','🦈','⚡','🔥','💎','👑','🚀','🎯','💪','🌊','🎪','🃏','🌟','⭐','🎭','🦋','🐲','🦄','🏹','🛡️','⚔️','🌈','🍀','🌺','🌸','👊','💯','🔮','💫','✨','🌙','☀️','🏔️','🌋','🐉','🦂','🔑','🎵','🧠','🤖','♠️','🏄','🎪','🥇','⚡','🌀'];
+
+function renderTeamsTab() {
+  var c = document.getElementById('main-content');
+  function doRender() {
+    c.innerHTML = (_TM_VIEW === 'detail' && _TM_DETAIL_ID) ? _tmBuildDetail(_TM_DETAIL_ID) : _tmBuildList();
+  }
+  if (_LST_SALES !== null) { doRender(); return; }
+  c.innerHTML = skelLoader();
+  api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
+    _LST_SALES = res.sales || [];
+    if (CURRENT_TAB === 'teams') doRender();
+  }).catch(function() {
+    if (CURRENT_TAB === 'teams') c.innerHTML = noData('Failed to load sales data.');
+  });
+}
+
+function _tmBuildList() {
+  var teams  = DATA.teams  || {};
+  var roster = DATA.roster || {};
+  var role = SESSION.role;
+  var canManage = ['master-admin','owner','admin','manager'].indexOf(role) !== -1;
+  var teamArr = Object.keys(teams).map(function(k){ return teams[k]; });
+  teamArr.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+
+  // Member counts
+  var memberCounts = {};
+  Object.keys(roster).forEach(function(email) {
+    var r = roster[email]; if (r.deactivated) return;
+    Object.keys(teams).forEach(function(tid) {
+      if (teams[tid].name === r.team) memberCounts[tid] = (memberCounts[tid]||0)+1;
+    });
+  });
+
+  // This-week units per team
+  var weekUnits = {};
+  var ws = _lstWeekStart(); var DAY_MS = 86400000;
+  (_LST_SALES||[]).forEach(function(s) {
+    if (!s.dateOfSale) return;
+    var d = new Date(s.dateOfSale+'T12:00:00'); d.setHours(0,0,0,0);
+    if (d < ws) return;
+    var r = roster[s.repEmail]; if (!r) return;
+    Object.keys(teams).forEach(function(tid) {
+      if (teams[tid].name === r.team) weekUnits[tid] = (weekUnits[tid]||0)+(Number(s.units)||0);
+    });
+  });
+
+  var createBtn = canManage ? '<button class="refresh-btn" style="margin-left:8px" onclick="openCreateTeamModal()">+ Create Team</button>' : '';
+
+  if (!teamArr.length) {
+    return '<div class="card"><div class="card-body">' +
+      '<div class="tm-header"><div><div class="tm-title">Teams</div><div class="tm-count">0 teams</div></div>'+createBtn+'</div>' +
+      '<hr class="tm-hr"><div class="empty">No teams yet.'+(canManage?' Click &ldquo;+ Create Team&rdquo; to get started.':'')+' </div>' +
+      '</div></div>';
+  }
+
+  var rows = teamArr.map(function(team) {
+    var leader = team.leaderId ? (roster[team.leaderId]||{}) : {};
+    var leaderName = leader.name || team.leaderId || '—';
+    var leaderRole = leader.rank ? (_ROLE_LABELS[leader.rank]||leader.rank) : '';
+    var cnt  = memberCounts[team.teamId]||0;
+    var units = weekUnits[team.teamId]||0;
+    var uColor = units>=10?'#4ade80':units>=5?'#fbbf24':units>0?'#94a3b8':'#6b7280';
+    var parent = team.parentId && teams[team.parentId] ? '<span class="tm-parent-tag">↳ '+esc(teams[team.parentId].name)+'</span>' : '';
+    var acts = canManage ?
+      '<td class="tm-act-cell"><button class="tm-btn-edit" onclick="openEditTeamModal(\''+esc(team.teamId)+'\')">EDIT</button><button class="tm-btn-del" onclick="_tmDelete(\''+esc(team.teamId)+'\',\''+esc(team.name)+'\')">DEL</button></td>' :
+      '<td></td>';
+    return '<tr>' +
+      '<td class="tm-name-cell"><span class="tm-emoji-col">'+(team.emoji||'👥')+'</span><button class="tm-name-link" onclick="_tmShowDetail(\''+esc(team.teamId)+'\')">'+esc(team.name)+'</button>'+parent+'</td>' +
+      '<td class="tm-leader-cell">'+esc(leaderName)+(leaderRole?' <span class="tm-role-tag">('+esc(leaderRole)+')</span>':'')+'</td>' +
+      '<td class="tm-num-cell">'+cnt+'</td>' +
+      '<td class="tm-num-cell"><span style="color:'+uColor+';font-weight:700">'+units+'</span></td>' +
+      acts+'</tr>';
+  }).join('');
+
+  return '<div class="card"><div class="card-body">' +
+    '<div class="tm-header"><div><div class="tm-title">Teams</div><div class="tm-count">'+teamArr.length+' team'+(teamArr.length!==1?'s':'')+'</div></div>'+createBtn+'</div>' +
+    '<hr class="tm-hr">' +
+    '<div class="tbl-wrap"><table class="tm-table"><thead><tr>' +
+    '<th>TEAM</th><th>LEADER</th><th>MEMBERS</th><th>UNITS (WK)</th>'+(canManage?'<th>ACTIONS</th>':'') +
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>' +
+    '</div></div>';
+}
+
+function _tmShowDetail(teamId) {
+  _TM_VIEW = 'detail'; _TM_DETAIL_ID = teamId; _TM_LDR_VIEW = 'days';
+  document.getElementById('main-content').innerHTML = _tmBuildDetail(teamId);
+}
+
+function _tmBackToList() {
+  _TM_VIEW = 'list'; _TM_DETAIL_ID = null;
+  document.getElementById('main-content').innerHTML = _tmBuildList();
+}
+
+function _tmSetLdrView(v) {
+  _TM_LDR_VIEW = v;
+  var t1 = document.getElementById('tm-ldr-days-btn');
+  var t2 = document.getElementById('tm-ldr-weeks-btn');
+  if (t1) { t1.className = 'lst-toggle-btn'+(v==='days'?' active':''); }
+  if (t2) { t2.className = 'lst-toggle-btn'+(v==='weeks'?' active':''); }
+  var wrap = document.getElementById('tm-ldr-wrap');
+  if (wrap) wrap.innerHTML = _tmLdrTable(_TM_DETAIL_ID);
+}
+
+function _tmBuildDetail(teamId) {
+  var teams = DATA.teams||{}; var team = teams[teamId];
+  if (!team) return noData('Team not found.');
+  var roster = DATA.roster||{};
+  var DAY_MS = 86400000;
+
+  // Members
+  var memberEmails = Object.keys(roster).filter(function(e){ return !roster[e].deactivated && roster[e].team===team.name; });
+  var memberTabs   = memberEmails.map(function(e){ return (roster[e].tableauName||'').toLowerCase(); }).filter(Boolean);
+
+  // This-week + prior 4-week unit totals
+  var ws = _lstWeekStart();
+  var wkU=0, wkO=0, priorW=[0,0,0,0];
+  (_LST_SALES||[]).forEach(function(s) {
+    if (!s.dateOfSale||memberEmails.indexOf(s.repEmail)===-1) return;
+    var d=new Date(s.dateOfSale+'T12:00:00'); d.setHours(0,0,0,0);
+    var u=Number(s.units)||0;
+    if (d>=ws){ wkU+=u; wkO++; }
+    else {
+      var daysAgo=Math.floor((ws.getTime()-d.getTime())/DAY_MS);
+      var wi=Math.floor(daysAgo/7); if(wi>=0&&wi<=3) priorW[wi]+=u;
+    }
+  });
+  var fourWkSum=(priorW[0]+priorW[1]+priorW[2]+priorW[3]);
+  var fourWkAvg=fourWkSum/4;
+  var vsPct=fourWkAvg>0?(wkU-fourWkAvg)/fourWkAvg*100:(wkU>0?100:0);
+  var perRep=memberEmails.length>0?wkU/memberEmails.length:0;
+
+  var trendLabel,trendCls;
+  if      (vsPct>=20) { trendLabel='Strong upward trend'; trendCls='tm-trend-up'; }
+  else if (vsPct>=5)  { trendLabel='Slight upward trend'; trendCls='tm-trend-up'; }
+  else if (vsPct<=-20){ trendLabel='Declining trend';     trendCls='tm-trend-down'; }
+  else if (vsPct<=-5) { trendLabel='Slight decline';      trendCls='tm-trend-down'; }
+  else                { trendLabel='Steady performance';  trendCls='tm-trend-flat'; }
+
+  // Line stats from masterTracker
+  var teamLines=(DATA.masterTracker||[]).filter(function(l){ return memberTabs.indexOf((l.rep||'').toLowerCase())!==-1; });
+  var tot=teamLines.length, act=0, post=0, can=0;
+  teamLines.forEach(function(l){
+    var s=(l.dtrStatus||'').toLowerCase();
+    if(s==='active')act++; else if(s==='posted')post++; else if(s==='canceled')can++;
+  });
+  var pend=Math.max(0,tot-act-post-can);
+  var pct=function(n){ return tot?Math.round(n/tot*100):0; };
+
+  // Churn data
+  var churnRows=(DATA.churnReport||[]).filter(function(r){ return memberTabs.indexOf((r.rep||'').toLowerCase())!==-1; });
+  var churnBuilt=_buildChurnRepMap(churnRows,'');
+  var acts0=0,dis0=0;
+  churnBuilt.repList.forEach(function(rep){ var d=churnBuilt.repMap[rep]['0-30 Day']; if(d){acts0+=d.activated;dis0+=d.disconnects;} });
+  var projDisco=acts0>0?Math.round(dis0/acts0*100):0;
+
+  var vsColor=vsPct>=0?'color:#4ade80':'color:#f87171';
+  var vsSign=vsPct>=0?'↑':'↓';
+
+  var hdr = '<div class="tm-back" onclick="_tmBackToList()">← Teams</div>' +
+    '<div class="tm-detail-hdr"><span class="tm-detail-em">'+(team.emoji||'👥')+'</span><span class="tm-detail-nm">'+esc(team.name)+'</span></div>';
+
+  var breakdown = '<div class="tm-section-label">TEAM BREAKDOWN</div>' +
+    '<div class="tm-breakdown-row">' +
+    '<div class="tm-remarks-card '+trendCls+'">' +
+    '<div class="tm-remarks-label">REMARKS</div>' +
+    '<div class="tm-remarks-trend">'+esc(trendLabel)+'</div>' +
+    '<div class="tm-remarks-sub">Team Avg: '+perRep.toFixed(1)+' · 4Wk Total: '+fourWkSum+'</div>' +
+    '</div>' +
+    '<div class="tm-stat-pill"><span style="'+vsColor+';font-size:1.3rem;font-weight:800">'+vsSign+Math.abs(vsPct).toFixed(1)+'%</span><div class="tm-stat-lbl">VS 4WK AVG</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val">'+pct(act+post)+'%</span><div class="tm-stat-lbl">ACTIVE %</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#fbbf24">'+pct(pend)+'%</span><div class="tm-stat-lbl">PENDING %</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#f87171">'+pct(can)+'%</span><div class="tm-stat-lbl">CANCEL %</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#f87171">'+projDisco+'%</span><div class="tm-stat-lbl">PROJ. DISCO %</div></div>' +
+    '</div>';
+
+  var churnSec = '<div class="tm-section-label">CHURN BUCKETS</div><div class="tm-churn-row">' +
+    _tmChurnBucket(churnBuilt,'0-30 Day')+_tmChurnBucket(churnBuilt,'30 Day')+
+    _tmChurnBucket(churnBuilt,'60 Day')+_tmChurnBucket(churnBuilt,'90 Day')+
+    _tmChurnBucket(churnBuilt,'120 Day')+'</div>';
+
+  var ldrSec = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+    '<div class="tm-section-label" style="margin:0;border:none">TEAM LEADERBOARD</div>' +
+    '<div class="lst-toggle-row">' +
+    '<button id="tm-ldr-days-btn" class="lst-toggle-btn'+(_TM_LDR_VIEW==='days'?' active':'')+'" onclick="_tmSetLdrView(\'days\')">DAYS</button>' +
+    '<button id="tm-ldr-weeks-btn" class="lst-toggle-btn'+(_TM_LDR_VIEW==='weeks'?' active':'')+'" onclick="_tmSetLdrView(\'weeks\')">WEEKS</button>' +
+    '</div></div>' +
+    '<div id="tm-ldr-wrap">'+_tmLdrTable(teamId)+'</div>';
+
+  return hdr+'<div class="card"><div class="card-body">'+breakdown+churnSec+ldrSec+'</div></div>';
+}
+
+function _tmChurnBucket(built, bucket) {
+  var acts=0,dis=0;
+  built.repList.forEach(function(rep){ var d=built.repMap[rep][bucket]; if(d){acts+=d.activated;dis+=d.disconnects;} });
+  var rate=acts>0?dis/acts*100:0;
+  var cls;
+  if (!acts) { cls='tm-bkt-grey'; }
+  else {
+    var threshG,threshY;
+    if      (bucket==='0-30 Day') { threshG=2.4;  threshY=3.0; }
+    else if (bucket==='30 Day')   { threshG=4.9;  threshY=6.9; }
+    else if (bucket==='60 Day')   { threshG=8.9;  threshY=9.9; }
+    else if (bucket==='90 Day')   { threshG=10.9; threshY=13.9; }
+    else                           { threshG=13.9; threshY=17.9; }
+    cls = rate<=threshG?'tm-bkt-green':rate<=threshY?'tm-bkt-yellow':'tm-bkt-red';
+  }
+  return '<div class="tm-churn-bkt '+cls+'">' +
+    '<div class="tm-bkt-label">'+esc(bucket)+'</div>' +
+    '<div class="tm-bkt-rate">'+(acts?rate.toFixed(1)+'%':'—')+'</div>' +
+    '<div class="tm-bkt-sub">'+(acts?'('+dis+'/'+acts+')':'No data')+'</div>' +
+    '</div>';
+}
+
+function _tmLdrTable(teamId) {
+  var teams=DATA.teams||{}; var team=teams[teamId]; if(!team) return '';
+  var roster=DATA.roster||{};
+  var emails=Object.keys(roster).filter(function(e){ return !roster[e].deactivated&&roster[e].team===team.name; });
+  return _TM_LDR_VIEW==='days' ? _tmLdrDays(emails,roster) : _tmLdrWeeks(emails,roster);
+}
+
+function _tmLdrDays(emails, roster) {
+  var ws=_lstWeekStart(); var DAY_MS=86400000;
+  var today=new Date(); today.setHours(0,0,0,0);
+  var todayIdx=Math.min(6,Math.floor((today.getTime()-ws.getTime())/DAY_MS));
+  var days=['MON','TUE','WED','THU','FRI','SAT','SUN'];
+
+  var agg={};
+  emails.forEach(function(e){ var r=roster[e]; agg[e]={name:r.name||e,rank:r.rank||'client-rep',days:[0,1,2,3,4,5,6].map(function(){ return {o:0,u:0}; })}; });
+  (_LST_SALES||[]).forEach(function(s){
+    if(!s.dateOfSale||!agg[s.repEmail]) return;
+    var d=new Date(s.dateOfSale+'T12:00:00'); d.setHours(0,0,0,0); if(d<ws) return;
+    var idx=Math.floor((d.getTime()-ws.getTime())/DAY_MS); if(idx<0||idx>6) return;
+    agg[s.repEmail].days[idx].o++; agg[s.repEmail].days[idx].u+=Number(s.units)||0;
+  });
+  var sorted=emails.slice().sort(function(a,b){
+    var au=agg[a].days.reduce(function(s,d){return s+d.u;},0);
+    var bu=agg[b].days.reduce(function(s,d){return s+d.u;},0);
+    return bu-au;
+  });
+  var totDays=[0,1,2,3,4,5,6].map(function(i){ var o=0,u=0; emails.forEach(function(e){o+=agg[e].days[i].o;u+=agg[e].days[i].u;}); return {o:o,u:u}; });
+
+  function uCls(u,past){ if(!past)return 'lst-u-grey'; return u>=3?'lst-u-green':u===2?'lst-u-yellow':u===1?'lst-u-orange':'lst-u-red'; }
+
+  var hdCols=days.map(function(d,i){ return '<th colspan="2" class="tm-day-hdr">'+d+'</th>'; }).join('');
+  var subCols=days.map(function(){ return '<th class="tm-sub-hdr">ORD</th><th class="tm-sub-hdr">UNITS</th>'; }).join('');
+
+  var repRows=sorted.map(function(e,idx){
+    var a=agg[e];
+    var dayCells=a.days.map(function(day,i){
+      var past=i<=todayIdx;
+      return '<td class="tm-day-cell">'+(past?day.o:'—')+'</td>' +
+             '<td class="tm-day-cell tm-unit-cell '+uCls(day.u,past)+'">'+(past?day.u:'—')+'</td>';
+    }).join('');
+    return '<tr><td class="tm-ldr-rank">'+(idx+1)+'</td>' +
+      '<td class="tm-ldr-name-cell"><span class="tm-ldr-name" onclick="_lstShowRepProfile(\''+esc(e)+'\')">'+esc(a.name)+'</span>' +
+      '<div class="lst-rep-role">'+esc(_LST_RNKL[a.rank]||a.rank)+'</div></td>'+dayCells+'</tr>';
+  }).join('');
+
+  var totCells=totDays.map(function(day,i){ var past=i<=todayIdx; return '<td class="tm-day-cell"><b>'+(past?day.o:'—')+'</b></td><td class="tm-day-cell tm-unit-cell"><b>'+(past?day.u:'—')+'</b></td>'; }).join('');
+  var totRow='<tr class="tm-total-row"><td></td><td class="tm-ldr-name-cell" style="font-weight:700;font-size:.8rem">TEAM TOTAL</td>'+totCells+'</tr>';
+
+  return '<div class="tbl-wrap"><table class="tm-ldr-table"><thead><tr><th></th><th>NAME</th>'+hdCols+'</tr><tr><th></th><th></th>'+subCols+'</tr></thead><tbody>'+repRows+totRow+'</tbody></table></div>';
+}
+
+function _tmLdrWeeks(emails, roster) {
+  var ws=_lstWeekStart(); var DAY_MS=86400000;
+  var WK=['This Wk','Last Wk','2 Wks Ago','3 Wks Ago'];
+  var agg={};
+  emails.forEach(function(e){ var r=roster[e]; agg[e]={name:r.name||e,rank:r.rank||'client-rep',wks:[{o:0,u:0},{o:0,u:0},{o:0,u:0},{o:0,u:0}]}; });
+  (_LST_SALES||[]).forEach(function(s){
+    if(!s.dateOfSale||!agg[s.repEmail]) return;
+    var d=new Date(s.dateOfSale+'T12:00:00'); d.setHours(0,0,0,0);
+    var wi=d>=ws?0:Math.floor((ws.getTime()-d.getTime())/DAY_MS/7)+1;
+    if(wi<0||wi>3) return;
+    agg[s.repEmail].wks[wi].o++; agg[s.repEmail].wks[wi].u+=Number(s.units)||0;
+  });
+  var sorted=emails.slice().sort(function(a,b){ return agg[b].wks[0].u-agg[a].wks[0].u||agg[b].wks[0].o-agg[a].wks[0].o; });
+  var totWks=[0,1,2,3].map(function(w){ var o=0,u=0; emails.forEach(function(e){o+=agg[e].wks[w].o;u+=agg[e].wks[w].u;}); return {o:o,u:u}; });
+
+  var hdCols=WK.map(function(l){ return '<th colspan="2" class="tm-day-hdr">'+l+'</th>'; }).join('');
+  var subCols=WK.map(function(){ return '<th class="tm-sub-hdr">ORD</th><th class="tm-sub-hdr">UNITS</th>'; }).join('');
+  var repRows=sorted.map(function(e,idx){
+    var a=agg[e];
+    var wkCells=a.wks.map(function(wk){ return '<td class="tm-day-cell">'+wk.o+'</td><td class="tm-day-cell">'+wk.u+'</td>'; }).join('');
+    return '<tr><td class="tm-ldr-rank">'+(idx+1)+'</td>' +
+      '<td class="tm-ldr-name-cell"><span class="tm-ldr-name" onclick="_lstShowRepProfile(\''+esc(e)+'\')">'+esc(a.name)+'</span>' +
+      '<div class="lst-rep-role">'+esc(_LST_RNKL[a.rank]||a.rank)+'</div></td>'+wkCells+'</tr>';
+  }).join('');
+  var totCells=totWks.map(function(wk){ return '<td class="tm-day-cell"><b>'+wk.o+'</b></td><td class="tm-day-cell"><b>'+wk.u+'</b></td>'; }).join('');
+  var totRow='<tr class="tm-total-row"><td></td><td class="tm-ldr-name-cell" style="font-weight:700;font-size:.8rem">TEAM TOTAL</td>'+totCells+'</tr>';
+
+  return '<div class="tbl-wrap"><table class="tm-ldr-table"><thead><tr><th></th><th>NAME</th>'+hdCols+'</tr><tr><th></th><th></th>'+subCols+'</tr></thead><tbody>'+repRows+totRow+'</tbody></table></div>';
+}
+
+function openCreateTeamModal() {
+  document.getElementById('modal-title').innerHTML = '<div class="nm-dsi">Create Team</div>';
+  document.getElementById('modal-body').innerHTML = _tmBuildForm(null);
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function openEditTeamModal(teamId) {
+  var team=(DATA.teams||{})[teamId]; if(!team) return;
+  document.getElementById('modal-title').innerHTML = '<div class="nm-dsi">Edit Team</div><div class="nm-sub">'+esc(team.name)+'</div>';
+  document.getElementById('modal-body').innerHTML = _tmBuildForm(teamId);
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function _tmBuildForm(teamId) {
+  var teams=DATA.teams||{}; var roster=DATA.roster||{};
+  var team=teamId?(teams[teamId]||{}):{};
+  var fs='width:100%;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px;background:#1a1a2a;color:var(--text)';
+  var ldrRoles=['master-admin','owner','admin','manager','jd','leader'];
+  var leaderOpts='<option value="">— No Leader —</option>'+
+    Object.keys(roster).filter(function(e){ return ldrRoles.indexOf(roster[e].rank)!==-1&&!roster[e].deactivated; })
+      .sort(function(a,b){ return (roster[a].name||'').localeCompare(roster[b].name||''); })
+      .map(function(e){ var r=roster[e]; return '<option value="'+esc(e)+'"'+(team.leaderId===e?' selected':'')+'>'+esc(r.name||e)+' ('+esc(_ROLE_LABELS[r.rank]||r.rank)+')</option>'; }).join('');
+  var parentOpts='<option value="">None (Top Level)</option>'+
+    Object.keys(teams).filter(function(tid){ return tid!==teamId; })
+      .sort(function(a,b){ return (teams[a].name||'').localeCompare(teams[b].name||''); })
+      .map(function(tid){ return '<option value="'+esc(tid)+'"'+(team.parentId===tid?' selected':'')+'>'+esc(teams[tid].name)+'</option>'; }).join('');
+  var cur=team.emoji||'';
+  var grid=_TM_EMOJIS.map(function(em){
+    var sel=em===cur;
+    return '<button type="button" onclick="_tmPickEmoji(\''+em+'\')" style="font-size:1.4rem;padding:4px 6px;background:'+(sel?'rgba(74,159,212,.15)':'transparent')+';border:1.5px solid '+(sel?'#4A9FD4':'transparent')+';border-radius:6px;cursor:pointer;transition:all .15s" data-emoji="'+em+'" title="'+em+'">'+em+'</button>';
+  }).join('');
+  return '<div class="field"><label>Team Name</label><input type="text" id="tm-f-name" value="'+esc(team.name||'')+'" placeholder="e.g. Aces" style="'+fs+'"></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'+
+    '<div class="field" style="margin:0"><label>Parent Team</label><select id="tm-f-parent" style="'+fs+'">'+parentOpts+'</select></div>'+
+    '<div class="field" style="margin:0"><label>Leader</label><select id="tm-f-leader" style="'+fs+'">'+leaderOpts+'</select></div>'+
+    '</div>'+
+    '<div class="field"><label>Emoji</label>'+
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'+
+    '<div id="tm-emoji-preview" style="font-size:2rem;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#2c2c2c;border-radius:8px;border:1.5px solid #3a3a3a">'+(cur||'👥')+'</div>'+
+    '<input type="text" id="tm-f-emoji" value="'+esc(cur)+'" placeholder="Type or paste emoji" oninput="_tmEmojiInput()" style="flex:1;padding:8px;border:1.5px solid #3a3a3a;border-radius:6px;background:#1a1a2a;color:var(--text);font-size:1.1rem">'+
+    '</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:2px;max-height:160px;overflow-y:auto;padding:4px;background:#1a1a2a;border:1.5px solid #3a3a3a;border-radius:6px">'+grid+'</div>'+
+    '</div>'+
+    '<div class="nm-actions">'+
+    '<button class="nm-add-btn" onclick="saveTeamModal(\''+esc(teamId||'')+'\')">SAVE</button>'+
+    '<button class="nm-close-btn" onclick="closeModal()">CANCEL</button>'+
+    '</div>';
+}
+
+function _tmPickEmoji(em) {
+  var inp=document.getElementById('tm-f-emoji');
+  var prev=document.getElementById('tm-emoji-preview');
+  if(inp) inp.value=em; if(prev) prev.textContent=em;
+  document.querySelectorAll('[data-emoji]').forEach(function(btn){
+    var sel=btn.getAttribute('data-emoji')===em;
+    btn.style.background=sel?'rgba(74,159,212,.15)':'transparent';
+    btn.style.borderColor=sel?'#4A9FD4':'transparent';
+  });
+}
+
+function _tmEmojiInput() {
+  var val=(document.getElementById('tm-f-emoji')||{}).value||'';
+  if(val.trim()){
+    var prev=document.getElementById('tm-emoji-preview');
+    if(prev) prev.textContent=val.trim();
+    document.querySelectorAll('[data-emoji]').forEach(function(btn){
+      var sel=btn.getAttribute('data-emoji')===val.trim();
+      btn.style.background=sel?'rgba(74,159,212,.15)':'transparent';
+      btn.style.borderColor=sel?'#4A9FD4':'transparent';
+    });
+  }
+}
+
+function saveTeamModal(existingId) {
+  var name=(document.getElementById('tm-f-name')||{}).value||''; name=name.trim();
+  var emoji=(document.getElementById('tm-f-emoji')||{}).value||''; emoji=emoji.trim();
+  var leaderId=(document.getElementById('tm-f-leader')||{}).value||'';
+  var parentId=(document.getElementById('tm-f-parent')||{}).value||'';
+  if(!name){ alert('Team name is required.'); return; }
+  var body;
+  if(existingId) {
+    body={action:'updateTeam',teamId:existingId,name:name,emoji:emoji,leaderId:leaderId,parentId:parentId};
+  } else {
+    var tid=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'-'+Date.now().toString(36);
+    body={action:'addTeam',teamId:tid,name:name,emoji:emoji,leaderId:leaderId,parentId:parentId};
+  }
+  apiPost(body).then(function(res){
+    if(res.ok){ closeModal(); refreshData(); } else alert(res.error||'Save failed.');
+  }).catch(function(){ alert('Connection error.'); });
+}
+
+function _tmDelete(teamId, name) {
+  if(!confirm('Delete team "'+name+'"? This cannot be undone.')) return;
+  apiPost({action:'deleteTeam',teamId:teamId}).then(function(res){
+    if(res.ok) refreshData(); else alert(res.error||'Delete failed.');
+  }).catch(function(){ alert('Connection error.'); });
 }
 
 // ── LIVE FILTER BINDING ───────────────────────────────────────────────────
