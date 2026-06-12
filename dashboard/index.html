@@ -698,6 +698,16 @@ var DATA = {};
 var SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 60 min inactivity
 var _lastActivity = Date.now();
 var _inactivityInterval = null;
+
+// ── CACHE STATE ───────────────────────────────────────────────────────────
+var _CACHE = {
+  mainDataTs: 0, lstSalesTs: 0,
+  mainFlight: false, lstFlight: false,
+  MAIN_TTL: 90000, LST_TTL: 90000
+};
+var _pendingRefresh = false;
+var _bgInterval = null;
+var _luInterval = null;
 var CURRENT_TAB = 'master';
 
 function loadConfig() {
@@ -863,6 +873,10 @@ function doSetPin() {
 
 function signOut() {
   clearInterval(_inactivityInterval);
+  clearInterval(_bgInterval);
+  clearInterval(_luInterval);
+  _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
+  _pendingRefresh = false;
   sessionStorage.removeItem('as_session_' + CFG.officeId);
   DATA = {}; SESSION = {}; LOGIN_EMAIL = '';
   document.getElementById('app').style.display = 'none';
@@ -896,6 +910,7 @@ function showApp() {
   buildNav();
   loadData();
   _startInactivityWatcher();
+  _startBgRefresh();
 }
 
 function _setSidebarOfficeLogo(officeId) {
@@ -1059,10 +1074,13 @@ function skelLoader() {
 
 function loadData() {
   TAB_CACHE = {};
+  _CACHE.mainFlight = true;
   document.getElementById('main-content').innerHTML = skelLoader();
   api({}).then(function(res) {
+    _CACHE.mainFlight = false;
     if (res.error) { document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>'; return; }
     DATA = res;
+    _CACHE.mainDataTs = Date.now();
     var roster = DATA.roster || {};
     var me = roster[SESSION.email];
     if (me) {
@@ -1077,7 +1095,7 @@ function loadData() {
     SESSION._actualRole = SESSION.role;
     sessionStorage.setItem('as_session_' + (SESSION.homeOffice || CFG.officeId), JSON.stringify(SESSION));
     document.getElementById('sb-user-name').textContent = SESSION.name + ' · ' + SESSION.role;
-    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    _updateLastUpdated();
     var devWrap = document.getElementById('dev-toggle-wrap');
     if (devWrap) { devWrap.style.display = SESSION._actualRole === 'master-admin' ? 'block' : 'none'; if (SESSION._actualRole === 'master-admin') devWrap.innerHTML = _devToggleHtml(); }
     buildNav();
@@ -1086,12 +1104,88 @@ function loadData() {
       CURRENT_TAB = TABS.find(function(t) { return t.roles.includes(SESSION.role); }).id;
     }
     switchTab(CURRENT_TAB);
+    // Pre-load secondary data in background so those tabs are instant
+    _bgRefreshLst();
+    _preloadArLines();
   }).catch(function() {
+    _CACHE.mainFlight = false;
     document.getElementById('main-content').innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="loadData()">Retry</a></div>';
   });
 }
 
-function refreshData() { TAB_CACHE = {}; loadData(); }
+function refreshData() {
+  TAB_CACHE = {};
+  _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
+  _LST_SALES = null; _AR_LINES = null; _AR_LOADING = false;
+  loadData();
+}
+
+// ── CACHE MANAGER ─────────────────────────────────────────────────────────
+function _updateLastUpdated() {
+  var el = document.getElementById('last-updated'); if (!el || !_CACHE.mainDataTs) return;
+  var s = Math.round((Date.now() - _CACHE.mainDataTs) / 1000);
+  var txt = s < 10 ? 'just now' : s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s/60) + 'min ago' : Math.floor(s/3600) + 'h ago';
+  el.textContent = 'Updated ' + txt;
+}
+
+function _bgRefreshMain() {
+  if (_CACHE.mainFlight) return;
+  _CACHE.mainFlight = true;
+  api({}).then(function(res) {
+    _CACHE.mainFlight = false;
+    if (res.error) return;
+    DATA = res;
+    _CACHE.mainDataTs = Date.now();
+    var me = (DATA.roster || {})[SESSION.email];
+    if (me) SESSION.tableauName = me.tableauName || SESSION.tableauName;
+    _updateLastUpdated();
+    // Re-render current tab (skip tabs that manage their own full state)
+    var skipRender = { postsale:1, dailyreport:1 };
+    if (!skipRender[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
+  }).catch(function() { _CACHE.mainFlight = false; });
+}
+
+function _bgRefreshLst() {
+  if (_CACHE.lstFlight) return;
+  _CACHE.lstFlight = true;
+  api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
+    _CACHE.lstFlight = false;
+    _LST_SALES = res.sales || [];
+    _CACHE.lstSalesTs = Date.now();
+    if (CURRENT_TAB === 'livesales') document.getElementById('main-content').innerHTML = _lstBuild();
+  }).catch(function() { _CACHE.lstFlight = false; });
+}
+
+function _preloadArLines() {
+  if (_AR_LINES !== null || _AR_LOADING) return;
+  _AR_LOADING = true;
+  api({ action:'readActRateLines' }).then(function(resp) {
+    _AR_LOADING = false;
+    _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
+    if (CURRENT_TAB === 'actrates') {
+      var c = document.getElementById('main-content');
+      if (c) c.innerHTML = _renderActRatesWithData();
+    }
+  }).catch(function() { _AR_LOADING = false; _AR_LINES = []; });
+}
+
+function _startBgRefresh() {
+  clearInterval(_bgInterval);
+  clearInterval(_luInterval);
+  // Check every 15s — fires a refresh once the TTL (90s) has passed
+  _bgInterval = setInterval(function() {
+    if (document.getElementById('app').style.display === 'none') return;
+    var modalOpen = document.getElementById('detail-modal').classList.contains('open');
+    if (modalOpen) {
+      if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _pendingRefresh = true;
+      return;
+    }
+    if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _bgRefreshMain();
+    if (Date.now() - _CACHE.lstSalesTs  >= _CACHE.LST_TTL)  _bgRefreshLst();
+  }, 15000);
+  // Tick the "X ago" label every 20s
+  _luInterval = setInterval(_updateLastUpdated, 20000);
+}
 
 // ── TEAM HELPERS ─────────────────────────────────────────────────────────
 function _myTeam() {
@@ -1225,8 +1319,10 @@ function renderActRates() {
   api({ action: 'readActRateLines' }).then(function(resp) {
     _AR_LOADING = false;
     _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
-    var c = document.getElementById('main-content');
-    if (c) c.innerHTML = _renderActRatesWithData();
+    if (CURRENT_TAB === 'actrates') {
+      var c = document.getElementById('main-content');
+      if (c) c.innerHTML = _renderActRatesWithData();
+    }
   }).catch(function() {
     _AR_LOADING = false;
     _AR_LINES = [];
@@ -3107,7 +3203,14 @@ function bindFilters() {
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
-function closeModal() { document.getElementById('detail-modal').classList.remove('open'); }
+function closeModal() {
+  document.getElementById('detail-modal').classList.remove('open');
+  if (_pendingRefresh) {
+    _pendingRefresh = false;
+    _bgRefreshMain();
+    _bgRefreshLst();
+  }
+}
 document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
 // ── POST SALE ─────────────────────────────────────────────────────────────
