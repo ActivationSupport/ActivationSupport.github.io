@@ -684,6 +684,13 @@ var OFFICE_LOGOS  = {
   elevate: { full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
   ignite:  { full:'assets/ignite-logo-full-standard.png',       emblem:'assets/ignite-logo-symbol-square.png' }
 };
+// Discord webhook URLs per office — leave blank to disable notifications for that office
+var DISCORD_WEBHOOKS = {
+  elevate:  '',
+  midspire: '',
+  viridian: '',
+  ignite:   ''
+};
 
 var CFG = {};
 var SESSION = {};
@@ -691,6 +698,16 @@ var DATA = {};
 var SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 60 min inactivity
 var _lastActivity = Date.now();
 var _inactivityInterval = null;
+
+// ── CACHE STATE ───────────────────────────────────────────────────────────
+var _CACHE = {
+  mainDataTs: 0, lstSalesTs: 0,
+  mainFlight: false, lstFlight: false,
+  MAIN_TTL: 90000, LST_TTL: 90000
+};
+var _pendingRefresh = false;
+var _bgInterval = null;
+var _luInterval = null;
 var CURRENT_TAB = 'master';
 
 function loadConfig() {
@@ -856,6 +873,10 @@ function doSetPin() {
 
 function signOut() {
   clearInterval(_inactivityInterval);
+  clearInterval(_bgInterval);
+  clearInterval(_luInterval);
+  _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
+  _pendingRefresh = false;
   sessionStorage.removeItem('as_session_' + CFG.officeId);
   DATA = {}; SESSION = {}; LOGIN_EMAIL = '';
   document.getElementById('app').style.display = 'none';
@@ -889,6 +910,7 @@ function showApp() {
   buildNav();
   loadData();
   _startInactivityWatcher();
+  _startBgRefresh();
 }
 
 function _setSidebarOfficeLogo(officeId) {
@@ -1052,10 +1074,13 @@ function skelLoader() {
 
 function loadData() {
   TAB_CACHE = {};
+  _CACHE.mainFlight = true;
   document.getElementById('main-content').innerHTML = skelLoader();
   api({}).then(function(res) {
+    _CACHE.mainFlight = false;
     if (res.error) { document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>'; return; }
     DATA = res;
+    _CACHE.mainDataTs = Date.now();
     var roster = DATA.roster || {};
     var me = roster[SESSION.email];
     if (me) {
@@ -1070,7 +1095,7 @@ function loadData() {
     SESSION._actualRole = SESSION.role;
     sessionStorage.setItem('as_session_' + (SESSION.homeOffice || CFG.officeId), JSON.stringify(SESSION));
     document.getElementById('sb-user-name').textContent = SESSION.name + ' · ' + SESSION.role;
-    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    _updateLastUpdated();
     var devWrap = document.getElementById('dev-toggle-wrap');
     if (devWrap) { devWrap.style.display = SESSION._actualRole === 'master-admin' ? 'block' : 'none'; if (SESSION._actualRole === 'master-admin') devWrap.innerHTML = _devToggleHtml(); }
     buildNav();
@@ -1079,19 +1104,150 @@ function loadData() {
       CURRENT_TAB = TABS.find(function(t) { return t.roles.includes(SESSION.role); }).id;
     }
     switchTab(CURRENT_TAB);
+    // Pre-load secondary data in background so those tabs are instant
+    _bgRefreshLst();
+    _preloadArLines();
   }).catch(function() {
+    _CACHE.mainFlight = false;
     document.getElementById('main-content').innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="loadData()">Retry</a></div>';
   });
 }
 
-function refreshData() { TAB_CACHE = {}; loadData(); }
+function refreshData() {
+  TAB_CACHE = {};
+  _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
+  _LST_SALES = null; _AR_LINES = null; _AR_LOADING = false;
+  loadData();
+}
+
+// ── CACHE MANAGER ─────────────────────────────────────────────────────────
+function _updateLastUpdated() {
+  var el = document.getElementById('last-updated'); if (!el || !_CACHE.mainDataTs) return;
+  var s = Math.round((Date.now() - _CACHE.mainDataTs) / 1000);
+  var txt = s < 10 ? 'just now' : s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s/60) + 'min ago' : Math.floor(s/3600) + 'h ago';
+  el.textContent = 'Updated ' + txt;
+}
+
+function _bgRefreshMain() {
+  if (_CACHE.mainFlight) return;
+  _CACHE.mainFlight = true;
+  api({}).then(function(res) {
+    _CACHE.mainFlight = false;
+    if (res.error) return;
+    DATA = res;
+    _CACHE.mainDataTs = Date.now();
+    var me = (DATA.roster || {})[SESSION.email];
+    if (me) SESSION.tableauName = me.tableauName || SESSION.tableauName;
+    _updateLastUpdated();
+    // Re-render current tab (skip tabs that manage their own full state)
+    var skipRender = { postsale:1, dailyreport:1 };
+    if (!skipRender[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
+  }).catch(function() { _CACHE.mainFlight = false; });
+}
+
+function _bgRefreshLst() {
+  if (_CACHE.lstFlight) return;
+  _CACHE.lstFlight = true;
+  api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
+    _CACHE.lstFlight = false;
+    _LST_SALES = res.sales || [];
+    _CACHE.lstSalesTs = Date.now();
+    if (CURRENT_TAB === 'livesales') document.getElementById('main-content').innerHTML = _lstBuild();
+  }).catch(function() { _CACHE.lstFlight = false; });
+}
+
+function _preloadArLines() {
+  if (_AR_LINES !== null || _AR_LOADING) return;
+  _AR_LOADING = true;
+  api({ action:'readActRateLines' }).then(function(resp) {
+    _AR_LOADING = false;
+    _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
+    if (CURRENT_TAB === 'actrates') {
+      var c = document.getElementById('main-content');
+      if (c) c.innerHTML = _renderActRatesWithData();
+    }
+  }).catch(function() { _AR_LOADING = false; _AR_LINES = []; });
+}
+
+function _startBgRefresh() {
+  clearInterval(_bgInterval);
+  clearInterval(_luInterval);
+  // Check every 15s — fires a refresh once the TTL (90s) has passed
+  _bgInterval = setInterval(function() {
+    if (document.getElementById('app').style.display === 'none') return;
+    var modalOpen = document.getElementById('detail-modal').classList.contains('open');
+    if (modalOpen) {
+      if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _pendingRefresh = true;
+      return;
+    }
+    if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _bgRefreshMain();
+    if (Date.now() - _CACHE.lstSalesTs  >= _CACHE.LST_TTL)  _bgRefreshLst();
+  }, 15000);
+  // Tick the "X ago" label every 20s
+  _luInterval = setInterval(_updateLastUpdated, 20000);
+}
+
+// ── TEAM HELPERS ─────────────────────────────────────────────────────────
+function _myTeam() {
+  var role = SESSION.role, teams = DATA.teams || {}, roster = DATA.roster || {};
+  if (role === 'leader') {
+    var myEmail = (SESSION.email || '').toLowerCase();
+    var found = null;
+    Object.keys(teams).forEach(function(tid) {
+      if ((teams[tid].leaderId || '').toLowerCase() === myEmail) found = teams[tid];
+    });
+    return found;
+  }
+  if (role === 'jd') {
+    var me = roster[SESSION.email] || {};
+    var teamName = me.team || '';
+    if (!teamName) return null;
+    var found2 = null;
+    Object.keys(teams).forEach(function(tid) {
+      if (teams[tid].name === teamName) found2 = teams[tid];
+    });
+    return found2;
+  }
+  return null;
+}
+function _teamTableauNames(teamName) {
+  if (!teamName) return [];
+  var roster = DATA.roster || {};
+  var tns = [];
+  Object.keys(roster).forEach(function(email) {
+    var p = roster[email];
+    if ((p.team || '') === teamName && p.tableauName)
+      tns.push((p.tableauName || '').trim().toLowerCase());
+  });
+  return tns;
+}
+function _teamEmails(teamName) {
+  if (!teamName) return [];
+  var roster = DATA.roster || {};
+  return Object.keys(roster).filter(function(email) {
+    return (roster[email].team || '') === teamName;
+  });
+}
 
 // ── REP FILTER ────────────────────────────────────────────────────────────
 function repFilter(orders) {
-  if (['client-rep','leader'].indexOf(SESSION.role) === -1) return orders;
-  var tn = (SESSION.tableauName || '').trim();
-  if (!tn) return [];
-  return orders.filter(function(o) { return o.rep === tn; });
+  var role = SESSION.role;
+  if (role === 'client-rep') {
+    var tn = (SESSION.tableauName || '').trim();
+    if (!tn) return [];
+    return orders.filter(function(o) { return o.rep === tn; });
+  }
+  if (role === 'leader' || role === 'jd') {
+    var team = _myTeam();
+    if (team) {
+      var tns = _teamTableauNames(team.name);
+      if (!tns.length) return [];
+      return orders.filter(function(o) { return tns.indexOf((o.rep || '').trim().toLowerCase()) !== -1; });
+    }
+    var tn2 = (SESSION.tableauName || '').trim();
+    return tn2 ? orders.filter(function(o) { return o.rep === tn2; }) : [];
+  }
+  return orders;
 }
 function isIssueStatus(s) {
   var sl = String(s||'').toLowerCase().trim();
@@ -1163,8 +1319,10 @@ function renderActRates() {
   api({ action: 'readActRateLines' }).then(function(resp) {
     _AR_LOADING = false;
     _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
-    var c = document.getElementById('main-content');
-    if (c) c.innerHTML = _renderActRatesWithData();
+    if (CURRENT_TAB === 'actrates') {
+      var c = document.getElementById('main-content');
+      if (c) c.innerHTML = _renderActRatesWithData();
+    }
   }).catch(function() {
     _AR_LOADING = false;
     _AR_LINES = [];
@@ -1177,7 +1335,8 @@ function _renderActRatesWithData() {
 
   var role = SESSION.role || 'client-rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
-  var isRep = (role === 'client-rep' || role === 'leader') && !!myName;
+  var isTeamScoped = role === 'leader' || role === 'jd';
+  var isRep = role === 'client-rep' || isTeamScoped;
 
   var repSet = {};
   _AR_LINES.forEach(function(l) { repSet[l.rep]=true; });
@@ -1203,7 +1362,8 @@ function _buildArTable(repFilter) {
   if (!_AR_LINES) return '';
   var role = SESSION.role || 'client-rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
-  var isRepRole = role === 'client-rep' || role === 'leader';
+  var isClientRep = role === 'client-rep';
+  var isTeamRole = role === 'leader' || role === 'jd';
 
   var BKT_MAP = { '0-7 Days':'b0_7', '8-14 Days':'b8_14', '15-30 Days':'b15_30', '31-60 Days':'b31_60' };
 
@@ -1213,10 +1373,23 @@ function _buildArTable(repFilter) {
     return true;
   });
 
-  // Individual rows: rep roles see only own row; others see all
-  var indivLines = (isRepRole && myName)
-    ? allLines.filter(function(l) { return l.rep.toLowerCase() === myName; })
-    : allLines;
+  // Determine visible individual rows
+  var indivLines;
+  if (isClientRep && myName) {
+    indivLines = allLines.filter(function(l) { return l.rep.toLowerCase() === myName; });
+  } else if (isTeamRole) {
+    var _arTeam = _myTeam();
+    var _arTns = _arTeam ? _teamTableauNames(_arTeam.name) : [];
+    if (_arTns.length) {
+      indivLines = allLines.filter(function(l) { return _arTns.indexOf(l.rep.trim().toLowerCase()) !== -1; });
+    } else if (myName) {
+      indivLines = allLines.filter(function(l) { return l.rep.toLowerCase() === myName; });
+    } else {
+      indivLines = [];
+    }
+  } else {
+    indivLines = allLines;
+  }
 
   // Aggregate individual rows
   var repData = {};
@@ -1226,9 +1399,10 @@ function _buildArTable(repFilter) {
     repData[l.rep][b].t+=(l.vol||0); repData[l.rep][b].a+=(l.acts||0);
   });
 
-  // Grand total always from full office (allLines)
+  // Grand total: team roles use team lines; others use full office lines
+  var grandLines = isTeamRole ? indivLines : allLines;
   var totals={b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
-  allLines.forEach(function(l) {
+  grandLines.forEach(function(l) {
     var b=BKT_MAP[l.bucket]; if (!b) return;
     totals[b].t+=(l.vol||0); totals[b].a+=(l.acts||0);
   });
@@ -1802,11 +1976,29 @@ function renderChurn() {
   var rows = DATA.churnReport || [];
   if (!rows.length) return noData('No churn data yet. Tableau sync runs nightly.');
   var role = SESSION.role || 'client-rep';
-  var isRepRole = role === 'client-rep' || role === 'leader';
-  if (isRepRole) {
+  var isTeamRole = role === 'leader' || role === 'jd';
+  if (isTeamRole) {
+    var churnTeam = _myTeam();
+    if (churnTeam) {
+      var churnTns = _teamTableauNames(churnTeam.name);
+      var teamRows = rows.filter(function(r) { return churnTns.indexOf((r.rep || '').trim().toLowerCase()) !== -1; });
+      var built = _buildChurnRepMap(teamRows, '');
+      return '<div class="card"><div class="card-header dark">Churn Report — ICD</div><div class="card-body">' +
+        '<div id="churn-table-wrap">'+_churnTableHtml(built.repList, built.repMap)+'</div>' +
+        '</div></div>';
+    }
+    // No team found — show own row with office grand total
+    var myNameC = (SESSION.tableauName || '').trim();
+    var myBuiltC = _buildChurnRepMap(rows, myNameC);
+    var allBuiltC = _buildChurnRepMap(rows, '');
+    return '<div class="card"><div class="card-header dark">Churn Report — ICD</div><div class="card-body">' +
+      '<div id="churn-table-wrap">'+_churnTableHtml(myBuiltC.repList, myBuiltC.repMap, allBuiltC.repList, allBuiltC.repMap)+'</div>' +
+      '</div></div>';
+  }
+  if (role === 'client-rep') {
     var myName = (SESSION.tableauName || '').trim();
-    var myBuilt  = _buildChurnRepMap(rows, myName);  // own row only
-    var allBuilt = _buildChurnRepMap(rows, '');       // all reps for grand total
+    var myBuilt  = _buildChurnRepMap(rows, myName);
+    var allBuilt = _buildChurnRepMap(rows, '');
     return '<div class="card"><div class="card-header dark">Churn Report — ICD</div><div class="card-body">' +
       '<div id="churn-table-wrap">'+_churnTableHtml(myBuilt.repList, myBuilt.repMap, allBuilt.repList, allBuilt.repMap)+'</div>' +
       '</div></div>';
@@ -3011,7 +3203,14 @@ function bindFilters() {
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
-function closeModal() { document.getElementById('detail-modal').classList.remove('open'); }
+function closeModal() {
+  document.getElementById('detail-modal').classList.remove('open');
+  if (_pendingRefresh) {
+    _pendingRefresh = false;
+    _bgRefreshMain();
+    _bgRefreshLst();
+  }
+}
 document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
 // ── POST SALE ─────────────────────────────────────────────────────────────
@@ -3256,6 +3455,37 @@ function _psStep4Html() {
     '<div class="ps-success-units"><span>' + units + '</span> unit' + (units!==1?'s':'') + ' logged</div>' +
     '<button class="ps-btn" onclick="resetPostSaleForm()">Post Another Sale</button></div>';
 }
+function _psNotifyDiscord(payload, units) {
+  var url = DISCORD_WEBHOOKS[CFG.officeId || ''];
+  if (!url) return;
+  var office = OFFICE_NAMES[CFG.officeId] || CFG.officeId || '';
+  var prods = [];
+  if (payload.airQty > 0)       prods.push('Air ×' + payload.airQty);
+  if (payload.wirelessNew > 0)  prods.push('Wireless New ×' + payload.wirelessNew);
+  if (payload.wirelessByod > 0) prods.push('Wireless BYOD ×' + payload.wirelessByod);
+  if (payload.fiberPackage)     prods.push('Fiber (' + payload.fiberPackage + ')');
+  if (payload.voipQty > 0)      prods.push('VoIP ×' + payload.voipQty);
+  if (payload.dtvQty > 0)       prods.push('DTV (' + (payload.dtvPackage || '1') + ')');
+  var body = {
+    embeds: [{
+      color: 0x4A9FD4,
+      title: '🎉 New Sale Posted — ' + office,
+      fields: [
+        { name: '👤 Rep',      value: payload.repName || payload.repEmail, inline: true },
+        { name: '📅 Date',     value: payload.dateOfSale || '—',           inline: true },
+        { name: '✨ Units',    value: String(units),                        inline: true },
+        { name: '📋 DSI',      value: payload.dsi || '—',                  inline: true },
+        { name: '📦 Products', value: prods.length ? prods.join(', ') : '—', inline: false }
+      ],
+      footer: { text: office + ' Portal' },
+      timestamp: new Date().toISOString()
+    }]
+  };
+  if (payload.notes) body.embeds[0].fields.push({ name: '📝 Notes', value: payload.notes, inline: false });
+  fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+    .catch(function() { /* silent — Discord notification is best-effort */ });
+}
+
 function _psSubmit(btn) {
   btn.disabled = true; btn.textContent = 'Submitting...';
   var d = _PS_DATA;
@@ -3278,7 +3508,11 @@ function _psSubmit(btn) {
     notes:d.notes
   };
   apiPost(payload).then(function(res) {
-    if (res&&res.ok) { _PS_STEP=4; document.getElementById('main-content').innerHTML=renderPostSale(); }
+    if (res&&res.ok) {
+      _PS_STEP=4;
+      document.getElementById('main-content').innerHTML=renderPostSale();
+      _psNotifyDiscord(payload, _psCalcUnits());
+    }
     else { btn.disabled=false; btn.textContent='SUBMIT'; alert('Error: '+(res&&res.error?res.error:'Unknown error')); }
   }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert('Submission failed. Please try again.'); });
 }
@@ -3388,6 +3622,26 @@ function _lstBuild() {
   var tAgg = _lstTeamAgg(repAgg, teams);
   var todayIdx = _lstTodayIdx();
 
+  var role = SESSION.role;
+  var isTeamScoped = role === 'leader' || role === 'jd';
+  var lstTeamName = '';
+  if (isTeamScoped) {
+    var lstTeam = _myTeam();
+    if (lstTeam) {
+      lstTeamName = lstTeam.name;
+      var teamEmailSet = {};
+      _teamEmails(lstTeamName).forEach(function(e) { teamEmailSet[e] = true; });
+      var filteredRepAgg = {};
+      Object.keys(repAgg).forEach(function(e) {
+        if (teamEmailSet[e]) filteredRepAgg[e] = repAgg[e];
+      });
+      repAgg = filteredRepAgg;
+      var filteredTAgg = {};
+      if (tAgg[lstTeamName]) filteredTAgg[lstTeamName] = tAgg[lstTeamName];
+      tAgg = filteredTAgg;
+    }
+  }
+
   var all = Object.keys(repAgg).map(function(e) { return { email: e, d: repAgg[e] }; })
     .sort(function(a, b) { return b.d.units - a.d.units || b.d.orders - a.d.orders; });
   var leaders = all.filter(function(x) { return _LST_LDR_RANKS.indexOf(x.d.rank) !== -1; });
@@ -3398,10 +3652,12 @@ function _lstBuild() {
   var totOrd = all.reduce(function(s, x) { return s + x.d.orders; }, 0);
   var totUni = all.reduce(function(s, x) { return s + x.d.units; }, 0);
 
+  var boardTitle = (isTeamScoped && lstTeamName) ? lstTeamName.toUpperCase() + ' LEADERBOARD' : 'OFFICE LEADERBOARD';
+
   return '<div class="lst-wrap">' +
     _lstWeekBar(totOrd, totUni) +
     _lstTopPerf(all.slice(0, 3), tArr.slice(0, 3)) +
-    _lstBoard(leaders, reps, tArr, todayIdx) +
+    _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) +
     '</div>';
 }
 
@@ -3457,10 +3713,10 @@ function _lstTopPerf(topAll, topTeams) {
   return h + '</div>';
 }
 
-function _lstBoard(leaders, reps, tArr, todayIdx) {
+function _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) {
   var h = '<div>';
   h += '<div class="lst-board-hdr">';
-  h += '<div><div class="lst-board-title">OFFICE LEADERBOARD' +
+  h += '<div><div class="lst-board-title">' + esc(boardTitle || 'OFFICE LEADERBOARD') +
     '<span class="lst-refresh-btn" onclick="lstRefresh()" title="Refresh">↺</span></div>' +
     '<div class="lst-board-cnt">' + leaders.length + ' leaders &middot; ' + reps.length + ' reps</div></div>';
   h += '<div class="lst-view-toggle">' +
