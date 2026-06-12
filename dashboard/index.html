@@ -572,6 +572,64 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .tm-unit-cell{font-weight:700}
 .tm-total-row{border-top:1.5px solid var(--border)!important;background:var(--surface2)}
 .tm-total-row td{font-weight:700}
+
+/* ── APPOINTMENTS ── */
+.appt-wrap{}
+.appt-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.appt-nav{display:flex;align-items:center;gap:10px}
+.appt-nav-btn{padding:6px 12px;background:#2a2a2a;color:var(--blue2);border:1px solid #3a3a3a;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .15s}
+.appt-nav-btn:hover{border-color:var(--blue2)}
+.appt-week-label{font-size:.92rem;font-weight:700;color:var(--text);min-width:200px;text-align:center}
+.appt-filter-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.appt-select{padding:7px 12px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.85rem;cursor:pointer}
+.appt-select:focus{border-color:var(--blue2);outline:none}
+.appt-book-btn{padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap}
+.appt-book-btn:hover{background:#2563a8}
+.appt-book-btn:disabled{opacity:.45;cursor:not-allowed}
+.appt-manage-btn{padding:7px 14px;background:#2a2a2a;color:var(--text2);border:1px solid #3a3a3a;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
+.appt-manage-btn:hover{border-color:var(--blue2);color:var(--blue2)}
+.appt-do-cancel-btn{padding:5px 10px;background:transparent;color:var(--red);border:1px solid var(--red);border-radius:5px;font-size:.75rem;cursor:pointer;transition:all .15s}
+.appt-do-cancel-btn:hover{background:rgba(231,76,60,.1)}
+.appt-cal-outer{overflow-x:auto;margin-bottom:16px}
+.appt-cal-grid{display:grid;grid-template-columns:72px repeat(7,1fr);min-width:560px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.appt-cal-th{background:var(--surface2);padding:10px 6px;text-align:center;border-bottom:1px solid var(--border)}
+.appt-cal-th.appt-today-hdr{background:rgba(74,159,212,.13)}
+.appt-cal-time-hdr{background:var(--surface2);border-bottom:1px solid var(--border);border-right:1px solid var(--border)}
+.appt-cal-dayname{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
+.appt-cal-daynum{font-size:.88rem;font-weight:700;color:var(--text);margin-top:2px}
+.appt-cal-time{display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:.68rem;color:var(--text2);border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface2);min-height:54px}
+.appt-cal-cell{min-height:54px;padding:4px 5px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:.73rem;transition:background .12s;text-align:center}
+.appt-cell-booked{background:rgba(31,78,120,.38);cursor:default}
+.appt-cell-avail{background:rgba(39,174,96,.08);color:var(--green);cursor:pointer;font-weight:600}
+.appt-cell-avail:hover{background:rgba(39,174,96,.2)}
+.appt-avail-plus{font-size:.95rem;margin-right:2px}
+.appt-cell-avail-light{background:transparent;cursor:pointer}
+.appt-cell-avail-light:hover{background:rgba(74,159,212,.07)}
+.appt-avail-dot{font-size:1.3rem;color:#404040}
+.appt-cell-booked-multi{background:rgba(31,78,120,.22);flex-direction:column;gap:2px;cursor:default}
+.appt-cell-closed{background:var(--bg);color:#303030;cursor:default;font-size:1rem}
+.appt-cell-name{font-weight:700;color:var(--text);font-size:.75rem;line-height:1.2}
+.appt-cell-svc{font-size:.65rem;color:var(--text2);line-height:1.2;margin-top:2px}
+.appt-cell-act-tag{font-size:.68rem;background:rgba(74,159,212,.15);color:var(--blue2);padding:1px 5px;border-radius:8px;font-weight:600}
+.appt-cell-more{font-size:.65rem;color:var(--text2)}
+.appt-status-confirmed{color:var(--green);font-weight:700;font-size:.75rem}
+.appt-status-cancelled{color:var(--red);font-weight:600;font-size:.75rem;text-decoration:line-through}
+.appt-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.appt-form-input{width:100%;padding:9px 12px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.88rem}
+.appt-form-input:focus{border-color:var(--blue2);outline:none}
+.appt-checkbox-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
+.appt-chk{display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--text);cursor:pointer}
+.appt-chk input{accent-color:var(--blue2)}
+.appt-sched-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.appt-day-toggle{display:flex;align-items:center;gap:7px;min-width:110px;font-size:.85rem;cursor:pointer}
+.appt-day-times{display:flex;align-items:center;gap:8px}
+.appt-time-inp{padding:6px 10px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.85rem;width:100px}
+.appt-time-inp:focus{border-color:var(--blue2);outline:none}
+.appt-block-add-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding:10px;background:var(--surface2);border-radius:6px}
+.appt-block-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.82rem}
+.appt-block-date{color:var(--text);font-weight:600;min-width:80px}
+.appt-block-time{color:var(--text2);min-width:90px}
+.appt-block-reason{color:var(--text2);flex:1}
 </style>
 </head>
 <body>
@@ -674,9 +732,28 @@ tr:hover td{background:rgba(74,159,212,.07)}
   </div>
 </div>
 
+<!-- APPOINTMENT BOOKING MODAL -->
+<div class="modal-bg" id="appt-booking-modal">
+  <div class="modal" style="max-width:640px;width:95%">
+    <span class="modal-close" onclick="closeApptModal()">✕</span>
+    <h3>Book Appointment</h3>
+    <div id="appt-booking-body"></div>
+  </div>
+</div>
+
+<!-- ACTIVATOR SCHEDULE MODAL -->
+<div class="modal-bg" id="appt-sched-modal">
+  <div class="modal" style="max-width:580px;width:95%">
+    <span class="modal-close" onclick="closeApptSchedModal()">✕</span>
+    <h3>My Schedule &amp; Availability</h3>
+    <div id="appt-sched-body"></div>
+  </div>
+</div>
+
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9hfE_HDTDueNr-s-wQRNDvqWfQX-EkYkSFVQQeitc3_ccO8FqBabAhKe7YTqVzPQ21Q/exec';
+var APPT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDy8ZMiho7BL5U1-CV29CpPQ2odQZ4TmPkO51uIAsomrJWuJYCQCV_xycNBGeYhO6tAw/exec';
 var API_KEY = 'activation-dash-2026-secret';
 var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
 var OFFICE_COLORS = { midspire:'#1F4E78', viridian:'#1E5631', elevate:'#2E75B6', ignite:'#C0392B' };
@@ -994,8 +1071,9 @@ var TABS = [
   { id: 'actrates',    icon: '📊', label: 'Activation Rates',     roles: ROLES_REP,  group: 'Performance', sub: 'Rep activation breakdown' },
   { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },
   { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
-  { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
-  { id: 'teams',       icon: '🤝', label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
+  { id: 'people',       icon: '👥', label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
+  { id: 'teams',        icon: '🤝', label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
+  { id: 'appointments', icon: '📅', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
 ];
 
 var _DEV_ROLE = null;
@@ -1292,7 +1370,8 @@ function renderTab(id) {
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
     case 'postsale':    c.innerHTML = renderPostSale();    break;
     case 'livesales':   renderLiveSalesTracker();          break;
-    case 'teams':       renderTeamsTab();                  break;
+    case 'teams':        renderTeamsTab();          break;
+    case 'appointments': renderAppointmentsTab();  break;
     default: c.innerHTML = '<div class="empty">Coming soon.</div>';
   }
   bindFilters();
@@ -4081,6 +4160,380 @@ function _lstRepChurnHtml(tableauName) {
   });
   return h + '</div></div>';
 }
+
+// ── APPOINTMENTS ─────────────────────────────────────────────────────────
+var _APPT = { activators:null, appointments:null, weekOffset:0, filterEmail:'', loading:false };
+
+function _apptGet(params) {
+  var p = Object.assign({}, params, { key: API_KEY });
+  var qs = Object.keys(p).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(p[k]||''); }).join('&');
+  return fetch(APPT_SCRIPT_URL+'?'+qs, { redirect:'follow' }).then(function(r){ return r.json(); });
+}
+function _apptPost(body) {
+  return fetch(APPT_SCRIPT_URL, {
+    method:'POST', redirect:'follow',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({}, body, { key: API_KEY }))
+  }).then(function(r){ return r.json(); });
+}
+function _apptWeekStart(offset) {
+  var d = new Date(); var dow = d.getDay();
+  d.setDate(d.getDate() + (dow===0?-6:1-dow) + (offset||0)*7);
+  d.setHours(0,0,0,0); return d;
+}
+function _apptDateStr(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _apptFmt12(t) {
+  if (!t) return ''; var p=t.split(':').map(Number); var h=p[0],m=p[1];
+  return (h>12?h-12:h===0?12:h)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM');
+}
+function _apptFmtDate(s) {
+  if (!s) return ''; var p=s.split('-').map(Number);
+  var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[p[1]-1]+' '+p[2]+', '+p[0];
+}
+function _apptSlotInSched(slot, start, end) {
+  if (!start||!end) return false;
+  var toM=function(t){var p=t.split(':').map(Number);return p[0]*60+p[1];};
+  var s=toM(slot); return s>=toM(start)&&(s+60)<=toM(end);
+}
+function _apptActName(email) {
+  var a=(_APPT.activators||[]).find(function(x){return x.email===email;});
+  return a?a.name:email;
+}
+
+function renderAppointmentsTab() {
+  var c = document.getElementById('main-content');
+  c.innerHTML = '<div class="empty">Loading appointments…</div>';
+  _APPT.loading = true;
+  var actsP = _APPT.activators ? Promise.resolve({activators:_APPT.activators}) : _apptGet({action:'getActivators',officeId:CFG.officeId});
+  var apptP = _apptGet({action:'getAppointments',officeId:CFG.officeId,bookerEmail:SESSION.email,role:SESSION.role});
+  Promise.all([actsP, apptP]).then(function(res) {
+    _APPT.loading = false;
+    if (res[0].activators) _APPT.activators = res[0].activators;
+    _APPT.appointments = res[1].appointments || [];
+    if (CURRENT_TAB==='appointments') { c.innerHTML = _apptBuildView(); _apptBindEvents(); }
+  }).catch(function() {
+    _APPT.loading = false;
+    c.innerHTML = '<div class="empty">Failed to load. Check your connection and try refreshing.</div>';
+  });
+}
+
+function _apptBuildView() {
+  var acts = _APPT.activators||[], appts = _APPT.appointments||[];
+  var ws = _apptWeekStart(_APPT.weekOffset);
+  var we = new Date(ws); we.setDate(ws.getDate()+6);
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var wLabel = mo[ws.getMonth()]+' '+ws.getDate()+' – '+mo[we.getMonth()]+' '+we.getDate()+', '+we.getFullYear();
+  var isAdmin = SESSION.role==='activator'||SESSION.role==='master-admin';
+  var actOpts = '<option value="">All Activators</option>'+acts.map(function(a){
+    return '<option value="'+esc(a.email)+'"'+(a.email===_APPT.filterEmail?' selected':'')+'>'+esc(a.name)+'</option>';
+  }).join('');
+  var html = '<div class="appt-wrap">'+
+    '<div class="appt-controls">'+
+      '<div class="appt-nav">'+
+        '<button class="appt-nav-btn" onclick="_apptNavWeek(-1)">◀</button>'+
+        '<span class="appt-week-label">'+esc(wLabel)+'</span>'+
+        '<button class="appt-nav-btn" onclick="_apptNavWeek(1)">▶</button>'+
+      '</div>'+
+      '<div class="appt-filter-row">'+
+        '<select class="appt-select" id="appt-act-filter" onchange="_apptFilter(this.value)">'+actOpts+'</select>'+
+        '<button class="appt-book-btn" onclick="openApptBookingModal(\'\',\'\',\'\')">+ Book Appointment</button>'+
+      '</div>'+
+    '</div>'+
+    _apptCalGrid(appts, acts, ws)+
+    _apptUpcomingTable(appts)+(
+    isAdmin ? '<div style="margin-top:16px;text-align:right"><button class="appt-manage-btn" onclick="openApptSchedModal()">⚙ Manage My Schedule</button></div>' : ''
+  )+'</div>';
+  return html;
+}
+
+function _apptCalGrid(appts, acts, ws) {
+  var slots = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00'];
+  var dnames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var dates = []; for (var d=0;d<7;d++){var x=new Date(ws);x.setDate(ws.getDate()+d);dates.push(_apptDateStr(x));}
+  var today = _apptDateStr(new Date());
+  var aMap = {}; appts.forEach(function(a){
+    if(!a.date||!a.timeSlot||a.status==='cancelled') return;
+    var k=a.date+'|'+a.timeSlot; if(!aMap[k]) aMap[k]=[]; aMap[k].push(a);
+  });
+  var sMap = {}; acts.forEach(function(a){ sMap[a.email]=a.schedule||{}; });
+  var html = '<div class="appt-cal-outer"><div class="appt-cal-grid">';
+  html += '<div class="appt-cal-time-hdr"></div>';
+  for (var d=0;d<7;d++){
+    html += '<div class="appt-cal-th'+(dates[d]===today?' appt-today-hdr':'')+'">'+
+      '<div class="appt-cal-dayname">'+dnames[d]+'</div>'+
+      '<div class="appt-cal-daynum">'+(new Date(dates[d]+'T12:00:00').getMonth()+1)+'/'+new Date(dates[d]+'T12:00:00').getDate()+'</div>'+
+    '</div>';
+  }
+  slots.forEach(function(slot){
+    html += '<div class="appt-cal-time">'+_apptFmt12(slot)+'</div>';
+    for (var d=0;d<7;d++){
+      var ds=dates[d], k=ds+'|'+slot, slotAppts=aMap[k]||[];
+      var dayDt=new Date(ds+'T12:00:00'), dk=['sun','mon','tue','wed','thu','fri','sat'][dayDt.getDay()];
+      if (_APPT.filterEmail) {
+        var sc=(sMap[_APPT.filterEmail]||{})[dk]||{}, inH=_apptSlotInSched(slot,sc.start,sc.end);
+        var mine=slotAppts.find(function(a){return a.activatorEmail===_APPT.filterEmail;});
+        if (mine) {
+          var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||mine.bookerEmail===SESSION.email;
+          html+='<div class="appt-cal-cell appt-cell-booked" title="'+(ok?esc(mine.customerName):'Booked')+'">'+
+            '<div class="appt-cell-name">'+(ok?esc(mine.customerName):'••••••')+'</div>'+
+            '<div class="appt-cell-svc">'+esc(mine.services||'')+'</div></div>';
+        } else if(inH){
+          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(_APPT.filterEmail)+'\',\''+slot+'\')">'+
+            '<span class="appt-avail-plus">+</span> Book</div>';
+        } else {
+          html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
+        }
+      } else {
+        if (slotAppts.length>0){
+          html+='<div class="appt-cal-cell appt-cell-booked-multi">';
+          acts.filter(function(a){return slotAppts.some(function(ap){return ap.activatorEmail===a.email;});})
+            .slice(0,2).forEach(function(a){ html+='<div class="appt-cell-act-tag">'+esc(a.name.split(' ')[0])+'</div>'; });
+          if(slotAppts.length>2) html+='<div class="appt-cell-more">+'+(slotAppts.length-2)+'</div>';
+          html+='</div>';
+        } else {
+          var anyAvail=acts.some(function(a){var s=(sMap[a.email]||{})[dk]||{};return _apptSlotInSched(slot,s.start,s.end);});
+          if(anyAvail){
+            html+='<div class="appt-cal-cell appt-cell-avail-light" onclick="openApptBookingModal(\''+ds+'\',\'\',\''+slot+'\')">'+
+              '<span class="appt-avail-dot">·</span></div>';
+          } else {
+            html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
+          }
+        }
+      }
+    }
+  });
+  return html+'</div></div>';
+}
+
+function _apptUpcomingTable(appts) {
+  var today = _apptDateStr(new Date());
+  var rows = appts.filter(function(a){ return a.status!=='cancelled'&&a.date>=today; })
+    .sort(function(a,b){ return a.date!==b.date?a.date.localeCompare(b.date):a.timeSlot.localeCompare(b.timeSlot); })
+    .slice(0,25);
+  if (!rows.length) return '<div class="card" style="margin-top:16px"><div class="card-body"><div class="empty">No upcoming appointments.</div></div></div>';
+  var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
+  var h='<div class="card" style="margin-top:16px"><div class="card-header dark">Upcoming Appointments</div>'+
+    '<div class="card-body" style="padding:0"><table class="tbl"><thead><tr>'+
+    '<th>Date</th><th>Time</th><th>Activator</th><th>Customer</th><th>Services</th><th>Devices</th><th>Status</th><th></th>'+
+    '</tr></thead><tbody>';
+  rows.forEach(function(a){
+    var ok=canAll||a.bookerEmail===SESSION.email;
+    var canX=canAll||a.bookerEmail===SESSION.email;
+    h+='<tr><td>'+esc(_apptFmtDate(a.date))+'</td><td>'+esc(_apptFmt12(a.timeSlot))+'</td>'+
+      '<td>'+esc(_apptActName(a.activatorEmail))+'</td>'+
+      '<td>'+(ok?esc(a.customerName):'••••••')+'</td>'+
+      '<td style="font-size:.78rem">'+esc(a.services||'—')+'</td>'+
+      '<td>'+esc(a.deviceCount||1)+'</td>'+
+      '<td><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span></td>'+
+      '<td>'+(canX?'<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>':'')+'</td>'+
+    '</tr>';
+  });
+  return h+'</tbody></table></div></div>';
+}
+
+function _apptNavWeek(dir) { _APPT.weekOffset+=dir; _APPT.appointments=null; renderAppointmentsTab(); }
+function _apptFilter(email) { _APPT.filterEmail=email; var c=document.getElementById('main-content'); if(c) c.innerHTML=_apptBuildView(); _apptBindEvents(); }
+function _apptBindEvents() { var s=document.getElementById('appt-act-filter'); if(s) s.value=_APPT.filterEmail; }
+
+// ── Booking Modal ─────────────────────────────────────────────
+function openApptBookingModal(date, activatorEmail, timeSlot) {
+  var acts = _APPT.activators||[];
+  var actOpts='<option value="">Select Activator…</option>'+acts.map(function(a){
+    return '<option value="'+esc(a.email)+'"'+(a.email===activatorEmail?' selected':'')+'>'+esc(a.name)+' ('+esc(a.timezone||'TZ not set')+')</option>';
+  }).join('');
+  document.getElementById('appt-booking-body').innerHTML =
+    '<div class="appt-form-grid">'+
+      '<div class="field"><label>Activator</label><select class="appt-form-input" id="abm-act" onchange="_abmLoadSlots()">'+actOpts+'</select></div>'+
+      '<div class="field"><label>Date</label><input type="date" class="appt-form-input" id="abm-date" value="'+esc(date||'')+'" min="'+_apptDateStr(new Date())+'" onchange="_abmLoadSlots()"></div>'+
+      '<div class="field" style="grid-column:1/-1"><label>Time Slot</label><select class="appt-form-input" id="abm-slot"><option value="">Select activator &amp; date first…</option></select></div>'+
+      '<div class="field"><label>First Name + Last Initial</label><input type="text" class="appt-form-input" id="abm-name" placeholder="e.g. John D."></div>'+
+      '<div class="field"><label>DSI Number</label><input type="text" class="appt-form-input" id="abm-dsi" placeholder="DSI #"></div>'+
+      '<div class="field"><label>Contact Number</label><input type="tel" class="appt-form-input" id="abm-phone" placeholder="(555) 555-5555"></div>'+
+      '<div class="field"><label>Customer Email</label><input type="email" class="appt-form-input" id="abm-email" placeholder="customer@email.com"></div>'+
+      '<div class="field" style="grid-column:1/-1"><label>Services (select all that apply)</label>'+
+        '<div class="appt-checkbox-row">'+
+          '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Wireless"> Wireless</label>'+
+          '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Air"> Air</label>'+
+          '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Fiber - Self Install"> Fiber - Self Install</label>'+
+        '</div>'+
+      '</div>'+
+      '<div class="field"><label>Number of Devices</label><input type="number" class="appt-form-input" id="abm-devices" value="1" min="1" max="20"></div>'+
+    '</div>'+
+    '<div id="abm-error" style="color:var(--red);font-size:.82rem;margin-top:10px;display:none"></div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">'+
+      '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="closeApptModal()">Cancel</button>'+
+      '<button class="appt-book-btn" id="abm-submit-btn" onclick="submitApptBooking()">Confirm Booking</button>'+
+    '</div>';
+  document.getElementById('appt-booking-modal').classList.add('open');
+  if (activatorEmail && date) {
+    document.getElementById('abm-act').value = activatorEmail;
+    document.getElementById('abm-date').value = date;
+    _abmLoadSlots(timeSlot);
+  }
+}
+
+function _abmLoadSlots(preselect) {
+  var email=(document.getElementById('abm-act')||{}).value||'';
+  var date=(document.getElementById('abm-date')||{}).value||'';
+  var sel=document.getElementById('abm-slot');
+  if (!email||!date){if(sel)sel.innerHTML='<option value="">Select activator &amp; date first…</option>';return;}
+  if(sel)sel.innerHTML='<option value="">Loading available slots…</option>';
+  _apptGet({action:'getAvailableSlots',activatorEmail:email,date:date}).then(function(res){
+    var slots=res.slots||[];
+    if(!slots.length){sel.innerHTML='<option value="">No available slots for this date</option>';return;}
+    sel.innerHTML='<option value="">Select a time…</option>'+slots.map(function(s){
+      return '<option value="'+esc(s)+'"'+(s===preselect?' selected':'')+'>'+_apptFmt12(s)+'</option>';
+    }).join('');
+  }).catch(function(){if(sel)sel.innerHTML='<option value="">Error loading slots</option>';});
+}
+
+function submitApptBooking() {
+  var actEmail=(document.getElementById('abm-act')||{}).value||'';
+  var date=(document.getElementById('abm-date')||{}).value||'';
+  var slot=(document.getElementById('abm-slot')||{}).value||'';
+  var name=(document.getElementById('abm-name')||{}).value||'';
+  var dsi=(document.getElementById('abm-dsi')||{}).value||'';
+  var phone=(document.getElementById('abm-phone')||{}).value||'';
+  var email=(document.getElementById('abm-email')||{}).value||'';
+  var devices=parseInt((document.getElementById('abm-devices')||{}).value||'1');
+  var svcs=Array.from(document.querySelectorAll('.abm-svc:checked')).map(function(cb){return cb.value;});
+  var errEl=document.getElementById('abm-error');
+  if (!actEmail||!date||!slot||!name||!dsi||!phone||!email){errEl.textContent='Please fill in all fields.';errEl.style.display='block';return;}
+  if (!svcs.length){errEl.textContent='Please select at least one service.';errEl.style.display='block';return;}
+  errEl.style.display='none';
+  var btn=document.getElementById('abm-submit-btn');
+  if(btn){btn.disabled=true;btn.textContent='Booking…';}
+  _apptPost({action:'bookAppointment',bookerEmail:SESSION.email,activatorEmail:actEmail,
+    date:date,timeSlot:slot,customerName:name,customerDSI:dsi,customerPhone:phone,
+    customerEmail:email,services:svcs,deviceCount:devices,office:CFG.officeId
+  }).then(function(res){
+    if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
+    if(res.ok){closeApptModal();_APPT.appointments=null;renderAppointmentsTab();}
+    else{errEl.textContent=res.error==='slot_unavailable'?'That slot was just taken — please pick another time.':(res.error||'Booking failed. Try again.');errEl.style.display='block';}
+  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}errEl.textContent='Connection error. Try again.';errEl.style.display='block';});
+}
+
+function closeApptModal() { document.getElementById('appt-booking-modal').classList.remove('open'); }
+
+function cancelAppt(id) {
+  if (!confirm('Cancel this appointment?')) return;
+  _apptPost({action:'cancelAppointment',appointmentId:id,role:SESSION.role,email:SESSION.email}).then(function(res){
+    if(res.ok){_APPT.appointments=null;renderAppointmentsTab();}
+    else alert(res.error||'Cancel failed.');
+  });
+}
+
+// ── Schedule Modal ─────────────────────────────────────────────
+function openApptSchedModal() {
+  var me=SESSION.email, myAct=(_APPT.activators||[]).find(function(a){return a.email===me;})||{};
+  var sched=myAct.schedule||{}, tz=myAct.timezone||'';
+  var tzOpts=[
+    ['America/New_York','Eastern (ET)'],['America/Chicago','Central (CT)'],
+    ['America/Denver','Mountain (MT)'],['America/Los_Angeles','Pacific (PT)'],
+    ['America/Anchorage','Alaska (AKT)'],['Pacific/Honolulu','Hawaii (HT)']
+  ].map(function(t){return '<option value="'+t[0]+'"'+(t[0]===tz?' selected':'')+'>'+t[1]+'</option>';}).join('');
+  var days=[['mon','Monday'],['tue','Tuesday'],['wed','Wednesday'],['thu','Thursday'],['fri','Friday'],['sat','Saturday'],['sun','Sunday']];
+  var schedHtml=days.map(function(day){
+    var ds=sched[day[0]]||{},on=!!(ds.start&&ds.end);
+    return '<div class="appt-sched-row">'+
+      '<label class="appt-day-toggle"><input type="checkbox" class="appt-day-cb" data-day="'+day[0]+'"'+(on?' checked':'')+'>'+day[1]+'</label>'+
+      '<div class="appt-day-times"'+(on?'':' style="display:none"')+'>'+
+        '<input type="time" class="appt-time-inp" id="sc-'+day[0]+'-s" value="'+(ds.start||'10:00')+'">'+
+        '<span style="color:var(--text2);font-size:.8rem">to</span>'+
+        '<input type="time" class="appt-time-inp" id="sc-'+day[0]+'-e" value="'+(ds.end||'17:00')+'">'+
+      '</div></div>';
+  }).join('');
+  document.getElementById('appt-sched-body').innerHTML=
+    '<div class="field" style="margin-bottom:16px"><label>My Timezone</label>'+
+      '<select class="appt-form-input" id="sc-tz">'+tzOpts+'</select></div>'+
+    '<div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:10px">Working Hours</div>'+
+    schedHtml+
+    '<div style="margin-top:18px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px">Blocked Dates / Times</div>'+
+    '<div id="sc-blocks"></div>'+
+    '<div class="appt-block-add-row">'+
+      '<input type="date" class="appt-form-input" style="width:auto" id="blk-dt" min="'+_apptDateStr(new Date())+'">'+
+      '<label class="appt-chk"><input type="checkbox" id="blk-ad" checked onchange="document.getElementById(\'blk-times\').style.display=this.checked?\'none\':\'flex\'"> All Day</label>'+
+      '<div id="blk-times" style="display:none;gap:8px;align-items:center">'+
+        '<input type="time" class="appt-time-inp" id="blk-ts" value="09:00">'+
+        '<span style="color:var(--text2);font-size:.8rem">to</span>'+
+        '<input type="time" class="appt-time-inp" id="blk-te" value="17:00">'+
+      '</div>'+
+      '<input type="text" class="appt-form-input" id="blk-rsn" placeholder="Reason (optional)" style="flex:1;min-width:120px">'+
+      '<button class="appt-book-btn" onclick="_addBlk()">+ Add</button>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">'+
+      '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="closeApptSchedModal()">Cancel</button>'+
+      '<button class="appt-book-btn" id="sc-save-btn" onclick="saveApptSched()">Save Schedule</button>'+
+    '</div>';
+  document.querySelectorAll('.appt-day-cb').forEach(function(cb){
+    cb.addEventListener('change',function(){
+      this.closest('.appt-sched-row').querySelector('.appt-day-times').style.display=this.checked?'flex':'none';
+    });
+  });
+  _loadBlocks(me);
+  document.getElementById('appt-sched-modal').classList.add('open');
+}
+
+function _loadBlocks(email) {
+  var el=document.getElementById('sc-blocks'); if(!el) return;
+  el.innerHTML='<div style="color:var(--text2);font-size:.82rem;padding:4px 0">Loading blocks…</div>';
+  _apptGet({action:'getActivatorBlocks',email:email}).then(function(res){
+    var blocks=res.blocks||[];
+    if(!blocks.length){el.innerHTML='<div style="color:var(--text2);font-size:.82rem;padding:4px 0">No blocks set.</div>';return;}
+    el.innerHTML=blocks.map(function(b){
+      var t=b.allDay?'All Day':_apptFmt12(b.startTime)+' – '+_apptFmt12(b.endTime);
+      return '<div class="appt-block-row">'+
+        '<span class="appt-block-date">'+esc(_apptFmtDate(b.date))+'</span>'+
+        '<span class="appt-block-time">'+esc(t)+'</span>'+
+        '<span class="appt-block-reason">'+esc(b.reason||'')+'</span>'+
+        '<button class="appt-do-cancel-btn" onclick="_removeBlk(\''+esc(b.blockId)+'\',\''+esc(email)+'\')">✕</button>'+
+      '</div>';
+    }).join('');
+  });
+}
+
+function _addBlk() {
+  var date=(document.getElementById('blk-dt')||{}).value||'';
+  if(!date){alert('Select a date for the block.');return;}
+  var allDay=(document.getElementById('blk-ad')||{}).checked!==false;
+  _apptPost({action:'addActivatorBlock',activatorEmail:SESSION.email,date:date,
+    allDay:allDay,startTime:(document.getElementById('blk-ts')||{}).value||'',
+    endTime:(document.getElementById('blk-te')||{}).value||'',
+    reason:(document.getElementById('blk-rsn')||{}).value||''
+  }).then(function(res){
+    if(res.ok){_loadBlocks(SESSION.email);document.getElementById('blk-dt').value='';document.getElementById('blk-rsn').value='';}
+    else alert(res.error||'Failed to add block.');
+  });
+}
+
+function _removeBlk(blockId,email) {
+  _apptPost({action:'removeActivatorBlock',blockId:blockId}).then(function(res){
+    if(res.ok)_loadBlocks(email); else alert(res.error||'Failed.');
+  });
+}
+
+function saveApptSched() {
+  var tz=(document.getElementById('sc-tz')||{}).value||'';
+  var sched={};
+  ['mon','tue','wed','thu','fri','sat','sun'].forEach(function(day){
+    var cb=document.querySelector('[data-day="'+day+'"]');
+    var s=(document.getElementById('sc-'+day+'-s')||{}).value||'';
+    var e=(document.getElementById('sc-'+day+'-e')||{}).value||'';
+    sched[day]=(cb&&cb.checked&&s&&e)?{start:s,end:e}:{start:'',end:''};
+  });
+  var btn=document.getElementById('sc-save-btn');
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  Promise.all([
+    _apptPost({action:'setActivatorSchedule',email:SESSION.email,timezone:tz,schedule:sched}),
+    _apptPost({action:'setActivatorTimezone',email:SESSION.email,timezone:tz})
+  ]).then(function(){
+    if(btn){btn.disabled=false;btn.textContent='Save Schedule';}
+    closeApptSchedModal(); _APPT.activators=null; renderAppointmentsTab();
+  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Save Schedule';}alert('Save failed. Try again.');});
+}
+
+function closeApptSchedModal() { document.getElementById('appt-sched-modal').classList.remove('open'); }
 
 // ── BOOT ─────────────────────────────────────────────────────────────────
 document.addEventListener('click', function(e) {
