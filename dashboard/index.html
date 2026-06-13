@@ -4339,7 +4339,9 @@ function _apptBindEvents() { var s=document.getElementById('appt-act-filter'); i
 // ── Booking Modal ─────────────────────────────────────────────
 function openApptBookingModal(date, activatorEmail, timeSlot) {
   var acts = _APPT.activators||[];
-  var actOpts='<option value="">Select Activator…</option>'+acts.map(function(a){
+  var actOpts='<option value="">Select Activator…</option>'+
+    '<option value="__next__"'+(activatorEmail==='__next__'?' selected':'')+'>⚡ Next Available Agent</option>'+
+    acts.map(function(a){
     return '<option value="'+esc(a.email)+'"'+(a.email===activatorEmail?' selected':'')+'>'+esc(a.name)+' ('+esc(a.timezone||'TZ not set')+')</option>';
   }).join('');
   document.getElementById('appt-booking-body').innerHTML =
@@ -4379,7 +4381,10 @@ function _abmLoadSlots(preselect) {
   var sel=document.getElementById('abm-slot');
   if (!email||!date){if(sel)sel.innerHTML='<option value="">Select activator &amp; date first…</option>';return;}
   if(sel)sel.innerHTML='<option value="">Loading available slots…</option>';
-  _apptGet({action:'getAvailableSlots',activatorEmail:email,date:date}).then(function(res){
+  var req = email==='__next__'
+    ? {action:'getNextAvailableSlots',officeId:CFG.officeId,date:date}
+    : {action:'getAvailableSlots',activatorEmail:email,date:date};
+  _apptGet(req).then(function(res){
     var slots=res.slots||[];
     if(!slots.length){sel.innerHTML='<option value="">No available slots for this date</option>';return;}
     sel.innerHTML='<option value="">Select a time…</option>'+slots.map(function(s){
