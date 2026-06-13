@@ -10,6 +10,11 @@ var BLOCKS_TAB  = 'ActivatorBlocks';
 var SLOT_MINS   = 60;
 var MIN_ADV_HRS = 2;
 
+// Fallback working hours for activators who haven't set a custom schedule.
+// Mon–Fri 10:00–17:00 in the activator's (office) timezone. They can override
+// any/all of this via "Manage My Schedule".
+var DEFAULT_HOURS = { start: '10:00', end: '17:00', days: ['mon','tue','wed','thu','fri'] };
+
 var ALL_OFFICES = ['midspire', 'viridian', 'elevate', 'ignite'];
 
 var OFFICE_TZ = {
@@ -79,6 +84,23 @@ function _ensureSheet(tabName, headers) {
 
 function _pad(n) { return String(n).padStart(2, '0'); }
 
+// Google Sheets auto-coerces "2026-06-12" / "10:00" into Date objects on write.
+// These normalize a cell back to the canonical 'YYYY-MM-DD' / 'HH:MM' strings
+// so calendar-grid keys and booked-slot lookups match regardless of storage.
+function _normDateCell(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var s = String(v || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})T/);   // ISO with time component
+  return m ? m[1] + '-' + m[2] + '-' + m[3] : s;
+}
+function _normTimeCell(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'HH:mm');
+  var s = String(v || '').trim();
+  var m = s.match(/^(\d{1,2}):(\d{2})/);
+  return m ? _pad(Number(m[1])) + ':' + m[2] : s;
+}
+
 function _capitalize(str) {
   if (!str) return '';
   return String(str).charAt(0).toUpperCase() + String(str).slice(1);
@@ -110,6 +132,7 @@ function doGet(e) {
     var p      = (e && e.parameter) || {};
     if (action === 'getActivators')        return _json({ activators: getActivators(p.officeId || '') });
     if (action === 'getAvailableSlots')    return _json({ slots: getAvailableSlots(p.activatorEmail, p.date, p.excludeId || '') });
+    if (action === 'getNextAvailableSlots') return _json({ slots: getNextAvailableSlots(p.officeId || '', p.date) });
     if (action === 'getAppointments')      return _json({ appointments: getAppointments(p.officeId, p.bookerEmail, p.role) });
     if (action === 'getActivatorSchedule') return _json({ schedule: getActivatorSchedule(p.email) });
     if (action === 'getActivatorBlocks')   return _json({ blocks: getActivatorBlocks(p.email) });
@@ -325,7 +348,12 @@ function getAvailableSlots(activatorEmail, dateStr, excludeAppointmentId) {
   var dayKey   = dayKeys[date.getDay()];
   var daySched = sched[dayKey];
 
-  if (!daySched || !daySched.start || !daySched.end) return [];
+  // Fall back to default working hours (Mon–Fri 10–5) when the activator
+  // hasn't set custom hours for this day.
+  if (!daySched || !daySched.start || !daySched.end) {
+    if (DEFAULT_HOURS.days.indexOf(dayKey) === -1) return [];
+    daySched = { start: DEFAULT_HOURS.start, end: DEFAULT_HOURS.end };
+  }
 
   var slots  = _generateSlots(daySched.start, daySched.end);
   var booked = _getBookedSlots(email, dateStr, excludeAppointmentId || '');
@@ -343,6 +371,28 @@ function getAvailableSlots(activatorEmail, dateStr, excludeAppointmentId) {
   });
 
   return slots;
+}
+
+// Union of open slots across every activator in the office, for "Next
+// Available Agent" bookings. Returns a sorted, de-duplicated slot list.
+function getNextAvailableSlots(officeId, dateStr) {
+  if (!dateStr) return [];
+  var acts = getActivators(officeId || '');
+  var set  = {};
+  acts.forEach(function(a) {
+    getAvailableSlots(a.email, dateStr, '').forEach(function(s) { set[s] = true; });
+  });
+  return Object.keys(set).sort();
+}
+
+// Picks the first activator in the office who is free for a given date+slot.
+// Returns '' if nobody is available.
+function _resolveNextActivator(officeId, dateStr, timeSlot) {
+  var acts = getActivators(officeId || '');
+  for (var i = 0; i < acts.length; i++) {
+    if (getAvailableSlots(acts[i].email, dateStr, '').indexOf(timeSlot) !== -1) return acts[i].email;
+  }
+  return '';
 }
 
 function _generateSlots(startTime, endTime) {
@@ -373,9 +423,9 @@ function _getBookedSlots(activatorEmail, dateStr, excludeId) {
     if (!r[0]) continue;
     if (String(r[0]).trim() === excludeId) continue;
     if (String(r[1]).trim().toLowerCase() !== activatorEmail) continue;
-    if (String(r[9]).trim() !== dateStr) continue;
+    if (_normDateCell(r[9]) !== dateStr) continue;
     if (String(r[12]).trim().toLowerCase() === 'cancelled') continue;
-    booked[String(r[10]).trim()] = true;
+    booked[_normTimeCell(r[10])] = true;
   }
   return booked;
 }
@@ -401,6 +451,9 @@ function _isSlotBlocked(slot, blocks) {
 // ── Appointments ──────────────────────────────────────────────
 function bookAppointment(body) {
   var sheet          = _ensureSheet(APPT_TAB, APPT_HEADERS);
+  // Keep date (col 10) & timeSlot (col 11) as plain text so Sheets doesn't
+  // coerce "2026-06-12"/"10:00" into Date objects on write.
+  sheet.getRange(1, 10, sheet.getMaxRows(), 2).setNumberFormat('@');
   var bookerEmail    = String(body.bookerEmail || '').trim().toLowerCase();
   var activatorEmail = String(body.activatorEmail || '').trim().toLowerCase();
   var date           = String(body.date || '').trim();
@@ -411,6 +464,12 @@ function bookAppointment(body) {
     return { error: 'missing required fields' };
   if (!body.customerName || !body.customerDSI || !body.customerPhone || !body.customerEmail)
     return { error: 'missing customer fields' };
+
+  // "Next Available Agent": resolve to whichever activator is free for this slot.
+  if (activatorEmail === '__next__') {
+    activatorEmail = _resolveNextActivator(office, date, timeSlot);
+    if (!activatorEmail) return { error: 'slot_unavailable' };
+  }
 
   // Verify slot is still open
   var available = getAvailableSlots(activatorEmail, date, '');
@@ -481,8 +540,8 @@ function getAppointments(officeId, bookerEmail, role) {
       customerEmail:  showName ? r[6]  : '••••',
       services:       r[7],
       deviceCount:    r[8],
-      date:           r[9],
-      timeSlot:       r[10],
+      date:           _normDateCell(r[9]),
+      timeSlot:       _normTimeCell(r[10]),
       office:         r[11],
       status:         r[12],
       bookedAt:       r[13]
