@@ -54,7 +54,10 @@ var SCHED_HEADERS = [
   'wedStart','wedEnd','thuStart','thuEnd',
   'friStart','friEnd','satStart','satEnd','sunStart','sunEnd',
   // Phase 1 additions (append-only):
-  'bufferMins','maxPerDay'
+  'bufferMins','maxPerDay',
+  // Phase 3: opt-in/out of the booking pool (master-admins default OUT,
+  // activators default IN). '' = unset, 'true' = bookable, 'false' = not.
+  'bookable'
 ];
 
 var BLOCKS_HEADERS = [
@@ -285,14 +288,20 @@ function getActivators(officeId) {
       var timezone    = String(row[10] || '').trim() || OFFICE_TZ[oid] || 'America/Los_Angeles';
       // If filtering by officeId, only include activators whose permissions include that office
       if (officeId && officesStr.split(',').map(function(o){ return o.trim(); }).indexOf(officeId) === -1) continue;
+      // Phase 3: booking-pool opt-in/out. master-admin is IN only if explicitly
+      // bookable==='true' (default OUT — most don't activate); activator is IN
+      // unless explicitly bookable==='false' (default IN, can opt out).
+      var sched   = getActivatorSchedule(email);
+      var include = (rank === 'master-admin') ? (sched.bookable === 'true') : (sched.bookable !== 'false');
       seen[email] = true;
+      if (!include) continue;
       activators.push({
         email:    email,
         name:     String(row[1] || '').trim(),
         rank:     rank,
         offices:  officesStr.split(',').map(function(o){ return o.trim(); }),
         timezone: timezone,
-        schedule: getActivatorSchedule(email)
+        schedule: sched
       });
     }
   });
@@ -308,17 +317,22 @@ function getActivatorSchedule(email) {
   var rows = _sheetData(SCHED_TAB);
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][0]).trim().toLowerCase() === e) {
+      // Normalize each time cell: Google Sheets can coerce "10:00" into a Date
+      // object on write, which would later break _generateSlots / _apptSlotInSched
+      // ("startTime.split is not a function"). _normTimeCell → canonical "HH:MM".
+      var t = _normTimeCell;
       return {
         timezone: rows[i][1]  || '',
-        mon: { start: rows[i][2]  || '', end: rows[i][3]  || '' },
-        tue: { start: rows[i][4]  || '', end: rows[i][5]  || '' },
-        wed: { start: rows[i][6]  || '', end: rows[i][7]  || '' },
-        thu: { start: rows[i][8]  || '', end: rows[i][9]  || '' },
-        fri: { start: rows[i][10] || '', end: rows[i][11] || '' },
-        sat: { start: rows[i][12] || '', end: rows[i][13] || '' },
-        sun: { start: rows[i][14] || '', end: rows[i][15] || '' },
+        mon: { start: t(rows[i][2]),  end: t(rows[i][3])  },
+        tue: { start: t(rows[i][4]),  end: t(rows[i][5])  },
+        wed: { start: t(rows[i][6]),  end: t(rows[i][7])  },
+        thu: { start: t(rows[i][8]),  end: t(rows[i][9])  },
+        fri: { start: t(rows[i][10]), end: t(rows[i][11]) },
+        sat: { start: t(rows[i][12]), end: t(rows[i][13]) },
+        sun: { start: t(rows[i][14]), end: t(rows[i][15]) },
         bufferMins: Number(rows[i][16]) || 0,   // 0 = off
-        maxPerDay:  Number(rows[i][17]) || 0     // 0 = unlimited
+        maxPerDay:  Number(rows[i][17]) || 0,    // 0 = unlimited
+        bookable:   String(rows[i][18] || '').trim().toLowerCase()   // '' | 'true' | 'false'
       };
     }
   }
@@ -328,12 +342,16 @@ function getActivatorSchedule(email) {
     mon:{start:'',end:''}, tue:{start:'',end:''}, wed:{start:'',end:''},
     thu:{start:'',end:''}, fri:{start:'',end:''}, sat:{start:'',end:''},
     sun:{start:'',end:''},
-    bufferMins: 0, maxPerDay: 0
+    bufferMins: 0, maxPerDay: 0, bookable: ''
   };
 }
 
 function setActivatorSchedule(body) {
   var sheet = _ensureSheet(SCHED_TAB, SCHED_HEADERS);
+  // Force the 14 time columns (start/end × 7 days, cols 3–16) to plain text so
+  // Sheets doesn't coerce "10:00" into a Date object on write (the coercion that
+  // caused "startTime.split is not a function"). Read side also normalizes.
+  sheet.getRange(1, 3, sheet.getMaxRows(), 14).setNumberFormat('@');
   var email = String(body.email || '').trim().toLowerCase();
   if (!email) return { error: 'missing email' };
   var sched = body.schedule || {};
@@ -348,7 +366,8 @@ function setActivatorSchedule(body) {
     (sched.sat && sched.sat.start) || '', (sched.sat && sched.sat.end) || '',
     (sched.sun && sched.sun.start) || '', (sched.sun && sched.sun.end) || '',
     Number(body.bufferMins) || 0,   // 0 = no buffer
-    Number(body.maxPerDay)  || 0     // 0 = unlimited
+    Number(body.maxPerDay)  || 0,    // 0 = unlimited
+    (body.bookable === true || String(body.bookable).toLowerCase() === 'true') ? 'true' : 'false'   // booking-pool opt-in
   ];
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
