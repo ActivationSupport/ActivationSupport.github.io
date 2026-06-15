@@ -967,6 +967,52 @@ function _getDailyReportSheet(ss, officeId) {
   return sheet;
 }
 
+// Appointments/bookings summary for one office on a given date, for the Daily
+// Report. Reads the 'Appointments' tab (same master spreadsheet). Columns:
+// 0 id,1 activatorEmail,2 booker,3 customerName,4 dsi,5 phone,6 email,7 services,
+// 8 deviceCount,9 date,10 timeSlot,11 office,12 status,13 bookedAt,14 rem,15 outcome…
+function _drAppointments(ss, officeId, dateStr) {
+  var out = { date: dateStr,
+    scheduled: { total:0, completed:0, noShow:0, rescheduled:0, canceled:0, unmarked:0, list:[], byActivator:[] },
+    bookedToday: 0, tomorrow: 0 };
+  var sheet = ss.getSheetByName('Appointments');
+  if (!sheet) return out;
+  function nDate(v){ if(v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(),'yyyy-MM-dd'); var s=String(v||'').trim(); var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[1]+'-'+m[2]+'-'+m[3]:s; }
+  function nTime(v){ if(v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(),'HH:mm'); var s=String(v||'').trim(); var m=s.match(/^(\d{1,2}):(\d{2})/); return m?('0'+m[1]).slice(-2)+':'+m[2]:s; }
+  var nameMap = {};
+  var rsheet = ss.getSheetByName('_Roster_'+officeId);
+  if (rsheet){ var rd=rsheet.getDataRange().getValues(); for (var ri=1;ri<rd.length;ri++){ var em=String(rd[ri][0]||'').trim().toLowerCase(); if(em) nameMap[em]=String(rd[ri][1]||'').trim()||em; } }
+  var tomorrowStr = Utilities.formatDate(new Date(new Date(dateStr+'T12:00:00').getTime()+86400000), Session.getScriptTimeZone(),'yyyy-MM-dd');
+  var data = sheet.getDataRange().getValues();
+  var actAgg = {};
+  for (var i=1;i<data.length;i++){
+    var r=data[i]; if(!r[0]) continue;
+    if (String(r[11]||'').trim() !== officeId) continue;
+    var status=String(r[12]||'').trim().toLowerCase();
+    var dt=nDate(r[9]);
+    if (r[13] && nDate(r[13])===dateStr) out.bookedToday++;          // bookedAt date part
+    if (dt===tomorrowStr && status!=='cancelled') out.tomorrow++;
+    if (dt!==dateStr || status==='cancelled') continue;
+    var outcome=String(r[15]||'').trim().toLowerCase();
+    var act=String(r[1]||'').trim().toLowerCase();
+    var actName=nameMap[act]||act;
+    out.scheduled.total++;
+    if (outcome==='completed') out.scheduled.completed++;
+    else if (outcome==='no-show') out.scheduled.noShow++;
+    else if (outcome==='rescheduled') out.scheduled.rescheduled++;
+    else if (outcome==='canceled') out.scheduled.canceled++;
+    else out.scheduled.unmarked++;
+    if(!actAgg[act]) actAgg[act]={name:actName,total:0,completed:0,noShow:0};
+    actAgg[act].total++;
+    if(outcome==='completed')actAgg[act].completed++;
+    if(outcome==='no-show')actAgg[act].noShow++;
+    out.scheduled.list.push({ timeSlot:nTime(r[10]), activator:actName, customer:String(r[3]||'').trim(), dsi:String(r[4]||'').trim(), services:String(r[7]||'').trim(), devices:Number(r[8])||1, outcome:outcome });
+  }
+  out.scheduled.byActivator = Object.keys(actAgg).map(function(k){return actAgg[k];}).sort(function(a,b){return b.total-a.total;});
+  out.scheduled.list.sort(function(a,b){return String(a.timeSlot).localeCompare(String(b.timeSlot));});
+  return out;
+}
+
 function generateDailyReport(ss, officeId, targetDateStr) {
   var refDate;
   if (targetDateStr) {
@@ -1210,7 +1256,8 @@ function generateDailyReport(ss, officeId, targetDateStr) {
     churnSummary:{buckets:churnBuckets,officeTotal:officeTotalChurn,repImpact:top5Churn},
     callsWorked:callsWorked,
     noAnswers:noAnswersOut,
-    escalations:escalationsOut
+    escalations:escalationsOut,
+    appointments:_drAppointments(ss,officeId,todayStr)
   };
 
   // SAVE — upsert by date, append if new
