@@ -123,16 +123,24 @@ function _ensureHeaders(sheet, headers) {
 function _todayStr() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
-function _bookingWindow() {
+// Phase 3 #1b: only activators + master-admins may book/reschedule same-day
+// (override of the normal no-same-day rule). Role is supplied by the caller,
+// same trust model the rest of this file uses for see-name / reschedule / cancel.
+function _sameDayAllowed(role) {
+  role = String(role || '').trim();
+  return role === 'master-admin' || role === 'activator';
+}
+function _bookingWindow(allowSameDay) {
   var tz  = Session.getScriptTimeZone();
   var now = Date.now();
+  var minDays = allowSameDay ? 0 : BOOKING_MIN_DAYS;   // same-day override drops the floor to today
   return {
-    min: Utilities.formatDate(new Date(now + BOOKING_MIN_DAYS * 86400000), tz, 'yyyy-MM-dd'),
+    min: Utilities.formatDate(new Date(now + minDays * 86400000), tz, 'yyyy-MM-dd'),
     max: Utilities.formatDate(new Date(now + BOOKING_MAX_DAYS * 86400000), tz, 'yyyy-MM-dd')
   };
 }
-function _inBookingWindow(dateStr) {
-  var w = _bookingWindow();
+function _inBookingWindow(dateStr, allowSameDay) {
+  var w = _bookingWindow(allowSameDay);
   return dateStr >= w.min && dateStr <= w.max;
 }
 
@@ -222,12 +230,12 @@ function doGet(e) {
     var action = (e && e.parameter && e.parameter.action) || '';
     var p      = (e && e.parameter) || {};
     if (action === 'getActivators')        return _json({ activators: getActivators(p.officeId || '') });
-    if (action === 'getAvailableSlots')    return _json({ slots: getAvailableSlots(p.activatorEmail, p.date, p.excludeId || '') });
-    if (action === 'getNextAvailableSlots') return _json({ slots: getNextAvailableSlots(p.officeId || '', p.date) });
+    if (action === 'getAvailableSlots')    return _json({ slots: getAvailableSlots(p.activatorEmail, p.date, p.excludeId || '', _sameDayAllowed(p.role)) });
+    if (action === 'getNextAvailableSlots') return _json({ slots: getNextAvailableSlots(p.officeId || '', p.date, _sameDayAllowed(p.role)) });
     if (action === 'getAppointments')      return _json({ appointments: getAppointments(p.officeId, p.bookerEmail, p.role) });
     if (action === 'getActivatorSchedule') return _json({ schedule: getActivatorSchedule(p.email) });
     if (action === 'getActivatorBlocks')   return _json({ blocks: getActivatorBlocks(p.email) });
-    if (action === 'getBookingWindow')      return _json({ window: _bookingWindow() });
+    if (action === 'getBookingWindow')      return _json({ window: _bookingWindow(_sameDayAllowed(p.role)) });
     return _json({ error: 'unknown action: ' + action });
   } catch (err) { return _json({ error: err.message }); }
 }
@@ -437,13 +445,14 @@ function removeActivatorBlock(body) {
 // Returns available 1-hour slots for an activator on a given date.
 // Filters out: already-booked slots, blocked times, past slots.
 // Slots are generated from the activator's own schedule (their timezone hours).
-function getAvailableSlots(activatorEmail, dateStr, excludeAppointmentId) {
+function getAvailableSlots(activatorEmail, dateStr, excludeAppointmentId, allowSameDay) {
   var email = String(activatorEmail || '').trim().toLowerCase();
   if (!email || !dateStr) return [];
 
   // No same-day: only dates inside the rolling [tomorrow, +7 days] window are
   // bookable. This replaces the old MIN_ADV_HRS advance-notice rule.
-  if (!_inBookingWindow(dateStr)) return [];
+  // allowSameDay (activator/master-admin override) drops the floor to today.
+  if (!_inBookingWindow(dateStr, allowSameDay)) return [];
 
   var sched    = getActivatorSchedule(email);
   var dayKeys  = ['sun','mon','tue','wed','thu','fri','sat'];
@@ -493,24 +502,37 @@ function getAvailableSlots(activatorEmail, dateStr, excludeAppointmentId) {
 
 // Union of open slots across every activator in the office, for "Next
 // Available Agent" bookings. Returns a sorted, de-duplicated slot list.
-function getNextAvailableSlots(officeId, dateStr) {
+function getNextAvailableSlots(officeId, dateStr, allowSameDay) {
   if (!dateStr) return [];
   var acts = getActivators(officeId || '');
   var set  = {};
   acts.forEach(function(a) {
-    getAvailableSlots(a.email, dateStr, '').forEach(function(s) { set[s] = true; });
+    getAvailableSlots(a.email, dateStr, '', allowSameDay).forEach(function(s) { set[s] = true; });
   });
   return Object.keys(set).sort();
 }
 
-// Picks the first activator in the office who is free for a given date+slot.
-// Returns '' if nobody is available.
-function _resolveNextActivator(officeId, dateStr, timeSlot) {
+// Resolves "Next Available Agent" to a concrete activator for a date+slot.
+// mode 'soonest' (default) = first free in roster order (original behavior).
+// mode 'balance' (Phase 3 #1a, round-robin) = the free activator with the
+// fewest appointments that day; roster order breaks ties. Returns '' if nobody
+// is free.
+function _resolveNextActivator(officeId, dateStr, timeSlot, mode, allowSameDay) {
   var acts = getActivators(officeId || '');
-  for (var i = 0; i < acts.length; i++) {
-    if (getAvailableSlots(acts[i].email, dateStr, '').indexOf(timeSlot) !== -1) return acts[i].email;
+  var free = acts.filter(function(a) {
+    return getAvailableSlots(a.email, dateStr, '', allowSameDay).indexOf(timeSlot) !== -1;
+  });
+  if (!free.length) return '';
+  if (mode === 'balance') {
+    var best = null, bestLoad = Infinity, bestIdx = Infinity;
+    free.forEach(function(a) {
+      var load = Object.keys(_getBookedSlots(a.email, dateStr, '')).length;
+      var idx  = acts.indexOf(a);   // roster position = deterministic tie-breaker
+      if (load < bestLoad || (load === bestLoad && idx < bestIdx)) { best = a; bestLoad = load; bestIdx = idx; }
+    });
+    return best ? best.email : '';
   }
-  return '';
+  return free[0].email;   // 'soonest'
 }
 
 function _generateSlots(startTime, endTime) {
@@ -583,17 +605,21 @@ function bookAppointment(body) {
   if (!body.customerName || !body.customerDSI || !body.customerPhone || !body.customerEmail)
     return { error: 'missing customer fields' };
 
-  // No same-day / outside the rolling window.
-  if (!_inBookingWindow(date)) return { error: 'outside_window' };
+  // Same-day override: granted only when the booker's role is activator/master-admin.
+  var allowSameDay = _sameDayAllowed(body.role);
+
+  // No same-day / outside the rolling window (unless overridden above).
+  if (!_inBookingWindow(date, allowSameDay)) return { error: 'outside_window' };
 
   // "Next Available Agent": resolve to whichever activator is free for this slot.
+  // nextMode ('soonest' default | 'balance') selects round-robin fairness.
   if (activatorEmail === '__next__') {
-    activatorEmail = _resolveNextActivator(office, date, timeSlot);
+    activatorEmail = _resolveNextActivator(office, date, timeSlot, body.nextMode || 'soonest', allowSameDay);
     if (!activatorEmail) return { error: 'slot_unavailable' };
   }
 
   // Verify slot is still open
-  var available = getAvailableSlots(activatorEmail, date, '');
+  var available = getAvailableSlots(activatorEmail, date, '', allowSameDay);
   if (available.indexOf(timeSlot) === -1) return { error: 'slot_unavailable' };
 
   var appointmentId = 'APT' + Date.now();
@@ -755,7 +781,8 @@ function rescheduleAppointment(body) {
   var newSlot = String(body.timeSlot || '').trim();
   var newAct  = String(body.activatorEmail || '').trim().toLowerCase();
   if (!id || !newDate || !newSlot) return { error: 'missing required fields' };
-  if (!_inBookingWindow(newDate)) return { error: 'outside_window' };
+  var allowSameDay = _sameDayAllowed(role);   // activator/master-admin may move to today
+  if (!_inBookingWindow(newDate, allowSameDay)) return { error: 'outside_window' };
 
   // Keep date/timeSlot columns as plain text (avoid Date coercion).
   sheet.getRange(1, 10, sheet.getMaxRows(), 2).setNumberFormat('@');
@@ -771,11 +798,11 @@ function rescheduleAppointment(body) {
 
     var activator = newAct || String(r[1]).trim().toLowerCase();
     if (activator === '__next__') {
-      activator = _resolveNextActivator(String(r[11]).trim(), newDate, newSlot);
+      activator = _resolveNextActivator(String(r[11]).trim(), newDate, newSlot, body.nextMode || 'soonest', allowSameDay);
       if (!activator) return { error: 'slot_unavailable' };
     }
     // Slot must be free for the target activator (excluding this appointment).
-    if (getAvailableSlots(activator, newDate, id).indexOf(newSlot) === -1)
+    if (getAvailableSlots(activator, newDate, id, allowSameDay).indexOf(newSlot) === -1)
       return { error: 'slot_unavailable' };
 
     var rowNum = i + 1;

@@ -798,6 +798,11 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-checkbox-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
 .appt-chk{display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--text);cursor:pointer}
 .appt-chk input{accent-color:var(--blue2)}
+/* Phase 3 #1: round-robin picker + same-day override */
+.appt-nextmode{display:flex;gap:18px;flex-wrap:wrap;margin-top:6px}
+.appt-nextmode-hint{font-size:.72rem;color:var(--text2);font-weight:400}
+.appt-sameday-chk{margin-top:2px}
+.appt-sameday-chk input{accent-color:#ED7D31}
 .appt-sched-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .appt-day-toggle{display:flex;align-items:center;gap:7px;min-width:110px;font-size:.85rem;cursor:pointer}
 .appt-day-times{display:flex;align-items:center;gap:8px}
@@ -5043,12 +5048,14 @@ function _apptWeekStart(offset) {
 function _apptDateStr(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 // Phase 1 booking window: NO same-day. Earliest = tomorrow, latest = +7 days
 // (rolling, slides forward daily). Mirrors the backend _bookingWindow().
-function _apptWindow() {
+function _apptWindow(allowSameDay) {
   var t=new Date(); t.setHours(0,0,0,0);
-  var min=new Date(t); min.setDate(t.getDate()+1);
+  var min=new Date(t); min.setDate(t.getDate()+(allowSameDay?0:1));   // same-day override drops the floor to today
   var max=new Date(t); max.setDate(t.getDate()+7);
   return { min:_apptDateStr(min), max:_apptDateStr(max) };
 }
+// Phase 3 #1b: only activators + master-admins get the same-day booking override.
+function _apptCanSameDay(){ return SESSION.role==='master-admin'||SESSION.role==='activator'; }
 function _apptFmt12(t) {
   if (!t) return ''; var p=t.split(':').map(Number); var h=p[0],m=p[1];
   return (h>12?h-12:h===0?12:h)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM');
@@ -5387,7 +5394,7 @@ function _apptFilter(email) { _APPT.filterEmail=email; var c=document.getElement
 function _apptBindEvents() { var s=document.getElementById('appt-act-filter'); if(s) s.value=_APPT.filterEmail; }
 
 // Phase 2 #6: Week | Day | All-Activators switcher + booking-utilization strip.
-function _apptRerender(){ var c=document.getElementById('main-content'); if(c){ c.innerHTML=_apptBuildView(); _apptBindEvents(); } }
+// (_apptRerender is defined once, further down, with a CURRENT_TAB guard.)
 function _apptSetView(m){ _APPT.viewMode=m; _apptRerender(); }
 function _apptNav(dir){
   if ((_APPT.viewMode||'week')==='week'){ _apptNavWeek(dir); }   // week step refetches (existing behavior)
@@ -5518,10 +5525,21 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
     acts.map(function(a){
     return '<option value="'+esc(a.email)+'"'+(a.email===activatorEmail?' selected':'')+'>'+esc(a.name)+' ('+esc(a.timezone||'TZ not set')+')</option>';
   }).join('');
+  var nextSel = activatorEmail==='__next__';
   document.getElementById('appt-booking-body').innerHTML =
     '<div class="appt-form-grid">'+
-      '<div class="field"><label>Activator</label><select class="appt-form-input" id="abm-act" onchange="_abmLoadSlots()">'+actOpts+'</select></div>'+
+      '<div class="field"><label>Activator</label><select class="appt-form-input" id="abm-act" onchange="_abmActChange()">'+actOpts+'</select></div>'+
       '<div class="field"><label>Date</label><input type="date" class="appt-form-input" id="abm-date" value="'+esc(date||'')+'" min="'+_apptWindow().min+'" max="'+_apptWindow().max+'" onchange="_abmLoadSlots()"></div>'+
+      // Round-robin (Phase 3 #1a): only shown for Next Available Agent.
+      '<div class="field" id="abm-nextmode-row" style="grid-column:1/-1;display:'+(nextSel?'block':'none')+'">'+
+        '<label>Next Available Agent picks by</label>'+
+        '<div class="appt-nextmode">'+
+          '<label class="appt-chk"><input type="radio" name="abm-nextmode" value="soonest" checked> Soonest <span class="appt-nextmode-hint">first free</span></label>'+
+          '<label class="appt-chk"><input type="radio" name="abm-nextmode" value="balance"> Balance the load <span class="appt-nextmode-hint">fewest bookings that day</span></label>'+
+        '</div>'+
+      '</div>'+
+      // Same-day override (Phase 3 #1b): activator/master-admin only.
+      (_apptCanSameDay() ? '<div class="field" style="grid-column:1/-1"><label class="appt-chk appt-sameday-chk"><input type="checkbox" id="abm-sameday" onchange="_abmSameDayToggle()"> ⚠ Allow same-day booking <span class="appt-nextmode-hint">override — normally earliest is tomorrow</span></label></div>' : '')+
       '<div class="field" style="grid-column:1/-1"><label>Time Slot</label><select class="appt-form-input" id="abm-slot"><option value="">Select activator &amp; date first…</option></select></div>'+
       '<div class="field"><label>First Name + Last Initial</label><input type="text" class="appt-form-input" id="abm-name" placeholder="e.g. John D."></div>'+
       '<div class="field"><label>DSI Number</label><input type="text" class="appt-form-input" id="abm-dsi" placeholder="DSI #"></div>'+
@@ -5549,15 +5567,33 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
   }
 }
 
+// Activator dropdown change: reveal the Soonest/Balance picker only for
+// "Next Available Agent", then (re)load slots.
+function _abmActChange() {
+  var email=(document.getElementById('abm-act')||{}).value||'';
+  var row=document.getElementById('abm-nextmode-row');
+  if(row) row.style.display = (email==='__next__') ? 'block' : 'none';
+  _abmLoadSlots();
+}
+// Same-day override toggle: drop the date floor to today (or back to tomorrow),
+// clear an out-of-range date, and reload slots.
+function _abmSameDayToggle() {
+  var chk=!!(document.getElementById('abm-sameday')||{}).checked;
+  var di=document.getElementById('abm-date');
+  if(di){ di.min=_apptWindow(chk).min; if(di.value && di.value<di.min) di.value=''; }
+  _abmLoadSlots();
+}
 function _abmLoadSlots(preselect) {
   var email=(document.getElementById('abm-act')||{}).value||'';
   var date=(document.getElementById('abm-date')||{}).value||'';
+  var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
+  var role = sameday ? SESSION.role : '';   // role sent only on explicit same-day opt-in
   var sel=document.getElementById('abm-slot');
   if (!email||!date){if(sel)sel.innerHTML='<option value="">Select activator &amp; date first…</option>';return;}
   if(sel)sel.innerHTML='<option value="">Loading available slots…</option>';
   var req = email==='__next__'
-    ? {action:'getNextAvailableSlots',officeId:CFG.officeId,date:date}
-    : {action:'getAvailableSlots',activatorEmail:email,date:date};
+    ? {action:'getNextAvailableSlots',officeId:CFG.officeId,date:date,role:role}
+    : {action:'getAvailableSlots',activatorEmail:email,date:date,role:role};
   _apptGet(req).then(function(res){
     var slots=res.slots||[];
     if(!slots.length){sel.innerHTML='<option value="">No available slots for this date</option>';return;}
@@ -5577,6 +5613,8 @@ function submitApptBooking() {
   var email=(document.getElementById('abm-email')||{}).value||'';
   var devices=parseInt((document.getElementById('abm-devices')||{}).value||'1');
   var svcs=Array.from(document.querySelectorAll('.abm-svc:checked')).map(function(cb){return cb.value;});
+  var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
+  var nextMode=(document.querySelector('input[name=abm-nextmode]:checked')||{}).value||'soonest';
   var errEl=document.getElementById('abm-error');
   if (!actEmail||!date||!slot||!name||!dsi||!phone||!email){errEl.textContent='Please fill in all fields.';errEl.style.display='block';return;}
   if (!svcs.length){errEl.textContent='Please select at least one service.';errEl.style.display='block';return;}
@@ -5585,7 +5623,8 @@ function submitApptBooking() {
   if(btn){btn.disabled=true;btn.textContent='Booking…';}
   _apptPost({action:'bookAppointment',bookerEmail:SESSION.email,activatorEmail:actEmail,
     date:date,timeSlot:slot,customerName:name,customerDSI:dsi,customerPhone:phone,
-    customerEmail:email,services:svcs,deviceCount:devices,office:CFG.officeId
+    customerEmail:email,services:svcs,deviceCount:devices,office:CFG.officeId,
+    nextMode:nextMode, role:(sameday?SESSION.role:'')   // role sent only on explicit same-day opt-in
   }).then(function(res){
     if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
     if(res.ok){closeApptModal();_APPT.appointments=null;renderAppointmentsTab();}
