@@ -832,6 +832,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 /* checkbox labels: undo the global .field label block/uppercase bleed */
 #appt-booking-modal .appt-chk{display:inline-flex;align-items:center;gap:9px;font-size:.86rem;font-weight:500;text-transform:none;letter-spacing:normal;color:var(--text);margin-bottom:0;cursor:pointer}
 #appt-booking-modal .abm-inline-chk{margin-top:12px}
+#appt-booking-modal .abm-act-hint{align-items:center;gap:7px;margin-top:10px;padding:8px 12px;font-size:.8rem;font-weight:600;color:#7db4e6;background:rgba(74,159,212,.1);border:1px solid rgba(74,159,212,.25);border-radius:8px}
 /* service options as selectable pills */
 #appt-booking-modal .appt-checkbox-row{gap:10px}
 #appt-booking-modal .appt-checkbox-row .appt-chk{padding:9px 14px;border:1.5px solid #383838;border-radius:9px;background:#1c1c1c;transition:all .15s}
@@ -5584,8 +5585,7 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
       '<div class="appt-form-grid">'+
         '<div class="field" style="grid-column:1/-1"><label>Activator</label>'+
           '<select class="appt-form-input" id="abm-act" onchange="_abmActChange()">'+actOpts+'</select>'+
-          '<label class="appt-chk abm-inline-chk" id="abm-balance-row" style="display:none">'+
-            '<input type="checkbox" id="abm-balance"> ⚖ Balance workload <span class="appt-nextmode-hint">assign to the least-busy activator</span></label>'+
+          '<div class="abm-act-hint" id="abm-balance-row" style="display:none">⚖ Balanced — assigns the least-busy activator</div>'+
         '</div>'+
         '<div class="field" style="grid-column:1/-1"><label>When</label>'+
           '<div class="abm-seg">'+
@@ -5625,7 +5625,7 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
   // default to the streamlined "Soonest available".
   if (activatorEmail) document.getElementById('abm-act').value = activatorEmail;
   var brow=document.getElementById('abm-balance-row');
-  if(brow) brow.style.display = (document.getElementById('abm-act').value==='__next__') ? 'flex' : 'none';
+  if(brow) brow.style.display = (document.getElementById('abm-act').value==='__next__') ? 'flex' : 'none';   // Next Available always balances
   if (date) {
     _abmSetWhen('date');
     var di=document.getElementById('abm-date'); if(di) di.value=date;
@@ -5659,7 +5659,7 @@ function _abmSetWhen(mode) {
 function _abmActChange() {
   var email=(document.getElementById('abm-act')||{}).value||'';
   var brow=document.getElementById('abm-balance-row');
-  if(brow) brow.style.display = (email==='__next__') ? 'flex' : 'none';
+  if(brow) brow.style.display = (email==='__next__') ? 'flex' : 'none';   // hint only; balancing is automatic
   if(_ABM.when==='soonest') _abmFindSoonest(); else _abmLoadSlots();
 }
 
@@ -5743,7 +5743,7 @@ function submitApptBooking() {
   var devices=parseInt((document.getElementById('abm-devices')||{}).value||'1');
   var svcs=Array.from(document.querySelectorAll('.abm-svc:checked')).map(function(cb){return cb.value;});
   var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
-  var nextMode=(document.getElementById('abm-balance')||{}).checked ? 'balance' : 'soonest';
+  var nextMode='balance';   // Next Available Agent always balances the load (backend only uses this for __next__)
   var errEl=document.getElementById('abm-error');
   if (!actEmail){errEl.textContent='Please choose an activator.';errEl.style.display='block';return;}
   if (_ABM.when==='soonest' && !slot){errEl.textContent='No opening found yet — try “Pick a date”.';errEl.style.display='block';return;}
