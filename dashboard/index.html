@@ -180,6 +180,28 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .rep-name{font-weight:600;color:var(--text)}
 .dsi-link{color:var(--blue2);font-weight:600;cursor:pointer;text-decoration:none;transition:color .15s}
 .dsi-link:hover{color:#fff;text-decoration:underline}
+/* Phase 1: at-risk / rotting row tint + booked indicator on call-log rows */
+.call-table tbody tr.ct-row-rotting td{background:rgba(231,76,60,.07);box-shadow:inset 3px 0 0 #e74c3c}
+.call-table tbody tr.ct-row-rotting:hover td{background:rgba(231,76,60,.12)}
+.call-table tbody tr.ct-row-atrisk td{background:rgba(237,125,49,.06);box-shadow:inset 3px 0 0 #ed7d31}
+.call-table tbody tr.ct-row-atrisk:hover td{background:rgba(237,125,49,.11)}
+.ct-flags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.ct-flag{display:inline-block;padding:1px 7px;border-radius:9px;font-size:.66rem;font-weight:700;white-space:nowrap;letter-spacing:.2px}
+.ct-flag-rotting{background:rgba(231,76,60,.16);color:#e9756a}
+.ct-flag-atrisk{background:rgba(237,125,49,.16);color:#f0995a}
+.ct-flag-booked{background:rgba(74,159,212,.16);color:#6cb6e8}
+.ct-risk-filter{height:32px;padding:0 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.82rem;cursor:pointer}
+/* Phase 1: column summary chips + hover-highlight dim-the-rest */
+.ct-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.ct-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:14px;font-size:.76rem;font-weight:600;cursor:pointer;background:var(--surface2);border:1px solid var(--border);color:var(--text2);transition:all .12s}
+.ct-chip b{color:var(--text);font-weight:800}
+.ct-chip:hover{border-color:var(--blue2)}
+.ct-chip.ct-chip-active{border-color:var(--blue2);background:rgba(74,159,212,.14)}
+.ct-chip-atrisk{color:#f0995a}
+.ct-chip-rotting{color:#e9756a}
+.ct-chip-booked{color:#6cb6e8}
+.call-table tbody tr{transition:opacity .12s}
+.call-table tbody:hover tr:not(:hover){opacity:.45}
 
 /* status pills */
 .sp{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;margin-right:3px}
@@ -445,6 +467,26 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .lst-view-toggle{display:flex;gap:4px}
 .lst-view-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;user-select:none}
 .lst-view-btn.active{background:var(--blue2);border-color:var(--blue2);color:#fff}
+/* ── KPI SUMMARY CARDS ── */
+.lst-kpi-head{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 12px}
+.lst-kpi-hint{font-size:11px;color:var(--text2)}
+.lst-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:28px}
+.lst-kpi-card{position:relative;background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--kpi-accent,var(--blue2));border-radius:10px;padding:14px 14px 8px;overflow:hidden}
+.lst-kpi-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
+.lst-kpi-val{font-size:30px;font-weight:700;color:var(--text);line-height:1.1;margin-top:4px}
+.lst-kpi-delta{font-size:11px;font-weight:600;margin-top:4px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.lst-kpi-delta.up{color:#4ade80}
+.lst-kpi-delta.down{color:#f87171}
+.lst-kpi-delta.flat{color:var(--text2)}
+.lst-kpi-arrow{font-size:9px}
+.lst-kpi-vs{color:var(--text2);font-weight:500}
+.lst-kpi-spark-wrap{margin-top:8px;height:34px}
+.lst-spark{width:100%;height:34px;display:block}
+.lst-kpi-card-top{display:flex;flex-direction:column}
+.lst-kpi-top-name{font-size:18px;font-weight:700;color:var(--text);margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lst-kpi-top-empty{color:var(--text2);font-weight:600;font-size:15px}
+.lst-kpi-top-stats{font-size:12px;color:var(--blue2);font-weight:600;margin-top:4px}
+.lst-kpi-top-period{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-top:auto;padding-top:8px}
 .lst-tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
 .lst-tbl{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
 .lst-tbl th{padding:8px 10px;color:var(--text2);font-size:10px;font-weight:600;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--surface2);text-align:center}
@@ -572,6 +614,127 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .tm-unit-cell{font-weight:700}
 .tm-total-row{border-top:1.5px solid var(--border)!important;background:var(--surface2)}
 .tm-total-row td{font-weight:700}
+
+/* ── APPOINTMENTS ── */
+.appt-wrap{}
+.appt-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.appt-nav{display:flex;align-items:center;gap:10px}
+.appt-nav-btn{padding:6px 12px;background:#2a2a2a;color:var(--blue2);border:1px solid #3a3a3a;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .15s}
+.appt-nav-btn:hover{border-color:var(--blue2)}
+.appt-week-label{font-size:.92rem;font-weight:700;color:var(--text);min-width:200px;text-align:center}
+.appt-filter-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.appt-select{padding:7px 12px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.85rem;cursor:pointer}
+.appt-select:focus{border-color:var(--blue2);outline:none}
+.appt-book-btn{padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap}
+.appt-book-btn:hover{background:#2563a8}
+.appt-book-btn:disabled{opacity:.45;cursor:not-allowed}
+.appt-manage-btn{padding:7px 14px;background:#2a2a2a;color:var(--text2);border:1px solid #3a3a3a;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
+.appt-manage-btn:hover{border-color:var(--blue2);color:var(--blue2)}
+.appt-do-cancel-btn{padding:5px 10px;background:transparent;color:var(--red);border:1px solid var(--red);border-radius:5px;font-size:.75rem;cursor:pointer;transition:all .15s}
+.appt-do-cancel-btn:hover{background:rgba(231,76,60,.1)}
+.appt-cal-outer{overflow-x:auto;margin-bottom:16px}
+.appt-cal-grid{display:grid;grid-template-columns:72px repeat(7,1fr);min-width:560px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.appt-cal-th{background:var(--surface2);padding:10px 6px;text-align:center;border-bottom:1px solid var(--border)}
+.appt-cal-th.appt-today-hdr{background:rgba(74,159,212,.13)}
+.appt-cal-time-hdr{background:var(--surface2);border-bottom:1px solid var(--border);border-right:1px solid var(--border)}
+.appt-cal-dayname{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
+.appt-cal-daynum{font-size:.88rem;font-weight:700;color:var(--text);margin-top:2px}
+.appt-cal-time{display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:.68rem;color:var(--text2);border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface2);min-height:54px}
+.appt-cal-cell{min-height:54px;padding:4px 5px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:.73rem;transition:background .12s;text-align:center}
+.appt-cell-booked{background:rgba(31,78,120,.38);cursor:default}
+.appt-cell-avail{background:rgba(39,174,96,.08);color:var(--green);cursor:pointer;font-weight:600}
+.appt-cell-avail:hover{background:rgba(39,174,96,.2)}
+.appt-avail-plus{font-size:.95rem;margin-right:2px}
+.appt-cell-avail-light{background:transparent;cursor:pointer}
+.appt-cell-avail-light:hover{background:rgba(74,159,212,.07)}
+.appt-avail-dot{font-size:1.3rem;color:#404040}
+.appt-cell-booked-multi{background:rgba(31,78,120,.22);flex-direction:column;gap:2px;cursor:default}
+.appt-cell-closed{background:var(--bg);color:#303030;cursor:default;font-size:1rem}
+.appt-cell-name{font-weight:700;color:var(--text);font-size:.75rem;line-height:1.2}
+.appt-cell-svc{font-size:.65rem;color:var(--text2);line-height:1.2;margin-top:2px}
+.appt-cell-act-tag{font-size:.68rem;background:rgba(74,159,212,.15);color:var(--blue2);padding:1px 5px;border-radius:8px;font-weight:600}
+.appt-cell-more{font-size:.65rem;color:var(--text2)}
+.appt-status-confirmed{color:var(--green);font-weight:700;font-size:.75rem}
+.appt-status-cancelled{color:var(--red);font-weight:600;font-size:.75rem;text-decoration:line-through}
+/* Phase 1: out-of-window (un-bookable) calendar cells — tonal, not interactive */
+.appt-cell-offwindow{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 6px,rgba(255,255,255,.018) 6px,rgba(255,255,255,.018) 12px);color:#2c2c2c;cursor:default;font-size:.9rem}
+/* Phase 1: appointment outcome badges + controls */
+.appt-outcome{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;text-transform:capitalize}
+.appt-outcome-completed{background:rgba(39,174,96,.16);color:#52c785}
+.appt-outcome-rescheduled{background:rgba(237,125,49,.16);color:#f0995a}
+.appt-outcome-noshow{background:rgba(231,76,60,.16);color:#e9756a}
+.appt-outcome-canceled{background:rgba(231,76,60,.12);color:#cf6b62;text-decoration:line-through}
+.appt-outcome-sel{padding:4px 6px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:5px;font-size:.74rem;cursor:pointer}
+.appt-outcome-sel:focus{border-color:var(--blue2);outline:none}
+.appt-resched-btn{padding:5px 10px;background:transparent;color:var(--blue2);border:1px solid var(--blue2);border-radius:5px;font-size:.75rem;cursor:pointer;transition:all .15s;margin-right:6px}
+.appt-resched-btn:hover{background:rgba(74,159,212,.12)}
+.appt-dsi-link{color:var(--blue2);cursor:pointer;font-weight:600;text-decoration:none}
+.appt-dsi-link:hover{text-decoration:underline}
+.appt-row-needsoutcome{background:rgba(237,125,49,.05)}
+/* Phase 1: appointment grid — available-slot pill, in-cell glyphs, per-activator legend */
+.appt-avail-pill{display:inline-block;margin-top:4px;padding:1px 7px;border-radius:9px;font-size:.6rem;font-weight:700;background:rgba(39,174,96,.16);color:#52c785;letter-spacing:.2px}
+.appt-cell-glyphs{display:flex;align-items:center;justify-content:center;gap:3px;margin-top:3px;flex-wrap:wrap}
+.appt-svc-glyph{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:4px;font-size:.6rem;font-weight:800;line-height:1}
+.appt-svc-glyph.svc-w{background:rgba(91,155,213,.22);color:#7db4e6}
+.appt-svc-glyph.svc-a{background:rgba(112,173,71,.22);color:#8fce63}
+.appt-svc-glyph.svc-f{background:rgba(237,125,49,.22);color:#f0995a}
+.appt-dev-badge{font-size:.6rem;font-weight:800;color:var(--text2);background:rgba(255,255,255,.07);padding:0 4px;border-radius:4px}
+.appt-oc-glyph{font-weight:800;font-size:.72rem}
+.appt-oc-glyph.oc-done{color:#52c785}
+.appt-oc-glyph.oc-noshow{color:#e9756a}
+.appt-oc-glyph.oc-resched{color:#f0995a}
+.appt-oc-glyph.oc-canc{color:#cf6b62}
+.appt-legend{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.appt-leg-item{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text);cursor:pointer;padding:2px 8px;border-radius:14px;transition:background .12s}
+.appt-leg-item:hover{background:rgba(255,255,255,.06)}
+.appt-leg-item.appt-leg-dim{opacity:.4}
+.appt-leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.appt-leg-count{font-weight:800;font-size:.72rem;color:var(--text2);background:rgba(255,255,255,.08);min-width:18px;text-align:center;padding:0 5px;border-radius:9px}
+/* Phase 1: Wallboard / TV mode */
+.lst-wb-bar{display:flex;justify-content:flex-end;margin-bottom:10px}
+.lst-wb-btn{padding:7px 14px;background:#2a2a2a;color:var(--text2);border:1px solid #3a3a3a;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
+.lst-wb-btn:hover{border-color:var(--blue2);color:var(--blue2)}
+#wallboard{position:fixed;inset:0;z-index:9999;background:radial-gradient(circle at 50% -10%,#16263f,#080808 72%);display:flex;flex-direction:column;color:#fff;padding:2.2vh 3vw}
+#wallboard.wb-hidden{display:none}
+.wb-top{display:flex;align-items:center;gap:18px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:1.6vh}
+.wb-office{font-size:2.1vw;font-weight:800;letter-spacing:1px;color:var(--blue2);white-space:nowrap}
+.wb-title{flex:1;text-align:center;font-size:2.5vw;font-weight:800;text-transform:uppercase;letter-spacing:3px}
+.wb-clock{font-size:1.9vw;font-weight:700;color:var(--text2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.wb-close{background:transparent;border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;width:44px;height:44px;font-size:1.2rem;cursor:pointer;flex-shrink:0}
+.wb-close:hover{background:rgba(255,255,255,.1)}
+.wb-stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.wb-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:2.5vw;width:100%}
+.wb-kpi{text-align:center}
+.wb-kpi-val{font-size:9vw;font-weight:800;line-height:1}
+.wb-kpi-lbl{font-size:1.5vw;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text2);margin-top:1.2vh}
+.wb-list{width:100%;max-width:1500px}
+.wb-row{display:flex;align-items:center;gap:2vw;padding:1.35vh 1.5vw;border-bottom:1px solid rgba(255,255,255,.08)}
+.wb-rank{font-size:2.8vw;font-weight:800;width:5vw;text-align:center}
+.wb-name{flex:1;font-size:3.1vw;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wb-ord{font-size:3.1vw;font-weight:800;color:#fff;min-width:12vw;text-align:right;font-variant-numeric:tabular-nums}
+.wb-units{font-size:3.3vw;font-weight:800;color:var(--blue2);min-width:12vw;text-align:right;font-variant-numeric:tabular-nums}
+.wb-head{border-bottom:2px solid rgba(255,255,255,.2)}
+.wb-head .wb-rank,.wb-head .wb-name,.wb-head .wb-ord,.wb-head .wb-units{font-size:1.3vw;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--text2)}
+.wb-empty{font-size:2.4vw;color:var(--text2);text-align:center}
+.wb-dots{display:flex;justify-content:center;gap:14px;padding-top:1.5vh}
+.wb-dot{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer;transition:all .2s}
+.wb-dot-on{background:var(--blue2);transform:scale(1.25)}
+.appt-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.appt-form-input{width:100%;padding:9px 12px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.88rem}
+.appt-form-input:focus{border-color:var(--blue2);outline:none}
+.appt-checkbox-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
+.appt-chk{display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--text);cursor:pointer}
+.appt-chk input{accent-color:var(--blue2)}
+.appt-sched-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.appt-day-toggle{display:flex;align-items:center;gap:7px;min-width:110px;font-size:.85rem;cursor:pointer}
+.appt-day-times{display:flex;align-items:center;gap:8px}
+.appt-time-inp{padding:6px 10px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.85rem;width:100px}
+.appt-time-inp:focus{border-color:var(--blue2);outline:none}
+.appt-block-add-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding:10px;background:var(--surface2);border-radius:6px}
+.appt-block-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.82rem}
+.appt-block-date{color:var(--text);font-weight:600;min-width:80px}
+.appt-block-time{color:var(--text2);min-width:90px}
+.appt-block-reason{color:var(--text2);flex:1}
 </style>
 </head>
 <body>
@@ -665,6 +828,18 @@ tr:hover td{background:rgba(74,159,212,.07)}
 
 <div id="dsi-toast"></div>
 
+<!-- WALLBOARD / TV MODE -->
+<div id="wallboard" class="wb-hidden">
+  <div class="wb-top">
+    <div class="wb-office" id="wb-office">—</div>
+    <div class="wb-title" id="wb-title">Live Sales</div>
+    <div class="wb-clock" id="wb-clock">—</div>
+    <button class="wb-close" onclick="closeWallboard()" title="Exit (Esc)">✕</button>
+  </div>
+  <div class="wb-stage" id="wb-stage"></div>
+  <div class="wb-dots" id="wb-dots"></div>
+</div>
+
 <!-- DETAIL MODAL -->
 <div class="modal-bg" id="detail-modal">
   <div class="modal">
@@ -674,9 +849,37 @@ tr:hover td{background:rgba(74,159,212,.07)}
   </div>
 </div>
 
+<!-- APPOINTMENT BOOKING MODAL -->
+<div class="modal-bg" id="appt-booking-modal">
+  <div class="modal" style="max-width:640px;width:95%">
+    <span class="modal-close" onclick="closeApptModal()">✕</span>
+    <h3>Book Appointment</h3>
+    <div id="appt-booking-body"></div>
+  </div>
+</div>
+
+<!-- ACTIVATOR SCHEDULE MODAL -->
+<div class="modal-bg" id="appt-sched-modal">
+  <div class="modal" style="max-width:580px;width:95%">
+    <span class="modal-close" onclick="closeApptSchedModal()">✕</span>
+    <h3>My Schedule &amp; Availability</h3>
+    <div id="appt-sched-body"></div>
+  </div>
+</div>
+
+<!-- APPOINTMENT RESCHEDULE MODAL -->
+<div class="modal-bg" id="appt-resched-modal">
+  <div class="modal" style="max-width:520px;width:95%">
+    <span class="modal-close" onclick="closeApptReschedModal()">✕</span>
+    <h3>Reschedule Appointment</h3>
+    <div id="appt-resched-body"></div>
+  </div>
+</div>
+
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9hfE_HDTDueNr-s-wQRNDvqWfQX-EkYkSFVQQeitc3_ccO8FqBabAhKe7YTqVzPQ21Q/exec';
+var APPT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDy8ZMiho7BL5U1-CV29CpPQ2odQZ4TmPkO51uIAsomrJWuJYCQCV_xycNBGeYhO6tAw/exec';
 var API_KEY = 'activation-dash-2026-secret';
 var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
 var OFFICE_COLORS = { midspire:'#1F4E78', viridian:'#1E5631', elevate:'#2E75B6', ignite:'#C0392B' };
@@ -994,8 +1197,9 @@ var TABS = [
   { id: 'actrates',    icon: '📊', label: 'Activation Rates',     roles: ROLES_REP,  group: 'Performance', sub: 'Rep activation breakdown' },
   { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },
   { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
-  { id: 'people',      icon: '👥', label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
-  { id: 'teams',       icon: '🤝', label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
+  { id: 'people',       icon: '👥', label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
+  { id: 'teams',        icon: '🤝', label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
+  { id: 'appointments', icon: '📅', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
 ];
 
 var _DEV_ROLE = null;
@@ -1292,7 +1496,8 @@ function renderTab(id) {
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
     case 'postsale':    c.innerHTML = renderPostSale();    break;
     case 'livesales':   renderLiveSalesTracker();          break;
-    case 'teams':       renderTeamsTab();                  break;
+    case 'teams':        renderTeamsTab();          break;
+    case 'appointments': renderAppointmentsTab();  break;
     default: c.innerHTML = '<div class="empty">Coming soon.</div>';
   }
   bindFilters();
@@ -1641,6 +1846,11 @@ function _applyView() {
       if (_activeFilters.lastCalled === 'overdue' && !(d !== null && d >= 8))  return false;
       if (_activeFilters.lastCalled === 'never'   && d !== null)               return false;
     }
+    if (_activeFilters.risk) {
+      if (_activeFilters.risk === 'atrisk'  && !_isAtRisk(o.dsi))  return false;
+      if (_activeFilters.risk === 'rotting' && !_isRotting(o.dsi)) return false;
+      if (_activeFilters.risk === 'booked'  && !_bookedFor(o.dsi)) return false;
+    }
     return true;
   });
   if (_sortState.col) {
@@ -1678,6 +1888,8 @@ function _applyView() {
       ? 'Showing all ' + _tabOrders.length + ' orders'
       : 'Showing ' + visible + ' of ' + _tabOrders.length + ' orders';
   }
+  var chipsEl = document.getElementById('ct-chips');
+  if (chipsEl) chipsEl.innerHTML = _ctChipsInner(_tabOrders);   // keep chip counts/active state fresh (e.g. after booked load)
 }
 
 function sortCallTable(col) {
@@ -1735,10 +1947,11 @@ function applyCallFilters() {
 }
 
 function clearCallFilters() {
-  _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' };
+  _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '', risk: '' };
   document.querySelectorAll('#ddp-product input, #ddp-status input').forEach(function(cb){ cb.checked = false; });
   var fe = document.getElementById('f-date-from'); if (fe) fe.value = '';
   var te = document.getElementById('f-date-to');   if (te) te.value = '';
+  var rk = document.querySelector('.ct-risk-filter'); if (rk) rk.value = '';
   var se = document.getElementById('f-'+_sortTblId.replace('-table','')); if (se) se.value = '';
   var pb = document.querySelector('#dd-product .dd-btn'); if (pb) pb.textContent = 'Product ▾';
   var sb = document.querySelector('#dd-status .dd-btn');  if (sb) sb.textContent = 'Status ▾';
@@ -1771,15 +1984,89 @@ function _buildFilterRow(searchId) {
     '</div>';
 }
 
+// ── At-risk / rotting / booked classification (call-log row signals) ──────
+// At-risk  = order rated 1–2★ OR present in the Order Issues log.
+// Rotting  = order rated "No Answer" AND 8+ days since the last note/call.
+// Booked   = the customer's DSI has a future, non-cancelled appointment.
+var _ISSUE_DSI = null;        // {dsi:true} — rebuilt each render from DATA.orderIssues
+var _BOOKED_MAP = null;       // dsi -> {date,timeSlot} nearest future appt (null = not loaded)
+var _bookedLoading = false;
+var _ctShowRiskFlags = true;  // show ⚠/⏳ flags on generic call tables, not on No Answer/Escalations
+
+function _issueDsiSet() {
+  if (_ISSUE_DSI) return _ISSUE_DSI;
+  _ISSUE_DSI = {};
+  (DATA.orderIssues||[]).forEach(function(o){ if(o.dsi) _ISSUE_DSI[o.dsi]=true; });
+  return _ISSUE_DSI;
+}
+function _isAtRisk(dsi) {
+  var r=(DATA.ratings||{})[dsi]||'';
+  return r==='1 Star' || r==='2 Stars' || !!_issueDsiSet()[dsi];
+}
+function _isRotting(dsi) {
+  if (((DATA.ratings||{})[dsi]||'') !== 'No Answer') return false;
+  var d=_daysSinceLastNote(dsi);
+  return d!==null && d>=8;
+}
+function _bookedFor(dsi) { return (_BOOKED_MAP||{})[dsi]||null; }
+function _ctShortDate(s) { var p=String(s||'').split('-'); return p.length===3 ? (Number(p[1])+'/'+Number(p[2])) : s; }
+
+// Column summary chips above a call table — counts over the whole tab, each a
+// one-click shortcut into the matching show-only risk filter.
+function _ctChipsInner(orders) {
+  var risk=_activeFilters.risk||'', n=orders.length, ar=0, rot=0, bk=0;
+  orders.forEach(function(o){ if(_isAtRisk(o.dsi))ar++; if(_isRotting(o.dsi))rot++; if(_bookedFor(o.dsi))bk++; });
+  function chip(val,label,count,cls){
+    return '<span class="ct-chip'+(cls?' '+cls:'')+(risk===val?' ct-chip-active':'')+'" onclick="_ctSetRisk(\''+val+'\')">'+label+' <b>'+count+'</b></span>';
+  }
+  return chip('','Orders',n,'') +
+    chip('atrisk','&#x26A0; At-risk',ar,'ct-chip-atrisk') +
+    chip('rotting','&#x23F3; Rotting',rot,'ct-chip-rotting') +
+    chip('booked','&#x1F4C5; Booked',bk,'ct-chip-booked');
+}
+function _ctSetRisk(val) {
+  _activeFilters.risk = (_activeFilters.risk===val ? '' : val);   // toggle off if same chip
+  var sel=document.querySelector('.ct-risk-filter'); if(sel) sel.value=_activeFilters.risk;
+  _applyView();
+}
+
+// Lazily pull the appointment list once and map DSI -> nearest future appt, so
+// call-log rows can show a "📅 Booked" badge. Uses the existing (already
+// deployed) getAppointments endpoint. DSIs are privacy-masked for some roles —
+// masked entries are skipped, so the badge degrades gracefully.
+function _loadBookedAppts() {
+  if (_bookedLoading) return;
+  _bookedLoading = true;
+  _apptGet({action:'getAppointments',officeId:CFG.officeId,bookerEmail:SESSION.email,role:SESSION.role}).then(function(res){
+    var map={}, today=_apptDateStr(new Date());
+    (res.appointments||[]).forEach(function(a){
+      var d=a.customerDSI||'';
+      if(!d || d.indexOf('•')!==-1) return;            // missing or masked
+      if(a.status==='cancelled') return;
+      if(!a.date || a.date<today) return;              // only upcoming / today
+      if(!map[d] || a.date<map[d].date) map[d]={date:a.date,timeSlot:a.timeSlot};
+    });
+    _BOOKED_MAP=map; _bookedLoading=false;
+    if(_sortTblId && document.getElementById(_sortTblId)) _applyView();   // re-stamp badges
+  }).catch(function(){ _BOOKED_MAP={}; _bookedLoading=false; });
+}
+
 function callTableRows(orders, extraColFn) {
   return orders.map(function(o) {
     var dsi = o.dsi || '';
     var safeId = dsi.replace(/\W/g,'_');
     var noteCount = ((DATA.notes||{})[dsi]||[]).length;
     var extra = extraColFn ? extraColFn(o) : '';
-    return '<tr>' +
+    var rotting=_isRotting(dsi), atrisk=(!rotting && _isAtRisk(dsi)), booked=_bookedFor(dsi);
+    var rowCls = rotting ? ' class="ct-row-rotting"' : (atrisk ? ' class="ct-row-atrisk"' : '');
+    var flags='';
+    if (_ctShowRiskFlags && rotting) flags+='<span class="ct-flag ct-flag-rotting" title="No Answer · 8+ days since last call">⏳ Rotting</span>';
+    else if (_ctShowRiskFlags && atrisk) flags+='<span class="ct-flag ct-flag-atrisk" title="1–2★ rating or Order Issue">⚠ At-risk</span>';
+    if (booked) flags+='<span class="ct-flag ct-flag-booked" title="Appointment '+esc(_apptFmtDate(booked.date))+' at '+esc(_apptFmt12(booked.timeSlot))+'">📅 '+esc(_ctShortDate(booked.date))+'</span>';
+    var dsiCell='<span class="dsi-link" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>'+(flags?'<div class="ct-flags">'+flags+'</div>':'');
+    return '<tr'+rowCls+'>' +
       '<td><span class="rep-name">'+esc(o.rep)+'</span></td>' +
-      '<td><span class="dsi-link" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span></td>' +
+      '<td>'+dsiCell+'</td>' +
       '<td>'+esc(o.orderDate)+'</td>' +
       '<td>'+productBreakdown(o.productCounts)+'</td>' +
       extra +
@@ -1803,10 +2090,22 @@ function _sortHeaders(tblId) {
 
 function renderCallTable(orders, title, emptyMsg) {
   if (!orders.length) return noData(emptyMsg);
-  _tabOrders = orders.slice(); _sortTblId = 'ct-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = null;
+  _tabOrders = orders.slice(); _sortTblId = 'ct-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '', risk: '' }; _extraColFn = null;
+  _ctShowRiskFlags = true; _ISSUE_DSI = null;
+  if (_BOOKED_MAP === null) _loadBookedAppts();   // lazy one-time appointment pull for booked badges
+  var riskSel = '<select class="ct-risk-filter" onchange="_activeFilters.risk=this.value;_applyView()">' +
+    '<option value="">All orders</option>' +
+    '<option value="atrisk">&#x26A0; At-risk only</option>' +
+    '<option value="rotting">&#x23F3; Rotting only</option>' +
+    '<option value="booked">&#x1F4C5; Booked only</option>' +
+    '</select>';
   return '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-ct') +
-    '<div id="ct-count" class="tbl-count">Showing all '+orders.length+' orders</div>' +
+    '<div class="ct-chips" id="ct-chips">'+_ctChipsInner(orders)+'</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
+      '<div id="ct-count" class="tbl-count" style="margin:0">Showing all '+orders.length+' orders</div>' +
+      riskSel +
+    '</div>' +
     '<div class="call-table-wrap"><table class="call-table" id="ct-table"><thead><tr>' +
     _sortHeaders('ct-table') +
     '</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div></div></div>';
@@ -1876,6 +2175,8 @@ function renderNoAnswerTable() {
     return db - da;
   });
   _tabOrders = orders.slice(); _sortTblId = 'na-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '', lastCalled: '' }; _extraColFn = _lastCallCell;
+  _ctShowRiskFlags = false; _ISSUE_DSI = null;
+  if (_BOOKED_MAP === null) _loadBookedAppts();
   var headers = [['rep','Name'],['dsi','DSI'],['date','Date'],['product','Product']].map(function(c) {
     return '<th class="sort-th" data-col="'+c[0]+'" onclick="sortCallTable(\''+c[0]+'\')">'+c[1]+'</th>';
   }).join('') + '<th class="sort-th" data-col="lastcalled" onclick="sortCallTable(\'lastcalled\')">Last Called</th><th class="sort-th" data-col="status" onclick="sortCallTable(\'status\')">Status</th><th>Rating</th><th>Notes</th>';
@@ -1905,6 +2206,8 @@ function renderEscalationsTable() {
     return o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
   });
   _tabOrders = orders.slice(); _sortTblId = 'esc-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = null;
+  _ctShowRiskFlags = false; _ISSUE_DSI = null;
+  if (_BOOKED_MAP === null) _loadBookedAppts();
   return '<div class="card"><div class="card-header dark">Escalations &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-esc') +
     '<div class="call-table-wrap"><table class="call-table" id="esc-table"><thead><tr>' +
@@ -3625,12 +3928,14 @@ function _lstBuild() {
   var role = SESSION.role;
   var isTeamScoped = role === 'leader' || role === 'jd';
   var lstTeamName = '';
+  var kpiTeamSet = null;
   if (isTeamScoped) {
     var lstTeam = _myTeam();
     if (lstTeam) {
       lstTeamName = lstTeam.name;
       var teamEmailSet = {};
       _teamEmails(lstTeamName).forEach(function(e) { teamEmailSet[e] = true; });
+      kpiTeamSet = teamEmailSet;
       var filteredRepAgg = {};
       Object.keys(repAgg).forEach(function(e) {
         if (teamEmailSet[e]) filteredRepAgg[e] = repAgg[e];
@@ -3655,7 +3960,8 @@ function _lstBuild() {
   var boardTitle = (isTeamScoped && lstTeamName) ? lstTeamName.toUpperCase() + ' LEADERBOARD' : 'OFFICE LEADERBOARD';
 
   return '<div class="lst-wrap">' +
-    _lstWeekBar(totOrd, totUni) +
+    '<div class="lst-wb-bar"><button class="lst-wb-btn" onclick="openWallboard()">📺 Wallboard</button></div>' +
+    _lstKpiCards(_LST_SALES, roster, _LST_VIEW, kpiTeamSet) +
     _lstTopPerf(all.slice(0, 3), tArr.slice(0, 3)) +
     _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) +
     '</div>';
@@ -3667,6 +3973,239 @@ function _lstWeekBar(ord, uni) {
     '<div class="lst-week-div"></div>' +
     '<div class="lst-week-stat"><div class="lst-wk-lbl">WEEK UNITS</div><div class="lst-wk-num blue">' + uni + '</div></div>' +
     '</div>';
+}
+
+// ── WALLBOARD / TV MODE ───────────────────────────────────────
+// Full-screen, big-type, auto-cycling office display for a TV. Reuses the LST
+// data (_LST_SALES), office-wide. Panels: This Week (KPIs) → Top Performers → Teams.
+var _WB = { panel:0, timer:null, clock:null, n:3 };
+
+function _wbData() {
+  var roster=DATA.roster||{}, teams=DATA.teams||{};
+  var repAgg=_lstAgg(_LST_SALES||[], roster);
+  var tAgg=_lstTeamAgg(repAgg, teams);
+  var all=Object.keys(repAgg).map(function(e){return {email:e,d:repAgg[e]};})
+    .sort(function(a,b){return b.d.units-a.d.units||b.d.orders-a.d.orders;});
+  var tArr=Object.keys(tAgg).map(function(k){return tAgg[k];})
+    .sort(function(a,b){return b.units-a.units||b.orders-a.orders;});
+  var totOrd=all.reduce(function(s,x){return s+x.d.orders;},0);
+  var totUni=all.reduce(function(s,x){return s+x.d.units;},0);
+  var sellers=all.filter(function(x){return x.d.orders>0;}).length;
+  return {all:all,tArr:tArr,totOrd:totOrd,totUni:totUni,sellers:sellers};
+}
+
+function openWallboard() {
+  var wb=document.getElementById('wallboard'); if(!wb) return;
+  document.getElementById('wb-office').textContent=(CFG.officeId||'').toUpperCase();
+  _WB.panel=0;
+  wb.classList.remove('wb-hidden');
+  _wbRender();
+  _wbStartTimer();
+  _wbTickClock(); _WB.clock=setInterval(_wbTickClock,1000);
+  document.addEventListener('keydown', _wbKey);
+  if(wb.requestFullscreen){ try{ wb.requestFullscreen(); }catch(e){} }
+}
+function closeWallboard() {
+  var wb=document.getElementById('wallboard'); if(!wb) return;
+  wb.classList.add('wb-hidden');
+  if(_WB.timer){clearInterval(_WB.timer);_WB.timer=null;}
+  if(_WB.clock){clearInterval(_WB.clock);_WB.clock=null;}
+  document.removeEventListener('keydown', _wbKey);
+  if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
+}
+function _wbKey(e){ if(e.key==='Escape') closeWallboard(); else if(e.key==='ArrowRight') _wbGo(_WB.panel+1); else if(e.key==='ArrowLeft') _wbGo(_WB.panel-1); }
+function _wbStartTimer(){ if(_WB.timer)clearInterval(_WB.timer); _WB.timer=setInterval(function(){ _wbGo(_WB.panel+1); },12000); }
+function _wbGo(i){ _WB.panel=((i%_WB.n)+_WB.n)%_WB.n; _wbRender(); _wbStartTimer(); }
+function _wbTickClock(){ var el=document.getElementById('wb-clock'); if(!el)return; var d=new Date(),h=d.getHours(),m=d.getMinutes(); el.textContent=((h%12)||12)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM'); }
+
+function _wbHead(label){
+  return '<div class="wb-row wb-head"><div class="wb-rank">#</div>'+
+    '<div class="wb-name">'+label+'</div>'+
+    '<div class="wb-ord">Orders</div>'+
+    '<div class="wb-units">Units</div></div>';
+}
+function _wbRow(rank,name,orders,units){
+  var medal = rank===0?'🥇':rank===1?'🥈':rank===2?'🥉':(rank+1);
+  return '<div class="wb-row"><div class="wb-rank">'+medal+'</div>'+
+    '<div class="wb-name">'+name+'</div>'+
+    '<div class="wb-ord">'+orders+'</div>'+
+    '<div class="wb-units">'+units+'</div></div>';
+}
+function _wbKpi(label,val,color){
+  return '<div class="wb-kpi"><div class="wb-kpi-val" style="color:'+color+'">'+val+'</div><div class="wb-kpi-lbl">'+label+'</div></div>';
+}
+function _wbRender(){
+  var data=_wbData();
+  var titles=['This Week','Top Performers','Team Standings'];
+  var tEl=document.getElementById('wb-title'); if(tEl) tEl.textContent=titles[_WB.panel]||'Live Sales';
+  var stage=document.getElementById('wb-stage'); if(!stage) return;
+  var html='';
+  if(_WB.panel===0){
+    var upo=data.totOrd?(data.totUni/data.totOrd):0;
+    html='<div class="wb-kpis">'+
+      _wbKpi('Orders', data.totOrd, '#5B9BD5')+
+      _wbKpi('Units', data.totUni, '#70AD47')+
+      _wbKpi('Units / Order', upo.toFixed(2), '#ED7D31')+
+      _wbKpi('Active Sellers', data.sellers, '#FFC000')+
+    '</div>';
+  } else if(_WB.panel===1){
+    var top=data.all.slice(0,5);
+    html='<div class="wb-list">'+(top.length?_wbHead('Rep')+top.map(function(x,i){return _wbRow(i,esc(x.d.name),x.d.orders,x.d.units);}).join(''):'<div class="wb-empty">No sales yet this week.</div>')+'</div>';
+  } else {
+    var tt=data.tArr.slice(0,8);
+    html='<div class="wb-list">'+(tt.length?_wbHead('Team')+tt.map(function(t,i){return _wbRow(i,(t.emoji?esc(t.emoji)+' ':'')+esc(t.name),t.orders,t.units);}).join(''):'<div class="wb-empty">No team sales yet this week.</div>')+'</div>';
+  }
+  stage.innerHTML=html;
+  var dots=document.getElementById('wb-dots');
+  if(dots) dots.innerHTML=[0,1,2].map(function(i){return '<span class="wb-dot'+(i===_WB.panel?' wb-dot-on':'')+'" onclick="_wbGo('+i+')"></span>';}).join('');
+}
+
+// ── KPI SUMMARY CARDS (client-side over _LST_SALES; respects role scoping) ──
+function _lstKpiDateKey(d){ return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function _lstKpiDayLabel(d){ return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate(); }
+
+function _lstKpiAddSale(b, email, roster, s){
+  b.orders++;
+  b.units += s.units || 0;
+  if (!b.reps[email]) b.reps[email] = { name: (roster[email] && roster[email].name) || email, orders:0, units:0 };
+  b.reps[email].orders++;
+  b.reps[email].units += s.units || 0;
+}
+
+// Build period buckets oldest→newest. days: last 14 calendar days; weeks: last 8 Mon-start weeks.
+function _lstKpiBuckets(sales, roster, view, teamSet) {
+  var DAY = 86400000;
+  var now = new Date(); now.setHours(0,0,0,0);
+  var buckets = [], index = {};
+  function mk(key, label){ var b={key:key,label:label,orders:0,units:0,reps:{}}; buckets.push(b); index[key]=b; return b; }
+
+  function eligible(email){
+    if (!roster[email] || roster[email].deactivated) return false;
+    if (teamSet && !teamSet[email]) return false;
+    return true;
+  }
+
+  if (view === 'weeks') {
+    var dow = now.getDay(), dfm = dow === 0 ? 6 : dow - 1;
+    var curMon = new Date(now); curMon.setDate(now.getDate() - dfm); curMon.setHours(0,0,0,0);
+    for (var i = 7; i >= 0; i--) {
+      var ms = new Date(curMon.getTime() - i * 7 * DAY);
+      mk(_lstKpiDateKey(ms), (ms.getMonth()+1)+'/'+ms.getDate());
+    }
+    (sales || []).forEach(function(s){
+      if (!s.dateOfSale || !eligible(s.repEmail)) return;
+      var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
+      var wdow = sd.getDay(), wdfm = wdow === 0 ? 6 : wdow - 1;
+      var sMon = new Date(sd); sMon.setDate(sd.getDate() - wdfm); sMon.setHours(0,0,0,0);
+      var b = index[_lstKpiDateKey(sMon)];
+      if (b) _lstKpiAddSale(b, s.repEmail, roster, s);
+    });
+  } else {
+    for (var j = 13; j >= 0; j--) {
+      var dms = new Date(now.getTime() - j * DAY);
+      mk(_lstKpiDateKey(dms), _lstKpiDayLabel(dms));
+    }
+    (sales || []).forEach(function(s){
+      if (!s.dateOfSale || !eligible(s.repEmail)) return;
+      var sd2 = new Date(s.dateOfSale + 'T12:00:00'); sd2.setHours(0,0,0,0);
+      var b2 = index[_lstKpiDateKey(sd2)];
+      if (b2) _lstKpiAddSale(b2, s.repEmail, roster, s);
+    });
+  }
+  return buckets;
+}
+
+function _lstDelta(cur, prev, word, decimals) {
+  var d = cur - prev;
+  var cls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  var arrow = d > 0 ? '▲' : d < 0 ? '▼' : '—';
+  var mag = decimals ? Math.abs(d).toFixed(decimals) : Math.abs(d);
+  var sign = d > 0 ? '+' : d < 0 ? '−' : '';
+  var pct = '';
+  if (prev > 0) pct = ' ('+sign+Math.round(Math.abs(d)/prev*100)+'%)';
+  var txt = d === 0 ? 'no change' : sign+mag+pct;
+  return '<div class="lst-kpi-delta '+cls+'"><span class="lst-kpi-arrow">'+arrow+'</span>'+txt+
+    ' <span class="lst-kpi-vs">vs prior '+word+'</span></div>';
+}
+
+function _lstSpark(series, color) {
+  if (!series || !series.length) return '';
+  var w = 120, h = 34, pad = 2, n = series.length;
+  var max = Math.max.apply(null, series), min = Math.min.apply(null, series);
+  var range = max - min || 1;
+  var stepX = n > 1 ? (w - pad*2)/(n-1) : 0;
+  var pts = series.map(function(v, i){
+    var x = pad + i*stepX;
+    var y = pad + (h - pad*2) * (1 - (v - min)/range);
+    return x.toFixed(1)+','+y.toFixed(1);
+  });
+  var line = pts.join(' ');
+  var lastX = (pad+(n-1)*stepX).toFixed(1);
+  var lastY = (pad + (h-pad*2)*(1-(series[n-1]-min)/range)).toFixed(1);
+  var area = pad+','+(h-pad)+' '+line+' '+lastX+','+(h-pad);
+  return '<svg class="lst-spark" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+
+    '<polygon points="'+area+'" fill="'+color+'" opacity="0.10"/>'+
+    '<polyline points="'+line+'" fill="none" stroke="'+color+'" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<circle cx="'+lastX+'" cy="'+lastY+'" r="2.2" fill="'+color+'"/>'+
+    '</svg>';
+}
+
+function _lstKpiCard(label, value, deltaHtml, sparkHtml, color) {
+  return '<div class="lst-kpi-card" style="--kpi-accent:'+color+'">'+
+    '<div class="lst-kpi-lbl">'+esc(label)+'</div>'+
+    '<div class="lst-kpi-val">'+value+'</div>'+
+    deltaHtml+
+    '<div class="lst-kpi-spark-wrap">'+sparkHtml+'</div>'+
+    '</div>';
+}
+
+function _lstKpiTopCard(top, view) {
+  var body = top
+    ? '<div class="lst-kpi-top-name">🥇 '+esc(top.name)+'</div>'+
+      '<div class="lst-kpi-top-stats">'+top.units+' units · '+top.orders+' orders</div>'
+    : '<div class="lst-kpi-top-name lst-kpi-top-empty">No sales yet</div>';
+  return '<div class="lst-kpi-card lst-kpi-card-top" style="--kpi-accent:#FFC000">'+
+    '<div class="lst-kpi-lbl">Top Performer</div>'+body+
+    '<div class="lst-kpi-top-period">'+(view==='weeks'?'this week':'today')+'</div>'+
+    '</div>';
+}
+
+function _lstKpiCards(sales, roster, view, teamSet) {
+  var buckets = _lstKpiBuckets(sales, roster, view, teamSet);
+  var n = buckets.length;
+  var cur  = buckets[n-1] || {orders:0,units:0,reps:{}};
+  var prev = buckets[n-2] || {orders:0,units:0,reps:{}};
+
+  var ordSeries  = buckets.map(function(b){return b.orders;});
+  var uniSeries  = buckets.map(function(b){return b.units;});
+  var sellSeries = buckets.map(function(b){return Object.keys(b.reps).length;});
+  var upoSeries  = buckets.map(function(b){return b.orders ? b.units/b.orders : 0;});
+
+  var curSellers  = Object.keys(cur.reps).length;
+  var prevSellers = Object.keys(prev.reps).length;
+  var curUpo  = cur.orders  ? cur.units/cur.orders   : 0;
+  var prevUpo = prev.orders ? prev.units/prev.orders : 0;
+
+  var top = null;
+  Object.keys(cur.reps).forEach(function(e){
+    var r = cur.reps[e];
+    if (!top || r.units > top.units || (r.units === top.units && r.orders > top.orders))
+      top = { name:r.name, units:r.units, orders:r.orders };
+  });
+
+  var word = view === 'weeks' ? 'wk' : 'day';
+  var EX = { blue:'#5B9BD5', green:'#70AD47', orange:'#ED7D31', gold:'#FFC000' };
+
+  var cards =
+    _lstKpiCard('Orders',        cur.orders, _lstDelta(cur.orders, prev.orders, word),       _lstSpark(ordSeries,  EX.blue),   EX.blue) +
+    _lstKpiCard('Units',         cur.units,  _lstDelta(cur.units,  prev.units,  word),       _lstSpark(uniSeries,  EX.green),  EX.green) +
+    _lstKpiCard('Units / Order', (cur.orders ? curUpo.toFixed(1) : '—'), _lstDelta(curUpo, prevUpo, word, 1), _lstSpark(upoSeries, EX.orange), EX.orange) +
+    _lstKpiCard('Active Sellers',curSellers, _lstDelta(curSellers, prevSellers, word),       _lstSpark(sellSeries, EX.gold),   EX.gold) +
+    _lstKpiTopCard(top, view);
+
+  var hint = view === 'weeks' ? 'This week vs last week · 8-week trend' : 'Today vs yesterday · 14-day trend';
+  return '<div class="lst-kpi-head"><div class="lst-sec-lbl">SUMMARY</div><div class="lst-kpi-hint">'+hint+'</div></div>'+
+    '<div class="lst-kpi-row">'+cards+'</div>';
 }
 
 function _lstTopPerf(topAll, topTeams) {
@@ -4081,6 +4620,606 @@ function _lstRepChurnHtml(tableauName) {
   });
   return h + '</div></div>';
 }
+
+// ── APPOINTMENTS ─────────────────────────────────────────────────────────
+var _APPT = { activators:null, appointments:null, weekOffset:0, filterEmail:'', loading:false };
+
+function _apptGet(params) {
+  var p = Object.assign({}, params, { key: API_KEY });
+  var qs = Object.keys(p).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(p[k]||''); }).join('&');
+  return fetch(APPT_SCRIPT_URL+'?'+qs, { redirect:'follow' }).then(function(r){ return r.json(); });
+}
+function _apptPost(body) {
+  return fetch(APPT_SCRIPT_URL, {
+    method:'POST', redirect:'follow',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({}, body, { key: API_KEY }))
+  }).then(function(r){ return r.json(); });
+}
+function _apptWeekStart(offset) {
+  var d = new Date(); var dow = d.getDay();
+  d.setDate(d.getDate() + (dow===0?-6:1-dow) + (offset||0)*7);
+  d.setHours(0,0,0,0); return d;
+}
+function _apptDateStr(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// Phase 1 booking window: NO same-day. Earliest = tomorrow, latest = +7 days
+// (rolling, slides forward daily). Mirrors the backend _bookingWindow().
+function _apptWindow() {
+  var t=new Date(); t.setHours(0,0,0,0);
+  var min=new Date(t); min.setDate(t.getDate()+1);
+  var max=new Date(t); max.setDate(t.getDate()+7);
+  return { min:_apptDateStr(min), max:_apptDateStr(max) };
+}
+function _apptFmt12(t) {
+  if (!t) return ''; var p=t.split(':').map(Number); var h=p[0],m=p[1];
+  return (h>12?h-12:h===0?12:h)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM');
+}
+function _apptFmtDate(s) {
+  if (!s) return ''; var p=s.split('-').map(Number);
+  var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[p[1]-1]+' '+p[2]+', '+p[0];
+}
+function _apptSlotInSched(slot, start, end) {
+  if (!start||!end) return false;
+  var toM=function(t){var p=t.split(':').map(Number);return p[0]*60+p[1];};
+  var s=toM(slot); return s>=toM(start)&&(s+60)<=toM(end);
+}
+function _apptActName(email) {
+  var a=(_APPT.activators||[]).find(function(x){return x.email===email;});
+  return a?a.name:email;
+}
+
+// Phase 1: stable per-activator color (assigned by sorted email so it's
+// consistent across renders), service glyphs (W/A/F), device + outcome glyphs.
+var _APPT_PALETTE=['#5B9BD5','#70AD47','#ED7D31','#FFC000','#9B59B6','#1ABC9C','#E74C3C','#3498DB','#E67E22','#16A085','#2ECC71','#F39C12'];
+function _apptColorMap(){
+  if(_APPT._colorMap) return _APPT._colorMap;
+  var m={};
+  (_APPT.activators||[]).slice().sort(function(a,b){return a.email<b.email?-1:1;}).forEach(function(a,i){ m[a.email]=_APPT_PALETTE[i%_APPT_PALETTE.length]; });
+  _APPT._colorMap=m; return m;
+}
+function _apptActColor(email){ return _apptColorMap()[email]||'#888'; }
+function _apptSvcGlyphs(servicesStr){
+  var s=String(servicesStr||'').toLowerCase(), g='';
+  if(s.indexOf('wireless')!==-1) g+='<span class="appt-svc-glyph svc-w" title="Wireless">W</span>';
+  if(s.indexOf('air')!==-1)      g+='<span class="appt-svc-glyph svc-a" title="Air">A</span>';
+  if(s.indexOf('fiber')!==-1||s.indexOf('internet')!==-1) g+='<span class="appt-svc-glyph svc-f" title="Fiber">F</span>';
+  return g;
+}
+function _apptOutcomeGlyph(a){
+  var o=String(a.outcome||'').toLowerCase();
+  if(o==='completed')   return '<span class="appt-oc-glyph oc-done" title="Completed">✓ </span>';
+  if(o==='no-show')     return '<span class="appt-oc-glyph oc-noshow" title="No-Show">✗ </span>';
+  if(o==='rescheduled') return '<span class="appt-oc-glyph oc-resched" title="Rescheduled">↻ </span>';
+  if(o==='canceled')    return '<span class="appt-oc-glyph oc-canc" title="Canceled">⊘ </span>';
+  return '';
+}
+function _apptLegend(appts, acts, ws){
+  if(!acts.length) return '';
+  var we=new Date(ws); we.setDate(ws.getDate()+6);
+  var wsS=_apptDateStr(ws), weS=_apptDateStr(we);
+  var load={}; appts.forEach(function(a){ if(a.status==='cancelled')return; if(a.date>=wsS&&a.date<=weS) load[a.activatorEmail]=(load[a.activatorEmail]||0)+1; });
+  var items=acts.slice().sort(function(a,b){return a.email<b.email?-1:1;}).map(function(a){
+    var c=_apptActColor(a.email), n=load[a.email]||0;
+    var dim=(_APPT.filterEmail!=='' && _APPT.filterEmail!==a.email);
+    return '<span class="appt-leg-item'+(dim?' appt-leg-dim':'')+'" onclick="_apptFilter(\''+(_APPT.filterEmail===a.email?'':esc(a.email))+'\')" title="Click to filter">'+
+      '<span class="appt-leg-dot" style="background:'+c+'"></span>'+esc(a.name)+
+      '<span class="appt-leg-count" title="Appointments this week">'+n+'</span></span>';
+  }).join('');
+  return '<div class="appt-legend">'+items+'</div>';
+}
+
+function renderAppointmentsTab() {
+  var c = document.getElementById('main-content');
+  c.innerHTML = '<div class="empty">Loading appointments…</div>';
+  _APPT.loading = true;
+  var actsP = _APPT.activators ? Promise.resolve({activators:_APPT.activators}) : _apptGet({action:'getActivators',officeId:CFG.officeId});
+  var apptP = _apptGet({action:'getAppointments',officeId:CFG.officeId,bookerEmail:SESSION.email,role:SESSION.role});
+  Promise.all([actsP, apptP]).then(function(res) {
+    _APPT.loading = false;
+    if (res[0].activators) _APPT.activators = res[0].activators;
+    _APPT.appointments = res[1].appointments || [];
+    if (CURRENT_TAB==='appointments') { c.innerHTML = _apptBuildView(); _apptBindEvents(); }
+  }).catch(function() {
+    _APPT.loading = false;
+    c.innerHTML = '<div class="empty">Failed to load. Check your connection and try refreshing.</div>';
+  });
+}
+
+function _apptBuildView() {
+  _APPT._colorMap = null;   // recompute per render so colors track the current activator set
+  var acts = _APPT.activators||[], appts = _APPT.appointments||[];
+  var ws = _apptWeekStart(_APPT.weekOffset);
+  var we = new Date(ws); we.setDate(ws.getDate()+6);
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var wLabel = mo[ws.getMonth()]+' '+ws.getDate()+' – '+mo[we.getMonth()]+' '+we.getDate()+', '+we.getFullYear();
+  var isAdmin = SESSION.role==='activator'||SESSION.role==='master-admin';
+  var actOpts = '<option value="">All Activators</option>'+acts.map(function(a){
+    return '<option value="'+esc(a.email)+'"'+(a.email===_APPT.filterEmail?' selected':'')+'>'+esc(a.name)+'</option>';
+  }).join('');
+  var html = '<div class="appt-wrap">'+
+    '<div class="appt-controls">'+
+      '<div class="appt-nav">'+
+        '<button class="appt-nav-btn" onclick="_apptNavWeek(-1)">◀</button>'+
+        '<span class="appt-week-label">'+esc(wLabel)+'</span>'+
+        '<button class="appt-nav-btn" onclick="_apptNavWeek(1)">▶</button>'+
+      '</div>'+
+      '<div class="appt-filter-row">'+
+        '<select class="appt-select" id="appt-act-filter" onchange="_apptFilter(this.value)">'+actOpts+'</select>'+
+        '<button class="appt-book-btn" onclick="openApptBookingModal(\'\',\'\',\'\')">+ Book Appointment</button>'+
+      '</div>'+
+    '</div>'+
+    _apptCalGrid(appts, acts, ws)+
+    _apptLegend(appts, acts, ws)+
+    _apptUpcomingTable(appts)+(
+    isAdmin ? '<div style="margin-top:16px;text-align:right"><button class="appt-manage-btn" onclick="openApptSchedModal()">⚙ Manage My Schedule</button></div>' : ''
+  )+'</div>';
+  return html;
+}
+
+function _apptCalGrid(appts, acts, ws) {
+  var slots = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00'];
+  var dnames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
+  var dates = []; for (var d=0;d<7;d++){var x=new Date(ws);x.setDate(ws.getDate()+d);dates.push(_apptDateStr(x));}
+  var today = _apptDateStr(new Date());
+  var win = _apptWindow();
+  var fe = _APPT.filterEmail;
+  var aMap = {}; appts.forEach(function(a){
+    if(!a.date||!a.timeSlot||a.status==='cancelled') return;
+    var k=a.date+'|'+a.timeSlot; if(!aMap[k]) aMap[k]=[]; aMap[k].push(a);
+  });
+  var sMap = {}; acts.forEach(function(a){ sMap[a.email]=a.schedule||{}; });
+
+  // Single source of truth for "is this (day,slot) a bookable open cell in the
+  // current view?" — used by both the header pill counts and the cell render.
+  function availAt(ds, slot){
+    if (ds<win.min || ds>win.max) return false;
+    var dk=dayKeys[new Date(ds+'T12:00:00').getDay()];
+    var slotAppts=aMap[ds+'|'+slot]||[];
+    if (fe){
+      var sc=(sMap[fe]||{})[dk]||{};
+      if(!_apptSlotInSched(slot,sc.start,sc.end)) return false;
+      return !slotAppts.some(function(a){return a.activatorEmail===fe;});
+    }
+    if (slotAppts.length>0) return false;
+    return Object.keys(sMap).some(function(em){var s=(sMap[em]||{})[dk]||{};return _apptSlotInSched(slot,s.start,s.end);});
+  }
+  var availCount=[0,0,0,0,0,0,0];
+  for (var di=0;di<7;di++){ slots.forEach(function(slot){ if(availAt(dates[di],slot)) availCount[di]++; }); }
+
+  var html = '<div class="appt-cal-outer"><div class="appt-cal-grid">';
+  html += '<div class="appt-cal-time-hdr"></div>';
+  for (var d=0;d<7;d++){
+    var dt=new Date(dates[d]+'T12:00:00');
+    var pill = availCount[d]>0 ? '<span class="appt-avail-pill" title="'+availCount[d]+' open slot'+(availCount[d]===1?'':'s')+'">'+availCount[d]+' open</span>' : '';
+    html += '<div class="appt-cal-th'+(dates[d]===today?' appt-today-hdr':'')+'">'+
+      '<div class="appt-cal-dayname">'+dnames[d]+'</div>'+
+      '<div class="appt-cal-daynum">'+(dt.getMonth()+1)+'/'+dt.getDate()+'</div>'+
+      pill+
+    '</div>';
+  }
+  slots.forEach(function(slot){
+    html += '<div class="appt-cal-time">'+_apptFmt12(slot)+'</div>';
+    for (var d=0;d<7;d++){
+      var ds=dates[d], k=ds+'|'+slot, slotAppts=aMap[k]||[];
+      var offWin = ds<win.min || ds>win.max;
+      if (fe) {
+        var mine=slotAppts.find(function(a){return a.activatorEmail===fe;});
+        if (mine) {
+          var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||mine.bookerEmail===SESSION.email;
+          var col=_apptActColor(fe);
+          html+='<div class="appt-cal-cell appt-cell-booked" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(mine.customerName):'Booked')+' · '+esc(mine.services||'')+' ×'+(mine.deviceCount||1)+'">'+
+            '<div class="appt-cell-name">'+_apptOutcomeGlyph(mine)+(ok?esc(mine.customerName):'••••••')+'</div>'+
+            '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(mine.services)+'<span class="appt-dev-badge">×'+(mine.deviceCount||1)+'</span></div></div>';
+        } else if(offWin){
+          html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
+        } else if(availAt(ds,slot)){
+          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+slot+'\')">'+
+            '<span class="appt-avail-plus">+</span> Book</div>';
+        } else {
+          html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
+        }
+      } else {
+        if (slotAppts.length>0){
+          html+='<div class="appt-cal-cell appt-cell-booked-multi" title="'+slotAppts.length+' booked">';
+          var distinct=acts.filter(function(a){return slotAppts.some(function(ap){return ap.activatorEmail===a.email;});});
+          distinct.slice(0,2).forEach(function(a){ var c=_apptActColor(a.email);
+            html+='<div class="appt-cell-act-tag" style="background:'+c+'2e;color:'+c+'">'+esc(a.name.split(' ')[0])+'</div>'; });
+          if(distinct.length>2) html+='<div class="appt-cell-more">+'+(distinct.length-2)+'</div>';
+          html+='</div>';
+        } else if(offWin){
+          html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
+        } else if(availAt(ds,slot)){
+          html+='<div class="appt-cal-cell appt-cell-avail-light" onclick="openApptBookingModal(\''+ds+'\',\'\',\''+slot+'\')">'+
+            '<span class="appt-avail-dot">·</span></div>';
+        } else {
+          html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
+        }
+      }
+    }
+  });
+  return html+'</div></div>';
+}
+
+// Outcome option metadata (value → label + badge class suffix).
+var _APPT_OUTCOMES = [
+  ['completed','Completed','completed'],
+  ['rescheduled','Rescheduled','rescheduled'],
+  ['no-show','No-Show','noshow'],
+  ['canceled','Canceled','canceled']
+];
+function _apptOutcomeBadge(v) {
+  var m=_APPT_OUTCOMES.filter(function(o){return o[0]===v;})[0]; if(!m) return '—';
+  return '<span class="appt-outcome appt-outcome-'+m[2]+'">'+esc(m[1])+'</span>';
+}
+function _apptOutcomeSelect(a) {
+  var opts='<option value="">Mark…</option>'+_APPT_OUTCOMES.map(function(o){
+    return '<option value="'+o[0]+'"'+(a.outcome===o[0]?' selected':'')+'>'+o[1]+'</option>';
+  }).join('');
+  return '<select class="appt-outcome-sel" onchange="setApptOutcomeUI(\''+esc(a.appointmentId)+'\',this.value)">'+opts+'</select>';
+}
+
+function _apptUpcomingTable(appts) {
+  var today = _apptDateStr(new Date());
+  // Window back 7 days so recently-finished appointments that still need an
+  // outcome remain visible alongside upcoming ones.
+  var floor = new Date(); floor.setDate(floor.getDate()-7); floor=_apptDateStr(floor);
+  var rows = appts.filter(function(a){ return a.date>=floor; })
+    .sort(function(a,b){ return a.date!==b.date?a.date.localeCompare(b.date):a.timeSlot.localeCompare(b.timeSlot); })
+    .slice(0,50);
+  if (!rows.length) return '<div class="card" style="margin-top:16px"><div class="card-body"><div class="empty">No upcoming appointments.</div></div></div>';
+  var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
+  var h='<div class="card" style="margin-top:16px"><div class="card-header dark">Appointments</div>'+
+    '<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
+    '<th>Date</th><th>Time</th><th>Activator</th><th>Customer</th><th>DSI</th><th>Services</th><th>Status</th><th>Outcome</th><th>Actions</th>'+
+    '</tr></thead><tbody>';
+  rows.forEach(function(a){
+    var ok=canAll||a.bookerEmail===SESSION.email;       // may see customer / DSI
+    var canX=canAll||a.bookerEmail===SESSION.email;      // may modify
+    var cancelled = a.status==='cancelled';
+    var occurred  = a.date<=today;                       // happened or happening today
+    var terminal  = a.outcome==='completed'||a.outcome==='canceled';
+    // Outcome cell: editable select for occurred, non-cancelled appts; else badge / dash.
+    var outcomeCell;
+    if (cancelled) outcomeCell='<span class="appt-outcome appt-outcome-canceled">Canceled</span>';
+    else if (occurred && canX) outcomeCell=_apptOutcomeSelect(a);
+    else if (a.outcome) outcomeCell=_apptOutcomeBadge(a.outcome);
+    else outcomeCell='—';
+    // Actions: reschedule (non-cancelled, non-terminal) + cancel (non-cancelled).
+    var actions='';
+    if (canX && !cancelled && !terminal)
+      actions+='<button class="appt-resched-btn" onclick="rescheduleApptUI(\''+esc(a.appointmentId)+'\')">Reschedule</button>';
+    if (canX && !cancelled)
+      actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>';
+    var dsiCell = ok && a.customerDSI
+      ? '<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>'
+      : (ok?'—':'••••');
+    h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
+      '<td>'+esc(_apptFmtDate(a.date))+'</td><td>'+esc(_apptFmt12(a.timeSlot))+'</td>'+
+      '<td>'+esc(_apptActName(a.activatorEmail))+'</td>'+
+      '<td>'+(ok?esc(a.customerName):'••••••')+'</td>'+
+      '<td>'+dsiCell+'</td>'+
+      '<td style="font-size:.78rem">'+esc(a.services||'—')+'</td>'+
+      '<td><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span></td>'+
+      '<td>'+outcomeCell+'</td>'+
+      '<td style="white-space:nowrap">'+(actions||'—')+'</td>'+
+    '</tr>';
+  });
+  return h+'</tbody></table></div></div>';
+}
+
+function _apptNavWeek(dir) { _APPT.weekOffset+=dir; _APPT.appointments=null; renderAppointmentsTab(); }
+function _apptFilter(email) { _APPT.filterEmail=email; var c=document.getElementById('main-content'); if(c) c.innerHTML=_apptBuildView(); _apptBindEvents(); }
+function _apptBindEvents() { var s=document.getElementById('appt-act-filter'); if(s) s.value=_APPT.filterEmail; }
+
+// ── Booking Modal ─────────────────────────────────────────────
+function openApptBookingModal(date, activatorEmail, timeSlot) {
+  var acts = _APPT.activators||[];
+  var actOpts='<option value="">Select Activator…</option>'+
+    '<option value="__next__"'+(activatorEmail==='__next__'?' selected':'')+'>⚡ Next Available Agent</option>'+
+    acts.map(function(a){
+    return '<option value="'+esc(a.email)+'"'+(a.email===activatorEmail?' selected':'')+'>'+esc(a.name)+' ('+esc(a.timezone||'TZ not set')+')</option>';
+  }).join('');
+  document.getElementById('appt-booking-body').innerHTML =
+    '<div class="appt-form-grid">'+
+      '<div class="field"><label>Activator</label><select class="appt-form-input" id="abm-act" onchange="_abmLoadSlots()">'+actOpts+'</select></div>'+
+      '<div class="field"><label>Date</label><input type="date" class="appt-form-input" id="abm-date" value="'+esc(date||'')+'" min="'+_apptWindow().min+'" max="'+_apptWindow().max+'" onchange="_abmLoadSlots()"></div>'+
+      '<div class="field" style="grid-column:1/-1"><label>Time Slot</label><select class="appt-form-input" id="abm-slot"><option value="">Select activator &amp; date first…</option></select></div>'+
+      '<div class="field"><label>First Name + Last Initial</label><input type="text" class="appt-form-input" id="abm-name" placeholder="e.g. John D."></div>'+
+      '<div class="field"><label>DSI Number</label><input type="text" class="appt-form-input" id="abm-dsi" placeholder="DSI #"></div>'+
+      '<div class="field"><label>Contact Number</label><input type="tel" class="appt-form-input" id="abm-phone" placeholder="(555) 555-5555"></div>'+
+      '<div class="field"><label>Customer Email</label><input type="email" class="appt-form-input" id="abm-email" placeholder="customer@email.com"></div>'+
+      '<div class="field" style="grid-column:1/-1"><label>Services (select all that apply)</label>'+
+        '<div class="appt-checkbox-row">'+
+          '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Wireless"> Wireless</label>'+
+          '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Air"> Air</label>'+
+          '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Fiber - Self Install"> Fiber - Self Install</label>'+
+        '</div>'+
+      '</div>'+
+      '<div class="field"><label>Number of Devices</label><input type="number" class="appt-form-input" id="abm-devices" value="1" min="1" max="20"></div>'+
+    '</div>'+
+    '<div id="abm-error" style="color:var(--red);font-size:.82rem;margin-top:10px;display:none"></div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">'+
+      '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="closeApptModal()">Cancel</button>'+
+      '<button class="appt-book-btn" id="abm-submit-btn" onclick="submitApptBooking()">Confirm Booking</button>'+
+    '</div>';
+  document.getElementById('appt-booking-modal').classList.add('open');
+  if (activatorEmail && date) {
+    document.getElementById('abm-act').value = activatorEmail;
+    document.getElementById('abm-date').value = date;
+    _abmLoadSlots(timeSlot);
+  }
+}
+
+function _abmLoadSlots(preselect) {
+  var email=(document.getElementById('abm-act')||{}).value||'';
+  var date=(document.getElementById('abm-date')||{}).value||'';
+  var sel=document.getElementById('abm-slot');
+  if (!email||!date){if(sel)sel.innerHTML='<option value="">Select activator &amp; date first…</option>';return;}
+  if(sel)sel.innerHTML='<option value="">Loading available slots…</option>';
+  var req = email==='__next__'
+    ? {action:'getNextAvailableSlots',officeId:CFG.officeId,date:date}
+    : {action:'getAvailableSlots',activatorEmail:email,date:date};
+  _apptGet(req).then(function(res){
+    var slots=res.slots||[];
+    if(!slots.length){sel.innerHTML='<option value="">No available slots for this date</option>';return;}
+    sel.innerHTML='<option value="">Select a time…</option>'+slots.map(function(s){
+      return '<option value="'+esc(s)+'"'+(s===preselect?' selected':'')+'>'+_apptFmt12(s)+'</option>';
+    }).join('');
+  }).catch(function(){if(sel)sel.innerHTML='<option value="">Error loading slots</option>';});
+}
+
+function submitApptBooking() {
+  var actEmail=(document.getElementById('abm-act')||{}).value||'';
+  var date=(document.getElementById('abm-date')||{}).value||'';
+  var slot=(document.getElementById('abm-slot')||{}).value||'';
+  var name=(document.getElementById('abm-name')||{}).value||'';
+  var dsi=(document.getElementById('abm-dsi')||{}).value||'';
+  var phone=(document.getElementById('abm-phone')||{}).value||'';
+  var email=(document.getElementById('abm-email')||{}).value||'';
+  var devices=parseInt((document.getElementById('abm-devices')||{}).value||'1');
+  var svcs=Array.from(document.querySelectorAll('.abm-svc:checked')).map(function(cb){return cb.value;});
+  var errEl=document.getElementById('abm-error');
+  if (!actEmail||!date||!slot||!name||!dsi||!phone||!email){errEl.textContent='Please fill in all fields.';errEl.style.display='block';return;}
+  if (!svcs.length){errEl.textContent='Please select at least one service.';errEl.style.display='block';return;}
+  errEl.style.display='none';
+  var btn=document.getElementById('abm-submit-btn');
+  if(btn){btn.disabled=true;btn.textContent='Booking…';}
+  _apptPost({action:'bookAppointment',bookerEmail:SESSION.email,activatorEmail:actEmail,
+    date:date,timeSlot:slot,customerName:name,customerDSI:dsi,customerPhone:phone,
+    customerEmail:email,services:svcs,deviceCount:devices,office:CFG.officeId
+  }).then(function(res){
+    if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
+    if(res.ok){closeApptModal();_APPT.appointments=null;renderAppointmentsTab();}
+    else{errEl.textContent=res.error==='slot_unavailable'?'That slot was just taken — please pick another time.':(res.error||'Booking failed. Try again.');errEl.style.display='block';}
+  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}errEl.textContent='Connection error. Try again.';errEl.style.display='block';});
+}
+
+function closeApptModal() { document.getElementById('appt-booking-modal').classList.remove('open'); }
+
+function cancelAppt(id) {
+  if (!confirm('Cancel this appointment?')) return;
+  _apptPost({action:'cancelAppointment',appointmentId:id,role:SESSION.role,email:SESSION.email}).then(function(res){
+    if(res.ok){_APPT.appointments=null;renderAppointmentsTab();}
+    else alert(res.error||'Cancel failed.');
+  });
+}
+
+// Rebuild the appointments view from cached data (no refetch) — used to revert
+// an outcome <select> when the activator backs out of the note prompt.
+function _apptRerender() {
+  var c=document.getElementById('main-content');
+  if(c&&CURRENT_TAB==='appointments'){ c.innerHTML=_apptBuildView(); _apptBindEvents(); }
+}
+
+// ── Outcome (manual marking by the activator) ─────────────────
+function setApptOutcomeUI(id, outcome) {
+  if (!outcome) return;
+  var note=prompt('Optional activation note for this appointment (saved to the customer’s notes). Leave blank to skip:','');
+  if (note===null) { _apptRerender(); return; }   // backed out → revert select
+  _apptPost({action:'setApptOutcome',appointmentId:id,outcome:outcome,note:note,
+    role:SESSION.role,email:SESSION.email}).then(function(res){
+    if(res.ok){ _APPT.appointments=null; renderAppointmentsTab(); }
+    else { alert(res.error||'Failed to set outcome.'); _apptRerender(); }
+  }).catch(function(){ alert('Connection error.'); _apptRerender(); });
+}
+
+// ── Reschedule in place ───────────────────────────────────────
+function rescheduleApptUI(id) {
+  var a=(_APPT.appointments||[]).find(function(x){return x.appointmentId===id;});
+  if(!a) return;
+  var acts=_APPT.activators||[], win=_apptWindow();
+  var actOpts='<option value="">Keep current — '+esc(_apptActName(a.activatorEmail))+'</option>'+
+    '<option value="__next__">⚡ Next Available Agent</option>'+
+    acts.map(function(x){return '<option value="'+esc(x.email)+'">'+esc(x.name)+'</option>';}).join('');
+  document.getElementById('appt-resched-body').innerHTML=
+    '<div style="font-size:.82rem;color:var(--text2);margin-bottom:12px">'+
+      '<strong style="color:var(--text)">'+esc(a.customerName||'Customer')+'</strong> — currently '+
+      esc(_apptFmtDate(a.date))+' at '+esc(_apptFmt12(a.timeSlot))+'</div>'+
+    '<div class="appt-form-grid">'+
+      '<div class="field"><label>New Date</label><input type="date" class="appt-form-input" id="rsd-date" min="'+win.min+'" max="'+win.max+'" onchange="_reschedLoadSlots()"></div>'+
+      '<div class="field"><label>Activator</label><select class="appt-form-input" id="rsd-act" onchange="_reschedLoadSlots()">'+actOpts+'</select></div>'+
+      '<div class="field" style="grid-column:1/-1"><label>New Time Slot</label><select class="appt-form-input" id="rsd-slot"><option value="">Pick a date first…</option></select></div>'+
+    '</div>'+
+    '<div id="rsd-error" style="color:var(--red);font-size:.82rem;margin-top:10px;display:none"></div>'+
+    '<input type="hidden" id="rsd-id" value="'+esc(id)+'">'+
+    '<input type="hidden" id="rsd-curact" value="'+esc(a.activatorEmail)+'">'+
+    '<input type="hidden" id="rsd-office" value="'+esc(a.office||CFG.officeId)+'">'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">'+
+      '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="closeApptReschedModal()">Cancel</button>'+
+      '<button class="appt-book-btn" id="rsd-submit" onclick="submitReschedule()">Confirm New Time</button>'+
+    '</div>';
+  document.getElementById('appt-resched-modal').classList.add('open');
+}
+
+function _reschedLoadSlots() {
+  var date=(document.getElementById('rsd-date')||{}).value||'';
+  var chosen=(document.getElementById('rsd-act')||{}).value||'';
+  var cur=(document.getElementById('rsd-curact')||{}).value||'';
+  var office=(document.getElementById('rsd-office')||{}).value||CFG.officeId;
+  var id=(document.getElementById('rsd-id')||{}).value||'';
+  var act=chosen||cur;   // blank choice = keep current activator
+  var sel=document.getElementById('rsd-slot');
+  if(!date){if(sel)sel.innerHTML='<option value="">Pick a date first…</option>';return;}
+  if(sel)sel.innerHTML='<option value="">Loading…</option>';
+  var req = act==='__next__'
+    ? {action:'getNextAvailableSlots',officeId:office,date:date}
+    : {action:'getAvailableSlots',activatorEmail:act,date:date,excludeId:id};
+  _apptGet(req).then(function(res){
+    var slots=res.slots||[];
+    if(!slots.length){sel.innerHTML='<option value="">No open slots for this date</option>';return;}
+    sel.innerHTML='<option value="">Select a time…</option>'+slots.map(function(s){
+      return '<option value="'+esc(s)+'">'+_apptFmt12(s)+'</option>';
+    }).join('');
+  }).catch(function(){if(sel)sel.innerHTML='<option value="">Error loading slots</option>';});
+}
+
+function submitReschedule() {
+  var id=(document.getElementById('rsd-id')||{}).value||'';
+  var date=(document.getElementById('rsd-date')||{}).value||'';
+  var slot=(document.getElementById('rsd-slot')||{}).value||'';
+  var chosen=(document.getElementById('rsd-act')||{}).value||'';
+  var err=document.getElementById('rsd-error');
+  if(!date||!slot){err.textContent='Pick a new date and time.';err.style.display='block';return;}
+  err.style.display='none';
+  var btn=document.getElementById('rsd-submit'); if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  var body={action:'rescheduleAppointment',appointmentId:id,date:date,timeSlot:slot,role:SESSION.role,email:SESSION.email};
+  if(chosen) body.activatorEmail=chosen;
+  _apptPost(body).then(function(res){
+    if(btn){btn.disabled=false;btn.textContent='Confirm New Time';}
+    if(res.ok){closeApptReschedModal();_APPT.appointments=null;renderAppointmentsTab();}
+    else{err.textContent=res.error==='slot_unavailable'?'That slot is no longer open — pick another.':
+      (res.error==='outside_window'?'Pick a date within the next 7 days.':(res.error||'Reschedule failed.'));
+      err.style.display='block';}
+  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirm New Time';}err.textContent='Connection error. Try again.';err.style.display='block';});
+}
+
+function closeApptReschedModal() { document.getElementById('appt-resched-modal').classList.remove('open'); }
+
+// ── Schedule Modal ─────────────────────────────────────────────
+function openApptSchedModal() {
+  var me=SESSION.email, myAct=(_APPT.activators||[]).find(function(a){return a.email===me;})||{};
+  var sched=myAct.schedule||{}, tz=myAct.timezone||'';
+  var tzOpts=[
+    ['America/New_York','Eastern (ET)'],['America/Chicago','Central (CT)'],
+    ['America/Denver','Mountain (MT)'],['America/Los_Angeles','Pacific (PT)'],
+    ['America/Anchorage','Alaska (AKT)'],['Pacific/Honolulu','Hawaii (HT)']
+  ].map(function(t){return '<option value="'+t[0]+'"'+(t[0]===tz?' selected':'')+'>'+t[1]+'</option>';}).join('');
+  var days=[['mon','Monday'],['tue','Tuesday'],['wed','Wednesday'],['thu','Thursday'],['fri','Friday'],['sat','Saturday'],['sun','Sunday']];
+  var schedHtml=days.map(function(day){
+    var ds=sched[day[0]]||{},on=!!(ds.start&&ds.end);
+    return '<div class="appt-sched-row">'+
+      '<label class="appt-day-toggle"><input type="checkbox" class="appt-day-cb" data-day="'+day[0]+'"'+(on?' checked':'')+'>'+day[1]+'</label>'+
+      '<div class="appt-day-times"'+(on?'':' style="display:none"')+'>'+
+        '<input type="time" class="appt-time-inp" id="sc-'+day[0]+'-s" value="'+(ds.start||'10:00')+'">'+
+        '<span style="color:var(--text2);font-size:.8rem">to</span>'+
+        '<input type="time" class="appt-time-inp" id="sc-'+day[0]+'-e" value="'+(ds.end||'17:00')+'">'+
+      '</div></div>';
+  }).join('');
+  document.getElementById('appt-sched-body').innerHTML=
+    '<div class="field" style="margin-bottom:16px"><label>My Timezone</label>'+
+      '<select class="appt-form-input" id="sc-tz">'+tzOpts+'</select></div>'+
+    '<div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:10px">Working Hours</div>'+
+    schedHtml+
+    '<div style="margin-top:18px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px">Booking Guardrails (optional)</div>'+
+    '<div class="appt-sched-row">'+
+      '<label class="appt-day-toggle" style="min-width:150px">Buffer between appts</label>'+
+      '<input type="number" class="appt-time-inp" id="sc-buffer" min="0" max="240" step="15" value="'+(Number(sched.bufferMins)||0)+'" style="width:72px">'+
+      '<span style="color:var(--text2);font-size:.8rem">min (0 = off)</span>'+
+    '</div>'+
+    '<div class="appt-sched-row">'+
+      '<label class="appt-day-toggle" style="min-width:150px">Max appts per day</label>'+
+      '<input type="number" class="appt-time-inp" id="sc-maxday" min="0" max="20" step="1" value="'+(Number(sched.maxPerDay)||0)+'" style="width:72px">'+
+      '<span style="color:var(--text2);font-size:.8rem">(0 = unlimited)</span>'+
+    '</div>'+
+    '<div style="margin-top:18px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px">Blocked Dates / Times</div>'+
+    '<div id="sc-blocks"></div>'+
+    '<div class="appt-block-add-row">'+
+      '<input type="date" class="appt-form-input" style="width:auto" id="blk-dt" min="'+_apptDateStr(new Date())+'">'+
+      '<label class="appt-chk"><input type="checkbox" id="blk-ad" checked onchange="document.getElementById(\'blk-times\').style.display=this.checked?\'none\':\'flex\'"> All Day</label>'+
+      '<div id="blk-times" style="display:none;gap:8px;align-items:center">'+
+        '<input type="time" class="appt-time-inp" id="blk-ts" value="09:00">'+
+        '<span style="color:var(--text2);font-size:.8rem">to</span>'+
+        '<input type="time" class="appt-time-inp" id="blk-te" value="17:00">'+
+      '</div>'+
+      '<input type="text" class="appt-form-input" id="blk-rsn" placeholder="Reason (optional)" style="flex:1;min-width:120px">'+
+      '<button class="appt-book-btn" onclick="_addBlk()">+ Add</button>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">'+
+      '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="closeApptSchedModal()">Cancel</button>'+
+      '<button class="appt-book-btn" id="sc-save-btn" onclick="saveApptSched()">Save Schedule</button>'+
+    '</div>';
+  document.querySelectorAll('.appt-day-cb').forEach(function(cb){
+    cb.addEventListener('change',function(){
+      this.closest('.appt-sched-row').querySelector('.appt-day-times').style.display=this.checked?'flex':'none';
+    });
+  });
+  _loadBlocks(me);
+  document.getElementById('appt-sched-modal').classList.add('open');
+}
+
+function _loadBlocks(email) {
+  var el=document.getElementById('sc-blocks'); if(!el) return;
+  el.innerHTML='<div style="color:var(--text2);font-size:.82rem;padding:4px 0">Loading blocks…</div>';
+  _apptGet({action:'getActivatorBlocks',email:email}).then(function(res){
+    var blocks=res.blocks||[];
+    if(!blocks.length){el.innerHTML='<div style="color:var(--text2);font-size:.82rem;padding:4px 0">No blocks set.</div>';return;}
+    el.innerHTML=blocks.map(function(b){
+      var t=b.allDay?'All Day':_apptFmt12(b.startTime)+' – '+_apptFmt12(b.endTime);
+      return '<div class="appt-block-row">'+
+        '<span class="appt-block-date">'+esc(_apptFmtDate(b.date))+'</span>'+
+        '<span class="appt-block-time">'+esc(t)+'</span>'+
+        '<span class="appt-block-reason">'+esc(b.reason||'')+'</span>'+
+        '<button class="appt-do-cancel-btn" onclick="_removeBlk(\''+esc(b.blockId)+'\',\''+esc(email)+'\')">✕</button>'+
+      '</div>';
+    }).join('');
+  });
+}
+
+function _addBlk() {
+  var date=(document.getElementById('blk-dt')||{}).value||'';
+  if(!date){alert('Select a date for the block.');return;}
+  var allDay=(document.getElementById('blk-ad')||{}).checked!==false;
+  _apptPost({action:'addActivatorBlock',activatorEmail:SESSION.email,date:date,
+    allDay:allDay,startTime:(document.getElementById('blk-ts')||{}).value||'',
+    endTime:(document.getElementById('blk-te')||{}).value||'',
+    reason:(document.getElementById('blk-rsn')||{}).value||''
+  }).then(function(res){
+    if(res.ok){_loadBlocks(SESSION.email);document.getElementById('blk-dt').value='';document.getElementById('blk-rsn').value='';}
+    else alert(res.error||'Failed to add block.');
+  });
+}
+
+function _removeBlk(blockId,email) {
+  _apptPost({action:'removeActivatorBlock',blockId:blockId}).then(function(res){
+    if(res.ok)_loadBlocks(email); else alert(res.error||'Failed.');
+  });
+}
+
+function saveApptSched() {
+  var tz=(document.getElementById('sc-tz')||{}).value||'';
+  var sched={};
+  ['mon','tue','wed','thu','fri','sat','sun'].forEach(function(day){
+    var cb=document.querySelector('[data-day="'+day+'"]');
+    var s=(document.getElementById('sc-'+day+'-s')||{}).value||'';
+    var e=(document.getElementById('sc-'+day+'-e')||{}).value||'';
+    sched[day]=(cb&&cb.checked&&s&&e)?{start:s,end:e}:{start:'',end:''};
+  });
+  var buffer=parseInt((document.getElementById('sc-buffer')||{}).value||'0')||0;
+  var maxday=parseInt((document.getElementById('sc-maxday')||{}).value||'0')||0;
+  var btn=document.getElementById('sc-save-btn');
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  Promise.all([
+    _apptPost({action:'setActivatorSchedule',email:SESSION.email,timezone:tz,schedule:sched,bufferMins:buffer,maxPerDay:maxday}),
+    _apptPost({action:'setActivatorTimezone',email:SESSION.email,timezone:tz})
+  ]).then(function(){
+    if(btn){btn.disabled=false;btn.textContent='Save Schedule';}
+    closeApptSchedModal(); _APPT.activators=null; renderAppointmentsTab();
+  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Save Schedule';}alert('Save failed. Try again.');});
+}
+
+function closeApptSchedModal() { document.getElementById('appt-sched-modal').classList.remove('open'); }
 
 // ── BOOT ─────────────────────────────────────────────────────────────────
 document.addEventListener('click', function(e) {
