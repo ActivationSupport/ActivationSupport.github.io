@@ -201,6 +201,17 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .ct-chip-atrisk{color:#f0995a}
 .ct-chip-rotting{color:#e9756a}
 .ct-chip-booked{color:#6cb6e8}
+/* Phase 2 #3: active-filter chip bar + click-to-filter pills */
+.ct-active-filters{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:10px}
+.ct-active-filters:empty{display:none;margin:0}
+.ct-af-lbl{font-size:.74rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text2);margin-right:2px}
+.ct-af-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 5px 3px 10px;border-radius:13px;font-size:.76rem;font-weight:600;background:rgba(74,159,212,.14);border:1px solid var(--blue2);color:var(--text)}
+.ct-af-x{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:.9rem;line-height:1;cursor:pointer;color:var(--text2);background:rgba(255,255,255,.06)}
+.ct-af-x:hover{background:rgba(233,117,106,.3);color:#fff}
+.ct-af-clear{font-size:.74rem;font-weight:700;cursor:pointer;color:var(--text2);text-decoration:underline;text-underline-offset:2px;margin-left:4px}
+.ct-af-clear:hover{color:var(--text)}
+.ct-clk{cursor:pointer}
+.ct-clk:hover{outline:1.5px solid var(--blue2);outline-offset:1px}
 .call-table tbody tr{transition:opacity .12s}
 .call-table tbody:hover tr:not(:hover){opacity:.45}
 
@@ -1713,20 +1724,22 @@ function showToast(msg) {
 
 var PRODUCT_LABELS = { 'WIRELESS':'Wireless','AIR/AWB':'Air','TABLET/WEARABLE':'Tablet','FIBER':'Fiber','VOIP':'VoIP','DTV':'DTV' };
 
-function productBreakdown(productCounts) {
+function productBreakdown(productCounts, clickable) {
   if (!productCounts || !Object.keys(productCounts).length) return '<span class="sp sp-default">—</span>';
   return Object.keys(productCounts).map(function(pt) {
     var label = PRODUCT_LABELS[pt.toUpperCase()] || pt;
     var count = productCounts[pt];
-    return '<span class="prod-pill">' + esc(label) + (count > 1 ? ' \xd7' + count : '') + '</span>';
+    var attrs = clickable ? ' ct-clk" onclick="_ctAddFilter(\'product\',\''+esc(pt)+'\')" title="Click to filter by this product"' : '"';
+    return '<span class="prod-pill'+attrs+'>' + esc(label) + (count > 1 ? ' \xd7' + count : '') + '</span>';
   }).join('');
 }
 
-function statusBreakdown(statusCounts) {
+function statusBreakdown(statusCounts, clickable) {
   if (!statusCounts || !Object.keys(statusCounts).length) return '<span class="sp sp-yellow">—</span>';
   return Object.keys(statusCounts).map(function(s) {
     var count = statusCounts[s];
-    return '<span class="sp ' + spCls(s) + '">' + esc(s) + (count > 1 ? ' \xd7' + count : '') + '</span>';
+    var attrs = clickable ? ' ct-clk" onclick="_ctAddFilter(\'status\',\''+esc(s)+'\')" title="Click to filter by this status"' : '"';
+    return '<span class="sp ' + spCls(s) + attrs + '>' + esc(s) + (count > 1 ? ' \xd7' + count : '') + '</span>';
   }).join(' ');
 }
 
@@ -1905,6 +1918,8 @@ function _applyView() {
   }
   var chipsEl = document.getElementById('ct-chips');
   if (chipsEl) chipsEl.innerHTML = _ctChipsInner(_tabOrders);   // keep chip counts/active state fresh (e.g. after booked load)
+  var afEl = document.getElementById('ct-active-filters');
+  if (afEl) afEl.innerHTML = _ctActiveFilterBar();              // active-filter chip bar (Phase 2 #3)
 }
 
 function sortCallTable(col) {
@@ -2049,6 +2064,77 @@ function _ctSetRisk(val) {
   _applyView();
 }
 
+// ── Cross-filter: active-filter chip bar + click-to-filter on row values ───
+// One pill per applied filter (product/status/risk/last-called/date), each with
+// its own ✕, plus a "Clear all". Re-rendered by _applyView on every filter
+// change. Only ever narrows the already role-scoped _tabOrders — never reveals
+// rows the user couldn't already see.
+function _ctSyncDdLabels() {
+  var pb=document.querySelector('#dd-product .dd-btn');
+  if(pb) pb.textContent=(_activeFilters.products.length?'Product ('+_activeFilters.products.length+')':'Product')+' ▾';
+  var sb=document.querySelector('#dd-status .dd-btn');
+  if(sb) sb.textContent=(_activeFilters.statuses.length?'Status ('+_activeFilters.statuses.length+')':'Status')+' ▾';
+}
+// Click a product/status pill inside a row → toggle that value in the filter
+// (and keep the matching dropdown checkbox in sync).
+function _ctAddFilter(type, value) {
+  var arr = type==='product' ? _activeFilters.products : _activeFilters.statuses;
+  var present = arr.indexOf(value) !== -1;
+  if (present) arr.splice(arr.indexOf(value),1); else arr.push(value);
+  var ddp=document.getElementById('ddp-'+type);
+  if(ddp) ddp.querySelectorAll('input[type=checkbox]').forEach(function(cb){ if(cb.value===value) cb.checked = !present; });
+  _ctSyncDdLabels();
+  _applyView();
+  _updateFilterBadge();
+}
+function _ctRemoveFilter(type, value) {
+  if (type==='product' || type==='status') {
+    var arr = type==='product' ? _activeFilters.products : _activeFilters.statuses;
+    var i=arr.indexOf(value); if(i!==-1) arr.splice(i,1);
+    var ddp=document.getElementById('ddp-'+type);
+    if(ddp) ddp.querySelectorAll('input[type=checkbox]').forEach(function(cb){ if(cb.value===value) cb.checked=false; });
+    _ctSyncDdLabels();
+  } else if (type==='risk') {
+    _activeFilters.risk='';
+    var rk=document.querySelector('.ct-risk-filter'); if(rk) rk.value='';
+  } else if (type==='lastCalled') {
+    _activeFilters.lastCalled='';
+    var lc=document.getElementById('lc-filter'); if(lc) lc.value='';
+  } else if (type==='dateFrom') {
+    _activeFilters.dateFrom=''; var fe=document.getElementById('f-date-from'); if(fe) fe.value='';
+  } else if (type==='dateTo') {
+    _activeFilters.dateTo=''; var te=document.getElementById('f-date-to'); if(te) te.value='';
+  }
+  _applyView();
+  _updateFilterBadge();
+}
+function _ctFilterChip(prefix, label, type, value) {
+  return '<span class="ct-af-chip">'+(prefix?esc(prefix)+': ':'')+esc(label)+
+    '<span class="ct-af-x" title="Remove" onclick="_ctRemoveFilter(\''+type+'\',\''+esc(value)+'\')">&times;</span></span>';
+}
+function _ctActiveFilterBar() {
+  var chips=[];
+  (_activeFilters.products||[]).forEach(function(p){
+    chips.push(_ctFilterChip('Product', PRODUCT_LABELS[p.toUpperCase()]||p, 'product', p));
+  });
+  (_activeFilters.statuses||[]).forEach(function(s){
+    chips.push(_ctFilterChip('Status', s, 'status', s));
+  });
+  if (_activeFilters.risk) {
+    var rl={atrisk:'⚠ At-risk',rotting:'⏳ Rotting',booked:'📅 Booked'}[_activeFilters.risk]||_activeFilters.risk;
+    chips.push(_ctFilterChip('', rl, 'risk', ''));
+  }
+  if (_activeFilters.lastCalled) {
+    var ll={recent:'Recent (0–2d)',mid:'Due (3–7d)',overdue:'Overdue (8+d)',never:'Never called'}[_activeFilters.lastCalled]||_activeFilters.lastCalled;
+    chips.push(_ctFilterChip('Last call', ll, 'lastCalled', ''));
+  }
+  if (_activeFilters.dateFrom) chips.push(_ctFilterChip('From', _activeFilters.dateFrom, 'dateFrom', ''));
+  if (_activeFilters.dateTo)   chips.push(_ctFilterChip('To',   _activeFilters.dateTo,   'dateTo', ''));
+  if (!chips.length) return '';
+  return '<span class="ct-af-lbl">Filters</span>'+chips.join('')+
+    '<span class="ct-af-clear" onclick="clearCallFilters()">Clear all</span>';
+}
+
 // Lazily pull the appointment list once and map DSI -> nearest future appt, so
 // call-log rows can show a "📅 Booked" badge. Uses the existing (already
 // deployed) getAppointments endpoint. DSIs are privacy-masked for some roles —
@@ -2088,9 +2174,9 @@ function callTableRows(orders, extraColFn) {
       '<td><span class="rep-name">'+esc(o.rep)+'</span></td>' +
       '<td>'+dsiCell+'</td>' +
       '<td>'+esc(o.orderDate)+'</td>' +
-      '<td>'+productBreakdown(o.productCounts)+'</td>' +
+      '<td>'+productBreakdown(o.productCounts, true)+'</td>' +
       extra +
-      '<td>'+statusBreakdown(o.statusCounts)+'</td>' +
+      '<td>'+statusBreakdown(o.statusCounts, true)+'</td>' +
       _bookedCell(booked) +
       '<td>' + ratingPill(dsi, safeId) + '</td>' +
       '<td>' +
@@ -2129,6 +2215,7 @@ function renderCallTable(orders, title, emptyMsg) {
     '</select>';
   return '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-ct') +
+    '<div class="ct-active-filters" id="ct-active-filters"></div>' +
     '<div class="ct-chips" id="ct-chips">'+_ctChipsInner(orders)+'</div>' +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
       '<div id="ct-count" class="tbl-count" style="margin:0">Showing all '+orders.length+' orders</div>' +
@@ -2217,6 +2304,7 @@ function renderNoAnswerTable() {
     '</select>';
   return '<div class="card"><div class="card-header dark">No Answer &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-na') +
+    '<div class="ct-active-filters" id="ct-active-filters"></div>' +
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' + lcFilter + '</div>' +
     '<div class="call-table-wrap"><table class="call-table" id="na-table"><thead><tr>' +
     headers +
@@ -2238,6 +2326,7 @@ function renderEscalationsTable() {
   if (_BOOKED_MAP === null) _loadBookedAppts();
   return '<div class="card"><div class="card-header dark">Escalations &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-esc') +
+    '<div class="ct-active-filters" id="ct-active-filters"></div>' +
     '<div class="call-table-wrap"><table class="call-table" id="esc-table"><thead><tr>' +
     _sortHeaders('esc-table') +
     '</tr></thead><tbody>'+callTableRows(orders,null)+'</tbody></table></div></div></div>';
