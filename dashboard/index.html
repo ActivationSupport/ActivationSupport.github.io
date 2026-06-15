@@ -811,10 +811,40 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .abm-seg-btn{flex:1;padding:9px 14px;border:none;border-radius:6px;background:transparent;color:var(--text2);font-size:.84rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
 .abm-seg-btn:hover{color:var(--text)}
 .abm-seg-btn.active{background:var(--blue2);color:#fff}
-.abm-soonest-chip{padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:.9rem;text-align:center}
+.abm-soonest-chip{padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;font-size:.92rem;text-align:center}
 .abm-chip-muted{color:var(--text2)}
 .abm-chip-ok{color:var(--text)}
 .abm-chip-ok b{color:#52c785}
+/* Phase 3 #1: booking-modal visual pass (scoped to #appt-booking-modal) */
+#appt-booking-modal .modal{padding:26px 28px 24px;border-radius:14px;border-color:rgba(255,255,255,.12);box-shadow:0 24px 60px rgba(0,0,0,.55)}
+#appt-booking-modal h3{font-size:1.18rem;font-weight:800;margin-bottom:20px;letter-spacing:.2px}
+#appt-booking-modal .modal-close{font-size:1.15rem}
+#appt-booking-modal .appt-form-grid{gap:14px 16px}
+#appt-booking-modal .field{margin-bottom:0}
+#appt-booking-modal .appt-form-input{padding:11px 13px;border-radius:8px;background:#1c1c1c;border-color:#383838;font-size:.9rem;transition:border-color .15s,box-shadow .15s}
+#appt-booking-modal .appt-form-input:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(74,159,212,.16)}
+#appt-booking-modal select.appt-form-input{cursor:pointer}
+/* custom checkboxes — replace the raw white browser boxes */
+#appt-booking-modal input[type=checkbox]{appearance:none;-webkit-appearance:none;width:19px;height:19px;border:1.5px solid #4a4a4a;border-radius:6px;background:#1c1c1c;cursor:pointer;position:relative;flex-shrink:0;margin:0;transition:all .15s}
+#appt-booking-modal input[type=checkbox]:hover{border-color:var(--blue2)}
+#appt-booking-modal input[type=checkbox]:checked{background:var(--blue2);border-color:var(--blue2)}
+#appt-booking-modal input[type=checkbox]:checked::after{content:'';position:absolute;left:5.5px;top:2px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+/* checkbox labels: undo the global .field label block/uppercase bleed */
+#appt-booking-modal .appt-chk{display:inline-flex;align-items:center;gap:9px;font-size:.86rem;font-weight:500;text-transform:none;letter-spacing:normal;color:var(--text);margin-bottom:0;cursor:pointer}
+#appt-booking-modal .abm-inline-chk{margin-top:12px}
+/* service options as selectable pills */
+#appt-booking-modal .appt-checkbox-row{gap:10px}
+#appt-booking-modal .appt-checkbox-row .appt-chk{padding:9px 14px;border:1.5px solid #383838;border-radius:9px;background:#1c1c1c;transition:all .15s}
+#appt-booking-modal .appt-checkbox-row .appt-chk:hover{border-color:var(--blue2)}
+#appt-booking-modal .appt-checkbox-row .appt-chk:has(input:checked){border-color:var(--blue2);background:rgba(74,159,212,.12)}
+/* same-day override: subtle amber callout box */
+#appt-booking-modal .abm-sameday-chk{margin-top:12px;padding:10px 13px;border:1px solid rgba(237,125,49,.32);background:rgba(237,125,49,.07);border-radius:9px}
+#appt-booking-modal .abm-sameday-chk input[type=checkbox]{border-color:#ED7D31}
+#appt-booking-modal .abm-sameday-chk input[type=checkbox]:checked{background:#ED7D31;border-color:#ED7D31}
+#appt-booking-modal .abm-section-title{margin-bottom:14px}
+#appt-booking-modal .abm-divider{margin:22px 0}
+#appt-booking-modal .abm-seg{padding:5px}
+#appt-booking-modal .abm-seg-btn{padding:10px 14px}
 .appt-sched-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .appt-day-toggle{display:flex;align-items:center;gap:7px;min-width:110px;font-size:.85rem;cursor:pointer}
 .appt-day-times{display:flex;align-items:center;gap:8px}
