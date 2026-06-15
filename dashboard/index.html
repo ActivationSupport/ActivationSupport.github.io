@@ -518,6 +518,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .lst-tbl tr:last-child td{border-bottom:none}
 .lst-rep-name{font-weight:600;color:var(--text);font-size:13px}
 .lst-rep-role{font-size:10px;color:var(--text2)}
+/* Phase 2 #5: per-rep relative-baseline flag (hot/cold vs own 4-wk avg) */
+.lst-base-flag{font-size:11px;cursor:help;vertical-align:middle}
 .lst-u-green{background:rgba(34,197,94,.18);color:#4ade80;font-weight:700}
 .lst-u-yellow{background:rgba(234,179,8,.18);color:#fbbf24;font-weight:700}
 .lst-u-orange{background:rgba(249,115,22,.18);color:#fb923c;font-weight:700}
@@ -4103,8 +4105,69 @@ function _lstTeamAgg(repAgg, teams) {
   return tAgg;
 }
 
+// ── Per-rep relative-baseline flagging (Phase 2 #5) ───────────────────────
+// Flags reps doing unusually well/poorly FOR THEM: this week-so-far vs the
+// average of the same portion (Mon..today) of the prior 4 weeks — so the
+// comparison is fair before the week is over. Floor guards keep tiny-volume /
+// thin-history reps unflagged. Metric = units. 🔥 hot ≥140%, ❄️ cold ≤55%.
+var _LST_BASE_CACHE = null;
+var _LST_BASE_HOT = 1.40, _LST_BASE_COLD = 0.55, _LST_BASE_MIN_AVG = 3, _LST_BASE_MIN_WEEKS = 3;
+
+function _lstBaselineMap() {
+  var ws = _lstWeekStart(), DAY = 86400000, todayIdx = _lstTodayIdx();
+  var monStart = []; for (var k = 0; k <= 4; k++) monStart[k] = ws.getTime() - k * 7 * DAY;
+  var acc = {};   // email -> {full:[5], partial:[5]}  (idx 0=this week, 1..4=prior weeks)
+  (_LST_SALES || []).forEach(function(s) {
+    if (!s.dateOfSale || !s.repEmail) return;
+    var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
+    var t = sd.getTime();
+    for (var k = 0; k <= 4; k++) {
+      if (t >= monStart[k] && t < monStart[k] + 7 * DAY) {
+        if (!acc[s.repEmail]) acc[s.repEmail] = { full:[0,0,0,0,0], partial:[0,0,0,0,0] };
+        var dayIdx = Math.floor((t - monStart[k]) / DAY);
+        acc[s.repEmail].full[k] += s.units || 0;
+        if (dayIdx <= todayIdx) acc[s.repEmail].partial[k] += s.units || 0;
+        break;
+      }
+    }
+  });
+  var out = {};
+  Object.keys(acc).forEach(function(e) {
+    var a = acc[e];
+    var priorFull = [a.full[1], a.full[2], a.full[3], a.full[4]];
+    var weeksWithData = priorFull.filter(function(u){ return u > 0; }).length;
+    var avgFull = (priorFull[0] + priorFull[1] + priorFull[2] + priorFull[3]) / 4;
+    if (weeksWithData < _LST_BASE_MIN_WEEKS || avgFull < _LST_BASE_MIN_AVG) { out[e] = null; return; }
+    var thisWk = a.partial[0];
+    var avgPartial = (a.partial[1] + a.partial[2] + a.partial[3] + a.partial[4]) / 4;
+    var state = null;
+    if (avgPartial <= 0) {
+      if (thisWk >= 2) state = 'hot';   // usually nothing sold by now, but they have sales → hot
+    } else {
+      var ratio = thisWk / avgPartial;
+      if (ratio >= _LST_BASE_HOT) state = 'hot';
+      else if (ratio <= _LST_BASE_COLD) state = 'cold';
+    }
+    out[e] = state ? { state:state, thisWk:thisWk, avg:avgFull } : null;
+  });
+  return out;
+}
+
+function _lstBaselineBadge(email) {
+  var f = (_LST_BASE_CACHE || {})[email];
+  if (!f) return '';
+  var icon = f.state === 'hot' ? '🔥' : '❄️';
+  var avg = f.avg.toFixed(1);
+  var unit = f.thisWk === 1 ? 'unit' : 'units';
+  var tip = f.state === 'hot'
+    ? 'Hot streak — ' + f.thisWk + ' ' + unit + ' this week, ahead of their usual pace (4-wk avg ' + avg + '/wk)'
+    : 'Cooling off — ' + f.thisWk + ' ' + unit + ' this week, behind their usual pace (4-wk avg ' + avg + '/wk)';
+  return ' <span class="lst-base-flag lst-base-' + f.state + '" title="' + esc(tip) + '">' + icon + '</span>';
+}
+
 function _lstBuild() {
   var roster = DATA.roster || {}, teams = DATA.teams || {};
+  _LST_BASE_CACHE = _lstBaselineMap();   // per-rep relative-baseline flags (Phase 2 #5)
   var repAgg = _lstAgg(_LST_SALES, roster);
   var tAgg = _lstTeamAgg(repAgg, teams);
   var todayIdx = _lstTodayIdx();
@@ -4597,7 +4660,7 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
   function row(item, rank) {
     var d = item.d;
     var r = '<tr><td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(d.name) + '</div>' +
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(d.name) + _lstBaselineBadge(item.email) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[d.rank] || d.rank) + '</div></td>';
     for (var i = 0; i < 7; i++) {
       if (i > todayIdx) {
@@ -4688,7 +4751,7 @@ function _lstWeeksTbl(leaders, reps) {
   function row(item, rank) {
     var wr = wAgg[item.email]; if (!wr) return '';
     var r = '<tr><td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(wr.name) + '</div>' +
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(wr.name) + _lstBaselineBadge(item.email) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[wr.rank] || wr.rank) + '</div></td>';
     wr.weeks.forEach(function(w) {
       r += '<td style="color:var(--text2)">' + w.orders + '</td>';
