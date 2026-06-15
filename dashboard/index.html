@@ -445,6 +445,26 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .lst-view-toggle{display:flex;gap:4px}
 .lst-view-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;user-select:none}
 .lst-view-btn.active{background:var(--blue2);border-color:var(--blue2);color:#fff}
+/* ── KPI SUMMARY CARDS ── */
+.lst-kpi-head{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 12px}
+.lst-kpi-hint{font-size:11px;color:var(--text2)}
+.lst-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:28px}
+.lst-kpi-card{position:relative;background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--kpi-accent,var(--blue2));border-radius:10px;padding:14px 14px 8px;overflow:hidden}
+.lst-kpi-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
+.lst-kpi-val{font-size:30px;font-weight:700;color:var(--text);line-height:1.1;margin-top:4px}
+.lst-kpi-delta{font-size:11px;font-weight:600;margin-top:4px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.lst-kpi-delta.up{color:#4ade80}
+.lst-kpi-delta.down{color:#f87171}
+.lst-kpi-delta.flat{color:var(--text2)}
+.lst-kpi-arrow{font-size:9px}
+.lst-kpi-vs{color:var(--text2);font-weight:500}
+.lst-kpi-spark-wrap{margin-top:8px;height:34px}
+.lst-spark{width:100%;height:34px;display:block}
+.lst-kpi-card-top{display:flex;flex-direction:column}
+.lst-kpi-top-name{font-size:18px;font-weight:700;color:var(--text);margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lst-kpi-top-empty{color:var(--text2);font-weight:600;font-size:15px}
+.lst-kpi-top-stats{font-size:12px;color:var(--blue2);font-weight:600;margin-top:4px}
+.lst-kpi-top-period{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-top:auto;padding-top:8px}
 .lst-tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
 .lst-tbl{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
 .lst-tbl th{padding:8px 10px;color:var(--text2);font-size:10px;font-weight:600;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--surface2);text-align:center}
@@ -3704,12 +3724,14 @@ function _lstBuild() {
   var role = SESSION.role;
   var isTeamScoped = role === 'leader' || role === 'jd';
   var lstTeamName = '';
+  var kpiTeamSet = null;
   if (isTeamScoped) {
     var lstTeam = _myTeam();
     if (lstTeam) {
       lstTeamName = lstTeam.name;
       var teamEmailSet = {};
       _teamEmails(lstTeamName).forEach(function(e) { teamEmailSet[e] = true; });
+      kpiTeamSet = teamEmailSet;
       var filteredRepAgg = {};
       Object.keys(repAgg).forEach(function(e) {
         if (teamEmailSet[e]) filteredRepAgg[e] = repAgg[e];
@@ -3734,7 +3756,7 @@ function _lstBuild() {
   var boardTitle = (isTeamScoped && lstTeamName) ? lstTeamName.toUpperCase() + ' LEADERBOARD' : 'OFFICE LEADERBOARD';
 
   return '<div class="lst-wrap">' +
-    _lstWeekBar(totOrd, totUni) +
+    _lstKpiCards(_LST_SALES, roster, _LST_VIEW, kpiTeamSet) +
     _lstTopPerf(all.slice(0, 3), tArr.slice(0, 3)) +
     _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) +
     '</div>';
@@ -3746,6 +3768,154 @@ function _lstWeekBar(ord, uni) {
     '<div class="lst-week-div"></div>' +
     '<div class="lst-week-stat"><div class="lst-wk-lbl">WEEK UNITS</div><div class="lst-wk-num blue">' + uni + '</div></div>' +
     '</div>';
+}
+
+// ── KPI SUMMARY CARDS (client-side over _LST_SALES; respects role scoping) ──
+function _lstKpiDateKey(d){ return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function _lstKpiDayLabel(d){ return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate(); }
+
+function _lstKpiAddSale(b, email, roster, s){
+  b.orders++;
+  b.units += s.units || 0;
+  if (!b.reps[email]) b.reps[email] = { name: (roster[email] && roster[email].name) || email, orders:0, units:0 };
+  b.reps[email].orders++;
+  b.reps[email].units += s.units || 0;
+}
+
+// Build period buckets oldest→newest. days: last 14 calendar days; weeks: last 8 Mon-start weeks.
+function _lstKpiBuckets(sales, roster, view, teamSet) {
+  var DAY = 86400000;
+  var now = new Date(); now.setHours(0,0,0,0);
+  var buckets = [], index = {};
+  function mk(key, label){ var b={key:key,label:label,orders:0,units:0,reps:{}}; buckets.push(b); index[key]=b; return b; }
+
+  function eligible(email){
+    if (!roster[email] || roster[email].deactivated) return false;
+    if (teamSet && !teamSet[email]) return false;
+    return true;
+  }
+
+  if (view === 'weeks') {
+    var dow = now.getDay(), dfm = dow === 0 ? 6 : dow - 1;
+    var curMon = new Date(now); curMon.setDate(now.getDate() - dfm); curMon.setHours(0,0,0,0);
+    for (var i = 7; i >= 0; i--) {
+      var ms = new Date(curMon.getTime() - i * 7 * DAY);
+      mk(_lstKpiDateKey(ms), (ms.getMonth()+1)+'/'+ms.getDate());
+    }
+    (sales || []).forEach(function(s){
+      if (!s.dateOfSale || !eligible(s.repEmail)) return;
+      var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
+      var wdow = sd.getDay(), wdfm = wdow === 0 ? 6 : wdow - 1;
+      var sMon = new Date(sd); sMon.setDate(sd.getDate() - wdfm); sMon.setHours(0,0,0,0);
+      var b = index[_lstKpiDateKey(sMon)];
+      if (b) _lstKpiAddSale(b, s.repEmail, roster, s);
+    });
+  } else {
+    for (var j = 13; j >= 0; j--) {
+      var dms = new Date(now.getTime() - j * DAY);
+      mk(_lstKpiDateKey(dms), _lstKpiDayLabel(dms));
+    }
+    (sales || []).forEach(function(s){
+      if (!s.dateOfSale || !eligible(s.repEmail)) return;
+      var sd2 = new Date(s.dateOfSale + 'T12:00:00'); sd2.setHours(0,0,0,0);
+      var b2 = index[_lstKpiDateKey(sd2)];
+      if (b2) _lstKpiAddSale(b2, s.repEmail, roster, s);
+    });
+  }
+  return buckets;
+}
+
+function _lstDelta(cur, prev, word, decimals) {
+  var d = cur - prev;
+  var cls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  var arrow = d > 0 ? '▲' : d < 0 ? '▼' : '—';
+  var mag = decimals ? Math.abs(d).toFixed(decimals) : Math.abs(d);
+  var sign = d > 0 ? '+' : d < 0 ? '−' : '';
+  var pct = '';
+  if (prev > 0) pct = ' ('+sign+Math.round(Math.abs(d)/prev*100)+'%)';
+  var txt = d === 0 ? 'no change' : sign+mag+pct;
+  return '<div class="lst-kpi-delta '+cls+'"><span class="lst-kpi-arrow">'+arrow+'</span>'+txt+
+    ' <span class="lst-kpi-vs">vs prior '+word+'</span></div>';
+}
+
+function _lstSpark(series, color) {
+  if (!series || !series.length) return '';
+  var w = 120, h = 34, pad = 2, n = series.length;
+  var max = Math.max.apply(null, series), min = Math.min.apply(null, series);
+  var range = max - min || 1;
+  var stepX = n > 1 ? (w - pad*2)/(n-1) : 0;
+  var pts = series.map(function(v, i){
+    var x = pad + i*stepX;
+    var y = pad + (h - pad*2) * (1 - (v - min)/range);
+    return x.toFixed(1)+','+y.toFixed(1);
+  });
+  var line = pts.join(' ');
+  var lastX = (pad+(n-1)*stepX).toFixed(1);
+  var lastY = (pad + (h-pad*2)*(1-(series[n-1]-min)/range)).toFixed(1);
+  var area = pad+','+(h-pad)+' '+line+' '+lastX+','+(h-pad);
+  return '<svg class="lst-spark" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+
+    '<polygon points="'+area+'" fill="'+color+'" opacity="0.10"/>'+
+    '<polyline points="'+line+'" fill="none" stroke="'+color+'" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<circle cx="'+lastX+'" cy="'+lastY+'" r="2.2" fill="'+color+'"/>'+
+    '</svg>';
+}
+
+function _lstKpiCard(label, value, deltaHtml, sparkHtml, color) {
+  return '<div class="lst-kpi-card" style="--kpi-accent:'+color+'">'+
+    '<div class="lst-kpi-lbl">'+esc(label)+'</div>'+
+    '<div class="lst-kpi-val">'+value+'</div>'+
+    deltaHtml+
+    '<div class="lst-kpi-spark-wrap">'+sparkHtml+'</div>'+
+    '</div>';
+}
+
+function _lstKpiTopCard(top, view) {
+  var body = top
+    ? '<div class="lst-kpi-top-name">🥇 '+esc(top.name)+'</div>'+
+      '<div class="lst-kpi-top-stats">'+top.units+' units · '+top.orders+' orders</div>'
+    : '<div class="lst-kpi-top-name lst-kpi-top-empty">No sales yet</div>';
+  return '<div class="lst-kpi-card lst-kpi-card-top" style="--kpi-accent:#FFC000">'+
+    '<div class="lst-kpi-lbl">Top Performer</div>'+body+
+    '<div class="lst-kpi-top-period">'+(view==='weeks'?'this week':'today')+'</div>'+
+    '</div>';
+}
+
+function _lstKpiCards(sales, roster, view, teamSet) {
+  var buckets = _lstKpiBuckets(sales, roster, view, teamSet);
+  var n = buckets.length;
+  var cur  = buckets[n-1] || {orders:0,units:0,reps:{}};
+  var prev = buckets[n-2] || {orders:0,units:0,reps:{}};
+
+  var ordSeries  = buckets.map(function(b){return b.orders;});
+  var uniSeries  = buckets.map(function(b){return b.units;});
+  var sellSeries = buckets.map(function(b){return Object.keys(b.reps).length;});
+  var upoSeries  = buckets.map(function(b){return b.orders ? b.units/b.orders : 0;});
+
+  var curSellers  = Object.keys(cur.reps).length;
+  var prevSellers = Object.keys(prev.reps).length;
+  var curUpo  = cur.orders  ? cur.units/cur.orders   : 0;
+  var prevUpo = prev.orders ? prev.units/prev.orders : 0;
+
+  var top = null;
+  Object.keys(cur.reps).forEach(function(e){
+    var r = cur.reps[e];
+    if (!top || r.units > top.units || (r.units === top.units && r.orders > top.orders))
+      top = { name:r.name, units:r.units, orders:r.orders };
+  });
+
+  var word = view === 'weeks' ? 'wk' : 'day';
+  var EX = { blue:'#5B9BD5', green:'#70AD47', orange:'#ED7D31', gold:'#FFC000' };
+
+  var cards =
+    _lstKpiCard('Orders',        cur.orders, _lstDelta(cur.orders, prev.orders, word),       _lstSpark(ordSeries,  EX.blue),   EX.blue) +
+    _lstKpiCard('Units',         cur.units,  _lstDelta(cur.units,  prev.units,  word),       _lstSpark(uniSeries,  EX.green),  EX.green) +
+    _lstKpiCard('Units / Order', (cur.orders ? curUpo.toFixed(1) : '—'), _lstDelta(curUpo, prevUpo, word, 1), _lstSpark(upoSeries, EX.orange), EX.orange) +
+    _lstKpiCard('Active Sellers',curSellers, _lstDelta(curSellers, prevSellers, word),       _lstSpark(sellSeries, EX.gold),   EX.gold) +
+    _lstKpiTopCard(top, view);
+
+  var hint = view === 'weeks' ? 'This week vs last week · 8-week trend' : 'Today vs yesterday · 14-day trend';
+  return '<div class="lst-kpi-head"><div class="lst-sec-lbl">SUMMARY</div><div class="lst-kpi-hint">'+hint+'</div></div>'+
+    '<div class="lst-kpi-row">'+cards+'</div>';
 }
 
 function _lstTopPerf(topAll, topTeams) {
