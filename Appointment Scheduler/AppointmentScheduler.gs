@@ -10,6 +10,12 @@ var BLOCKS_TAB  = 'ActivatorBlocks';
 var SLOT_MINS   = 60;
 var MIN_ADV_HRS = 2;
 
+// Booking window (Phase 1): NO same-day. Earliest bookable = the next day;
+// latest = the same weekday next week (rolling 7-day window that slides forward
+// daily). This supersedes the old MIN_ADV_HRS same-day rule.
+var BOOKING_MIN_DAYS = 1;  // earliest = today + 1
+var BOOKING_MAX_DAYS = 7;  // latest   = today + 7 (same weekday next week)
+
 // Fallback working hours for activators who haven't set a custom schedule.
 // Mon–Fri 10:00–17:00 in the activator's (office) timezone. They can override
 // any/all of this via "Manage My Schedule".
@@ -24,17 +30,31 @@ var OFFICE_TZ = {
   ignite:    'America/Los_Angeles'
 };
 
+// Optional per-office call-in fallback number shown in customer emails.
+// Leave '' to omit the call-in line (the email still tells the customer the
+// activator will call them). Fill these in when the office numbers are known.
+var OFFICE_CALLIN = {
+  midspire: '',
+  viridian: '',
+  elevate:  '',
+  ignite:   ''
+};
+
 var APPT_HEADERS = [
   'appointmentId','activatorEmail','bookerEmail','customerName',
   'customerDSI','customerPhone','customerEmail','services',
-  'deviceCount','date','timeSlot','office','status','bookedAt','rem24hSent'
+  'deviceCount','date','timeSlot','office','status','bookedAt','rem24hSent',
+  // Phase 1 additions (append-only — never reorder the columns above):
+  'outcome','outcomeNote','outcomeBy','outcomeAt'
 ];
 
 var SCHED_HEADERS = [
   'email','timezone',
   'monStart','monEnd','tueStart','tueEnd',
   'wedStart','wedEnd','thuStart','thuEnd',
-  'friStart','friEnd','satStart','satEnd','sunStart','sunEnd'
+  'friStart','friEnd','satStart','satEnd','sunStart','sunEnd',
+  // Phase 1 additions (append-only):
+  'bufferMins','maxPerDay'
 ];
 
 var BLOCKS_HEADERS = [
@@ -78,8 +98,42 @@ function _ensureSheet(tabName, headers) {
   if (!sheet) {
     sheet = ss.insertSheet(tabName);
     sheet.appendRow(headers);
+  } else {
+    _ensureHeaders(sheet, headers);
   }
   return sheet;
+}
+
+// Append-only header migration: if an existing sheet has fewer columns than the
+// current header list (because new columns were added in a later release), write
+// the missing header labels into row 1. Existing data rows keep their values;
+// the new columns simply read back blank for old rows. Never reorders columns.
+function _ensureHeaders(sheet, headers) {
+  if (!sheet || sheet.getLastRow() === 0) return;
+  var have = sheet.getLastColumn();
+  if (have >= headers.length) return;
+  var missing = headers.slice(have);
+  sheet.getRange(1, have + 1, 1, missing.length).setValues([missing]);
+  _bustCache(sheet.getName());
+}
+
+// ── Booking window ────────────────────────────────────────────
+// Returns the inclusive bookable date range as canonical YYYY-MM-DD strings,
+// computed in the script timezone. min = tomorrow, max = +7 days.
+function _todayStr() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+function _bookingWindow() {
+  var tz  = Session.getScriptTimeZone();
+  var now = Date.now();
+  return {
+    min: Utilities.formatDate(new Date(now + BOOKING_MIN_DAYS * 86400000), tz, 'yyyy-MM-dd'),
+    max: Utilities.formatDate(new Date(now + BOOKING_MAX_DAYS * 86400000), tz, 'yyyy-MM-dd')
+  };
+}
+function _inBookingWindow(dateStr) {
+  var w = _bookingWindow();
+  return dateStr >= w.min && dateStr <= w.max;
 }
 
 function _pad(n) { return String(n).padStart(2, '0'); }
@@ -123,6 +177,43 @@ function _formatTime(timeStr) {
   return hour + ':' + _pad(m) + ' ' + suffix;
 }
 
+// Phone-call logistics line for customer emails. The activator calls the
+// customer at the number on file; an optional office call-in number is the
+// fallback. Returns the two logistics lines as plain text.
+function _callInBlock(office, customerPhone) {
+  var lines = [];
+  if (customerPhone) {
+    lines.push('Your activation specialist will CALL YOU at ' + customerPhone + ' at the time above.');
+  } else {
+    lines.push('Your activation specialist will call you at the time above.');
+  }
+  var callIn = OFFICE_CALLIN[String(office || '').toLowerCase()] || '';
+  if (callIn) {
+    lines.push('If you need to reach us, call ' + callIn + '.');
+  } else {
+    lines.push('If you need to reschedule or have questions, contact your representative.');
+  }
+  return lines.join('\n');
+}
+
+// Cross-writes an appointment's activation note into the portal's existing
+// _Notes_<officeId> tab (same Sheet ID) so it surfaces in the portal's note
+// sections for that DSI. Reuses the existing 'activation' note type.
+// Schema: dsi | timestamp | authorEmail | authorName | noteText | noteType
+function _appendActivationNote(officeId, dsi, authorEmail, authorName, noteText) {
+  if (!officeId || !dsi || !noteText) return;
+  var ss   = _getSS();
+  var name = '_Notes_' + officeId;
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    sheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText','noteType']);
+    sheet.getRange(1,1,1,6).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  sheet.appendRow([String(dsi).trim(), new Date(), authorEmail || '', authorName || '', noteText, 'activation']);
+}
+
 // ── Routing ───────────────────────────────────────────────────
 function doGet(e) {
   var key = (e && e.parameter && e.parameter.key) || '';
@@ -136,6 +227,7 @@ function doGet(e) {
     if (action === 'getAppointments')      return _json({ appointments: getAppointments(p.officeId, p.bookerEmail, p.role) });
     if (action === 'getActivatorSchedule') return _json({ schedule: getActivatorSchedule(p.email) });
     if (action === 'getActivatorBlocks')   return _json({ blocks: getActivatorBlocks(p.email) });
+    if (action === 'getBookingWindow')      return _json({ window: _bookingWindow() });
     return _json({ error: 'unknown action: ' + action });
   } catch (err) { return _json({ error: err.message }); }
 }
@@ -148,6 +240,8 @@ function doPost(e) {
     var action = body.action || '';
     if (action === 'bookAppointment')      return _json(bookAppointment(body));
     if (action === 'cancelAppointment')    return _json(cancelAppointment(body));
+    if (action === 'rescheduleAppointment') return _json(rescheduleAppointment(body));
+    if (action === 'setApptOutcome')        return _json(setApptOutcome(body));
     if (action === 'setActivatorTimezone') return _json(setActivatorTimezone(body));
     if (action === 'setActivatorSchedule') return _json(setActivatorSchedule(body));
     if (action === 'addActivatorBlock')    return _json(addActivatorBlock(body));
@@ -214,7 +308,9 @@ function getActivatorSchedule(email) {
         thu: { start: rows[i][8]  || '', end: rows[i][9]  || '' },
         fri: { start: rows[i][10] || '', end: rows[i][11] || '' },
         sat: { start: rows[i][12] || '', end: rows[i][13] || '' },
-        sun: { start: rows[i][14] || '', end: rows[i][15] || '' }
+        sun: { start: rows[i][14] || '', end: rows[i][15] || '' },
+        bufferMins: Number(rows[i][16]) || 0,   // 0 = off
+        maxPerDay:  Number(rows[i][17]) || 0     // 0 = unlimited
       };
     }
   }
@@ -223,7 +319,8 @@ function getActivatorSchedule(email) {
     timezone: '',
     mon:{start:'',end:''}, tue:{start:'',end:''}, wed:{start:'',end:''},
     thu:{start:'',end:''}, fri:{start:'',end:''}, sat:{start:'',end:''},
-    sun:{start:'',end:''}
+    sun:{start:'',end:''},
+    bufferMins: 0, maxPerDay: 0
   };
 }
 
@@ -241,7 +338,9 @@ function setActivatorSchedule(body) {
     (sched.thu && sched.thu.start) || '', (sched.thu && sched.thu.end) || '',
     (sched.fri && sched.fri.start) || '', (sched.fri && sched.fri.end) || '',
     (sched.sat && sched.sat.start) || '', (sched.sat && sched.sat.end) || '',
-    (sched.sun && sched.sun.start) || '', (sched.sun && sched.sun.end) || ''
+    (sched.sun && sched.sun.start) || '', (sched.sun && sched.sun.end) || '',
+    Number(body.bufferMins) || 0,   // 0 = no buffer
+    Number(body.maxPerDay)  || 0     // 0 = unlimited
   ];
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
@@ -342,6 +441,10 @@ function getAvailableSlots(activatorEmail, dateStr, excludeAppointmentId) {
   var email = String(activatorEmail || '').trim().toLowerCase();
   if (!email || !dateStr) return [];
 
+  // No same-day: only dates inside the rolling [tomorrow, +7 days] window are
+  // bookable. This replaces the old MIN_ADV_HRS advance-notice rule.
+  if (!_inBookingWindow(dateStr)) return [];
+
   var sched    = getActivatorSchedule(email);
   var dayKeys  = ['sun','mon','tue','wed','thu','fri','sat'];
   var date     = new Date(dateStr + 'T12:00:00');
@@ -355,20 +458,35 @@ function getAvailableSlots(activatorEmail, dateStr, excludeAppointmentId) {
     daySched = { start: DEFAULT_HOURS.start, end: DEFAULT_HOURS.end };
   }
 
-  var slots  = _generateSlots(daySched.start, daySched.end);
   var booked = _getBookedSlots(email, dateStr, excludeAppointmentId || '');
-  var blocks  = getActivatorBlocks(email).filter(function(b) { return String(b.date) === dateStr; });
+
+  // Guardrail: max appointments per day (0 = unlimited). If already at the cap,
+  // no further slots are offered for this date.
+  if (sched.maxPerDay > 0 && Object.keys(booked).length >= sched.maxPerDay) return [];
+
+  var slots  = _generateSlots(daySched.start, daySched.end);
+  var blocks = getActivatorBlocks(email).filter(function(b) { return String(b.date) === dateStr; });
 
   slots = slots.filter(function(s) { return !booked[s]; });
   slots = slots.filter(function(s) { return !_isSlotBlocked(s, blocks); });
 
-  // Require at least MIN_ADV_HRS hours advance notice
-  var cutoff = new Date(Date.now() + MIN_ADV_HRS * 3600000);
-  slots = slots.filter(function(s) {
-    var parts    = s.split(':').map(Number);
-    var slotTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), parts[0], parts[1]);
-    return slotTime >= cutoff;
-  });
+  // Guardrail: per-activator buffer (0 = off). A slot is unavailable if it sits
+  // closer than `bufferMins` to any of the activator's other appointments.
+  if (sched.bufferMins > 0) {
+    var bookedStarts = Object.keys(booked).map(function(t) {
+      var p = t.split(':').map(Number); return p[0] * 60 + p[1];
+    });
+    slots = slots.filter(function(s) {
+      var p = s.split(':').map(Number);
+      var sStart = p[0] * 60 + p[1], sEnd = sStart + SLOT_MINS;
+      for (var i = 0; i < bookedStarts.length; i++) {
+        var bStart = bookedStarts[i], bEnd = bStart + SLOT_MINS;
+        var gap = sStart >= bEnd ? sStart - bEnd : (bStart >= sEnd ? bStart - sEnd : -1);
+        if (gap < sched.bufferMins) return false;   // gap < 0 means overlap
+      }
+      return true;
+    });
+  }
 
   return slots;
 }
@@ -465,6 +583,9 @@ function bookAppointment(body) {
   if (!body.customerName || !body.customerDSI || !body.customerPhone || !body.customerEmail)
     return { error: 'missing customer fields' };
 
+  // No same-day / outside the rolling window.
+  if (!_inBookingWindow(date)) return { error: 'outside_window' };
+
   // "Next Available Agent": resolve to whichever activator is free for this slot.
   if (activatorEmail === '__next__') {
     activatorEmail = _resolveNextActivator(office, date, timeSlot);
@@ -495,7 +616,11 @@ function bookAppointment(body) {
     office,
     'confirmed',
     new Date().toISOString(),
-    false   // rem24hSent
+    false,  // rem24hSent
+    '',     // outcome
+    '',     // outcomeNote
+    '',     // outcomeBy
+    ''      // outcomeAt
   ];
 
   sheet.appendRow(row);
@@ -507,6 +632,7 @@ function bookAppointment(body) {
       activatorEmail: activatorEmail,
       customerName:   body.customerName,
       customerEmail:  body.customerEmail,
+      customerPhone:  body.customerPhone,
       date:           date,
       timeSlot:       timeSlot,
       office:         office,
@@ -544,7 +670,11 @@ function getAppointments(officeId, bookerEmail, role) {
       timeSlot:       _normTimeCell(r[10]),
       office:         r[11],
       status:         r[12],
-      bookedAt:       r[13]
+      bookedAt:       r[13],
+      outcome:        r[15] || '',
+      outcomeNote:    showName ? (r[16] || '') : '',
+      outcomeBy:      r[17] || '',
+      outcomeAt:      r[18] || ''
     });
   }
 
@@ -571,6 +701,107 @@ function cancelAppointment(body) {
   return { error: 'appointment not found' };
 }
 
+// ── Outcome (manually set by the activator after the appointment) ─────────
+// outcome ∈ completed | rescheduled | no-show | canceled.
+// An optional note is stored on the row AND cross-written to the portal's
+// _Notes_<officeId> tab as an 'activation' note so it shows for that DSI.
+function setApptOutcome(body) {
+  var sheet = _ensureSheet(APPT_TAB, APPT_HEADERS);
+  var id    = String(body.appointmentId || '').trim();
+  var role  = String(body.role  || '').trim();
+  var email = String(body.email || '').trim().toLowerCase();
+  var outcome = String(body.outcome || '').trim().toLowerCase();
+  var note    = String(body.note || '').trim();
+  var VALID = ['completed','rescheduled','no-show','canceled'];
+  if (!id) return { error: 'missing appointmentId' };
+  if (VALID.indexOf(outcome) === -1) return { error: 'invalid outcome' };
+  // Only activators / master-admin / the booker may mark an outcome.
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() !== id) continue;
+    var booker = String(data[i][2]).trim().toLowerCase();
+    if (role !== 'master-admin' && role !== 'activator' && email !== booker)
+      return { error: 'not authorized' };
+    var rowNum = i + 1;
+    // Outcome columns are P,Q,R,S (16–19, 1-indexed).
+    sheet.getRange(rowNum, 16, 1, 4).setValues([[
+      outcome, note, email, new Date().toISOString()
+    ]]);
+    _bustCache(APPT_TAB);
+    // Surface the note in the portal's notes for this customer's DSI.
+    if (note) {
+      try {
+        var dsi      = String(data[i][4] || '').trim();
+        var office   = String(data[i][11] || '').trim();
+        var label    = outcome.charAt(0).toUpperCase() + outcome.slice(1);
+        _appendActivationNote(office, dsi, email, email,
+          '[Appointment ' + label + '] ' + note);
+      } catch (err) { Logger.log('Outcome note error: ' + err); }
+    }
+    return { ok: true };
+  }
+  return { error: 'appointment not found' };
+}
+
+// ── Reschedule in place (one "moved" email instead of cancel + rebook) ────
+// Mutates the same row's date/timeSlot (and optionally the activator), re-arms
+// the 24h reminder, and emails the customer once that the time has changed.
+function rescheduleAppointment(body) {
+  var sheet = _ensureSheet(APPT_TAB, APPT_HEADERS);
+  var id      = String(body.appointmentId || '').trim();
+  var role    = String(body.role  || '').trim();
+  var email   = String(body.email || '').trim().toLowerCase();
+  var newDate = String(body.date || '').trim();
+  var newSlot = String(body.timeSlot || '').trim();
+  var newAct  = String(body.activatorEmail || '').trim().toLowerCase();
+  if (!id || !newDate || !newSlot) return { error: 'missing required fields' };
+  if (!_inBookingWindow(newDate)) return { error: 'outside_window' };
+
+  // Keep date/timeSlot columns as plain text (avoid Date coercion).
+  sheet.getRange(1, 10, sheet.getMaxRows(), 2).setNumberFormat('@');
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() !== id) continue;
+    var r      = data[i];
+    var booker = String(r[2]).trim().toLowerCase();
+    if (role !== 'master-admin' && role !== 'activator' && email !== booker)
+      return { error: 'not authorized' };
+    if (String(r[12]).trim().toLowerCase() === 'cancelled')
+      return { error: 'appointment is cancelled' };
+
+    var activator = newAct || String(r[1]).trim().toLowerCase();
+    if (activator === '__next__') {
+      activator = _resolveNextActivator(String(r[11]).trim(), newDate, newSlot);
+      if (!activator) return { error: 'slot_unavailable' };
+    }
+    // Slot must be free for the target activator (excluding this appointment).
+    if (getAvailableSlots(activator, newDate, id).indexOf(newSlot) === -1)
+      return { error: 'slot_unavailable' };
+
+    var rowNum = i + 1;
+    sheet.getRange(rowNum, 2).setValue(activator);   // activatorEmail
+    sheet.getRange(rowNum, 10).setValue(newDate);    // date
+    sheet.getRange(rowNum, 11).setValue(newSlot);    // timeSlot
+    sheet.getRange(rowNum, 15).setValue(false);      // rem24hSent — re-arm reminder
+    _bustCache(APPT_TAB);
+
+    try {
+      _sendMoved({
+        customerName:  r[3],
+        customerEmail: r[6],
+        customerPhone: r[5],
+        date:          newDate,
+        timeSlot:      newSlot,
+        office:        r[11],
+        services:      r[7],
+        deviceCount:   r[8]
+      });
+    } catch (err) { Logger.log('Moved email error: ' + err); }
+    return { ok: true, activatorEmail: activator };
+  }
+  return { error: 'appointment not found' };
+}
+
 // ── Emails ────────────────────────────────────────────────────
 function _sendConfirmation(appt) {
   var to = String(appt.customerEmail || '').trim();
@@ -587,7 +818,33 @@ function _sendConfirmation(appt) {
     'Services: ' + (appt.services || 'N/A')   + '\n' +
     'Devices:  ' + (appt.deviceCount || 1)    + '\n' +
     '───────────────────────\n\n' +
-    'If you have questions or need to cancel, please contact your representative.\n\n' +
+    'This is a PHONE appointment — there is nothing to attend in person.\n' +
+    _callInBlock(appt.office, appt.customerPhone) + '\n\n' +
+    'Activation Support Team';
+  GmailApp.sendEmail(to, subject, body, {
+    name:    'Activation Support Bookings',
+    replyTo: 'activationsupport.bookings@gmail.com'
+  });
+}
+
+// Sent once when an appointment is rescheduled in place.
+function _sendMoved(appt) {
+  var to = String(appt.customerEmail || '').trim();
+  if (!to) return;
+  var subject =
+    'Appointment Updated — ' + _formatDate(appt.date) + ' at ' + _formatTime(appt.timeSlot);
+  var body =
+    'Hi ' + (appt.customerName || 'there') + ',\n\n' +
+    'Your Long Distance activation appointment has been moved to a new time:\n\n' +
+    '───────────────────────\n' +
+    'New Date: ' + _formatDate(appt.date)    + '\n' +
+    'New Time: ' + _formatTime(appt.timeSlot) + '\n' +
+    'Office:   ' + _capitalize(appt.office)   + '\n' +
+    'Services: ' + (appt.services || 'N/A')   + '\n' +
+    'Devices:  ' + (appt.deviceCount || 1)    + '\n' +
+    '───────────────────────\n\n' +
+    'This is a PHONE appointment — there is nothing to attend in person.\n' +
+    _callInBlock(appt.office, appt.customerPhone) + '\n\n' +
     'Activation Support Team';
   GmailApp.sendEmail(to, subject, body, {
     name:    'Activation Support Bookings',
@@ -629,7 +886,8 @@ function checkAndSendReminders() {
         'Services: ' + (r[7] || 'N/A')             + '\n' +
         'Devices:  ' + (r[8] || 1)                 + '\n' +
         '───────────────────────\n\n' +
-        'If you need to cancel or have questions, contact your representative.\n\n' +
+        'This is a PHONE appointment — there is nothing to attend in person.\n' +
+        _callInBlock(String(r[11]), String(r[5] || '')) + '\n\n' +
         'Activation Support Team';
       GmailApp.sendEmail(to, subject, body, {
         name:    'Activation Support Bookings',

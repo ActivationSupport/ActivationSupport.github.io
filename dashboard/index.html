@@ -634,6 +634,21 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-cell-more{font-size:.65rem;color:var(--text2)}
 .appt-status-confirmed{color:var(--green);font-weight:700;font-size:.75rem}
 .appt-status-cancelled{color:var(--red);font-weight:600;font-size:.75rem;text-decoration:line-through}
+/* Phase 1: out-of-window (un-bookable) calendar cells — tonal, not interactive */
+.appt-cell-offwindow{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 6px,rgba(255,255,255,.018) 6px,rgba(255,255,255,.018) 12px);color:#2c2c2c;cursor:default;font-size:.9rem}
+/* Phase 1: appointment outcome badges + controls */
+.appt-outcome{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;text-transform:capitalize}
+.appt-outcome-completed{background:rgba(39,174,96,.16);color:#52c785}
+.appt-outcome-rescheduled{background:rgba(237,125,49,.16);color:#f0995a}
+.appt-outcome-noshow{background:rgba(231,76,60,.16);color:#e9756a}
+.appt-outcome-canceled{background:rgba(231,76,60,.12);color:#cf6b62;text-decoration:line-through}
+.appt-outcome-sel{padding:4px 6px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:5px;font-size:.74rem;cursor:pointer}
+.appt-outcome-sel:focus{border-color:var(--blue2);outline:none}
+.appt-resched-btn{padding:5px 10px;background:transparent;color:var(--blue2);border:1px solid var(--blue2);border-radius:5px;font-size:.75rem;cursor:pointer;transition:all .15s;margin-right:6px}
+.appt-resched-btn:hover{background:rgba(74,159,212,.12)}
+.appt-dsi-link{color:var(--blue2);cursor:pointer;font-weight:600;text-decoration:none}
+.appt-dsi-link:hover{text-decoration:underline}
+.appt-row-needsoutcome{background:rgba(237,125,49,.05)}
 .appt-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .appt-form-input{width:100%;padding:9px 12px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.88rem}
 .appt-form-input:focus{border-color:var(--blue2);outline:none}
@@ -767,6 +782,15 @@ tr:hover td{background:rgba(74,159,212,.07)}
     <span class="modal-close" onclick="closeApptSchedModal()">✕</span>
     <h3>My Schedule &amp; Availability</h3>
     <div id="appt-sched-body"></div>
+  </div>
+</div>
+
+<!-- APPOINTMENT RESCHEDULE MODAL -->
+<div class="modal-bg" id="appt-resched-modal">
+  <div class="modal" style="max-width:520px;width:95%">
+    <span class="modal-close" onclick="closeApptReschedModal()">✕</span>
+    <h3>Reschedule Appointment</h3>
+    <div id="appt-resched-body"></div>
   </div>
 </div>
 
@@ -4352,6 +4376,14 @@ function _apptWeekStart(offset) {
   d.setHours(0,0,0,0); return d;
 }
 function _apptDateStr(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// Phase 1 booking window: NO same-day. Earliest = tomorrow, latest = +7 days
+// (rolling, slides forward daily). Mirrors the backend _bookingWindow().
+function _apptWindow() {
+  var t=new Date(); t.setHours(0,0,0,0);
+  var min=new Date(t); min.setDate(t.getDate()+1);
+  var max=new Date(t); max.setDate(t.getDate()+7);
+  return { min:_apptDateStr(min), max:_apptDateStr(max) };
+}
 function _apptFmt12(t) {
   if (!t) return ''; var p=t.split(':').map(Number); var h=p[0],m=p[1];
   return (h>12?h-12:h===0?12:h)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM');
@@ -4422,6 +4454,7 @@ function _apptCalGrid(appts, acts, ws) {
   var dnames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   var dates = []; for (var d=0;d<7;d++){var x=new Date(ws);x.setDate(ws.getDate()+d);dates.push(_apptDateStr(x));}
   var today = _apptDateStr(new Date());
+  var win = _apptWindow();
   var aMap = {}; appts.forEach(function(a){
     if(!a.date||!a.timeSlot||a.status==='cancelled') return;
     var k=a.date+'|'+a.timeSlot; if(!aMap[k]) aMap[k]=[]; aMap[k].push(a);
@@ -4440,6 +4473,7 @@ function _apptCalGrid(appts, acts, ws) {
     for (var d=0;d<7;d++){
       var ds=dates[d], k=ds+'|'+slot, slotAppts=aMap[k]||[];
       var dayDt=new Date(ds+'T12:00:00'), dk=['sun','mon','tue','wed','thu','fri','sat'][dayDt.getDay()];
+      var offWin = ds<win.min || ds>win.max;   // not bookable outside the rolling window
       if (_APPT.filterEmail) {
         var sc=(sMap[_APPT.filterEmail]||{})[dk]||{}, inH=_apptSlotInSched(slot,sc.start,sc.end);
         var mine=slotAppts.find(function(a){return a.activatorEmail===_APPT.filterEmail;});
@@ -4448,6 +4482,8 @@ function _apptCalGrid(appts, acts, ws) {
           html+='<div class="appt-cal-cell appt-cell-booked" title="'+(ok?esc(mine.customerName):'Booked')+'">'+
             '<div class="appt-cell-name">'+(ok?esc(mine.customerName):'••••••')+'</div>'+
             '<div class="appt-cell-svc">'+esc(mine.services||'')+'</div></div>';
+        } else if(offWin){
+          html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
         } else if(inH){
           html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(_APPT.filterEmail)+'\',\''+slot+'\')">'+
             '<span class="appt-avail-plus">+</span> Book</div>';
@@ -4461,6 +4497,8 @@ function _apptCalGrid(appts, acts, ws) {
             .slice(0,2).forEach(function(a){ html+='<div class="appt-cell-act-tag">'+esc(a.name.split(' ')[0])+'</div>'; });
           if(slotAppts.length>2) html+='<div class="appt-cell-more">+'+(slotAppts.length-2)+'</div>';
           html+='</div>';
+        } else if(offWin){
+          html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
         } else {
           var anyAvail=acts.some(function(a){var s=(sMap[a.email]||{})[dk]||{};return _apptSlotInSched(slot,s.start,s.end);});
           if(anyAvail){
@@ -4476,27 +4514,68 @@ function _apptCalGrid(appts, acts, ws) {
   return html+'</div></div>';
 }
 
+// Outcome option metadata (value → label + badge class suffix).
+var _APPT_OUTCOMES = [
+  ['completed','Completed','completed'],
+  ['rescheduled','Rescheduled','rescheduled'],
+  ['no-show','No-Show','noshow'],
+  ['canceled','Canceled','canceled']
+];
+function _apptOutcomeBadge(v) {
+  var m=_APPT_OUTCOMES.filter(function(o){return o[0]===v;})[0]; if(!m) return '—';
+  return '<span class="appt-outcome appt-outcome-'+m[2]+'">'+esc(m[1])+'</span>';
+}
+function _apptOutcomeSelect(a) {
+  var opts='<option value="">Mark…</option>'+_APPT_OUTCOMES.map(function(o){
+    return '<option value="'+o[0]+'"'+(a.outcome===o[0]?' selected':'')+'>'+o[1]+'</option>';
+  }).join('');
+  return '<select class="appt-outcome-sel" onchange="setApptOutcomeUI(\''+esc(a.appointmentId)+'\',this.value)">'+opts+'</select>';
+}
+
 function _apptUpcomingTable(appts) {
   var today = _apptDateStr(new Date());
-  var rows = appts.filter(function(a){ return a.status!=='cancelled'&&a.date>=today; })
+  // Window back 7 days so recently-finished appointments that still need an
+  // outcome remain visible alongside upcoming ones.
+  var floor = new Date(); floor.setDate(floor.getDate()-7); floor=_apptDateStr(floor);
+  var rows = appts.filter(function(a){ return a.date>=floor; })
     .sort(function(a,b){ return a.date!==b.date?a.date.localeCompare(b.date):a.timeSlot.localeCompare(b.timeSlot); })
-    .slice(0,25);
+    .slice(0,50);
   if (!rows.length) return '<div class="card" style="margin-top:16px"><div class="card-body"><div class="empty">No upcoming appointments.</div></div></div>';
   var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
-  var h='<div class="card" style="margin-top:16px"><div class="card-header dark">Upcoming Appointments</div>'+
-    '<div class="card-body" style="padding:0"><table class="tbl"><thead><tr>'+
-    '<th>Date</th><th>Time</th><th>Activator</th><th>Customer</th><th>Services</th><th>Devices</th><th>Status</th><th></th>'+
+  var h='<div class="card" style="margin-top:16px"><div class="card-header dark">Appointments</div>'+
+    '<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
+    '<th>Date</th><th>Time</th><th>Activator</th><th>Customer</th><th>DSI</th><th>Services</th><th>Status</th><th>Outcome</th><th>Actions</th>'+
     '</tr></thead><tbody>';
   rows.forEach(function(a){
-    var ok=canAll||a.bookerEmail===SESSION.email;
-    var canX=canAll||a.bookerEmail===SESSION.email;
-    h+='<tr><td>'+esc(_apptFmtDate(a.date))+'</td><td>'+esc(_apptFmt12(a.timeSlot))+'</td>'+
+    var ok=canAll||a.bookerEmail===SESSION.email;       // may see customer / DSI
+    var canX=canAll||a.bookerEmail===SESSION.email;      // may modify
+    var cancelled = a.status==='cancelled';
+    var occurred  = a.date<=today;                       // happened or happening today
+    var terminal  = a.outcome==='completed'||a.outcome==='canceled';
+    // Outcome cell: editable select for occurred, non-cancelled appts; else badge / dash.
+    var outcomeCell;
+    if (cancelled) outcomeCell='<span class="appt-outcome appt-outcome-canceled">Canceled</span>';
+    else if (occurred && canX) outcomeCell=_apptOutcomeSelect(a);
+    else if (a.outcome) outcomeCell=_apptOutcomeBadge(a.outcome);
+    else outcomeCell='—';
+    // Actions: reschedule (non-cancelled, non-terminal) + cancel (non-cancelled).
+    var actions='';
+    if (canX && !cancelled && !terminal)
+      actions+='<button class="appt-resched-btn" onclick="rescheduleApptUI(\''+esc(a.appointmentId)+'\')">Reschedule</button>';
+    if (canX && !cancelled)
+      actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>';
+    var dsiCell = ok && a.customerDSI
+      ? '<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>'
+      : (ok?'—':'••••');
+    h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
+      '<td>'+esc(_apptFmtDate(a.date))+'</td><td>'+esc(_apptFmt12(a.timeSlot))+'</td>'+
       '<td>'+esc(_apptActName(a.activatorEmail))+'</td>'+
       '<td>'+(ok?esc(a.customerName):'••••••')+'</td>'+
+      '<td>'+dsiCell+'</td>'+
       '<td style="font-size:.78rem">'+esc(a.services||'—')+'</td>'+
-      '<td>'+esc(a.deviceCount||1)+'</td>'+
       '<td><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span></td>'+
-      '<td>'+(canX?'<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>':'')+'</td>'+
+      '<td>'+outcomeCell+'</td>'+
+      '<td style="white-space:nowrap">'+(actions||'—')+'</td>'+
     '</tr>';
   });
   return h+'</tbody></table></div></div>';
@@ -4517,7 +4596,7 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
   document.getElementById('appt-booking-body').innerHTML =
     '<div class="appt-form-grid">'+
       '<div class="field"><label>Activator</label><select class="appt-form-input" id="abm-act" onchange="_abmLoadSlots()">'+actOpts+'</select></div>'+
-      '<div class="field"><label>Date</label><input type="date" class="appt-form-input" id="abm-date" value="'+esc(date||'')+'" min="'+_apptDateStr(new Date())+'" onchange="_abmLoadSlots()"></div>'+
+      '<div class="field"><label>Date</label><input type="date" class="appt-form-input" id="abm-date" value="'+esc(date||'')+'" min="'+_apptWindow().min+'" max="'+_apptWindow().max+'" onchange="_abmLoadSlots()"></div>'+
       '<div class="field" style="grid-column:1/-1"><label>Time Slot</label><select class="appt-form-input" id="abm-slot"><option value="">Select activator &amp; date first…</option></select></div>'+
       '<div class="field"><label>First Name + Last Initial</label><input type="text" class="appt-form-input" id="abm-name" placeholder="e.g. John D."></div>'+
       '<div class="field"><label>DSI Number</label><input type="text" class="appt-form-input" id="abm-dsi" placeholder="DSI #"></div>'+
@@ -4599,6 +4678,97 @@ function cancelAppt(id) {
   });
 }
 
+// Rebuild the appointments view from cached data (no refetch) — used to revert
+// an outcome <select> when the activator backs out of the note prompt.
+function _apptRerender() {
+  var c=document.getElementById('main-content');
+  if(c&&CURRENT_TAB==='appointments'){ c.innerHTML=_apptBuildView(); _apptBindEvents(); }
+}
+
+// ── Outcome (manual marking by the activator) ─────────────────
+function setApptOutcomeUI(id, outcome) {
+  if (!outcome) return;
+  var note=prompt('Optional activation note for this appointment (saved to the customer’s notes). Leave blank to skip:','');
+  if (note===null) { _apptRerender(); return; }   // backed out → revert select
+  _apptPost({action:'setApptOutcome',appointmentId:id,outcome:outcome,note:note,
+    role:SESSION.role,email:SESSION.email}).then(function(res){
+    if(res.ok){ _APPT.appointments=null; renderAppointmentsTab(); }
+    else { alert(res.error||'Failed to set outcome.'); _apptRerender(); }
+  }).catch(function(){ alert('Connection error.'); _apptRerender(); });
+}
+
+// ── Reschedule in place ───────────────────────────────────────
+function rescheduleApptUI(id) {
+  var a=(_APPT.appointments||[]).find(function(x){return x.appointmentId===id;});
+  if(!a) return;
+  var acts=_APPT.activators||[], win=_apptWindow();
+  var actOpts='<option value="">Keep current — '+esc(_apptActName(a.activatorEmail))+'</option>'+
+    '<option value="__next__">⚡ Next Available Agent</option>'+
+    acts.map(function(x){return '<option value="'+esc(x.email)+'">'+esc(x.name)+'</option>';}).join('');
+  document.getElementById('appt-resched-body').innerHTML=
+    '<div style="font-size:.82rem;color:var(--text2);margin-bottom:12px">'+
+      '<strong style="color:var(--text)">'+esc(a.customerName||'Customer')+'</strong> — currently '+
+      esc(_apptFmtDate(a.date))+' at '+esc(_apptFmt12(a.timeSlot))+'</div>'+
+    '<div class="appt-form-grid">'+
+      '<div class="field"><label>New Date</label><input type="date" class="appt-form-input" id="rsd-date" min="'+win.min+'" max="'+win.max+'" onchange="_reschedLoadSlots()"></div>'+
+      '<div class="field"><label>Activator</label><select class="appt-form-input" id="rsd-act" onchange="_reschedLoadSlots()">'+actOpts+'</select></div>'+
+      '<div class="field" style="grid-column:1/-1"><label>New Time Slot</label><select class="appt-form-input" id="rsd-slot"><option value="">Pick a date first…</option></select></div>'+
+    '</div>'+
+    '<div id="rsd-error" style="color:var(--red);font-size:.82rem;margin-top:10px;display:none"></div>'+
+    '<input type="hidden" id="rsd-id" value="'+esc(id)+'">'+
+    '<input type="hidden" id="rsd-curact" value="'+esc(a.activatorEmail)+'">'+
+    '<input type="hidden" id="rsd-office" value="'+esc(a.office||CFG.officeId)+'">'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">'+
+      '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="closeApptReschedModal()">Cancel</button>'+
+      '<button class="appt-book-btn" id="rsd-submit" onclick="submitReschedule()">Confirm New Time</button>'+
+    '</div>';
+  document.getElementById('appt-resched-modal').classList.add('open');
+}
+
+function _reschedLoadSlots() {
+  var date=(document.getElementById('rsd-date')||{}).value||'';
+  var chosen=(document.getElementById('rsd-act')||{}).value||'';
+  var cur=(document.getElementById('rsd-curact')||{}).value||'';
+  var office=(document.getElementById('rsd-office')||{}).value||CFG.officeId;
+  var id=(document.getElementById('rsd-id')||{}).value||'';
+  var act=chosen||cur;   // blank choice = keep current activator
+  var sel=document.getElementById('rsd-slot');
+  if(!date){if(sel)sel.innerHTML='<option value="">Pick a date first…</option>';return;}
+  if(sel)sel.innerHTML='<option value="">Loading…</option>';
+  var req = act==='__next__'
+    ? {action:'getNextAvailableSlots',officeId:office,date:date}
+    : {action:'getAvailableSlots',activatorEmail:act,date:date,excludeId:id};
+  _apptGet(req).then(function(res){
+    var slots=res.slots||[];
+    if(!slots.length){sel.innerHTML='<option value="">No open slots for this date</option>';return;}
+    sel.innerHTML='<option value="">Select a time…</option>'+slots.map(function(s){
+      return '<option value="'+esc(s)+'">'+_apptFmt12(s)+'</option>';
+    }).join('');
+  }).catch(function(){if(sel)sel.innerHTML='<option value="">Error loading slots</option>';});
+}
+
+function submitReschedule() {
+  var id=(document.getElementById('rsd-id')||{}).value||'';
+  var date=(document.getElementById('rsd-date')||{}).value||'';
+  var slot=(document.getElementById('rsd-slot')||{}).value||'';
+  var chosen=(document.getElementById('rsd-act')||{}).value||'';
+  var err=document.getElementById('rsd-error');
+  if(!date||!slot){err.textContent='Pick a new date and time.';err.style.display='block';return;}
+  err.style.display='none';
+  var btn=document.getElementById('rsd-submit'); if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  var body={action:'rescheduleAppointment',appointmentId:id,date:date,timeSlot:slot,role:SESSION.role,email:SESSION.email};
+  if(chosen) body.activatorEmail=chosen;
+  _apptPost(body).then(function(res){
+    if(btn){btn.disabled=false;btn.textContent='Confirm New Time';}
+    if(res.ok){closeApptReschedModal();_APPT.appointments=null;renderAppointmentsTab();}
+    else{err.textContent=res.error==='slot_unavailable'?'That slot is no longer open — pick another.':
+      (res.error==='outside_window'?'Pick a date within the next 7 days.':(res.error||'Reschedule failed.'));
+      err.style.display='block';}
+  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirm New Time';}err.textContent='Connection error. Try again.';err.style.display='block';});
+}
+
+function closeApptReschedModal() { document.getElementById('appt-resched-modal').classList.remove('open'); }
+
 // ── Schedule Modal ─────────────────────────────────────────────
 function openApptSchedModal() {
   var me=SESSION.email, myAct=(_APPT.activators||[]).find(function(a){return a.email===me;})||{};
@@ -4624,6 +4794,17 @@ function openApptSchedModal() {
       '<select class="appt-form-input" id="sc-tz">'+tzOpts+'</select></div>'+
     '<div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:10px">Working Hours</div>'+
     schedHtml+
+    '<div style="margin-top:18px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px">Booking Guardrails (optional)</div>'+
+    '<div class="appt-sched-row">'+
+      '<label class="appt-day-toggle" style="min-width:150px">Buffer between appts</label>'+
+      '<input type="number" class="appt-time-inp" id="sc-buffer" min="0" max="240" step="15" value="'+(Number(sched.bufferMins)||0)+'" style="width:72px">'+
+      '<span style="color:var(--text2);font-size:.8rem">min (0 = off)</span>'+
+    '</div>'+
+    '<div class="appt-sched-row">'+
+      '<label class="appt-day-toggle" style="min-width:150px">Max appts per day</label>'+
+      '<input type="number" class="appt-time-inp" id="sc-maxday" min="0" max="20" step="1" value="'+(Number(sched.maxPerDay)||0)+'" style="width:72px">'+
+      '<span style="color:var(--text2);font-size:.8rem">(0 = unlimited)</span>'+
+    '</div>'+
     '<div style="margin-top:18px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px">Blocked Dates / Times</div>'+
     '<div id="sc-blocks"></div>'+
     '<div class="appt-block-add-row">'+
@@ -4697,10 +4878,12 @@ function saveApptSched() {
     var e=(document.getElementById('sc-'+day+'-e')||{}).value||'';
     sched[day]=(cb&&cb.checked&&s&&e)?{start:s,end:e}:{start:'',end:''};
   });
+  var buffer=parseInt((document.getElementById('sc-buffer')||{}).value||'0')||0;
+  var maxday=parseInt((document.getElementById('sc-maxday')||{}).value||'0')||0;
   var btn=document.getElementById('sc-save-btn');
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
   Promise.all([
-    _apptPost({action:'setActivatorSchedule',email:SESSION.email,timezone:tz,schedule:sched}),
+    _apptPost({action:'setActivatorSchedule',email:SESSION.email,timezone:tz,schedule:sched,bufferMins:buffer,maxPerDay:maxday}),
     _apptPost({action:'setActivatorTimezone',email:SESSION.email,timezone:tz})
   ]).then(function(){
     if(btn){btn.disabled=false;btn.textContent='Save Schedule';}
