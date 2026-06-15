@@ -484,6 +484,16 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .lst-kpi-hint{font-size:11px;color:var(--text2)}
 .lst-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:28px}
 .lst-kpi-card{position:relative;background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--kpi-accent,var(--blue2));border-radius:10px;padding:14px 14px 8px;overflow:hidden}
+/* Phase 2 #4: clickable KPI cards → drill to composing sales */
+.lst-kpi-clickable{cursor:pointer;transition:border-color .12s,transform .08s}
+.lst-kpi-clickable:hover{border-color:var(--kpi-accent,var(--blue2))}
+.lst-kpi-clickable:active{transform:translateY(1px)}
+.lst-kpi-drill-hint{float:right;font-size:11px;color:var(--text2);opacity:.5}
+.lst-kpi-clickable:hover .lst-kpi-drill-hint{opacity:1;color:var(--kpi-accent,var(--blue2))}
+.lst-drill-sum{font-size:.82rem;font-weight:600;color:var(--text2);margin-bottom:10px}
+.lst-drill-wrap{max-height:56vh;overflow:auto}
+.lst-drill-tbl{width:100%}
+.lst-drill-tbl th{position:sticky;top:0;background:var(--surface);z-index:1}
 .lst-kpi-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
 .lst-kpi-val{font-size:30px;font-weight:700;color:var(--text);line-height:1.1;margin-top:4px}
 .lst-kpi-delta{font-size:11px;font-weight:600;margin-top:4px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
@@ -4324,9 +4334,12 @@ function _lstSpark(series, color) {
     '</svg>';
 }
 
-function _lstKpiCard(label, value, deltaHtml, sparkHtml, color) {
-  return '<div class="lst-kpi-card" style="--kpi-accent:'+color+'">'+
-    '<div class="lst-kpi-lbl">'+esc(label)+'</div>'+
+function _lstKpiCard(label, value, deltaHtml, sparkHtml, color, metric) {
+  var attrs = metric
+    ? ' lst-kpi-clickable" onclick="_lstKpiDrill(\''+metric+'\')" title="Click to see the orders behind this number"'
+    : '"';
+  return '<div class="lst-kpi-card'+attrs+' style="--kpi-accent:'+color+'">'+
+    '<div class="lst-kpi-lbl">'+esc(label)+(metric?'<span class="lst-kpi-drill-hint">⤢</span>':'')+'</div>'+
     '<div class="lst-kpi-val">'+value+'</div>'+
     deltaHtml+
     '<div class="lst-kpi-spark-wrap">'+sparkHtml+'</div>'+
@@ -4342,6 +4355,111 @@ function _lstKpiTopCard(top, view) {
     '<div class="lst-kpi-lbl">Top Performer</div>'+body+
     '<div class="lst-kpi-top-period">'+(view==='weeks'?'this week':'today')+'</div>'+
     '</div>';
+}
+
+// ── KPI card drill-down (Phase 2 #4) ──────────────────────────────────────
+// Click a summary card → the posted sales that compose the current-period
+// number, in a modal. Uses the SAME eligibility + period window as
+// _lstKpiBuckets so the list always matches the card value. Scope is whatever
+// produced the cards (office-wide, or team for leader/jd) — never wider.
+var _LST_KPI_CTX = null;
+
+function _lstSaleProducts(s) {
+  var p = [];
+  if (s.airQty > 0)     p.push('Air'+(s.airQty>1?' \xd7'+s.airQty:''));
+  var w = (s.wirelessNew||0) + (s.wirelessByod||0);
+  if (w > 0)            p.push('Wireless'+(w>1?' \xd7'+w:''));
+  if (s.fiberPackage)   p.push('Fiber');
+  if (s.voipQty > 0)    p.push('VoIP'+(s.voipQty>1?' \xd7'+s.voipQty:''));
+  if (s.dtvQty > 0)     p.push('DTV');
+  return p.length ? p.map(function(x){ return '<span class="prod-pill">'+esc(x)+'</span>'; }).join('')
+                  : '<span class="sp sp-default">—</span>';
+}
+
+// Sales in the CURRENT period bucket (today for days view, this week for weeks),
+// scoped to the same roster/team set used to render the cards.
+function _lstKpiCurrentSales() {
+  var ctx = _LST_KPI_CTX || { view:_LST_VIEW, teamSet:null };
+  var roster = DATA.roster || {}, view = ctx.view, teamSet = ctx.teamSet, DAY = 86400000;
+  var now = new Date(); now.setHours(0,0,0,0);
+  function eligible(email){
+    if (!roster[email] || roster[email].deactivated) return false;
+    if (teamSet && !teamSet[email]) return false;
+    return true;
+  }
+  var lo, hi;
+  if (view === 'weeks') {
+    var dow = now.getDay(), dfm = dow === 0 ? 6 : dow - 1;
+    lo = new Date(now); lo.setDate(now.getDate()-dfm); lo.setHours(0,0,0,0);
+    hi = new Date(lo.getTime() + 7*DAY);
+  } else {
+    lo = now; hi = new Date(now.getTime() + DAY);
+  }
+  return (_LST_SALES || []).filter(function(s){
+    if (!s.dateOfSale || !eligible(s.repEmail)) return false;
+    var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
+    return sd >= lo && sd < hi;
+  });
+}
+
+function _lstKpiSalesTable(sales) {
+  if (!sales.length) return '<div class="empty">No sales in this period.</div>';
+  var roster = DATA.roster || {};
+  var rows = sales.slice().sort(function(a,b){
+    return (b.dateOfSale||'').localeCompare(a.dateOfSale||'') || (b.units||0)-(a.units||0);
+  });
+  var totUnits = rows.reduce(function(s,x){ return s + (x.units||0); }, 0);
+  var head = '<div class="lst-drill-sum">'+rows.length+' order'+(rows.length!==1?'s':'')+' &middot; '+totUnits+' unit'+(totUnits!==1?'s':'')+'</div>';
+  var trs = rows.map(function(s){
+    var nm = (roster[s.repEmail] && roster[s.repEmail].name) || s.repName || s.repEmail || '—';
+    return '<tr><td>'+esc(nm)+'</td>'+
+      '<td style="white-space:nowrap">'+esc(_ctShortDate(s.dateOfSale))+'</td>'+
+      '<td>'+(s.dsi?'<span class="dsi-link" onclick="clickDsi(\''+esc(s.dsi)+'\')">'+esc(s.dsi)+'</span>':'—')+'</td>'+
+      '<td>'+_lstSaleProducts(s)+'</td>'+
+      '<td style="text-align:center;font-weight:700">'+(s.units||0)+'</td></tr>';
+  }).join('');
+  return head + '<div class="lst-drill-wrap"><table class="call-table lst-drill-tbl"><thead><tr>'+
+    '<th>Rep</th><th>Date</th><th>DSI</th><th>Products</th><th style="text-align:center">Units</th>'+
+    '</tr></thead><tbody>'+trs+'</tbody></table></div>';
+}
+
+function _lstKpiSellersTable(sales) {
+  if (!sales.length) return '<div class="empty">No sellers in this period.</div>';
+  var roster = DATA.roster || {}, agg = {};
+  sales.forEach(function(s){
+    var e = s.repEmail;
+    if (!agg[e]) agg[e] = { name:(roster[e]&&roster[e].name)||s.repName||e, orders:0, units:0 };
+    agg[e].orders++; agg[e].units += s.units||0;
+  });
+  var list = Object.keys(agg).map(function(e){ return agg[e]; })
+    .sort(function(a,b){ return b.units-a.units || b.orders-a.orders; });
+  var head = '<div class="lst-drill-sum">'+list.length+' active seller'+(list.length!==1?'s':'')+'</div>';
+  var trs = list.map(function(r,i){
+    return '<tr><td style="color:var(--text2)">'+(i+1)+'</td><td>'+esc(r.name)+'</td>'+
+      '<td style="text-align:center">'+r.orders+'</td>'+
+      '<td style="text-align:center;font-weight:700">'+r.units+'</td></tr>';
+  }).join('');
+  return head + '<div class="lst-drill-wrap"><table class="call-table lst-drill-tbl"><thead><tr>'+
+    '<th style="width:32px">#</th><th>Rep</th><th style="text-align:center">Orders</th><th style="text-align:center">Units</th>'+
+    '</tr></thead><tbody>'+trs+'</tbody></table></div>';
+}
+
+function _lstKpiDrill(metric) {
+  if (!_LST_KPI_CTX || !_LST_KPI_CTX.drillable) return;
+  var sales = _lstKpiCurrentSales();
+  var period = (_LST_KPI_CTX.view === 'weeks') ? 'this week' : 'today';
+  var title, body;
+  if (metric === 'sellers') {
+    title = 'Active Sellers · ' + period;
+    body = _lstKpiSellersTable(sales);
+  } else {
+    var lbl = { orders:'Orders', units:'Units', upo:'Units / Order' }[metric] || 'Sales';
+    title = lbl + ' · ' + period;
+    body = _lstKpiSalesTable(sales);
+  }
+  document.getElementById('modal-title').innerHTML = esc(title);
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('detail-modal').classList.add('open');
 }
 
 function _lstKpiCards(sales, roster, view, teamSet) {
@@ -4370,11 +4488,19 @@ function _lstKpiCards(sales, roster, view, teamSet) {
   var word = view === 'weeks' ? 'wk' : 'day';
   var EX = { blue:'#5B9BD5', green:'#70AD47', orange:'#ED7D31', gold:'#FFC000' };
 
+  // Drill context for _lstKpiDrill (Phase 2 #4). Drill is gated to roles whose
+  // KPI-card scope == their row visibility: client-rep sees office-wide cards
+  // but is row-scoped to own orders, so it is NOT drillable for them. leader/jd
+  // drill stays team-scoped via teamSet (matches their call-tab scope).
+  var drillable = (SESSION.role||'') !== 'client-rep';
+  _LST_KPI_CTX = { view: view, teamSet: teamSet || null, drillable: drillable };
+  function M(m){ return drillable ? m : null; }
+
   var cards =
-    _lstKpiCard('Orders',        cur.orders, _lstDelta(cur.orders, prev.orders, word),       _lstSpark(ordSeries,  EX.blue),   EX.blue) +
-    _lstKpiCard('Units',         cur.units,  _lstDelta(cur.units,  prev.units,  word),       _lstSpark(uniSeries,  EX.green),  EX.green) +
-    _lstKpiCard('Units / Order', (cur.orders ? curUpo.toFixed(1) : '—'), _lstDelta(curUpo, prevUpo, word, 1), _lstSpark(upoSeries, EX.orange), EX.orange) +
-    _lstKpiCard('Active Sellers',curSellers, _lstDelta(curSellers, prevSellers, word),       _lstSpark(sellSeries, EX.gold),   EX.gold) +
+    _lstKpiCard('Orders',        cur.orders, _lstDelta(cur.orders, prev.orders, word),       _lstSpark(ordSeries,  EX.blue),   EX.blue,   M('orders')) +
+    _lstKpiCard('Units',         cur.units,  _lstDelta(cur.units,  prev.units,  word),       _lstSpark(uniSeries,  EX.green),  EX.green,  M('units')) +
+    _lstKpiCard('Units / Order', (cur.orders ? curUpo.toFixed(1) : '—'), _lstDelta(curUpo, prevUpo, word, 1), _lstSpark(upoSeries, EX.orange), EX.orange, M('upo')) +
+    _lstKpiCard('Active Sellers',curSellers, _lstDelta(curSellers, prevSellers, word),       _lstSpark(sellSeries, EX.gold),   EX.gold,   M('sellers')) +
     _lstKpiTopCard(top, view);
 
   var hint = view === 'weeks' ? 'This week vs last week · 8-week trend' : 'Today vs yesterday · 14-day trend';
@@ -4518,7 +4644,8 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
 
 function _lstWeeksTbl(leaders, reps) {
   var ws = _lstWeekStart(), DAY = 86400000;
-  var weeks = [0,1,2,3,4].map(function(i) {
+  // Oldest → newest left-to-right (current week rightmost), matching the Days view's chronological order.
+  var weeks = [4,3,2,1,0].map(function(i) {
     var s = new Date(ws.getTime() - i * 7 * DAY);
     var m = s.getMonth() + 1, d = s.getDate();
     return { start: s, end: new Date(s.getTime() + 7 * DAY),
