@@ -745,6 +745,17 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-agenda-cust{font-size:.9rem;font-weight:700;color:var(--text)}
 .appt-agenda-sub{font-size:.74rem;color:var(--text2);margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .appt-agenda-status{text-align:right;white-space:nowrap}
+/* Phase 3 #4: lifecycle Path chevron */
+.appt-path{display:flex;align-items:center;flex-wrap:wrap;margin-top:9px}
+.appt-path-step{position:relative;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;padding:4px 11px 4px 15px;margin-left:-6px;background:#262626;color:#585858;white-space:nowrap;clip-path:polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%, 7px 50%)}
+.appt-path-step:first-child{margin-left:0;padding-left:11px;clip-path:polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%)}
+.appt-path-step.st-done{background:#33445a;color:#c3d0dd}
+.appt-path-step.st-active{background:var(--blue2);color:#fff}
+.appt-path-step.st-pending{background:#212121;color:#4f4f4f}
+.appt-path-step.st-done-green{background:#2f7d52;color:#eafff2}
+.appt-path-step.st-done-red{background:#9e4039;color:#ffeceb}
+.appt-path-step.st-done-amber{background:#b5702f;color:#fff5ea}
+.appt-path-step.st-done-canc{background:#6e3a36;color:#f0d7d4}
 /* Phase 2 #6: Booking-utilization strip */
 .appt-util{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px}
 .appt-util-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -5493,6 +5504,7 @@ function _apptDayAgenda(appts, acts, dStr){
     .sort(function(a,b){ return (a.timeSlot||'').localeCompare(b.timeSlot||''); });
   if(!rows.length) return '<div class="card" style="margin-bottom:16px"><div class="card-body"><div class="empty">No appointments scheduled for this day.</div></div></div>';
   var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
+  var today = _apptDateStr(new Date());
   var h='<div class="appt-agenda">';
   rows.forEach(function(a){
     var ok=canAll||a.bookerEmail===SESSION.email, col=_apptActColor(a.activatorEmail);
@@ -5500,13 +5512,35 @@ function _apptDayAgenda(appts, acts, dStr){
     h+='<div class="appt-agenda-row" style="border-left:3px solid '+col+'">'+
       '<div class="appt-agenda-time">'+esc(_apptFmt12(a.timeSlot))+'</div>'+
       '<div class="appt-agenda-main">'+
-        '<div class="appt-agenda-cust">'+_apptOutcomeGlyph(a)+(ok?esc(a.customerName):'••••••')+dsi+'</div>'+
+        '<div class="appt-agenda-cust">'+(ok?esc(a.customerName):'••••••')+dsi+'</div>'+
         '<div class="appt-agenda-sub"><span style="color:'+col+';font-weight:700">'+esc(_apptActName(a.activatorEmail))+'</span> · '+_apptSvcGlyphs(a.services)+'<span class="appt-dev-badge">×'+(a.deviceCount||1)+'</span></div>'+
+        _apptLifecyclePath(a, today)+
       '</div>'+
-      '<div class="appt-agenda-status"><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span>'+(a.outcome?' '+_apptOutcomeBadge(a.outcome):'')+'</div>'+
     '</div>';
   });
   return h+'</div>';
+}
+
+// Phase 3 #4: Salesforce-style lifecycle Path chevron for an appointment.
+// Read-only — outcomes are still marked from the Appointments table.
+function _apptLifecyclePath(a, today){
+  var oc = String(a.outcome||'').toLowerCase();
+  var occurred = a.date <= today;
+  var TERM = {
+    'completed':   ['✓ Completed',   'st-done-green'],
+    'no-show':     ['✗ No-Show',     'st-done-red'],
+    'rescheduled': ['↻ Rescheduled', 'st-done-amber'],
+    'canceled':    ['⊘ Canceled',    'st-done-canc']
+  };
+  function step(label, cls){ return '<span class="appt-path-step '+cls+'">'+esc(label)+'</span>'; }
+  // Canceled short-circuits the path.
+  if (oc==='canceled' || a.status==='cancelled')
+    return '<div class="appt-path">'+step('Booked','st-done')+step('⊘ Canceled','st-term st-done-canc')+'</div>';
+  var stages;
+  if (TERM[oc])      stages=[['Booked','st-done'],['Upcoming','st-done'],['Occurred','st-done'],[TERM[oc][0],'st-term '+TERM[oc][1]]];
+  else if (occurred) stages=[['Booked','st-done'],['Upcoming','st-done'],['Occurred','st-active'],['Outcome','st-pending']];
+  else               stages=[['Booked','st-done'],['Upcoming','st-active'],['Occurred','st-pending'],['Outcome','st-pending']];
+  return '<div class="appt-path">'+stages.map(function(s){return step(s[0],s[1]);}).join('')+'</div>';
 }
 
 // Booking-utilization strip: booked ÷ capacity for the period in view.
