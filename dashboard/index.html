@@ -3833,12 +3833,6 @@ function _psStepIndicator() {
 }
 function _psStep1Html() {
   var d = _PS_DATA;
-  var traineeOpts = '<option value="">Select name...</option>';
-  Object.keys(DATA.roster || {}).forEach(function(email) {
-    if (email === SESSION.email) return;
-    var r = DATA.roster[email]; if (r.deactivated) return;
-    traineeOpts += '<option value="' + esc(email) + '"' + (d.traineeName === email ? ' selected' : '') + '>' + esc(r.name || email) + '</option>';
-  });
   var h = '';
   h += '<div class="ps-label">DATE OF SALE</div>';
   h += '<input class="ps-input" type="date" id="ps-date" value="' + d.dateOfSale + '" onchange="_PS_DATA.dateOfSale=this.value">';
@@ -3856,8 +3850,9 @@ function _psStep1Html() {
   h += '<div class="ps-toggle' + (d.trainee === 'No' ? ' active' : '') + '" onclick="_psToggleRerender(\'trainee\',\'No\')">No</div>';
   h += '</div>';
   if (d.trainee === 'Yes') {
+    // Free-text: trainees aren't in the portal roster until they get their own code.
     h += '<div class="ps-sub-field"><div class="ps-label">WHO?</div>';
-    h += '<select class="ps-input" onchange="_PS_DATA.traineeName=this.value">' + traineeOpts + '</select></div>';
+    h += '<input class="ps-input" type="text" placeholder="Trainee name" value="' + esc(d.traineeName) + '" oninput="_PS_DATA.traineeName=this.value"></div>';
   }
   h += '<div class="ps-label">HOW WAS THIS ORDER PROCESSED?</div>';
   h += '<div class="ps-toggle-row">';
@@ -4001,7 +3996,7 @@ function _psStep3Html() {
   h += _psRRow('DSI', d.dsi);
   h += _psRRow('Account Type', d.accountType);
   h += _psRRow('Processed Via', d.processedVia);
-  if (d.trainee==='Yes'&&d.traineeName) { var tn=(DATA.roster&&DATA.roster[d.traineeName])?DATA.roster[d.traineeName].name:d.traineeName; h+=_psRRow('Trainee',tn); }
+  if (d.trainee==='Yes'&&d.traineeName) h+=_psRRow('Trainee', d.traineeName);
   if (d.underSomeoneCodes==='Yes'&&d.codesUsedBy) h+=_psRRow('Codes Used By',d.codesUsedBy);
   if (d.notes) h+=_psRRow('Notes',d.notes);
   h += '</div>';
@@ -4066,8 +4061,7 @@ function _psNotifyDiscord(payload, units) {
 function _psSubmit(btn) {
   btn.disabled = true; btn.textContent = 'Submitting...';
   var d = _PS_DATA;
-  var traineeName = '';
-  if (d.trainee==='Yes'&&d.traineeName) traineeName=(DATA.roster&&DATA.roster[d.traineeName])?DATA.roster[d.traineeName].name:d.traineeName;
+  var traineeName = (d.trainee==='Yes') ? (d.traineeName||'').trim() : '';
   var payload = {
     action:'postSale', key:API_KEY, officeId:CFG.officeId,
     repEmail:SESSION.email, repName:SESSION.name||'',
