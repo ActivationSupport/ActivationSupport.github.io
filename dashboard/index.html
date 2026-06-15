@@ -191,6 +191,17 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .ct-flag-atrisk{background:rgba(237,125,49,.16);color:#f0995a}
 .ct-flag-booked{background:rgba(74,159,212,.16);color:#6cb6e8}
 .ct-risk-filter{height:32px;padding:0 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.82rem;cursor:pointer}
+/* Phase 1: column summary chips + hover-highlight dim-the-rest */
+.ct-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.ct-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:14px;font-size:.76rem;font-weight:600;cursor:pointer;background:var(--surface2);border:1px solid var(--border);color:var(--text2);transition:all .12s}
+.ct-chip b{color:var(--text);font-weight:800}
+.ct-chip:hover{border-color:var(--blue2)}
+.ct-chip.ct-chip-active{border-color:var(--blue2);background:rgba(74,159,212,.14)}
+.ct-chip-atrisk{color:#f0995a}
+.ct-chip-rotting{color:#e9756a}
+.ct-chip-booked{color:#6cb6e8}
+.call-table tbody tr{transition:opacity .12s}
+.call-table tbody:hover tr:not(:hover){opacity:.45}
 
 /* status pills */
 .sp{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;margin-right:3px}
@@ -660,6 +671,25 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-dsi-link{color:var(--blue2);cursor:pointer;font-weight:600;text-decoration:none}
 .appt-dsi-link:hover{text-decoration:underline}
 .appt-row-needsoutcome{background:rgba(237,125,49,.05)}
+/* Phase 1: appointment grid — available-slot pill, in-cell glyphs, per-activator legend */
+.appt-avail-pill{display:inline-block;margin-top:4px;padding:1px 7px;border-radius:9px;font-size:.6rem;font-weight:700;background:rgba(39,174,96,.16);color:#52c785;letter-spacing:.2px}
+.appt-cell-glyphs{display:flex;align-items:center;justify-content:center;gap:3px;margin-top:3px;flex-wrap:wrap}
+.appt-svc-glyph{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:4px;font-size:.6rem;font-weight:800;line-height:1}
+.appt-svc-glyph.svc-w{background:rgba(91,155,213,.22);color:#7db4e6}
+.appt-svc-glyph.svc-a{background:rgba(112,173,71,.22);color:#8fce63}
+.appt-svc-glyph.svc-f{background:rgba(237,125,49,.22);color:#f0995a}
+.appt-dev-badge{font-size:.6rem;font-weight:800;color:var(--text2);background:rgba(255,255,255,.07);padding:0 4px;border-radius:4px}
+.appt-oc-glyph{font-weight:800;font-size:.72rem}
+.appt-oc-glyph.oc-done{color:#52c785}
+.appt-oc-glyph.oc-noshow{color:#e9756a}
+.appt-oc-glyph.oc-resched{color:#f0995a}
+.appt-oc-glyph.oc-canc{color:#cf6b62}
+.appt-legend{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.appt-leg-item{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text);cursor:pointer;padding:2px 8px;border-radius:14px;transition:background .12s}
+.appt-leg-item:hover{background:rgba(255,255,255,.06)}
+.appt-leg-item.appt-leg-dim{opacity:.4}
+.appt-leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.appt-leg-count{font-weight:800;font-size:.72rem;color:var(--text2);background:rgba(255,255,255,.08);min-width:18px;text-align:center;padding:0 5px;border-radius:9px}
 .appt-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .appt-form-input{width:100%;padding:9px 12px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.88rem}
 .appt-form-input:focus{border-color:var(--blue2);outline:none}
@@ -1817,6 +1847,8 @@ function _applyView() {
       ? 'Showing all ' + _tabOrders.length + ' orders'
       : 'Showing ' + visible + ' of ' + _tabOrders.length + ' orders';
   }
+  var chipsEl = document.getElementById('ct-chips');
+  if (chipsEl) chipsEl.innerHTML = _ctChipsInner(_tabOrders);   // keep chip counts/active state fresh (e.g. after booked load)
 }
 
 function sortCallTable(col) {
@@ -1938,6 +1970,25 @@ function _isRotting(dsi) {
 function _bookedFor(dsi) { return (_BOOKED_MAP||{})[dsi]||null; }
 function _ctShortDate(s) { var p=String(s||'').split('-'); return p.length===3 ? (Number(p[1])+'/'+Number(p[2])) : s; }
 
+// Column summary chips above a call table — counts over the whole tab, each a
+// one-click shortcut into the matching show-only risk filter.
+function _ctChipsInner(orders) {
+  var risk=_activeFilters.risk||'', n=orders.length, ar=0, rot=0, bk=0;
+  orders.forEach(function(o){ if(_isAtRisk(o.dsi))ar++; if(_isRotting(o.dsi))rot++; if(_bookedFor(o.dsi))bk++; });
+  function chip(val,label,count,cls){
+    return '<span class="ct-chip'+(cls?' '+cls:'')+(risk===val?' ct-chip-active':'')+'" onclick="_ctSetRisk(\''+val+'\')">'+label+' <b>'+count+'</b></span>';
+  }
+  return chip('','Orders',n,'') +
+    chip('atrisk','&#x26A0; At-risk',ar,'ct-chip-atrisk') +
+    chip('rotting','&#x23F3; Rotting',rot,'ct-chip-rotting') +
+    chip('booked','&#x1F4C5; Booked',bk,'ct-chip-booked');
+}
+function _ctSetRisk(val) {
+  _activeFilters.risk = (_activeFilters.risk===val ? '' : val);   // toggle off if same chip
+  var sel=document.querySelector('.ct-risk-filter'); if(sel) sel.value=_activeFilters.risk;
+  _applyView();
+}
+
 // Lazily pull the appointment list once and map DSI -> nearest future appt, so
 // call-log rows can show a "📅 Booked" badge. Uses the existing (already
 // deployed) getAppointments endpoint. DSIs are privacy-masked for some roles —
@@ -2009,6 +2060,7 @@ function renderCallTable(orders, title, emptyMsg) {
     '</select>';
   return '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-ct') +
+    '<div class="ct-chips" id="ct-chips">'+_ctChipsInner(orders)+'</div>' +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
       '<div id="ct-count" class="tbl-count" style="margin:0">Showing all '+orders.length+' orders</div>' +
       riskSel +
@@ -4490,6 +4542,46 @@ function _apptActName(email) {
   return a?a.name:email;
 }
 
+// Phase 1: stable per-activator color (assigned by sorted email so it's
+// consistent across renders), service glyphs (W/A/F), device + outcome glyphs.
+var _APPT_PALETTE=['#5B9BD5','#70AD47','#ED7D31','#FFC000','#9B59B6','#1ABC9C','#E74C3C','#3498DB','#E67E22','#16A085','#2ECC71','#F39C12'];
+function _apptColorMap(){
+  if(_APPT._colorMap) return _APPT._colorMap;
+  var m={};
+  (_APPT.activators||[]).slice().sort(function(a,b){return a.email<b.email?-1:1;}).forEach(function(a,i){ m[a.email]=_APPT_PALETTE[i%_APPT_PALETTE.length]; });
+  _APPT._colorMap=m; return m;
+}
+function _apptActColor(email){ return _apptColorMap()[email]||'#888'; }
+function _apptSvcGlyphs(servicesStr){
+  var s=String(servicesStr||'').toLowerCase(), g='';
+  if(s.indexOf('wireless')!==-1) g+='<span class="appt-svc-glyph svc-w" title="Wireless">W</span>';
+  if(s.indexOf('air')!==-1)      g+='<span class="appt-svc-glyph svc-a" title="Air">A</span>';
+  if(s.indexOf('fiber')!==-1||s.indexOf('internet')!==-1) g+='<span class="appt-svc-glyph svc-f" title="Fiber">F</span>';
+  return g;
+}
+function _apptOutcomeGlyph(a){
+  var o=String(a.outcome||'').toLowerCase();
+  if(o==='completed')   return '<span class="appt-oc-glyph oc-done" title="Completed">✓ </span>';
+  if(o==='no-show')     return '<span class="appt-oc-glyph oc-noshow" title="No-Show">✗ </span>';
+  if(o==='rescheduled') return '<span class="appt-oc-glyph oc-resched" title="Rescheduled">↻ </span>';
+  if(o==='canceled')    return '<span class="appt-oc-glyph oc-canc" title="Canceled">⊘ </span>';
+  return '';
+}
+function _apptLegend(appts, acts, ws){
+  if(!acts.length) return '';
+  var we=new Date(ws); we.setDate(ws.getDate()+6);
+  var wsS=_apptDateStr(ws), weS=_apptDateStr(we);
+  var load={}; appts.forEach(function(a){ if(a.status==='cancelled')return; if(a.date>=wsS&&a.date<=weS) load[a.activatorEmail]=(load[a.activatorEmail]||0)+1; });
+  var items=acts.slice().sort(function(a,b){return a.email<b.email?-1:1;}).map(function(a){
+    var c=_apptActColor(a.email), n=load[a.email]||0;
+    var dim=(_APPT.filterEmail!=='' && _APPT.filterEmail!==a.email);
+    return '<span class="appt-leg-item'+(dim?' appt-leg-dim':'')+'" onclick="_apptFilter(\''+(_APPT.filterEmail===a.email?'':esc(a.email))+'\')" title="Click to filter">'+
+      '<span class="appt-leg-dot" style="background:'+c+'"></span>'+esc(a.name)+
+      '<span class="appt-leg-count" title="Appointments this week">'+n+'</span></span>';
+  }).join('');
+  return '<div class="appt-legend">'+items+'</div>';
+}
+
 function renderAppointmentsTab() {
   var c = document.getElementById('main-content');
   c.innerHTML = '<div class="empty">Loading appointments…</div>';
@@ -4508,6 +4600,7 @@ function renderAppointmentsTab() {
 }
 
 function _apptBuildView() {
+  _APPT._colorMap = null;   // recompute per render so colors track the current activator set
   var acts = _APPT.activators||[], appts = _APPT.appointments||[];
   var ws = _apptWeekStart(_APPT.weekOffset);
   var we = new Date(ws); we.setDate(ws.getDate()+6);
@@ -4530,6 +4623,7 @@ function _apptBuildView() {
       '</div>'+
     '</div>'+
     _apptCalGrid(appts, acts, ws)+
+    _apptLegend(appts, acts, ws)+
     _apptUpcomingTable(appts)+(
     isAdmin ? '<div style="margin-top:16px;text-align:right"><button class="appt-manage-btn" onclick="openApptSchedModal()">⚙ Manage My Schedule</button></div>' : ''
   )+'</div>';
@@ -4539,61 +4633,81 @@ function _apptBuildView() {
 function _apptCalGrid(appts, acts, ws) {
   var slots = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00'];
   var dnames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
   var dates = []; for (var d=0;d<7;d++){var x=new Date(ws);x.setDate(ws.getDate()+d);dates.push(_apptDateStr(x));}
   var today = _apptDateStr(new Date());
   var win = _apptWindow();
+  var fe = _APPT.filterEmail;
   var aMap = {}; appts.forEach(function(a){
     if(!a.date||!a.timeSlot||a.status==='cancelled') return;
     var k=a.date+'|'+a.timeSlot; if(!aMap[k]) aMap[k]=[]; aMap[k].push(a);
   });
   var sMap = {}; acts.forEach(function(a){ sMap[a.email]=a.schedule||{}; });
+
+  // Single source of truth for "is this (day,slot) a bookable open cell in the
+  // current view?" — used by both the header pill counts and the cell render.
+  function availAt(ds, slot){
+    if (ds<win.min || ds>win.max) return false;
+    var dk=dayKeys[new Date(ds+'T12:00:00').getDay()];
+    var slotAppts=aMap[ds+'|'+slot]||[];
+    if (fe){
+      var sc=(sMap[fe]||{})[dk]||{};
+      if(!_apptSlotInSched(slot,sc.start,sc.end)) return false;
+      return !slotAppts.some(function(a){return a.activatorEmail===fe;});
+    }
+    if (slotAppts.length>0) return false;
+    return Object.keys(sMap).some(function(em){var s=(sMap[em]||{})[dk]||{};return _apptSlotInSched(slot,s.start,s.end);});
+  }
+  var availCount=[0,0,0,0,0,0,0];
+  for (var di=0;di<7;di++){ slots.forEach(function(slot){ if(availAt(dates[di],slot)) availCount[di]++; }); }
+
   var html = '<div class="appt-cal-outer"><div class="appt-cal-grid">';
   html += '<div class="appt-cal-time-hdr"></div>';
   for (var d=0;d<7;d++){
+    var dt=new Date(dates[d]+'T12:00:00');
+    var pill = availCount[d]>0 ? '<span class="appt-avail-pill" title="'+availCount[d]+' open slot'+(availCount[d]===1?'':'s')+'">'+availCount[d]+' open</span>' : '';
     html += '<div class="appt-cal-th'+(dates[d]===today?' appt-today-hdr':'')+'">'+
       '<div class="appt-cal-dayname">'+dnames[d]+'</div>'+
-      '<div class="appt-cal-daynum">'+(new Date(dates[d]+'T12:00:00').getMonth()+1)+'/'+new Date(dates[d]+'T12:00:00').getDate()+'</div>'+
+      '<div class="appt-cal-daynum">'+(dt.getMonth()+1)+'/'+dt.getDate()+'</div>'+
+      pill+
     '</div>';
   }
   slots.forEach(function(slot){
     html += '<div class="appt-cal-time">'+_apptFmt12(slot)+'</div>';
     for (var d=0;d<7;d++){
       var ds=dates[d], k=ds+'|'+slot, slotAppts=aMap[k]||[];
-      var dayDt=new Date(ds+'T12:00:00'), dk=['sun','mon','tue','wed','thu','fri','sat'][dayDt.getDay()];
-      var offWin = ds<win.min || ds>win.max;   // not bookable outside the rolling window
-      if (_APPT.filterEmail) {
-        var sc=(sMap[_APPT.filterEmail]||{})[dk]||{}, inH=_apptSlotInSched(slot,sc.start,sc.end);
-        var mine=slotAppts.find(function(a){return a.activatorEmail===_APPT.filterEmail;});
+      var offWin = ds<win.min || ds>win.max;
+      if (fe) {
+        var mine=slotAppts.find(function(a){return a.activatorEmail===fe;});
         if (mine) {
           var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||mine.bookerEmail===SESSION.email;
-          html+='<div class="appt-cal-cell appt-cell-booked" title="'+(ok?esc(mine.customerName):'Booked')+'">'+
-            '<div class="appt-cell-name">'+(ok?esc(mine.customerName):'••••••')+'</div>'+
-            '<div class="appt-cell-svc">'+esc(mine.services||'')+'</div></div>';
+          var col=_apptActColor(fe);
+          html+='<div class="appt-cal-cell appt-cell-booked" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(mine.customerName):'Booked')+' · '+esc(mine.services||'')+' ×'+(mine.deviceCount||1)+'">'+
+            '<div class="appt-cell-name">'+_apptOutcomeGlyph(mine)+(ok?esc(mine.customerName):'••••••')+'</div>'+
+            '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(mine.services)+'<span class="appt-dev-badge">×'+(mine.deviceCount||1)+'</span></div></div>';
         } else if(offWin){
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
-        } else if(inH){
-          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(_APPT.filterEmail)+'\',\''+slot+'\')">'+
+        } else if(availAt(ds,slot)){
+          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+slot+'\')">'+
             '<span class="appt-avail-plus">+</span> Book</div>';
         } else {
           html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
         }
       } else {
         if (slotAppts.length>0){
-          html+='<div class="appt-cal-cell appt-cell-booked-multi">';
-          acts.filter(function(a){return slotAppts.some(function(ap){return ap.activatorEmail===a.email;});})
-            .slice(0,2).forEach(function(a){ html+='<div class="appt-cell-act-tag">'+esc(a.name.split(' ')[0])+'</div>'; });
-          if(slotAppts.length>2) html+='<div class="appt-cell-more">+'+(slotAppts.length-2)+'</div>';
+          html+='<div class="appt-cal-cell appt-cell-booked-multi" title="'+slotAppts.length+' booked">';
+          var distinct=acts.filter(function(a){return slotAppts.some(function(ap){return ap.activatorEmail===a.email;});});
+          distinct.slice(0,2).forEach(function(a){ var c=_apptActColor(a.email);
+            html+='<div class="appt-cell-act-tag" style="background:'+c+'2e;color:'+c+'">'+esc(a.name.split(' ')[0])+'</div>'; });
+          if(distinct.length>2) html+='<div class="appt-cell-more">+'+(distinct.length-2)+'</div>';
           html+='</div>';
         } else if(offWin){
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
+        } else if(availAt(ds,slot)){
+          html+='<div class="appt-cal-cell appt-cell-avail-light" onclick="openApptBookingModal(\''+ds+'\',\'\',\''+slot+'\')">'+
+            '<span class="appt-avail-dot">·</span></div>';
         } else {
-          var anyAvail=acts.some(function(a){var s=(sMap[a.email]||{})[dk]||{};return _apptSlotInSched(slot,s.start,s.end);});
-          if(anyAvail){
-            html+='<div class="appt-cal-cell appt-cell-avail-light" onclick="openApptBookingModal(\''+ds+'\',\'\',\''+slot+'\')">'+
-              '<span class="appt-avail-dot">·</span></div>';
-          } else {
-            html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
-          }
+          html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
         }
       }
     }
