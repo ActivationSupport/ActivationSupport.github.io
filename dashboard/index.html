@@ -728,6 +728,41 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-metric-act-row{display:flex;align-items:center;gap:14px;padding:5px 0;font-size:.82rem;border-bottom:1px solid rgba(255,255,255,.04)}
 .appt-metric-act-name{flex:1;font-weight:600;color:var(--text)}
 .appt-metric-act-stat{font-weight:700;color:var(--text2);min-width:62px;text-align:right;font-variant-numeric:tabular-nums}
+/* Phase 2 #6: Week | Day | All-Activators switcher */
+.appt-view-toggle{display:flex;gap:6px}
+.appt-view-btn{padding:6px 13px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;user-select:none;white-space:nowrap}
+.appt-view-btn:hover{border-color:var(--blue2)}
+.appt-view-btn.active{background:var(--blue2);border-color:var(--blue2);color:#fff}
+/* Phase 2 #6: All-Activators side-by-side day grid */
+.appt-allact-grid{display:grid;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.appt-allact-name{font-size:.74rem;font-weight:800;line-height:1.1}
+.appt-allact-load{font-size:.66rem;font-weight:700;color:var(--text2);margin-top:3px;font-variant-numeric:tabular-nums}
+/* Phase 2 #6: Day agenda */
+.appt-agenda{margin-bottom:16px;display:flex;flex-direction:column;gap:8px}
+.appt-agenda-row{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 14px}
+.appt-agenda-time{font-size:.86rem;font-weight:800;color:var(--text);min-width:74px;font-variant-numeric:tabular-nums}
+.appt-agenda-main{flex:1;min-width:0}
+.appt-agenda-cust{font-size:.9rem;font-weight:700;color:var(--text)}
+.appt-agenda-sub{font-size:.74rem;color:var(--text2);margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.appt-agenda-status{text-align:right;white-space:nowrap}
+/* Phase 2 #6: Booking-utilization strip */
+.appt-util{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px}
+.appt-util-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.appt-util-title{font-size:.86rem;font-weight:800;color:var(--text)}
+.appt-util-summary{font-size:.84rem;color:var(--text2);font-variant-numeric:tabular-nums}
+.appt-util-note{font-size:.78rem;color:var(--text2);font-style:italic}
+.appt-util-bar{height:9px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:9px}
+.appt-util-bar-fill{height:100%;border-radius:6px;transition:width .3s}
+.appt-util-acts-wrap{margin-top:10px}
+.appt-util-acts-sum{font-size:.74rem;font-weight:700;color:var(--text2);cursor:pointer;list-style:none}
+.appt-util-acts-sum::-webkit-details-marker{display:none}
+.appt-util-acts-sum:before{content:'▸ ';font-size:.7rem}
+.appt-util-acts-wrap[open] .appt-util-acts-sum:before{content:'▾ '}
+.appt-util-act{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:.8rem}
+.appt-util-act-name{flex:0 0 130px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appt-util-actbar{flex:1;height:7px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden}
+.appt-util-actbar-fill{height:100%;border-radius:5px}
+.appt-util-act-num{flex:0 0 auto;color:var(--text2);font-weight:700;font-variant-numeric:tabular-nums;min-width:46px;text-align:right}
 /* Phase 1: Wallboard / TV mode */
 .lst-wb-bar{display:flex;justify-content:flex-end;margin-bottom:10px}
 .lst-wb-btn{padding:7px 14px;background:#2a2a2a;color:var(--text2);border:1px solid #3a3a3a;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
@@ -4986,7 +5021,7 @@ function _lstRepChurnHtml(tableauName) {
 }
 
 // ── APPOINTMENTS ─────────────────────────────────────────────────────────
-var _APPT = { activators:null, appointments:null, weekOffset:0, filterEmail:'', loading:false };
+var _APPT = { activators:null, appointments:null, weekOffset:0, dayOffset:0, viewMode:'week', filterEmail:'', loading:false };
 
 function _apptGet(params) {
   var p = Object.assign({}, params, { key: API_KEY });
@@ -5031,6 +5066,19 @@ function _apptSlotInSched(slot, start, end) {
 function _apptActName(email) {
   var a=(_APPT.activators||[]).find(function(x){return x.email===email;});
   return a?a.name:email;
+}
+// Default booking hours — mirrors the backend AppointmentScheduler.gs DEFAULT_HOURS
+// (Mon–Fri 10:00–17:00 in the office/activator home TZ; weekends closed unless set).
+var _APPT_DEFAULT_HOURS = { start:'10:00', end:'17:00', days:['mon','tue','wed','thu','fri'] };
+// Effective working hours for an activator on a given day-key, applying the
+// default fallback when they haven't set custom hours for that weekday. Returns
+// {start,end} or null (closed). Keeps the grid + utilization consistent with the
+// backend, which falls back to the same defaults when actually booking.
+function _apptDaySched(sched, dk){
+  var s=(sched||{})[dk];
+  if (s && s.start && s.end) return s;
+  if (_APPT_DEFAULT_HOURS.days.indexOf(dk)!==-1) return { start:_APPT_DEFAULT_HOURS.start, end:_APPT_DEFAULT_HOURS.end };
+  return null;
 }
 
 // Phase 1: stable per-activator color (assigned by sorted email so it's
@@ -5136,29 +5184,46 @@ function renderAppointmentsTab() {
 function _apptBuildView() {
   _APPT._colorMap = null;   // recompute per render so colors track the current activator set
   var acts = _APPT.activators||[], appts = _APPT.appointments||[];
+  var mode = _APPT.viewMode||'week';
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var dFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   var ws = _apptWeekStart(_APPT.weekOffset);
   var we = new Date(ws); we.setDate(ws.getDate()+6);
-  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var wLabel = mo[ws.getMonth()]+' '+ws.getDate()+' – '+mo[we.getMonth()]+' '+we.getDate()+', '+we.getFullYear();
+  // Chosen day for Day / All-Activators modes (offset in days from today).
+  var dDate = new Date(); dDate.setHours(0,0,0,0); dDate.setDate(dDate.getDate()+(_APPT.dayOffset||0));
+  var dStr = _apptDateStr(dDate);
+  var label, body;
+  if (mode==='week') {
+    label = mo[ws.getMonth()]+' '+ws.getDate()+' – '+mo[we.getMonth()]+' '+we.getDate()+', '+we.getFullYear();
+    body = _apptCalGrid(appts, acts, ws) + _apptLegend(appts, acts, ws);
+  } else if (mode==='all') {
+    label = dFull[dDate.getDay()]+' · '+mo[dDate.getMonth()]+' '+dDate.getDate();
+    body = _apptAllActGrid(appts, acts, dStr);
+  } else {
+    label = dFull[dDate.getDay()]+' · '+mo[dDate.getMonth()]+' '+dDate.getDate();
+    body = _apptDayAgenda(appts, acts, dStr);
+  }
   var isAdmin = SESSION.role==='activator'||SESSION.role==='master-admin';
   var actOpts = '<option value="">All Activators</option>'+acts.map(function(a){
     return '<option value="'+esc(a.email)+'"'+(a.email===_APPT.filterEmail?' selected':'')+'>'+esc(a.name)+'</option>';
   }).join('');
+  function vbtn(m,lbl){ return '<button class="appt-view-btn'+(mode===m?' active':'')+'" onclick="_apptSetView(\''+m+'\')">'+lbl+'</button>'; }
   var html = '<div class="appt-wrap">'+
     _apptMetricsPanel(appts)+
     '<div class="appt-controls">'+
       '<div class="appt-nav">'+
-        '<button class="appt-nav-btn" onclick="_apptNavWeek(-1)">◀</button>'+
-        '<span class="appt-week-label">'+esc(wLabel)+'</span>'+
-        '<button class="appt-nav-btn" onclick="_apptNavWeek(1)">▶</button>'+
+        '<button class="appt-nav-btn" onclick="_apptNav(-1)">◀</button>'+
+        '<span class="appt-week-label">'+esc(label)+'</span>'+
+        '<button class="appt-nav-btn" onclick="_apptNav(1)">▶</button>'+
       '</div>'+
+      '<div class="appt-view-toggle">'+vbtn('week','Week')+vbtn('day','Day')+vbtn('all','All-Activators')+'</div>'+
       '<div class="appt-filter-row">'+
-        '<select class="appt-select" id="appt-act-filter" onchange="_apptFilter(this.value)">'+actOpts+'</select>'+
+        (mode==='week' ? '<select class="appt-select" id="appt-act-filter" onchange="_apptFilter(this.value)">'+actOpts+'</select>' : '')+
         '<button class="appt-book-btn" onclick="openApptBookingModal(\'\',\'\',\'\')">+ Book Appointment</button>'+
       '</div>'+
     '</div>'+
-    _apptCalGrid(appts, acts, ws)+
-    _apptLegend(appts, acts, ws)+
+    _apptUtilStrip(appts, acts, mode, ws, dStr)+
+    body+
     _apptUpcomingTable(appts)+(
     isAdmin ? '<div style="margin-top:16px;text-align:right"><button class="appt-manage-btn" onclick="openApptSchedModal()">⚙ Manage My Schedule</button></div>' : ''
   )+'</div>';
@@ -5186,12 +5251,12 @@ function _apptCalGrid(appts, acts, ws) {
     var dk=dayKeys[new Date(ds+'T12:00:00').getDay()];
     var slotAppts=aMap[ds+'|'+slot]||[];
     if (fe){
-      var sc=(sMap[fe]||{})[dk]||{};
-      if(!_apptSlotInSched(slot,sc.start,sc.end)) return false;
+      var sc=_apptDaySched(sMap[fe],dk);
+      if(!sc||!_apptSlotInSched(slot,sc.start,sc.end)) return false;
       return !slotAppts.some(function(a){return a.activatorEmail===fe;});
     }
     if (slotAppts.length>0) return false;
-    return Object.keys(sMap).some(function(em){var s=(sMap[em]||{})[dk]||{};return _apptSlotInSched(slot,s.start,s.end);});
+    return Object.keys(sMap).some(function(em){var s=_apptDaySched(sMap[em],dk);return s&&_apptSlotInSched(slot,s.start,s.end);});
   }
   var availCount=[0,0,0,0,0,0,0];
   for (var di=0;di<7;di++){ slots.forEach(function(slot){ if(availAt(dates[di],slot)) availCount[di]++; }); }
@@ -5320,6 +5385,130 @@ function _apptUpcomingTable(appts) {
 function _apptNavWeek(dir) { _APPT.weekOffset+=dir; _APPT.appointments=null; renderAppointmentsTab(); }
 function _apptFilter(email) { _APPT.filterEmail=email; var c=document.getElementById('main-content'); if(c) c.innerHTML=_apptBuildView(); _apptBindEvents(); }
 function _apptBindEvents() { var s=document.getElementById('appt-act-filter'); if(s) s.value=_APPT.filterEmail; }
+
+// Phase 2 #6: Week | Day | All-Activators switcher + booking-utilization strip.
+function _apptRerender(){ var c=document.getElementById('main-content'); if(c){ c.innerHTML=_apptBuildView(); _apptBindEvents(); } }
+function _apptSetView(m){ _APPT.viewMode=m; _apptRerender(); }
+function _apptNav(dir){
+  if ((_APPT.viewMode||'week')==='week'){ _apptNavWeek(dir); }   // week step refetches (existing behavior)
+  else { _APPT.dayOffset+=dir; _apptRerender(); }                // day/all step is a pure client re-render
+}
+
+// All-Activators: one day, activators side by side as columns, time slots down.
+function _apptAllActGrid(appts, acts, dStr){
+  if(!acts.length) return '<div class="card" style="margin-bottom:16px"><div class="card-body"><div class="empty">No activators in this office.</div></div></div>';
+  var slots = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00'];
+  var dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
+  var win = _apptWindow();
+  var dk = dayKeys[new Date(dStr+'T12:00:00').getDay()];
+  var offWin = dStr<win.min || dStr>win.max;
+  var aMap = {}; appts.forEach(function(a){
+    if(a.date!==dStr||!a.timeSlot||a.status==='cancelled') return;
+    aMap[a.activatorEmail+'|'+a.timeSlot]=a;
+  });
+  var sorted = acts.slice().sort(function(a,b){return a.email<b.email?-1:1;});
+  var html = '<div class="appt-cal-outer"><div class="appt-allact-grid" style="grid-template-columns:72px repeat('+sorted.length+',minmax(116px,1fr))">';
+  html += '<div class="appt-cal-time-hdr"></div>';
+  sorted.forEach(function(a){
+    var c=_apptActColor(a.email), cap=0, bk=0, sc=_apptDaySched(a.schedule,dk);
+    if(sc && !offWin) slots.forEach(function(slot){ if(_apptSlotInSched(slot,sc.start,sc.end)){ cap++; if(aMap[a.email+'|'+slot]) bk++; } });
+    html += '<div class="appt-cal-th"><div class="appt-allact-name" style="color:'+c+'" title="'+esc(a.name)+'">'+esc(a.name.split(' ')[0])+'</div>'+
+      '<div class="appt-allact-load" title="Booked / capacity this day">'+bk+'/'+cap+'</div></div>';
+  });
+  slots.forEach(function(slot){
+    html += '<div class="appt-cal-time">'+_apptFmt12(slot)+'</div>';
+    sorted.forEach(function(a){
+      var ap=aMap[a.email+'|'+slot], sc=_apptDaySched(a.schedule,dk);
+      var inSched=sc&&_apptSlotInSched(slot,sc.start,sc.end);
+      if(ap){
+        var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||ap.bookerEmail===SESSION.email;
+        var col=_apptActColor(a.email);
+        html+='<div class="appt-cal-cell appt-cell-booked" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(ap.customerName):'Booked')+' · '+esc(ap.services||'')+' ×'+(ap.deviceCount||1)+'">'+
+          '<div class="appt-cell-name">'+_apptOutcomeGlyph(ap)+(ok?esc(ap.customerName):'••••••')+'</div>'+
+          '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(ap.services)+'<span class="appt-dev-badge">×'+(ap.deviceCount||1)+'</span></div></div>';
+      } else if(offWin){
+        html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
+      } else if(inSched){
+        html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+dStr+'\',\''+esc(a.email)+'\',\''+slot+'\')"><span class="appt-avail-plus">+</span> Book</div>';
+      } else {
+        html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
+      }
+    });
+  });
+  return html+'</div></div>';
+}
+
+// Day: chronological agenda of every appointment that day across all activators.
+function _apptDayAgenda(appts, acts, dStr){
+  var rows = appts.filter(function(a){ return a.date===dStr && a.status!=='cancelled'; })
+    .sort(function(a,b){ return (a.timeSlot||'').localeCompare(b.timeSlot||''); });
+  if(!rows.length) return '<div class="card" style="margin-bottom:16px"><div class="card-body"><div class="empty">No appointments scheduled for this day.</div></div></div>';
+  var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
+  var h='<div class="appt-agenda">';
+  rows.forEach(function(a){
+    var ok=canAll||a.bookerEmail===SESSION.email, col=_apptActColor(a.activatorEmail);
+    var dsi = ok && a.customerDSI ? ' <span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>' : '';
+    h+='<div class="appt-agenda-row" style="border-left:3px solid '+col+'">'+
+      '<div class="appt-agenda-time">'+esc(_apptFmt12(a.timeSlot))+'</div>'+
+      '<div class="appt-agenda-main">'+
+        '<div class="appt-agenda-cust">'+_apptOutcomeGlyph(a)+(ok?esc(a.customerName):'••••••')+dsi+'</div>'+
+        '<div class="appt-agenda-sub"><span style="color:'+col+';font-weight:700">'+esc(_apptActName(a.activatorEmail))+'</span> · '+_apptSvcGlyphs(a.services)+'<span class="appt-dev-badge">×'+(a.deviceCount||1)+'</span></div>'+
+      '</div>'+
+      '<div class="appt-agenda-status"><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span>'+(a.outcome?' '+_apptOutcomeBadge(a.outcome):'')+'</div>'+
+    '</div>';
+  });
+  return h+'</div>';
+}
+
+// Booking-utilization strip: booked ÷ capacity for the period in view.
+// Capacity = schedulable 1-hr slots (effective schedule, in-window). Booking
+// managers + activators only — same audience as the Booking Performance panel.
+function _apptUtilStrip(appts, acts, mode, ws, dStr){
+  if (['master-admin','owner','admin','manager','activator'].indexOf(SESSION.role)===-1) return '';
+  if(!acts.length) return '';
+  var slots = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00'];
+  var dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
+  var win = _apptWindow();
+  var dates=[];
+  if(mode==='week'){ for(var d=0;d<7;d++){ var x=new Date(ws); x.setDate(ws.getDate()+d); dates.push(_apptDateStr(x)); } }
+  else { dates=[dStr]; }
+  var bMap={}; appts.forEach(function(a){ if(a.status!=='cancelled'&&a.timeSlot) bMap[a.activatorEmail+'|'+a.date+'|'+a.timeSlot]=true; });
+  var perAct={}; acts.forEach(function(a){ perAct[a.email]={name:a.name,cap:0,bk:0}; });
+  var totCap=0, totBk=0;
+  dates.forEach(function(ds){
+    if(ds<win.min||ds>win.max) return;   // only in-window dates have bookable capacity
+    var dk=dayKeys[new Date(ds+'T12:00:00').getDay()];
+    acts.forEach(function(a){
+      var sc=_apptDaySched(a.schedule,dk); if(!sc) return;
+      slots.forEach(function(slot){
+        if(!_apptSlotInSched(slot,sc.start,sc.end)) return;
+        perAct[a.email].cap++; totCap++;
+        if(bMap[a.email+'|'+ds+'|'+slot]){ perAct[a.email].bk++; totBk++; }
+      });
+    });
+  });
+  var periodLbl = mode==='week'?'this week':'this day';
+  if(!totCap){
+    return '<div class="appt-util"><div class="appt-util-head"><span class="appt-util-title">📈 Booking Utilization</span>'+
+      '<span class="appt-util-note">No bookable capacity in view (outside the booking window).</span></div></div>';
+  }
+  var pct=Math.round(totBk/totCap*100), open=totCap-totBk;
+  function barCol(p){ return p>=80?'#e9756a':p>=50?'#FFC000':'#70AD47'; }
+  var actRows=Object.keys(perAct).map(function(e){return perAct[e];}).filter(function(r){return r.cap>0;})
+    .sort(function(a,b){return (b.bk/b.cap)-(a.bk/a.cap);});
+  var actHtml=actRows.map(function(r){
+    var p=Math.round(r.bk/r.cap*100);
+    return '<div class="appt-util-act"><span class="appt-util-act-name">'+esc(r.name)+'</span>'+
+      '<div class="appt-util-actbar"><div class="appt-util-actbar-fill" style="width:'+p+'%;background:'+barCol(p)+'"></div></div>'+
+      '<span class="appt-util-act-num">'+r.bk+'/'+r.cap+'</span></div>';
+  }).join('');
+  return '<div class="appt-util">'+
+    '<div class="appt-util-head"><span class="appt-util-title">📈 Booking Utilization <span style="font-weight:400;color:var(--text2);font-size:.78rem">· '+periodLbl+'</span></span>'+
+      '<span class="appt-util-summary">'+pct+'% · <b>'+totBk+'</b> booked / '+totCap+' capacity · <b style="color:#70AD47">'+open+'</b> open</span></div>'+
+    '<div class="appt-util-bar"><div class="appt-util-bar-fill" style="width:'+pct+'%;background:'+barCol(pct)+'"></div></div>'+
+    '<details class="appt-util-acts-wrap"><summary class="appt-util-acts-sum">Per-activator breakdown</summary>'+actHtml+'</details>'+
+  '</div>';
+}
 
 // ── Booking Modal ─────────────────────────────────────────────
 function openApptBookingModal(date, activatorEmail, timeSlot) {
