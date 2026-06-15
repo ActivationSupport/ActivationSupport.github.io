@@ -846,6 +846,11 @@ tr:hover td{background:rgba(74,159,212,.07)}
 #appt-booking-modal .abm-divider{margin:22px 0}
 #appt-booking-modal .abm-seg{padding:5px}
 #appt-booking-modal .abm-seg-btn{padding:10px 14px}
+/* Phase 3: booking-availability toggle in Manage My Schedule */
+#appt-sched-modal .sc-bookable-box{padding:13px 15px;background:rgba(74,159,212,.08);border:1px solid rgba(74,159,212,.28);border-radius:10px;margin-bottom:18px}
+#appt-sched-modal .sc-bookable-box .appt-chk{font-size:.92rem;color:var(--text)}
+#appt-sched-modal .sc-bookable-box input[type=checkbox]{accent-color:var(--blue2);width:17px;height:17px}
+#appt-sched-modal .sc-bookable-hint{font-size:.76rem;color:var(--text2);margin-top:7px;line-height:1.45}
 .appt-sched-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .appt-day-toggle{display:flex;align-items:center;gap:7px;min-width:110px;font-size:.85rem;cursor:pointer}
 .appt-day-times{display:flex;align-items:center;gap:8px}
@@ -5866,8 +5871,23 @@ function closeApptReschedModal() { document.getElementById('appt-resched-modal')
 
 // ── Schedule Modal ─────────────────────────────────────────────
 function openApptSchedModal() {
+  // Fetch the user's OWN schedule directly (not via _APPT.activators) so a
+  // master-admin who has opted OUT of the booking pool — and is therefore no
+  // longer in getActivators — can still open this modal and opt back in.
+  document.getElementById('appt-sched-body').innerHTML='<div class="empty">Loading your schedule…</div>';
+  document.getElementById('appt-sched-modal').classList.add('open');
+  _apptGet({action:'getActivatorSchedule',email:SESSION.email}).then(function(res){
+    _renderSchedModal(res.schedule||{});
+  }).catch(function(){
+    document.getElementById('appt-sched-body').innerHTML='<div class="empty">Failed to load. Close and try again.</div>';
+  });
+}
+function _renderSchedModal(sched) {
   var me=SESSION.email, myAct=(_APPT.activators||[]).find(function(a){return a.email===me;})||{};
-  var sched=myAct.schedule||{}, tz=myAct.timezone||'';
+  var tz=sched.timezone||myAct.timezone||'';
+  // Effective booking-pool state: explicit flag wins, else role default
+  // (master-admin OFF, activator ON).
+  var canBook = sched.bookable==='true' ? true : (sched.bookable==='false' ? false : (SESSION.role!=='master-admin'));
   var tzOpts=[
     ['America/New_York','Eastern (ET)'],['America/Chicago','Central (CT)'],
     ['America/Denver','Mountain (MT)'],['America/Los_Angeles','Pacific (PT)'],
@@ -5885,6 +5905,10 @@ function openApptSchedModal() {
       '</div></div>';
   }).join('');
   document.getElementById('appt-sched-body').innerHTML=
+    '<div class="sc-bookable-box">'+
+      '<label class="appt-chk"><input type="checkbox" id="sc-bookable"'+(canBook?' checked':'')+'> <b>Available for appointment booking</b></label>'+
+      '<div class="sc-bookable-hint">When on, you appear in the booking pool + Next Available Agent. '+(SESSION.role==='master-admin'?'Master-admins are off by default — turn this on only if you take appointments.':'Turn off if you temporarily aren’t taking appointments.')+'</div>'+
+    '</div>'+
     '<div class="field" style="margin-bottom:16px"><label>My Timezone</label>'+
       '<select class="appt-form-input" id="sc-tz">'+tzOpts+'</select></div>'+
     '<div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:10px">Working Hours</div>'+
@@ -5975,10 +5999,11 @@ function saveApptSched() {
   });
   var buffer=parseInt((document.getElementById('sc-buffer')||{}).value||'0')||0;
   var maxday=parseInt((document.getElementById('sc-maxday')||{}).value||'0')||0;
+  var bookable=!!(document.getElementById('sc-bookable')||{}).checked;
   var btn=document.getElementById('sc-save-btn');
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
   Promise.all([
-    _apptPost({action:'setActivatorSchedule',email:SESSION.email,timezone:tz,schedule:sched,bufferMins:buffer,maxPerDay:maxday}),
+    _apptPost({action:'setActivatorSchedule',email:SESSION.email,timezone:tz,schedule:sched,bufferMins:buffer,maxPerDay:maxday,bookable:bookable}),
     _apptPost({action:'setActivatorTimezone',email:SESSION.email,timezone:tz})
   ]).then(function(){
     if(btn){btn.disabled=false;btn.textContent='Save Schedule';}

@@ -54,7 +54,10 @@ var SCHED_HEADERS = [
   'wedStart','wedEnd','thuStart','thuEnd',
   'friStart','friEnd','satStart','satEnd','sunStart','sunEnd',
   // Phase 1 additions (append-only):
-  'bufferMins','maxPerDay'
+  'bufferMins','maxPerDay',
+  // Phase 3: opt-in/out of the booking pool (master-admins default OUT,
+  // activators default IN). '' = unset, 'true' = bookable, 'false' = not.
+  'bookable'
 ];
 
 var BLOCKS_HEADERS = [
@@ -285,14 +288,20 @@ function getActivators(officeId) {
       var timezone    = String(row[10] || '').trim() || OFFICE_TZ[oid] || 'America/Los_Angeles';
       // If filtering by officeId, only include activators whose permissions include that office
       if (officeId && officesStr.split(',').map(function(o){ return o.trim(); }).indexOf(officeId) === -1) continue;
+      // Phase 3: booking-pool opt-in/out. master-admin is IN only if explicitly
+      // bookable==='true' (default OUT — most don't activate); activator is IN
+      // unless explicitly bookable==='false' (default IN, can opt out).
+      var sched   = getActivatorSchedule(email);
+      var include = (rank === 'master-admin') ? (sched.bookable === 'true') : (sched.bookable !== 'false');
       seen[email] = true;
+      if (!include) continue;
       activators.push({
         email:    email,
         name:     String(row[1] || '').trim(),
         rank:     rank,
         offices:  officesStr.split(',').map(function(o){ return o.trim(); }),
         timezone: timezone,
-        schedule: getActivatorSchedule(email)
+        schedule: sched
       });
     }
   });
@@ -322,7 +331,8 @@ function getActivatorSchedule(email) {
         sat: { start: t(rows[i][12]), end: t(rows[i][13]) },
         sun: { start: t(rows[i][14]), end: t(rows[i][15]) },
         bufferMins: Number(rows[i][16]) || 0,   // 0 = off
-        maxPerDay:  Number(rows[i][17]) || 0     // 0 = unlimited
+        maxPerDay:  Number(rows[i][17]) || 0,    // 0 = unlimited
+        bookable:   String(rows[i][18] || '').trim().toLowerCase()   // '' | 'true' | 'false'
       };
     }
   }
@@ -332,7 +342,7 @@ function getActivatorSchedule(email) {
     mon:{start:'',end:''}, tue:{start:'',end:''}, wed:{start:'',end:''},
     thu:{start:'',end:''}, fri:{start:'',end:''}, sat:{start:'',end:''},
     sun:{start:'',end:''},
-    bufferMins: 0, maxPerDay: 0
+    bufferMins: 0, maxPerDay: 0, bookable: ''
   };
 }
 
@@ -356,7 +366,8 @@ function setActivatorSchedule(body) {
     (sched.sat && sched.sat.start) || '', (sched.sat && sched.sat.end) || '',
     (sched.sun && sched.sun.start) || '', (sched.sun && sched.sun.end) || '',
     Number(body.bufferMins) || 0,   // 0 = no buffer
-    Number(body.maxPerDay)  || 0     // 0 = unlimited
+    Number(body.maxPerDay)  || 0,    // 0 = unlimited
+    (body.bookable === true || String(body.bookable).toLowerCase() === 'true') ? 'true' : 'false'   // booking-pool opt-in
   ];
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
