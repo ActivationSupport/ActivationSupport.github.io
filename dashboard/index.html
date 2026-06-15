@@ -798,6 +798,54 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-checkbox-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
 .appt-chk{display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--text);cursor:pointer}
 .appt-chk input{accent-color:var(--blue2)}
+/* Phase 3 #1: booking-modal redesign — sections, When segmented control,
+   soonest-available chip, balance + same-day inline toggles */
+.appt-nextmode-hint{font-size:.72rem;color:var(--text2);font-weight:400}
+.abm-section{margin-bottom:4px}
+.abm-section-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--blue2);margin-bottom:12px}
+.abm-divider{height:1px;background:var(--border);margin:20px 0}
+.abm-inline-chk{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:.82rem;color:var(--text)}
+.abm-inline-chk input{accent-color:var(--blue2)}
+.abm-sameday-chk input{accent-color:#ED7D31}
+.abm-seg{display:flex;gap:6px;background:#1a1a1a;border:1px solid #3a3a3a;border-radius:8px;padding:4px}
+.abm-seg-btn{flex:1;padding:9px 14px;border:none;border-radius:6px;background:transparent;color:var(--text2);font-size:.84rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.abm-seg-btn:hover{color:var(--text)}
+.abm-seg-btn.active{background:var(--blue2);color:#fff}
+.abm-soonest-chip{padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;font-size:.92rem;text-align:center}
+.abm-chip-muted{color:var(--text2)}
+.abm-chip-ok{color:var(--text)}
+.abm-chip-ok b{color:#52c785}
+/* Phase 3 #1: booking-modal visual pass (scoped to #appt-booking-modal) */
+#appt-booking-modal .modal{padding:26px 28px 24px;border-radius:14px;border-color:rgba(255,255,255,.12);box-shadow:0 24px 60px rgba(0,0,0,.55)}
+#appt-booking-modal h3{font-size:1.18rem;font-weight:800;margin-bottom:20px;letter-spacing:.2px}
+#appt-booking-modal .modal-close{font-size:1.15rem}
+#appt-booking-modal .appt-form-grid{gap:14px 16px}
+#appt-booking-modal .field{margin-bottom:0}
+#appt-booking-modal .appt-form-input{padding:11px 13px;border-radius:8px;background:#1c1c1c;border-color:#383838;font-size:.9rem;transition:border-color .15s,box-shadow .15s}
+#appt-booking-modal .appt-form-input:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(74,159,212,.16)}
+#appt-booking-modal select.appt-form-input{cursor:pointer}
+/* custom checkboxes — replace the raw white browser boxes */
+#appt-booking-modal input[type=checkbox]{appearance:none;-webkit-appearance:none;width:19px;height:19px;border:1.5px solid #4a4a4a;border-radius:6px;background:#1c1c1c;cursor:pointer;position:relative;flex-shrink:0;margin:0;transition:all .15s}
+#appt-booking-modal input[type=checkbox]:hover{border-color:var(--blue2)}
+#appt-booking-modal input[type=checkbox]:checked{background:var(--blue2);border-color:var(--blue2)}
+#appt-booking-modal input[type=checkbox]:checked::after{content:'';position:absolute;left:5.5px;top:2px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+/* checkbox labels: undo the global .field label block/uppercase bleed */
+#appt-booking-modal .appt-chk{display:inline-flex;align-items:center;gap:9px;font-size:.86rem;font-weight:500;text-transform:none;letter-spacing:normal;color:var(--text);margin-bottom:0;cursor:pointer}
+#appt-booking-modal .abm-inline-chk{margin-top:12px}
+#appt-booking-modal .abm-act-hint{align-items:center;gap:7px;margin-top:10px;padding:8px 12px;font-size:.8rem;font-weight:600;color:#7db4e6;background:rgba(74,159,212,.1);border:1px solid rgba(74,159,212,.25);border-radius:8px}
+/* service options as selectable pills */
+#appt-booking-modal .appt-checkbox-row{gap:10px}
+#appt-booking-modal .appt-checkbox-row .appt-chk{padding:9px 14px;border:1.5px solid #383838;border-radius:9px;background:#1c1c1c;transition:all .15s}
+#appt-booking-modal .appt-checkbox-row .appt-chk:hover{border-color:var(--blue2)}
+#appt-booking-modal .appt-checkbox-row .appt-chk:has(input:checked){border-color:var(--blue2);background:rgba(74,159,212,.12)}
+/* same-day override: subtle amber callout box */
+#appt-booking-modal .abm-sameday-chk{margin-top:12px;padding:10px 13px;border:1px solid rgba(237,125,49,.32);background:rgba(237,125,49,.07);border-radius:9px}
+#appt-booking-modal .abm-sameday-chk input[type=checkbox]{border-color:#ED7D31}
+#appt-booking-modal .abm-sameday-chk input[type=checkbox]:checked{background:#ED7D31;border-color:#ED7D31}
+#appt-booking-modal .abm-section-title{margin-bottom:14px}
+#appt-booking-modal .abm-divider{margin:22px 0}
+#appt-booking-modal .abm-seg{padding:5px}
+#appt-booking-modal .abm-seg-btn{padding:10px 14px}
 .appt-sched-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .appt-day-toggle{display:flex;align-items:center;gap:7px;min-width:110px;font-size:.85rem;cursor:pointer}
 .appt-day-times{display:flex;align-items:center;gap:8px}
@@ -5043,12 +5091,14 @@ function _apptWeekStart(offset) {
 function _apptDateStr(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 // Phase 1 booking window: NO same-day. Earliest = tomorrow, latest = +7 days
 // (rolling, slides forward daily). Mirrors the backend _bookingWindow().
-function _apptWindow() {
+function _apptWindow(allowSameDay) {
   var t=new Date(); t.setHours(0,0,0,0);
-  var min=new Date(t); min.setDate(t.getDate()+1);
+  var min=new Date(t); min.setDate(t.getDate()+(allowSameDay?0:1));   // same-day override drops the floor to today
   var max=new Date(t); max.setDate(t.getDate()+7);
   return { min:_apptDateStr(min), max:_apptDateStr(max) };
 }
+// Phase 3 #1b: only activators + master-admins get the same-day booking override.
+function _apptCanSameDay(){ return SESSION.role==='master-admin'||SESSION.role==='activator'; }
 function _apptFmt12(t) {
   if (!t) return ''; var p=t.split(':').map(Number); var h=p[0],m=p[1];
   return (h>12?h-12:h===0?12:h)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM');
@@ -5387,7 +5437,7 @@ function _apptFilter(email) { _APPT.filterEmail=email; var c=document.getElement
 function _apptBindEvents() { var s=document.getElementById('appt-act-filter'); if(s) s.value=_APPT.filterEmail; }
 
 // Phase 2 #6: Week | Day | All-Activators switcher + booking-utilization strip.
-function _apptRerender(){ var c=document.getElementById('main-content'); if(c){ c.innerHTML=_apptBuildView(); _apptBindEvents(); } }
+// (_apptRerender is defined once, further down, with a CURRENT_TAB guard.)
 function _apptSetView(m){ _APPT.viewMode=m; _apptRerender(); }
 function _apptNav(dir){
   if ((_APPT.viewMode||'week')==='week'){ _apptNavWeek(dir); }   // week step refetches (existing behavior)
@@ -5511,30 +5561,59 @@ function _apptUtilStrip(appts, acts, mode, ws, dStr){
 }
 
 // ── Booking Modal ─────────────────────────────────────────────
+// Phase 3 #1 redesign: booker chooses EITHER "Soonest available" (auto-find the
+// earliest opening) OR "Pick a date". Round-robin is a single "Balance workload"
+// toggle shown only for Next Available Agent. Same-day is a privileged override.
+var _ABM = { when:'soonest', soonest:null };
+function _abmNiceDate(ds){
+  if(!ds) return ''; var p=ds.split('-').map(Number); var d=new Date(p[0],p[1]-1,p[2]);
+  var wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+  var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][p[1]-1];
+  return wd+' '+mo+' '+p[2];
+}
 function openApptBookingModal(date, activatorEmail, timeSlot) {
+  _ABM = { when:'soonest', soonest:null };
   var acts = _APPT.activators||[];
-  var actOpts='<option value="">Select Activator…</option>'+
-    '<option value="__next__"'+(activatorEmail==='__next__'?' selected':'')+'>⚡ Next Available Agent</option>'+
+  var actOpts='<option value="">Select activator…</option>'+
+    '<option value="__next__">⚡ Next Available Agent</option>'+
     acts.map(function(a){
-    return '<option value="'+esc(a.email)+'"'+(a.email===activatorEmail?' selected':'')+'>'+esc(a.name)+' ('+esc(a.timezone||'TZ not set')+')</option>';
-  }).join('');
+      return '<option value="'+esc(a.email)+'">'+esc(a.name)+' ('+esc(a.timezone||'TZ not set')+')</option>';
+    }).join('');
   document.getElementById('appt-booking-body').innerHTML =
-    '<div class="appt-form-grid">'+
-      '<div class="field"><label>Activator</label><select class="appt-form-input" id="abm-act" onchange="_abmLoadSlots()">'+actOpts+'</select></div>'+
-      '<div class="field"><label>Date</label><input type="date" class="appt-form-input" id="abm-date" value="'+esc(date||'')+'" min="'+_apptWindow().min+'" max="'+_apptWindow().max+'" onchange="_abmLoadSlots()"></div>'+
-      '<div class="field" style="grid-column:1/-1"><label>Time Slot</label><select class="appt-form-input" id="abm-slot"><option value="">Select activator &amp; date first…</option></select></div>'+
-      '<div class="field"><label>First Name + Last Initial</label><input type="text" class="appt-form-input" id="abm-name" placeholder="e.g. John D."></div>'+
-      '<div class="field"><label>DSI Number</label><input type="text" class="appt-form-input" id="abm-dsi" placeholder="DSI #"></div>'+
-      '<div class="field"><label>Contact Number</label><input type="tel" class="appt-form-input" id="abm-phone" placeholder="(555) 555-5555"></div>'+
-      '<div class="field"><label>Customer Email</label><input type="email" class="appt-form-input" id="abm-email" placeholder="customer@email.com"></div>'+
-      '<div class="field" style="grid-column:1/-1"><label>Services (select all that apply)</label>'+
-        '<div class="appt-checkbox-row">'+
-          '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Wireless"> Wireless</label>'+
-          '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Air"> Air</label>'+
-          '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Fiber - Self Install"> Fiber - Self Install</label>'+
+    '<div class="abm-section">'+
+      '<div class="abm-section-title">Appointment</div>'+
+      '<div class="appt-form-grid">'+
+        '<div class="field" style="grid-column:1/-1"><label>Activator</label>'+
+          '<select class="appt-form-input" id="abm-act" onchange="_abmActChange()">'+actOpts+'</select>'+
+          '<div class="abm-act-hint" id="abm-balance-row" style="display:none">⚖ Balanced — assigns the least-busy activator</div>'+
+        '</div>'+
+        '<div class="field" style="grid-column:1/-1"><label>When</label>'+
+          '<div class="abm-seg">'+
+            '<button type="button" class="abm-seg-btn" id="abm-seg-soonest" onclick="_abmSetWhen(\'soonest\')">⚡ Soonest available</button>'+
+            '<button type="button" class="abm-seg-btn" id="abm-seg-date" onclick="_abmSetWhen(\'date\')">📅 Pick a date</button>'+
+          '</div>'+
+          (_apptCanSameDay() ? '<label class="appt-chk abm-inline-chk abm-sameday-chk"><input type="checkbox" id="abm-sameday" onchange="_abmSameDayToggle()"> ⚠ Include same-day <span class="appt-nextmode-hint">override — normally earliest is tomorrow</span></label>' : '')+
+          '<div id="abm-when-body" style="margin-top:12px"></div>'+
         '</div>'+
       '</div>'+
-      '<div class="field"><label>Number of Devices</label><input type="number" class="appt-form-input" id="abm-devices" value="1" min="1" max="20"></div>'+
+    '</div>'+
+    '<div class="abm-divider"></div>'+
+    '<div class="abm-section">'+
+      '<div class="abm-section-title">Customer</div>'+
+      '<div class="appt-form-grid">'+
+        '<div class="field"><label>First Name + Last Initial</label><input type="text" class="appt-form-input" id="abm-name" placeholder="e.g. John D."></div>'+
+        '<div class="field"><label>DSI Number</label><input type="text" class="appt-form-input" id="abm-dsi" placeholder="DSI #"></div>'+
+        '<div class="field"><label>Contact Number</label><input type="tel" class="appt-form-input" id="abm-phone" placeholder="(555) 555-5555"></div>'+
+        '<div class="field"><label>Customer Email</label><input type="email" class="appt-form-input" id="abm-email" placeholder="customer@email.com"></div>'+
+        '<div class="field" style="grid-column:1/-1"><label>Services (select all that apply)</label>'+
+          '<div class="appt-checkbox-row">'+
+            '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Wireless"> Wireless</label>'+
+            '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Air"> Air</label>'+
+            '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Fiber - Self Install"> Fiber - Self Install</label>'+
+          '</div>'+
+        '</div>'+
+        '<div class="field"><label>Number of Devices</label><input type="number" class="appt-form-input" id="abm-devices" value="1" min="1" max="20"></div>'+
+      '</div>'+
     '</div>'+
     '<div id="abm-error" style="color:var(--red);font-size:.82rem;margin-top:10px;display:none"></div>'+
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">'+
@@ -5542,22 +5621,102 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
       '<button class="appt-book-btn" id="abm-submit-btn" onclick="submitApptBooking()">Confirm Booking</button>'+
     '</div>';
   document.getElementById('appt-booking-modal').classList.add('open');
-  if (activatorEmail && date) {
-    document.getElementById('abm-act').value = activatorEmail;
-    document.getElementById('abm-date').value = date;
+  // Pre-fill from a clicked grid cell → start in "Pick a date" mode; otherwise
+  // default to the streamlined "Soonest available".
+  if (activatorEmail) document.getElementById('abm-act').value = activatorEmail;
+  var brow=document.getElementById('abm-balance-row');
+  if(brow) brow.style.display = (document.getElementById('abm-act').value==='__next__') ? 'flex' : 'none';   // Next Available always balances
+  if (date) {
+    _abmSetWhen('date');
+    var di=document.getElementById('abm-date'); if(di) di.value=date;
     _abmLoadSlots(timeSlot);
+  } else {
+    _abmSetWhen('soonest');
   }
+}
+
+// Toggle the When mode: rebuild the body for soonest (auto-find chip) or date.
+function _abmSetWhen(mode) {
+  _ABM.when = mode; _ABM.soonest = null;
+  var sB=document.getElementById('abm-seg-soonest'), dB=document.getElementById('abm-seg-date');
+  if(sB) sB.classList.toggle('active', mode==='soonest');
+  if(dB) dB.classList.toggle('active', mode==='date');
+  var body=document.getElementById('abm-when-body'); if(!body) return;
+  if (mode==='soonest') {
+    body.innerHTML='<div class="abm-soonest-chip" id="abm-soonest-chip"><span class="abm-chip-muted">Select an activator to find the soonest opening…</span></div>';
+    _abmFindSoonest();
+  } else {
+    var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
+    var win=_apptWindow(sameday);
+    body.innerHTML='<div class="appt-form-grid">'+
+      '<div class="field"><label>Date</label><input type="date" class="appt-form-input" id="abm-date" min="'+win.min+'" max="'+win.max+'" onchange="_abmLoadSlots()"></div>'+
+      '<div class="field"><label>Time Slot</label><select class="appt-form-input" id="abm-slot"><option value="">Select a date first…</option></select></div>'+
+    '</div>';
+  }
+}
+
+// Activator change: show Balance only for Next Available Agent, then refresh.
+function _abmActChange() {
+  var email=(document.getElementById('abm-act')||{}).value||'';
+  var brow=document.getElementById('abm-balance-row');
+  if(brow) brow.style.display = (email==='__next__') ? 'flex' : 'none';   // hint only; balancing is automatic
+  if(_ABM.when==='soonest') _abmFindSoonest(); else _abmLoadSlots();
+}
+
+// Same-day override: affects both modes (soonest search floor + date min).
+function _abmSameDayToggle() {
+  var chk=!!(document.getElementById('abm-sameday')||{}).checked;
+  if(_ABM.when==='date'){
+    var di=document.getElementById('abm-date');
+    if(di){ di.min=_apptWindow(chk).min; if(di.value && di.value<di.min) di.value=''; }
+    _abmLoadSlots();
+  } else {
+    _abmFindSoonest();
+  }
+}
+
+// "Soonest available": probe every day in the window in parallel, pick the
+// earliest day that has an opening, and its earliest slot.
+function _abmFindSoonest() {
+  var chip=document.getElementById('abm-soonest-chip'); if(!chip) return;
+  _ABM.soonest=null;
+  var act=(document.getElementById('abm-act')||{}).value||'';
+  if(!act){ chip.innerHTML='<span class="abm-chip-muted">Select an activator to find the soonest opening…</span>'; return; }
+  var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
+  var role=sameday?SESSION.role:'';
+  var win=_apptWindow(sameday);
+  var dates=[], d=new Date(win.min+'T12:00:00'), end=new Date(win.max+'T12:00:00');
+  while(d<=end){ dates.push(_apptDateStr(d)); d.setDate(d.getDate()+1); }
+  chip.innerHTML='<span class="abm-chip-muted">⏳ Finding the soonest opening…</span>';
+  var reqs=dates.map(function(ds){
+    var req = act==='__next__' ? {action:'getNextAvailableSlots',officeId:CFG.officeId,date:ds,role:role}
+                               : {action:'getAvailableSlots',activatorEmail:act,date:ds,role:role};
+    return _apptGet(req).then(function(res){return {date:ds,slots:res.slots||[]};}).catch(function(){return {date:ds,slots:[]};});
+  });
+  Promise.all(reqs).then(function(results){
+    if(_ABM.when!=='soonest') return;   // user switched modes mid-flight
+    for(var i=0;i<results.length;i++){
+      if(results[i].slots.length){
+        _ABM.soonest={date:results[i].date, slot:results[i].slots.slice().sort()[0]};
+        chip.innerHTML='<span class="abm-chip-ok">Earliest opening: <b>'+esc(_abmNiceDate(_ABM.soonest.date))+' · '+esc(_apptFmt12(_ABM.soonest.slot))+'</b></span>';
+        return;
+      }
+    }
+    chip.innerHTML='<span class="abm-chip-muted">No openings in the next 7 days — try Pick a date.</span>';
+  });
 }
 
 function _abmLoadSlots(preselect) {
   var email=(document.getElementById('abm-act')||{}).value||'';
   var date=(document.getElementById('abm-date')||{}).value||'';
+  var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
+  var role = sameday ? SESSION.role : '';   // role sent only on explicit same-day opt-in
   var sel=document.getElementById('abm-slot');
   if (!email||!date){if(sel)sel.innerHTML='<option value="">Select activator &amp; date first…</option>';return;}
   if(sel)sel.innerHTML='<option value="">Loading available slots…</option>';
   var req = email==='__next__'
-    ? {action:'getNextAvailableSlots',officeId:CFG.officeId,date:date}
-    : {action:'getAvailableSlots',activatorEmail:email,date:date};
+    ? {action:'getNextAvailableSlots',officeId:CFG.officeId,date:date,role:role}
+    : {action:'getAvailableSlots',activatorEmail:email,date:date,role:role};
   _apptGet(req).then(function(res){
     var slots=res.slots||[];
     if(!slots.length){sel.innerHTML='<option value="">No available slots for this date</option>';return;}
@@ -5569,27 +5728,38 @@ function _abmLoadSlots(preselect) {
 
 function submitApptBooking() {
   var actEmail=(document.getElementById('abm-act')||{}).value||'';
-  var date=(document.getElementById('abm-date')||{}).value||'';
-  var slot=(document.getElementById('abm-slot')||{}).value||'';
+  var date, slot;
+  if(_ABM.when==='soonest'){
+    date=_ABM.soonest?_ABM.soonest.date:'';
+    slot=_ABM.soonest?_ABM.soonest.slot:'';
+  } else {
+    date=(document.getElementById('abm-date')||{}).value||'';
+    slot=(document.getElementById('abm-slot')||{}).value||'';
+  }
   var name=(document.getElementById('abm-name')||{}).value||'';
   var dsi=(document.getElementById('abm-dsi')||{}).value||'';
   var phone=(document.getElementById('abm-phone')||{}).value||'';
   var email=(document.getElementById('abm-email')||{}).value||'';
   var devices=parseInt((document.getElementById('abm-devices')||{}).value||'1');
   var svcs=Array.from(document.querySelectorAll('.abm-svc:checked')).map(function(cb){return cb.value;});
+  var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
+  var nextMode='balance';   // Next Available Agent always balances the load (backend only uses this for __next__)
   var errEl=document.getElementById('abm-error');
-  if (!actEmail||!date||!slot||!name||!dsi||!phone||!email){errEl.textContent='Please fill in all fields.';errEl.style.display='block';return;}
+  if (!actEmail){errEl.textContent='Please choose an activator.';errEl.style.display='block';return;}
+  if (_ABM.when==='soonest' && !slot){errEl.textContent='No opening found yet — try “Pick a date”.';errEl.style.display='block';return;}
+  if (!date||!slot||!name||!dsi||!phone||!email){errEl.textContent='Please fill in all fields.';errEl.style.display='block';return;}
   if (!svcs.length){errEl.textContent='Please select at least one service.';errEl.style.display='block';return;}
   errEl.style.display='none';
   var btn=document.getElementById('abm-submit-btn');
   if(btn){btn.disabled=true;btn.textContent='Booking…';}
   _apptPost({action:'bookAppointment',bookerEmail:SESSION.email,activatorEmail:actEmail,
     date:date,timeSlot:slot,customerName:name,customerDSI:dsi,customerPhone:phone,
-    customerEmail:email,services:svcs,deviceCount:devices,office:CFG.officeId
+    customerEmail:email,services:svcs,deviceCount:devices,office:CFG.officeId,
+    nextMode:nextMode, role:(sameday?SESSION.role:'')   // role sent only on explicit same-day opt-in
   }).then(function(res){
     if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
     if(res.ok){closeApptModal();_APPT.appointments=null;renderAppointmentsTab();}
-    else{errEl.textContent=res.error==='slot_unavailable'?'That slot was just taken — please pick another time.':(res.error||'Booking failed. Try again.');errEl.style.display='block';}
+    else{errEl.textContent=res.error==='slot_unavailable'?'That slot was just taken — please pick another time.':(res.error==='outside_window'?'That date is outside the booking window.':(res.error||'Booking failed. Try again.'));errEl.style.display='block';}
   }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}errEl.textContent='Connection error. Try again.';errEl.style.display='block';});
 }
 
