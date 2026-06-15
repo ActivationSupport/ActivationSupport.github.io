@@ -190,6 +190,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .ct-flag-rotting{background:rgba(231,76,60,.16);color:#e9756a}
 .ct-flag-atrisk{background:rgba(237,125,49,.16);color:#f0995a}
 .ct-flag-booked{background:rgba(74,159,212,.16);color:#6cb6e8}
+.ct-appt-cell{white-space:nowrap;color:var(--text2)}
 .ct-risk-filter{height:32px;padding:0 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.82rem;cursor:pointer}
 /* Phase 1: column summary chips + hover-highlight dim-the-rest */
 .ct-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
@@ -1861,9 +1862,9 @@ function _applyView() {
       if (_activeFilters.lastCalled === 'never'   && d !== null)               return false;
     }
     if (_activeFilters.risk) {
-      if (_activeFilters.risk === 'atrisk'  && !_isAtRisk(o.dsi))  return false;
-      if (_activeFilters.risk === 'rotting' && !_isRotting(o.dsi)) return false;
-      if (_activeFilters.risk === 'booked'  && !_bookedFor(o.dsi)) return false;
+      if (_activeFilters.risk === 'atrisk'  && !_isAtRisk(o.dsi))    return false;
+      if (_activeFilters.risk === 'rotting' && !_rottingShown(o.dsi)) return false;
+      if (_activeFilters.risk === 'booked'  && !_bookedFor(o.dsi))   return false;
     }
     return true;
   });
@@ -2023,13 +2024,17 @@ function _isRotting(dsi) {
   return d!==null && d>=8;
 }
 function _bookedFor(dsi) { return (_BOOKED_MAP||{})[dsi]||null; }
+// Rotting only counts as "rotting" if it ISN'T already handled by a future
+// booking. A booked order shows the 📅 badge instead. (At-risk is NOT suppressed
+// by a booking — order issues / 1–2★ still need attention.)
+function _rottingShown(dsi) { return _isRotting(dsi) && !_bookedFor(dsi); }
 function _ctShortDate(s) { var p=String(s||'').split('-'); return p.length===3 ? (Number(p[1])+'/'+Number(p[2])) : s; }
 
 // Column summary chips above a call table — counts over the whole tab, each a
 // one-click shortcut into the matching show-only risk filter.
 function _ctChipsInner(orders) {
   var risk=_activeFilters.risk||'', n=orders.length, ar=0, rot=0, bk=0;
-  orders.forEach(function(o){ if(_isAtRisk(o.dsi))ar++; if(_isRotting(o.dsi))rot++; if(_bookedFor(o.dsi))bk++; });
+  orders.forEach(function(o){ if(_isAtRisk(o.dsi))ar++; if(_rottingShown(o.dsi))rot++; if(_bookedFor(o.dsi))bk++; });
   function chip(val,label,count,cls){
     return '<span class="ct-chip'+(cls?' '+cls:'')+(risk===val?' ct-chip-active':'')+'" onclick="_ctSetRisk(\''+val+'\')">'+label+' <b>'+count+'</b></span>';
   }
@@ -2058,7 +2063,7 @@ function _loadBookedAppts() {
       if(!d || d.indexOf('•')!==-1) return;            // missing or masked
       if(a.status==='cancelled') return;
       if(!a.date || a.date<today) return;              // only upcoming / today
-      if(!map[d] || a.date<map[d].date) map[d]={date:a.date,timeSlot:a.timeSlot};
+      if(!map[d] || a.date<map[d].date) map[d]={date:a.date,timeSlot:a.timeSlot,activator:((DATA.roster||{})[a.activatorEmail]||{}).name||a.activatorEmail};
     });
     _BOOKED_MAP=map; _bookedLoading=false;
     if(_sortTblId && document.getElementById(_sortTblId)) _applyView();   // re-stamp badges
@@ -2071,12 +2076,13 @@ function callTableRows(orders, extraColFn) {
     var safeId = dsi.replace(/\W/g,'_');
     var noteCount = ((DATA.notes||{})[dsi]||[]).length;
     var extra = extraColFn ? extraColFn(o) : '';
-    var rotting=_isRotting(dsi), atrisk=(!rotting && _isAtRisk(dsi)), booked=_bookedFor(dsi);
+    var booked=_bookedFor(dsi);
+    var rotting=_isRotting(dsi) && !booked;   // a booked order is handled → drop rotting flag
+    var atrisk=_isAtRisk(dsi);                 // order issues / 1–2★ persist regardless of a booking
     var rowCls = rotting ? ' class="ct-row-rotting"' : (atrisk ? ' class="ct-row-atrisk"' : '');
     var flags='';
     if (_ctShowRiskFlags && rotting) flags+='<span class="ct-flag ct-flag-rotting" title="No Answer · 8+ days since last call">⏳ Rotting</span>';
-    else if (_ctShowRiskFlags && atrisk) flags+='<span class="ct-flag ct-flag-atrisk" title="1–2★ rating or Order Issue">⚠ At-risk</span>';
-    if (booked) flags+='<span class="ct-flag ct-flag-booked" title="Appointment '+esc(_apptFmtDate(booked.date))+' at '+esc(_apptFmt12(booked.timeSlot))+'">📅 '+esc(_ctShortDate(booked.date))+'</span>';
+    if (_ctShowRiskFlags && atrisk) flags+='<span class="ct-flag ct-flag-atrisk" title="1–2★ rating or Order Issue">⚠ At-risk</span>';
     var dsiCell='<span class="dsi-link" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>'+(flags?'<div class="ct-flags">'+flags+'</div>':'');
     return '<tr'+rowCls+'>' +
       '<td><span class="rep-name">'+esc(o.rep)+'</span></td>' +
@@ -2085,6 +2091,7 @@ function callTableRows(orders, extraColFn) {
       '<td>'+productBreakdown(o.productCounts)+'</td>' +
       extra +
       '<td>'+statusBreakdown(o.statusCounts)+'</td>' +
+      _bookedCell(booked) +
       '<td>' + ratingPill(dsi, safeId) + '</td>' +
       '<td>' +
         '<button class="notes-btn'+(noteCount>0?' has-notes':'')+'" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">NOTES' +
@@ -2095,11 +2102,18 @@ function callTableRows(orders, extraColFn) {
   }).join('');
 }
 
+// The "Appointment" column cell — shows the next booking (date · time · activator) or —.
+function _bookedCell(booked) {
+  if (!booked) return '<td class="ct-appt-cell">—</td>';
+  var bTxt=_ctShortDate(booked.date)+(booked.timeSlot?' '+_apptFmt12(booked.timeSlot):'')+(booked.activator?' · '+String(booked.activator).split(' ')[0]:'');
+  return '<td class="ct-appt-cell"><span class="ct-flag ct-flag-booked" title="Next appointment: '+esc(_apptFmtDate(booked.date))+' at '+esc(_apptFmt12(booked.timeSlot))+(booked.activator?' · '+esc(booked.activator):'')+'">📅 '+esc(bTxt)+'</span></td>';
+}
+
 function _sortHeaders(tblId) {
   var cols = [['rep','Name'],['dsi','DSI'],['date','Date'],['product','Product'],['status','Status']];
   return cols.map(function(c) {
     return '<th class="sort-th" data-col="'+c[0]+'" onclick="sortCallTable(\''+c[0]+'\')">'+c[1]+'</th>';
-  }).join('') + '<th>Rating</th><th>Notes</th>';
+  }).join('') + '<th>Appointment</th><th>Rating</th><th>Notes</th>';
 }
 
 function renderCallTable(orders, title, emptyMsg) {
@@ -2193,7 +2207,7 @@ function renderNoAnswerTable() {
   if (_BOOKED_MAP === null) _loadBookedAppts();
   var headers = [['rep','Name'],['dsi','DSI'],['date','Date'],['product','Product']].map(function(c) {
     return '<th class="sort-th" data-col="'+c[0]+'" onclick="sortCallTable(\''+c[0]+'\')">'+c[1]+'</th>';
-  }).join('') + '<th class="sort-th" data-col="lastcalled" onclick="sortCallTable(\'lastcalled\')">Last Called</th><th class="sort-th" data-col="status" onclick="sortCallTable(\'status\')">Status</th><th>Rating</th><th>Notes</th>';
+  }).join('') + '<th class="sort-th" data-col="lastcalled" onclick="sortCallTable(\'lastcalled\')">Last Called</th><th class="sort-th" data-col="status" onclick="sortCallTable(\'status\')">Status</th><th>Appointment</th><th>Rating</th><th>Notes</th>';
   var lcFilter = '<select id="lc-filter" onchange="_activeFilters.lastCalled=this.value;_applyView()" style="height:32px;padding:0 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.82rem;cursor:pointer">' +
     '<option value="">All Days</option>' +
     '<option value="recent">&#x1F7E2; Recent (0–2d)</option>' +
