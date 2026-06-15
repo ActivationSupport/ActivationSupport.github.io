@@ -690,6 +690,35 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-leg-item.appt-leg-dim{opacity:.4}
 .appt-leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
 .appt-leg-count{font-weight:800;font-size:.72rem;color:var(--text2);background:rgba(255,255,255,.08);min-width:18px;text-align:center;padding:0 5px;border-radius:9px}
+/* Phase 1: Wallboard / TV mode */
+.lst-wb-bar{display:flex;justify-content:flex-end;margin-bottom:10px}
+.lst-wb-btn{padding:7px 14px;background:#2a2a2a;color:var(--text2);border:1px solid #3a3a3a;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
+.lst-wb-btn:hover{border-color:var(--blue2);color:var(--blue2)}
+#wallboard{position:fixed;inset:0;z-index:9999;background:radial-gradient(circle at 50% -10%,#16263f,#080808 72%);display:flex;flex-direction:column;color:#fff;padding:2.2vh 3vw}
+#wallboard.wb-hidden{display:none}
+.wb-top{display:flex;align-items:center;gap:18px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:1.6vh}
+.wb-office{font-size:2.1vw;font-weight:800;letter-spacing:1px;color:var(--blue2);white-space:nowrap}
+.wb-title{flex:1;text-align:center;font-size:2.5vw;font-weight:800;text-transform:uppercase;letter-spacing:3px}
+.wb-clock{font-size:1.9vw;font-weight:700;color:var(--text2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.wb-close{background:transparent;border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;width:44px;height:44px;font-size:1.2rem;cursor:pointer;flex-shrink:0}
+.wb-close:hover{background:rgba(255,255,255,.1)}
+.wb-stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.wb-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:2.5vw;width:100%}
+.wb-kpi{text-align:center}
+.wb-kpi-val{font-size:9vw;font-weight:800;line-height:1}
+.wb-kpi-lbl{font-size:1.5vw;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text2);margin-top:1.2vh}
+.wb-list{width:100%;max-width:1500px}
+.wb-row{display:flex;align-items:center;gap:2vw;padding:1.35vh 1.5vw;border-bottom:1px solid rgba(255,255,255,.08)}
+.wb-rank{font-size:2.8vw;font-weight:800;width:5vw;text-align:center}
+.wb-name{flex:1;font-size:3.1vw;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wb-ord{font-size:3.1vw;font-weight:800;color:#fff;min-width:12vw;text-align:right;font-variant-numeric:tabular-nums}
+.wb-units{font-size:3.3vw;font-weight:800;color:var(--blue2);min-width:12vw;text-align:right;font-variant-numeric:tabular-nums}
+.wb-head{border-bottom:2px solid rgba(255,255,255,.2)}
+.wb-head .wb-rank,.wb-head .wb-name,.wb-head .wb-ord,.wb-head .wb-units{font-size:1.3vw;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--text2)}
+.wb-empty{font-size:2.4vw;color:var(--text2);text-align:center}
+.wb-dots{display:flex;justify-content:center;gap:14px;padding-top:1.5vh}
+.wb-dot{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer;transition:all .2s}
+.wb-dot-on{background:var(--blue2);transform:scale(1.25)}
 .appt-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .appt-form-input{width:100%;padding:9px 12px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.88rem}
 .appt-form-input:focus{border-color:var(--blue2);outline:none}
@@ -798,6 +827,18 @@ tr:hover td{background:rgba(74,159,212,.07)}
 </div>
 
 <div id="dsi-toast"></div>
+
+<!-- WALLBOARD / TV MODE -->
+<div id="wallboard" class="wb-hidden">
+  <div class="wb-top">
+    <div class="wb-office" id="wb-office">—</div>
+    <div class="wb-title" id="wb-title">Live Sales</div>
+    <div class="wb-clock" id="wb-clock">—</div>
+    <button class="wb-close" onclick="closeWallboard()" title="Exit (Esc)">✕</button>
+  </div>
+  <div class="wb-stage" id="wb-stage"></div>
+  <div class="wb-dots" id="wb-dots"></div>
+</div>
 
 <!-- DETAIL MODAL -->
 <div class="modal-bg" id="detail-modal">
@@ -3919,6 +3960,7 @@ function _lstBuild() {
   var boardTitle = (isTeamScoped && lstTeamName) ? lstTeamName.toUpperCase() + ' LEADERBOARD' : 'OFFICE LEADERBOARD';
 
   return '<div class="lst-wrap">' +
+    '<div class="lst-wb-bar"><button class="lst-wb-btn" onclick="openWallboard()">📺 Wallboard</button></div>' +
     _lstKpiCards(_LST_SALES, roster, _LST_VIEW, kpiTeamSet) +
     _lstTopPerf(all.slice(0, 3), tArr.slice(0, 3)) +
     _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) +
@@ -3931,6 +3973,91 @@ function _lstWeekBar(ord, uni) {
     '<div class="lst-week-div"></div>' +
     '<div class="lst-week-stat"><div class="lst-wk-lbl">WEEK UNITS</div><div class="lst-wk-num blue">' + uni + '</div></div>' +
     '</div>';
+}
+
+// ── WALLBOARD / TV MODE ───────────────────────────────────────
+// Full-screen, big-type, auto-cycling office display for a TV. Reuses the LST
+// data (_LST_SALES), office-wide. Panels: This Week (KPIs) → Top Performers → Teams.
+var _WB = { panel:0, timer:null, clock:null, n:3 };
+
+function _wbData() {
+  var roster=DATA.roster||{}, teams=DATA.teams||{};
+  var repAgg=_lstAgg(_LST_SALES||[], roster);
+  var tAgg=_lstTeamAgg(repAgg, teams);
+  var all=Object.keys(repAgg).map(function(e){return {email:e,d:repAgg[e]};})
+    .sort(function(a,b){return b.d.units-a.d.units||b.d.orders-a.d.orders;});
+  var tArr=Object.keys(tAgg).map(function(k){return tAgg[k];})
+    .sort(function(a,b){return b.units-a.units||b.orders-a.orders;});
+  var totOrd=all.reduce(function(s,x){return s+x.d.orders;},0);
+  var totUni=all.reduce(function(s,x){return s+x.d.units;},0);
+  var sellers=all.filter(function(x){return x.d.orders>0;}).length;
+  return {all:all,tArr:tArr,totOrd:totOrd,totUni:totUni,sellers:sellers};
+}
+
+function openWallboard() {
+  var wb=document.getElementById('wallboard'); if(!wb) return;
+  document.getElementById('wb-office').textContent=(CFG.officeId||'').toUpperCase();
+  _WB.panel=0;
+  wb.classList.remove('wb-hidden');
+  _wbRender();
+  _wbStartTimer();
+  _wbTickClock(); _WB.clock=setInterval(_wbTickClock,1000);
+  document.addEventListener('keydown', _wbKey);
+  if(wb.requestFullscreen){ try{ wb.requestFullscreen(); }catch(e){} }
+}
+function closeWallboard() {
+  var wb=document.getElementById('wallboard'); if(!wb) return;
+  wb.classList.add('wb-hidden');
+  if(_WB.timer){clearInterval(_WB.timer);_WB.timer=null;}
+  if(_WB.clock){clearInterval(_WB.clock);_WB.clock=null;}
+  document.removeEventListener('keydown', _wbKey);
+  if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
+}
+function _wbKey(e){ if(e.key==='Escape') closeWallboard(); else if(e.key==='ArrowRight') _wbGo(_WB.panel+1); else if(e.key==='ArrowLeft') _wbGo(_WB.panel-1); }
+function _wbStartTimer(){ if(_WB.timer)clearInterval(_WB.timer); _WB.timer=setInterval(function(){ _wbGo(_WB.panel+1); },12000); }
+function _wbGo(i){ _WB.panel=((i%_WB.n)+_WB.n)%_WB.n; _wbRender(); _wbStartTimer(); }
+function _wbTickClock(){ var el=document.getElementById('wb-clock'); if(!el)return; var d=new Date(),h=d.getHours(),m=d.getMinutes(); el.textContent=((h%12)||12)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM'); }
+
+function _wbHead(label){
+  return '<div class="wb-row wb-head"><div class="wb-rank">#</div>'+
+    '<div class="wb-name">'+label+'</div>'+
+    '<div class="wb-ord">Orders</div>'+
+    '<div class="wb-units">Units</div></div>';
+}
+function _wbRow(rank,name,orders,units){
+  var medal = rank===0?'🥇':rank===1?'🥈':rank===2?'🥉':(rank+1);
+  return '<div class="wb-row"><div class="wb-rank">'+medal+'</div>'+
+    '<div class="wb-name">'+name+'</div>'+
+    '<div class="wb-ord">'+orders+'</div>'+
+    '<div class="wb-units">'+units+'</div></div>';
+}
+function _wbKpi(label,val,color){
+  return '<div class="wb-kpi"><div class="wb-kpi-val" style="color:'+color+'">'+val+'</div><div class="wb-kpi-lbl">'+label+'</div></div>';
+}
+function _wbRender(){
+  var data=_wbData();
+  var titles=['This Week','Top Performers','Team Standings'];
+  var tEl=document.getElementById('wb-title'); if(tEl) tEl.textContent=titles[_WB.panel]||'Live Sales';
+  var stage=document.getElementById('wb-stage'); if(!stage) return;
+  var html='';
+  if(_WB.panel===0){
+    var upo=data.totOrd?(data.totUni/data.totOrd):0;
+    html='<div class="wb-kpis">'+
+      _wbKpi('Orders', data.totOrd, '#5B9BD5')+
+      _wbKpi('Units', data.totUni, '#70AD47')+
+      _wbKpi('Units / Order', upo.toFixed(2), '#ED7D31')+
+      _wbKpi('Active Sellers', data.sellers, '#FFC000')+
+    '</div>';
+  } else if(_WB.panel===1){
+    var top=data.all.slice(0,5);
+    html='<div class="wb-list">'+(top.length?_wbHead('Rep')+top.map(function(x,i){return _wbRow(i,esc(x.d.name),x.d.orders,x.d.units);}).join(''):'<div class="wb-empty">No sales yet this week.</div>')+'</div>';
+  } else {
+    var tt=data.tArr.slice(0,8);
+    html='<div class="wb-list">'+(tt.length?_wbHead('Team')+tt.map(function(t,i){return _wbRow(i,(t.emoji?esc(t.emoji)+' ':'')+esc(t.name),t.orders,t.units);}).join(''):'<div class="wb-empty">No team sales yet this week.</div>')+'</div>';
+  }
+  stage.innerHTML=html;
+  var dots=document.getElementById('wb-dots');
+  if(dots) dots.innerHTML=[0,1,2].map(function(i){return '<span class="wb-dot'+(i===_WB.panel?' wb-dot-on':'')+'" onclick="_wbGo('+i+')"></span>';}).join('');
 }
 
 // ── KPI SUMMARY CARDS (client-side over _LST_SALES; respects role scoping) ──
