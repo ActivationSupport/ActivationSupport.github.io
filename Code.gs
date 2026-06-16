@@ -1500,15 +1500,17 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
   var ST_CLS={'Active':'sp-active','Posted':'sp-posted','Approved':'sp-posted','Confirmed':'sp-pale-yellow','Canceled':'sp-canceled','Disconnected':'sp-disconnected','Porting Issue':'sp-orange-bright','Pending Valid Payment':'sp-orange-bright','BYOD':'sp-orange','Port Approved':'sp-dark-orange','Pending Order Port':'sp-dark-orange','Delivered':'sp-purple','Shipped':'sp-yellow-bright','Scheduled':'sp-yellow','Pending':'sp-pale-yellow','Pending Shipment':'sp-pale-yellow','Null':'sp-pale-yellow','Open':'sp-pale-yellow','Backordered':'sp-pale-yellow','TOTAL':''};
 
   var TBL='border-collapse:collapse;width:100%;font-size:12px;margin:0';
-  var TH='border:1px solid #cbd5e1;padding:5px 9px;background:#f1f5f9;color:#0f172a;font-weight:700;text-align:left;white-space:nowrap';
-  var TD='border:1px solid #cbd5e1;padding:5px 9px;color:#111;vertical-align:top';
-  var TDG='border:1px solid #cbd5e1;padding:5px 9px;background:#f8fafc;font-weight:700;color:#111;vertical-align:top';
-  var SEC='background:#1e3a5f;color:#fff;font-size:13px;font-weight:700;padding:7px 10px;margin:0';
-  var BADGE='padding:2px 8px;border-radius:3px;font-weight:700;font-size:11px;white-space:nowrap;display:inline-block';
-  var GRN=BADGE+';background:#166534;color:#bbf7d0';
-  var YEL=BADGE+';background:#713f12;color:#fef9c3';
-  var RED=BADGE+';background:#991b1b;color:#fecaca';
-  var PILL_MAP={'sp-active':'background:#166534;color:#bbf7d0','sp-posted':'background:#14532d;color:#86efac','sp-canceled':'background:#991b1b;color:#fecaca','sp-disconnected':'background:#7f1d1d;color:#fecaca','sp-orange-bright':'background:#9a3412;color:#fed7aa','sp-orange':'background:#7c2d12;color:#fde68a','sp-dark-orange':'background:#6b2109;color:#fdba74','sp-purple':'background:#581c87;color:#e9d5ff','sp-yellow-bright':'background:#854d0e;color:#fef08a','sp-yellow':'background:#713f12;color:#fef9c3','sp-pale-yellow':'background:#a16207;color:#fef9c3','':'background:#e2e8f0;color:#111'};
+  var TH='padding:7px 10px;background:#f8fafc;color:#475569;font-weight:700;text-align:left;white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e2e8f0';
+  var TD='padding:8px 10px;color:#1e293b;vertical-align:top;border-bottom:1px solid #e2e8f0';
+  var TDG='padding:8px 10px;background:#eef4fb;font-weight:700;color:#0f172a;vertical-align:top;border-bottom:1px solid #e2e8f0';
+  var SEC='background:#e7eef6;color:#0f2740;font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-left:4px solid #0f2740;border-radius:0 5px 5px 0;margin:0';
+  var SUB='font-size:12px;font-weight:700;color:#1e293b;padding:6px 10px;background:#eef2f7;border-left:3px solid #94a3b8;border-radius:4px;margin:14px 0 7px';
+  var ZEB='background:#f4f7fa';
+  var BADGE='padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;white-space:nowrap;display:inline-block';
+  var GRN=BADGE+';background:#dcfce7;color:#166534';
+  var YEL=BADGE+';background:#fef9c3;color:#854d0e';
+  var RED=BADGE+';background:#fee2e2;color:#991b1b';
+  var PILL_MAP={'sp-active':'background:#dcfce7;color:#166534','sp-posted':'background:#dcfce7;color:#15803d','sp-canceled':'background:#fee2e2;color:#991b1b','sp-disconnected':'background:#ffe4e6;color:#9f1239','sp-orange-bright':'background:#ffedd5;color:#9a3412','sp-orange':'background:#ffedd5;color:#c2410c','sp-dark-orange':'background:#fed7aa;color:#9a3412','sp-purple':'background:#f3e8ff;color:#6b21a8','sp-yellow-bright':'background:#fef9c3;color:#854d0e','sp-yellow':'background:#fef9c3;color:#a16207','sp-pale-yellow':'background:#fefce8;color:#a16207','':'background:#f1f5f9;color:#475569'};
   function ePill(text,cls){return '<span style="display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(text)+'</span>';}
   function eHdr(t){return '<div style="'+SEC+'">'+t+'</div>';}
   function eTbl(thead,tbody){return '<table style="'+TBL+'"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';}
@@ -1558,21 +1560,21 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
   var arSum=rpt.activationSummary||{},offAr=arSum.officeTotal||{},repAr=arSum.repImpact||[];
   var arHdr='<tr><th style="'+TH+'">Rep</th>'+AR_BUCKETS.map(function(b){return '<th style="'+TH+'">'+b+'</th>';}).join('')+'</tr>';
   var arTot='<tr><td style="'+TDG+'">Grand Total</td>'+AR_BUCKETS.map(function(b){return eArCell(offAr[b],b);}).join('')+'</tr>';
-  var arReps=repAr.map(function(r){return '<tr><td style="'+TD+'">'+esc(r.rep)+'</td>'+AR_BUCKETS.map(function(b){return eArCell(r.buckets[b],b);}).join('')+'</tr>';}).join('');
+  var arReps=repAr.map(function(r,i){return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+'">'+esc(r.rep)+'</td>'+AR_BUCKETS.map(function(b){return eArCell(r.buckets[b],b);}).join('')+'</tr>';}).join('');
   var arSec=eHdr('Activation Rates — office summary + bottom 5 reps')+eTbl(arHdr,arTot+arReps);
 
   var crSum=rpt.churnSummary||{},offCr=crSum.officeTotal||{},repCr=crSum.repImpact||[];
   var CR_BKTS=['0-30 Day','30 Day','60 Day','90 Day','120 Day'];
   var crHdr='<tr><th style="'+TH+'">Rep</th>'+CR_BKTS.map(function(b){return '<th style="'+TH+'">'+b+'</th>';}).join('')+'</tr>';
   var crTot='<tr><td style="'+TDG+'">Grand Total</td>'+CR_BKTS.map(function(b){return eCrCell(offCr[b],b,true);}).join('')+'</tr>';
-  var crReps=repCr.map(function(r){return '<tr><td style="'+TD+'">'+esc(r.rep)+'</td>'+CR_BKTS.map(function(b){return eCrCell(r.buckets[b],b,false);}).join('')+'</tr>';}).join('');
+  var crReps=repCr.map(function(r,i){return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+'">'+esc(r.rep)+'</td>'+CR_BKTS.map(function(b){return eCrCell(r.buckets[b],b,false);}).join('')+'</tr>';}).join('');
   var crSec=eHdr('Churn Rates — office summary + top 5 reps by 0-30 Day disconnects')+eTbl(crHdr,crTot+crReps);
 
   var cwDupEsc={},cwDupNa={};
   (rpt.escalations||[]).forEach(function(e){ if(e.dsi) cwDupEsc[e.dsi]=true; });
   (rpt.noAnswers||[]).forEach(function(e){ if(e.dsi) cwDupNa[e.dsi]=true; });
   function eOrderLine(e){ var parts=[]; var dt=fmtDate(e.orderDate); if(dt&&dt!=='—') parts.push(dt); var prods=Object.keys(e.productCounts||{}).map(function(p){return p+' x'+e.productCounts[p];}); if(prods.length) parts.push(prods.join(', ')); var stats=Object.keys(e.statusCounts||{}).map(function(s){return s+' x'+e.statusCounts[s];}); if(stats.length) parts.push(stats.join(', ')); return parts.join(' · '); }
-  function eCwGroup(entries,label){ if(!entries||!entries.length) return ''; var rows=entries.map(function(e){ var detail=eOrderLine(e); var notes; if(cwDupEsc[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under Escalations</span>'; else if(cwDupNa[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under No Answers</span>'; else notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:1px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+'">'+esc(e.dsi)+(detail?'<div style="font-size:10px;color:#64748b;margin-top:2px">'+esc(detail)+'</div>':'')+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join(''); return '<div style="margin-bottom:6px"><div style="background:#334155;color:#f1f5f9;font-size:12px;font-weight:700;padding:4px 9px">'+esc(label)+' ('+entries.length+')</div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">Order</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>'; }
+  function eCwGroup(entries,label){ if(!entries||!entries.length) return ''; var rows=entries.map(function(e,i){ var detail=eOrderLine(e); var notes; if(cwDupEsc[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under Escalations</span>'; else if(cwDupNa[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under No Answers</span>'; else notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:1px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+'">'+esc(e.dsi)+(detail?'<div style="font-size:10px;color:#64748b;margin-top:2px">'+esc(detail)+'</div>':'')+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join(''); return '<div style="margin-bottom:6px"><div style="'+SUB+'">'+esc(label)+' <span style="font-weight:400;color:#94a3b8;font-size:11px">('+entries.length+')</span></div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">Order</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>'; }
   var cw=rpt.callsWorked||{};
   var cwTotal=(cw.dayafter||[]).length+(cw.delivered||[]).length+(cw.issues||[]).length+(cw.other||[]).length;
   var cwSec=cwTotal?eHdr('Calls Worked That Day ('+cwTotal+' orders)')+eCwGroup(cw.dayafter,'Day-After')+eCwGroup(cw.issues,'Order Issues')+eCwGroup(cw.delivered,'Delivered Not Active')+eCwGroup(cw.other,'Other'):'';
@@ -1580,14 +1582,14 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
   var naList=rpt.noAnswers||[];
   var naSec='';
   if (naList.length) {
-    var naRows=naList.map(function(e){ var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
+    var naRows=naList.map(function(e,i){ var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
     naSec=eHdr('No Answers That Day ('+naList.length+')')+eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">Notes</th></tr>',naRows);
   }
 
   var escList=rpt.escalations||[];
   var escSec='';
   if (escList.length) {
-    var escRows=escList.map(function(e){ var rbg=e.rating==='1 Star'?'#991b1b':'#7f1d1d'; var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr><td style="'+TD+';white-space:nowrap"><span style="background:'+rbg+';color:#fecaca;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700">'+esc(e.rating)+'</span></td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
+    var escRows=escList.map(function(e,i){ var rbg=e.rating==='1 Star'?'#fee2e2':'#ffe4e6', rtx=e.rating==='1 Star'?'#991b1b':'#9f1239'; var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+';white-space:nowrap"><span style="background:'+rbg+';color:'+rtx+';padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+esc(e.rating)+'</span></td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
     escSec=eHdr('Escalations That Day ('+escList.length+')')+eTbl('<tr><th style="'+TH+'">Rating</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Notes</th></tr>',escRows);
   }
 
@@ -1602,7 +1604,7 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
 
   var actSec='';
   if ((eAct.list||[]).length) {
-    var actRows=eAct.list.map(function(x){return '<tr><td style="'+TD+'">'+esc(x.dsi)+'</td><td style="'+TD+'"><b>'+(x.lines||0)+'</b></td><td style="'+TD+'">'+esc(x.activator||'—')+'</td><td style="'+TD+'">'+esc(x.note||'—')+'</td></tr>';}).join('');
+    var actRows=eAct.list.map(function(x,i){return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+'">'+esc(x.dsi)+'</td><td style="'+TD+'"><b>'+(x.lines||0)+'</b></td><td style="'+TD+'">'+esc(x.activator||'—')+'</td><td style="'+TD+'">'+esc(x.note||'—')+'</td></tr>';}).join('');
     actSec=eHdr('⚡ Lines Activated Today — '+eAct.lines+' line'+(eAct.lines===1?'':'s')+' across '+eAct.orders+' order'+(eAct.orders===1?'':'s'))+eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">Lines</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Note</th></tr>',actRows);
   }
 
@@ -1612,23 +1614,23 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
     var apbk=ap.booked||{total:(ap.bookedToday||0),list:[]};
     var apsc=ap.statusChanges||{total:0,completed:0,noShow:0,rescheduled:0,canceled:0,list:[]};
     if (aps.total || apbk.total || apsc.total || ap.bookedToday || ap.tomorrow) {
-      var EOUT={completed:['✓ Completed','#166534','#bbf7d0'],'no-show':['✗ No-Show','#991b1b','#fecaca'],rescheduled:['↻ Rescheduled','#9a3412','#fed7aa'],canceled:['⊘ Canceled','#7f1d1d','#fecaca']};
-      function eOutcome(o){var x=EOUT[o]||['—','#e2e8f0','#334155'];return '<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;background:'+x[1]+';color:'+x[2]+'">'+x[0]+'</span>';}
+      var EOUT={completed:['✓ Completed','#dcfce7','#166534'],'no-show':['✗ No-Show','#fee2e2','#991b1b'],rescheduled:['↻ Rescheduled','#ffedd5','#9a3412'],canceled:['⊘ Canceled','#fee2e2','#7f1d1d']};
+      function eOutcome(o){var x=EOUT[o]||['—','#f1f5f9','#475569'];return '<span style="display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;background:'+x[1]+';color:'+x[2]+'">'+x[0]+'</span>';}
       function eBd(o,inclU){var p=[];if(o.completed)p.push(o.completed+' completed');if(o.noShow)p.push(o.noShow+' no-show');if(o.rescheduled)p.push(o.rescheduled+' rescheduled');if(o.canceled)p.push(o.canceled+' canceled');if(inclU&&o.unmarked)p.push(o.unmarked+' unmarked');return p.join(' · ');}
-      function eGroupBar(label,bd){return '<div style="border-bottom:1px solid #cbd5e1;padding:7px 2px 5px;margin-top:12px;font-size:12.5px;font-weight:700;color:#0f172a">'+label+(bd?'<span style="font-weight:400;color:#64748b;font-size:11px"> &nbsp;'+bd+'</span>':'')+'</div>';}
+      function eGroupBar(label,bd){return '<div style="'+SUB+'">'+label+(bd?'<span style="font-weight:400;color:#64748b;font-size:11px"> &nbsp;'+bd+'</span>':'')+'</div>';}
       var apBooked='';
       if (apbk.total) {
-        var bRows=(apbk.list||[]).map(function(x){return '<tr><td style="'+TD+'">'+esc(apptTime(x.timeSlot))+'</td><td style="'+TD+'">'+esc(fmtDate(x.forDate))+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator||'—')+'</td></tr>';}).join('');
+        var bRows=(apbk.list||[]).map(function(x,i){return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+'">'+esc(apptTime(x.timeSlot))+'</td><td style="'+TD+'">'+esc(fmtDate(x.forDate))+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator||'—')+'</td></tr>';}).join('');
         apBooked=eGroupBar('📅 Booked That Day ('+apbk.total+')','')+((apbk.list||[]).length?eTbl('<tr><th style="'+TH+'">Time</th><th style="'+TH+'">Date</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th></tr>',bRows):'');
       }
       var apSched='';
       if (aps.total) {
-        var apList=(aps.list||[]).length ? eTbl('<tr><th style="'+TH+'">Time</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Outcome</th></tr>', aps.list.map(function(x){return '<tr><td style="'+TD+'">'+esc(apptTime(x.timeSlot))+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator)+'</td><td style="'+TD+'">'+(x.outcome?eOutcome(x.outcome):'<span style="color:#94a3b8">— not marked</span>')+'</td></tr>';}).join('')) : '';
+        var apList=(aps.list||[]).length ? eTbl('<tr><th style="'+TH+'">Time</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Outcome</th></tr>', aps.list.map(function(x,i){return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+'">'+esc(apptTime(x.timeSlot))+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator)+'</td><td style="'+TD+'">'+(x.outcome?eOutcome(x.outcome):'<span style="color:#94a3b8">— not marked</span>')+'</td></tr>';}).join('')) : '';
         apSched=eGroupBar('🗓️ Scheduled For This Day ('+aps.total+')',eBd(aps,true))+apList;
       }
       var apChange='';
       if (apsc.total) {
-        var cRows=(apsc.list||[]).map(function(x){return '<tr><td style="'+TD+'">'+eOutcome(x.outcome)+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator||'—')+'</td><td style="'+TD+'">'+esc(fmtDate(x.apptDate))+' · '+esc(apptTime(x.timeSlot))+'</td></tr>';}).join('');
+        var cRows=(apsc.list||[]).map(function(x,i){return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+'">'+eOutcome(x.outcome)+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator||'—')+'</td><td style="'+TD+'">'+esc(fmtDate(x.apptDate))+' · '+esc(apptTime(x.timeSlot))+'</td></tr>';}).join('');
         apChange=eGroupBar('🔄 Status Changed That Day ('+apsc.total+')',eBd(apsc,false))+((apsc.list||[]).length?eTbl('<tr><th style="'+TH+'">Outcome</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Appt</th></tr>',cRows):'');
       }
       var apTitle='Appointments &amp; Bookings — '+(apbk.total||0)+' booked · '+(aps.total||0)+' scheduled · '+(apsc.total||0)+' changes'+(ap.tomorrow?' · '+ap.tomorrow+' tomorrow':'');
@@ -1644,17 +1646,17 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
       '<div style="font-size:14px;font-weight:600;margin-top:'+(officeNm?'2px':'0')+'">📋 Daily Call Report</div>'+
       '<div style="font-size:12px;color:#9fb4c7;margin-top:3px">'+esc(dayLabel)+' &nbsp;&middot;&nbsp; Generated '+fmtTs(rpt.generatedAt)+'</div>'+
     '</div>'+
-    '<div style="padding:16px 20px">'+
-    '<div style="margin-bottom:12px">'+glanceSec+'</div>'+
-    '<div style="margin-bottom:12px">'+statBar+'</div>'+
-    (escSec?'<div style="margin-top:10px">'+escSec+'</div>':'')+
-    (naSec?'<div style="margin-top:10px">'+naSec+'</div>':'')+
-    (cwSec?'<div style="margin-top:10px">'+cwSec+'</div>':'')+
-    (actSec?'<div style="margin-top:10px">'+actSec+'</div>':'')+
-    '<div style="margin-top:10px">'+statusSec+'</div>'+
-    '<div style="margin-top:10px">'+arSec+'</div>'+
-    '<div style="margin-top:10px">'+crSec+'</div>'+
-    (apSec?'<div style="margin-top:10px">'+apSec+'</div>':'')+
+    '<div style="padding:18px 22px">'+
+    '<div style="margin-bottom:14px">'+glanceSec+'</div>'+
+    '<div style="margin-bottom:16px">'+statBar+'</div>'+
+    (escSec?'<div style="margin-top:18px">'+escSec+'</div>':'')+
+    (naSec?'<div style="margin-top:18px">'+naSec+'</div>':'')+
+    (cwSec?'<div style="margin-top:18px">'+cwSec+'</div>':'')+
+    (actSec?'<div style="margin-top:18px">'+actSec+'</div>':'')+
+    '<div style="margin-top:18px">'+statusSec+'</div>'+
+    '<div style="margin-top:18px">'+arSec+'</div>'+
+    '<div style="margin-top:18px">'+crSec+'</div>'+
+    (apSec?'<div style="margin-top:18px">'+apSec+'</div>':'')+
     '</div></div></body></html>';
   // Force every non-ASCII char (emoji, em-dashes, ·) to a numeric HTML entity so it
   // renders regardless of source-file/MIME/client charset — literal emoji garbled in Gmail.
