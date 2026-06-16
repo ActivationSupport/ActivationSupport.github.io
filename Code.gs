@@ -1633,7 +1633,7 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
   }
 
   var officeNm=officeName||'';
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#fff">'+
+  var __html='<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#fff">'+
     '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;background:#fff;max-width:960px;margin:0 auto;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden">'+
     '<div style="background:#0f2740;color:#fff;padding:15px 20px">'+
       (officeNm?'<div style="font-size:18px;font-weight:800;letter-spacing:.02em">'+esc(officeNm)+'</div>':'')+
@@ -1652,6 +1652,9 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
     (escSec?'<div style="margin-top:10px">'+escSec+'</div>':'')+
     (apSec?'<div style="margin-top:10px">'+apSec+'</div>':'')+
     '</div></div></body></html>';
+  // Force every non-ASCII char (emoji, em-dashes, ·) to a numeric HTML entity so it
+  // renders regardless of source-file/MIME/client charset — literal emoji garbled in Gmail.
+  return __html.replace(/[^ -]/gu, function(ch){ return '&#'+ch.codePointAt(0)+';'; });
 }
 
 function writeSetting(body, ss, officeId) {
