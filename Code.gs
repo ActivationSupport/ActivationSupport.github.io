@@ -507,7 +507,7 @@ function readNotes(ss, officeId) {
   for (var i=1;i<data.length;i++) {
     var dsi = String(data[i][0]||'').trim(); if (!dsi) continue;
     if (!out[dsi]) out[dsi] = [];
-    out[dsi].push({ ts: data[i][1]?new Date(data[i][1]).toISOString():'', authorEmail:String(data[i][2]||'').trim(), authorName:String(data[i][3]||'').trim(), noteText:String(data[i][4]||'').trim(), noteType:String(data[i][5]||'activation').trim() });
+    out[dsi].push({ ts: data[i][1]?new Date(data[i][1]).toISOString():'', authorEmail:String(data[i][2]||'').trim(), authorName:String(data[i][3]||'').trim(), noteText:String(data[i][4]||'').trim(), noteType:String(data[i][5]||'activation').trim(), linesActivated:Math.max(0,parseInt(data[i][6],10)||0) });
   }
   return out;
 }
@@ -524,11 +524,14 @@ function writeNoteEntry(body, ss, officeId) {
   var dsi=String(body.dsi||'').trim(), noteText=String(body.noteText||'').trim();
   var authorEmail=String(body.authorEmail||'').trim().toLowerCase(), authorName=String(body.authorName||'').trim();
   var noteType=String(body.noteType||'activation').trim();
+  // Lines activated — only meaningful on activation notes; coerced to a count.
+  var linesActivated=Math.max(0,parseInt(body.linesActivated,10)||0);
+  if (noteType!=='activation') linesActivated=0;
   if (!dsi||!noteText) return { error:'missing dsi or noteText' };
   var tabName='_Notes_'+officeId;
   var sheet=ss.getSheetByName(tabName);
-  if (!sheet) { sheet=ss.insertSheet(tabName); sheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText','noteType']); sheet.getRange(1,1,1,6).setFontWeight('bold'); sheet.setFrozenRows(1); }
-  sheet.appendRow([dsi, new Date(), authorEmail, authorName, noteText, noteType]);
+  if (!sheet) { sheet=ss.insertSheet(tabName); sheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText','noteType','linesActivated']); sheet.getRange(1,1,1,7).setFontWeight('bold'); sheet.setFrozenRows(1); }
+  sheet.appendRow([dsi, new Date(), authorEmail, authorName, noteText, noteType, linesActivated]);
   return { ok:true, ts:new Date().toISOString() };
 }
 
@@ -970,32 +973,70 @@ function _getDailyReportSheet(ss, officeId) {
 // Appointments/bookings summary for one office on a given date, for the Daily
 // Report. Reads the 'Appointments' tab (same master spreadsheet). Columns:
 // 0 id,1 activatorEmail,2 booker,3 customerName,4 dsi,5 phone,6 email,7 services,
-// 8 deviceCount,9 date,10 timeSlot,11 office,12 status,13 bookedAt,14 rem,15 outcome…
+// 8 deviceCount,9 date,10 timeSlot,11 office,12 status,13 bookedAt,14 rem,
+// 15 outcome,16 outcomeNote,17 outcomeBy,18 outcomeAt
+// Three groups, all keyed to dateStr:
+//   booked        — appts CREATED that day (bookedAt date part)
+//   scheduled     — appts HAPPENING that day (date col, non-cancelled)
+//   statusChanges — appts whose outcome was SET/changed that day (outcomeAt date
+//                   part) — completed | no-show | rescheduled | canceled —
+//                   regardless of the appt's own date.
 function _drAppointments(ss, officeId, dateStr) {
   var out = { date: dateStr,
-    scheduled: { total:0, completed:0, noShow:0, rescheduled:0, canceled:0, unmarked:0, list:[], byActivator:[] },
+    scheduled:     { total:0, completed:0, noShow:0, rescheduled:0, canceled:0, unmarked:0, list:[], byActivator:[] },
+    booked:        { total:0, list:[] },
+    statusChanges: { total:0, completed:0, noShow:0, rescheduled:0, canceled:0, list:[] },
     bookedToday: 0, tomorrow: 0 };
   var sheet = ss.getSheetByName('Appointments');
   if (!sheet) return out;
-  function nDate(v){ if(v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(),'yyyy-MM-dd'); var s=String(v||'').trim(); var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[1]+'-'+m[2]+'-'+m[3]:s; }
-  function nTime(v){ if(v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(),'HH:mm'); var s=String(v||'').trim(); var m=s.match(/^(\d{1,2}):(\d{2})/); return m?('0'+m[1]).slice(-2)+':'+m[2]:s; }
+  var TZ = Session.getScriptTimeZone();
+  function nDate(v){ if(v instanceof Date) return Utilities.formatDate(v, TZ,'yyyy-MM-dd'); var s=String(v||'').trim(); var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[1]+'-'+m[2]+'-'+m[3]:s; }
+  // Timestamp → local date (handles Date objects AND ISO strings like outcomeAt).
+  function nTsDate(v){ if(v instanceof Date) return Utilities.formatDate(v, TZ,'yyyy-MM-dd'); var s=String(v||'').trim(); if(!s) return ''; var d=new Date(s); if(!isNaN(d.getTime())) return Utilities.formatDate(d, TZ,'yyyy-MM-dd'); var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[1]+'-'+m[2]+'-'+m[3]:s; }
+  function nTime(v){ if(v instanceof Date) return Utilities.formatDate(v, TZ,'HH:mm'); var s=String(v||'').trim(); var m=s.match(/^(\d{1,2}):(\d{2})/); return m?('0'+m[1]).slice(-2)+':'+m[2]:s; }
+  function tsTime(v){ if(!v) return ''; var d=(v instanceof Date)?v:new Date(String(v)); return isNaN(d.getTime())?'':Utilities.formatDate(d, TZ,'HH:mm'); }
   var nameMap = {};
   var rsheet = ss.getSheetByName('_Roster_'+officeId);
   if (rsheet){ var rd=rsheet.getDataRange().getValues(); for (var ri=1;ri<rd.length;ri++){ var em=String(rd[ri][0]||'').trim().toLowerCase(); if(em) nameMap[em]=String(rd[ri][1]||'').trim()||em; } }
-  var tomorrowStr = Utilities.formatDate(new Date(new Date(dateStr+'T12:00:00').getTime()+86400000), Session.getScriptTimeZone(),'yyyy-MM-dd');
+  function nm(email){ var e=String(email||'').trim().toLowerCase(); return nameMap[e]||e; }
+  var tomorrowStr = Utilities.formatDate(new Date(new Date(dateStr+'T12:00:00').getTime()+86400000), TZ,'yyyy-MM-dd');
   var data = sheet.getDataRange().getValues();
   var actAgg = {};
+  var VALID_OUTCOMES = {'completed':1,'no-show':1,'rescheduled':1,'canceled':1};
   for (var i=1;i<data.length;i++){
     var r=data[i]; if(!r[0]) continue;
     if (String(r[11]||'').trim() !== officeId) continue;
     var status=String(r[12]||'').trim().toLowerCase();
     var dt=nDate(r[9]);
-    if (r[13] && nDate(r[13])===dateStr) out.bookedToday++;          // bookedAt date part
-    if (dt===tomorrowStr && status!=='cancelled') out.tomorrow++;
-    if (dt!==dateStr || status==='cancelled') continue;
     var outcome=String(r[15]||'').trim().toLowerCase();
     var act=String(r[1]||'').trim().toLowerCase();
     var actName=nameMap[act]||act;
+
+    // ── Booked that day (created on dateStr) ──
+    if (r[13] && nTsDate(r[13])===dateStr) {
+      out.bookedToday++; out.booked.total++;
+      out.booked.list.push({ booker:nm(r[2]), activator:actName, customer:String(r[3]||'').trim(),
+        dsi:String(r[4]||'').trim(), forDate:dt, timeSlot:nTime(r[10]),
+        services:String(r[7]||'').trim(), devices:Number(r[8])||1, bookedTime:tsTime(r[13]) });
+    }
+
+    // ── Tomorrow lookahead ──
+    if (dt===tomorrowStr && status!=='cancelled') out.tomorrow++;
+
+    // ── Status changed that day (outcome set on dateStr) ──
+    if (r[18] && VALID_OUTCOMES[outcome] && nTsDate(r[18])===dateStr) {
+      out.statusChanges.total++;
+      if (outcome==='completed') out.statusChanges.completed++;
+      else if (outcome==='no-show') out.statusChanges.noShow++;
+      else if (outcome==='rescheduled') out.statusChanges.rescheduled++;
+      else if (outcome==='canceled') out.statusChanges.canceled++;
+      out.statusChanges.list.push({ outcome:outcome, activator:actName, customer:String(r[3]||'').trim(),
+        dsi:String(r[4]||'').trim(), apptDate:dt, timeSlot:nTime(r[10]),
+        by:nm(r[17])||actName, at:tsTime(r[18]) });
+    }
+
+    // ── Scheduled (happening) that day ──
+    if (dt!==dateStr || status==='cancelled') continue;
     out.scheduled.total++;
     if (outcome==='completed') out.scheduled.completed++;
     else if (outcome==='no-show') out.scheduled.noShow++;
@@ -1010,6 +1051,9 @@ function _drAppointments(ss, officeId, dateStr) {
   }
   out.scheduled.byActivator = Object.keys(actAgg).map(function(k){return actAgg[k];}).sort(function(a,b){return b.total-a.total;});
   out.scheduled.list.sort(function(a,b){return String(a.timeSlot).localeCompare(String(b.timeSlot));});
+  out.booked.list.sort(function(a,b){return String(a.timeSlot).localeCompare(String(b.timeSlot));});
+  var OUT_ORDER={'completed':0,'no-show':1,'rescheduled':2,'canceled':3};
+  out.statusChanges.list.sort(function(a,b){var d=(OUT_ORDER[a.outcome]||0)-(OUT_ORDER[b.outcome]||0); return d||String(a.at).localeCompare(String(b.at));});
   return out;
 }
 
@@ -1024,8 +1068,12 @@ function generateDailyReport(ss, officeId, targetDateStr) {
   var refTomorrow = new Date(refDate.getTime()+86400000);
 
   // ── NOTES: entries timestamped on refDate ──
+  // Also tallies activator-marked line activations ("Activated Today"): each
+  // activation note carries a linesActivated count (col 7, 0-indexed 6).
   var notesSheet = ss.getSheetByName('_Notes_'+officeId);
   var todayNotes=[], todayDsiSet={};
+  var activatedToday={ lines:0, orders:0, list:[] };
+  var _actOrderSet={};
   if (notesSheet) {
     var nd=notesSheet.getDataRange().getValues();
     for (var ni=1;ni<nd.length;ni++) {
@@ -1034,9 +1082,20 @@ function generateDailyReport(ss, officeId, targetDateStr) {
       if (!nts||isNaN(nts.getTime())) continue;
       if (nts<refDate||nts>=refTomorrow) continue;
       todayDsiSet[ndsi]=true;
-      todayNotes.push({dsi:ndsi,ts:nts.toISOString(),authorName:String(nd[ni][3]||'').trim(),noteText:String(nd[ni][4]||'').trim()});
+      var nType=String(nd[ni][5]||'activation').trim();
+      var nLines=Math.max(0,parseInt(nd[ni][6],10)||0);
+      var nAuthor=String(nd[ni][3]||'').trim();
+      var nText=String(nd[ni][4]||'').trim();
+      todayNotes.push({dsi:ndsi,ts:nts.toISOString(),authorName:nAuthor,noteText:nText});
+      if (nType==='activation' && nLines>0) {
+        activatedToday.lines+=nLines;
+        _actOrderSet[ndsi]=true;
+        activatedToday.list.push({dsi:ndsi,lines:nLines,activator:nAuthor,note:nText,ts:nts.toISOString()});
+      }
     }
   }
+  activatedToday.orders=Object.keys(_actOrderSet).length;
+  activatedToday.list.sort(function(a,b){return String(a.ts).localeCompare(String(b.ts));});
 
   // ── RATINGS: entries updated on refDate ──
   var noAnswerDsis=[], escalationRatings=[];
@@ -1257,6 +1316,7 @@ function generateDailyReport(ss, officeId, targetDateStr) {
     callsWorked:callsWorked,
     noAnswers:noAnswersOut,
     escalations:escalationsOut,
+    activatedToday:activatedToday,
     appointments:_drAppointments(ss,officeId,todayStr)
   };
 

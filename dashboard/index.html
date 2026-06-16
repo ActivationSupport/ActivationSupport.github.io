@@ -290,6 +290,16 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .nm-act-label{color:var(--blue2)}
 .nm-rep-label{color:#4caf7d}
 .nm-rep-add-btn{background:#1e5631!important}
+.nm-lines-row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding:9px 11px;background:rgba(74,159,212,.06);border:1px solid rgba(74,159,212,.22);border-radius:7px}
+.nm-lines-label{font-size:.78rem;font-weight:700;color:var(--blue2);letter-spacing:.01em}
+.nm-lines-btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.nm-lines-btn{min-width:34px;padding:6px 0;background:#1e1e1e;border:1.5px solid #3a3a3a;border-radius:6px;color:var(--text2);font-size:.86rem;font-weight:700;cursor:pointer;transition:all .12s}
+.nm-lines-btn:hover{border-color:var(--blue2)}
+.nm-lines-btn.active{background:var(--blue2);border-color:var(--blue2);color:#fff}
+.nm-lines-input{width:64px;padding:6px 8px;background:#1e1e1e;border:1.5px solid #3a3a3a;border-radius:6px;color:var(--text);font-size:.86rem;font-weight:700;outline:none;margin-left:4px}
+.nm-lines-input:focus{border-color:var(--blue2)}
+.nm-lines-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;background:rgba(82,199,133,.16);color:#52c785;font-size:.7rem;font-weight:700}
+.ao-label{display:block;font-size:.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
 .nm-add-btn{flex:1;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;transition:background .15s}
 .nm-add-btn:hover{background:#2563a8}
 .nm-close-btn{padding:10px 20px;border:1.5px solid #3a3a3a;background:#2a2a2a;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;color:var(--text2);transition:border-color .15s,color .15s}
@@ -326,7 +336,10 @@ tr:hover td{background:rgba(74,159,212,.07)}
 
 /* ── DAILY REPORT ── */
 .dr-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+.dr-titlewrap{display:flex;align-items:baseline;flex-wrap:wrap;gap:.55rem}
+.dr-office{font-weight:800;font-size:1.02rem;letter-spacing:.01em;color:#fff;padding-right:.55rem;margin-right:.1rem;border-right:2px solid var(--blue2)}
 .dr-title{font-weight:700;font-size:.95rem;letter-spacing:.02em}
+.dr-daylabel{font-size:.86rem;font-weight:600;color:#9fb4c7}
 .dr-controls{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
 .dr-date-sel{background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;padding:.3rem .55rem;font-size:.82rem;cursor:pointer}
 .dr-date-sel:focus{outline:none;border-color:var(--blue2)}
@@ -334,11 +347,20 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-refresh-btn:hover{opacity:.85}
 .dr-copy-btn{padding:.3rem .75rem;background:#334155;color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;transition:opacity .15s}
 .dr-copy-btn:hover{opacity:.85}
-.dr-gents{font-size:.73rem;color:#555;display:block;margin-top:.25rem}
-.dr-body{display:flex;flex-direction:column;gap:.85rem;padding-top:.5rem}
+.dr-gents{font-size:.73rem;color:#8a94a0;font-style:italic}
+.dr-body{display:flex;flex-direction:column;gap:1.05rem;padding-top:.6rem}
+/* at-a-glance summary */
+.dr-glance{font-size:.92rem;line-height:1.55;color:#cdd6e0;background:rgba(74,159,212,.07);border:1px solid rgba(74,159,212,.2);border-left:3px solid var(--blue2);border-radius:0 8px 8px 0;padding:11px 15px;margin-bottom:.3rem}
+.dr-glance b{color:#fff;font-weight:800}
+/* KPI summary row */
+.dr-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-bottom:1.1rem}
+.dr-kpi{background:#161b22;border:1px solid #21262d;border-top-width:2px;border-radius:9px;padding:11px 13px;display:flex;flex-direction:column;gap:3px}
+.dr-kpi-val{font-size:1.5rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--text)}
+.dr-kpi-lbl{font-size:.67rem;color:#8a94a0;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.dr-kpi-sub{font-size:.69rem;color:#667284}
 .dr-section{}
 .dr-sec-hdr{font-size:.74rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#60a5fa;padding:.3rem .65rem;background:rgba(96,165,250,.07);border-left:3px solid #60a5fa;margin-bottom:.45rem;border-radius:0 4px 4px 0;display:flex;align-items:center;gap:.5rem}
-.dr-subhdr{font-size:.71rem;font-weight:400;letter-spacing:0;text-transform:none;color:#666}
+.dr-subhdr{font-size:.71rem;font-weight:400;letter-spacing:0;text-transform:none;color:#8a94a0}
 .dr-table{width:100%;border-collapse:collapse;font-size:.81rem}
 .dr-table th{padding:.28rem .5rem;text-align:left;color:#888;font-weight:600;font-size:.71rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid #2a2a2a}
 .dr-table td{padding:.28rem .5rem;border-bottom:1px solid #1e1e1e;vertical-align:top}
@@ -358,7 +380,14 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-sc-total-big{font-size:1.15rem;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
 .dr-sc-total-sub{font-size:.72rem;color:#555}
 .dr-num{text-align:right;font-variant-numeric:tabular-nums}
-.dr-muted{color:#555;font-size:.79rem}
+.dr-muted{color:#7a8493;font-size:.79rem}
+.dr-nw{white-space:nowrap}
+/* appointment groups — clean, consistent zones */
+.dr-appt-group{margin-bottom:1rem}
+.dr-appt-group:last-child{margin-bottom:0}
+.dr-appt-ghdr{display:flex;align-items:center;gap:.5rem;font-size:.82rem;font-weight:700;color:#d6dee8;padding:0 0 .4rem;margin-bottom:.2rem;border-bottom:1px solid #232a33}
+.dr-appt-gcnt{font-size:.7rem;font-weight:700;background:rgba(255,255,255,.08);color:#c2cbd6;border-radius:10px;padding:.05rem .45rem;font-variant-numeric:tabular-nums}
+.dr-appt-gbd{font-size:.73rem;font-weight:400;color:#8a94a0;margin-left:auto}
 .dr-note-item{margin-bottom:.3rem;font-size:.81rem;line-height:1.45;color:var(--text)}
 .dr-note-who{font-weight:600;color:#60a5fa}
 .dr-note-time{color:#555;font-size:.76rem;margin-left:.25rem}
@@ -656,6 +685,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-manage-btn:hover{border-color:var(--blue2);color:var(--blue2)}
 .appt-do-cancel-btn{padding:5px 10px;background:transparent;color:var(--red);border:1px solid var(--red);border-radius:5px;font-size:.75rem;cursor:pointer;transition:all .15s}
 .appt-do-cancel-btn:hover{background:rgba(231,76,60,.1)}
+.appt-del-btn{padding:5px 9px;margin-left:6px;background:transparent;color:#b3392c;border:1px solid #7f2620;border-radius:5px;font-size:.78rem;cursor:pointer;transition:all .15s}
+.appt-del-btn:hover{background:rgba(179,57,44,.16);color:#e25b4d}
 .appt-cal-outer{overflow-x:auto;margin-bottom:16px}
 .appt-cal-grid{display:grid;grid-template-columns:72px repeat(7,1fr);min-width:560px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .appt-cal-th{background:var(--surface2);padding:10px 6px;text-align:center;border-bottom:1px solid var(--border)}
@@ -1010,6 +1041,15 @@ tr:hover td{background:rgba(74,159,212,.07)}
     <span class="modal-close" onclick="closeApptReschedModal()">✕</span>
     <h3>Reschedule Appointment</h3>
     <div id="appt-resched-body"></div>
+  </div>
+</div>
+
+<!-- APPOINTMENT OUTCOME MODAL -->
+<div class="modal-bg" id="appt-outcome-modal">
+  <div class="modal" style="max-width:480px;width:95%">
+    <span class="modal-close" onclick="closeApptOutcomeModal()">✕</span>
+    <h3 id="appt-outcome-title">Mark Outcome</h3>
+    <div id="appt-outcome-body"></div>
   </div>
 </div>
 
@@ -1875,7 +1915,9 @@ function ensureTableauNames(cb) {
 var _modalDsi = '';
 
 function _noteItemHtml(n) {
-  return '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(n.ts)+' &mdash; '+esc(n.authorName)+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
+  var la=Math.max(0,parseInt(n.linesActivated,10)||0);
+  var badge=la>0?' <span class="nm-lines-badge">⚡ '+la+' line'+(la===1?'':'s')+' activated</span>':'';
+  return '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(n.ts)+' &mdash; '+esc(n.authorName)+badge+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
 }
 
 function openNotesModal(dsi, customer, rep) {
@@ -1904,7 +1946,7 @@ function openNotesModal(dsi, customer, rep) {
   document.getElementById('modal-body').innerHTML =
     '<div class="nm-section-label nm-act-label">Activation Notes</div>' +
     '<div class="nm-history" id="nm-act-hist">'+actHistHtml+'</div>' +
-    (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…"></textarea><button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
+    (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…" style="margin-bottom:8px"></textarea>'+_linesFieldHtml('modal-body','⚡ Lines activated on this order')+'<button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
     '<div class="nm-section-label nm-rep-label" style="margin-top:8px">Rep Notes</div>' +
     '<div class="nm-history" id="nm-rep-hist">'+repHistHtml+'</div>' +
     (canAddRep ? '<textarea class="nm-textarea" id="nm-rep-input" placeholder="Add rep note…"></textarea><button class="nm-add-btn nm-rep-add-btn" onclick="modalAddNote(\'rep\')" style="margin-bottom:14px">ADD REP NOTE</button>' : '') +
@@ -1935,6 +1977,39 @@ function modalSetRating(rating) {
   apiPost({ action:'setRating', dsi:_modalDsi, rating:rating, updatedBy:SESSION.email });
 }
 
+// Activator-only "Lines activated" picker. Container-scoped (class-based, no
+// shared id) so it works in BOTH the notes modal and the appointment-outcome
+// modal without element-id collisions. boxId = the container element's id.
+function _linesFieldHtml(boxId, label) {
+  var btns=[0,1,2,3].map(function(v){
+    return '<button type="button" class="nm-lines-btn'+(v===0?' active':'')+'" data-v="'+v+'" onclick="_linesSet(\''+boxId+'\','+v+')">'+v+'</button>';
+  }).join('');
+  return '<div class="nm-lines-row">'+
+      '<span class="nm-lines-label">'+label+'</span>'+
+      '<div class="nm-lines-btns">'+btns+
+        '<input type="number" min="0" step="1" class="nm-lines-input lines-input" value="0" oninput="_linesSync(\''+boxId+'\')" title="Lines activated">'+
+      '</div>'+
+    '</div>';
+}
+function _linesSet(boxId, v) {
+  var box=document.getElementById(boxId); if (!box) return;
+  var inp=box.querySelector('.lines-input'); if (inp) inp.value=v;
+  _linesSync(boxId);
+}
+function _linesSync(boxId) {
+  var box=document.getElementById(boxId); if (!box) return;
+  var inp=box.querySelector('.lines-input'); if (!inp) return;
+  var v=parseInt(inp.value,10); if (isNaN(v)||v<0) v=0;
+  box.querySelectorAll('.nm-lines-btn').forEach(function(b){
+    b.classList.toggle('active', String(b.getAttribute('data-v'))===String(v));
+  });
+}
+function _linesGet(boxId) {
+  var box=document.getElementById(boxId); if (!box) return 0;
+  var inp=box.querySelector('.lines-input');
+  return inp?Math.max(0,parseInt(inp.value,10)||0):0;
+}
+
 function modalAddNote(noteType) {
   noteType = noteType || 'activation';
   var inputId = noteType === 'rep' ? 'nm-rep-input' : 'nm-act-input';
@@ -1942,9 +2017,12 @@ function modalAddNote(noteType) {
   var input = document.getElementById(inputId);
   if (!input) return;
   var text = input.value.trim(); if (!text) return;
+  // Lines activated — only on activation notes.
+  var lines = (noteType === 'activation') ? _linesGet('modal-body') : 0;
   input.value = ''; input.disabled = true;
+  if (noteType === 'activation') _linesSet('modal-body', 0);
   var now = new Date().toISOString();
-  var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text, noteType:noteType };
+  var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text, noteType:noteType, linesActivated:lines };
   if (!DATA.notes) DATA.notes = {};
   if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
   DATA.notes[_modalDsi].push(entry);
@@ -1956,7 +2034,7 @@ function modalAddNote(noteType) {
   }
   var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
   if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
-  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, linesActivated:lines, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
     .then(function() { input.disabled = false; })
     .catch(function() { input.disabled = false; });
 }
@@ -2628,9 +2706,14 @@ function _drBuildHtml() {
   if (!dateSet[todayStr]) opts.push('<option value="'+esc(todayStr)+'"'+(todayStr===selDate?' selected':'')+'>'+esc(todayStr)+'</option>');
   dates.forEach(function(dt){opts.push('<option value="'+esc(dt)+'"'+(dt===selDate?' selected':'')+'>'+esc(dt)+'</option>');});
 
-  var genAt = rpt ? '<span class="dr-gents">Generated: '+_drFmtTs(rpt.generatedAt)+'</span>' : '';
+  var officeNm = (typeof CFG!=='undefined' && CFG.officeName) ? CFG.officeName : '';
+  var genAt = rpt ? '<span class="dr-gents">Generated '+_drFmtTs(rpt.generatedAt)+'</span>' : '';
   var header = '<div class="card-header dark dr-header">'+
-    '<div><span class="dr-title">📋 Daily Call Report &mdash; '+esc(dayLabel)+'</span>'+genAt+'</div>'+
+    '<div class="dr-titlewrap">'+
+      (officeNm?'<span class="dr-office">'+esc(officeNm)+'</span>':'')+
+      '<span class="dr-title">📋 Daily Call Report</span>'+
+      '<span class="dr-daylabel">'+esc(dayLabel)+'</span>'+genAt+
+    '</div>'+
     '<div class="dr-controls">'+
       (opts.length?'<select class="dr-date-sel" onchange="drSelectDate(this.value)">'+opts.join('')+'</select>':'')+
       '<button class="dr-refresh-btn" onclick="drRefresh()">⟳ Refresh</button>'+
@@ -2645,7 +2728,9 @@ function _drBuildHtml() {
   }
 
   return '<div class="card">'+header+'<div class="card-body dr-body">'+
-    _drStatBar(rpt.callCategories||{})+
+    _drAtAGlance(rpt)+
+    _drStatBar(rpt.callCategories||{}, rpt.appointments, rpt.activatedToday)+
+    _drSectionActivatedToday(rpt.activatedToday)+
     _drSectionStatus(rpt.statusBreakdown||[])+
     _drSectionActivation(rpt.activationSummary||{})+
     _drSectionChurn(rpt.churnSummary||{})+
@@ -2669,21 +2754,63 @@ function _drFmtDate(iso) {
   return MN[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
 }
 
-// ── STAT BAR ──────────────────────────────────────────────────────────────
-function _drStatBar(cats) {
-  function pill(label,val,cls){
-    return '<div class="dr-stat-pill">'+(cls?'<span class="'+cls+'">':'')+
-      '<strong>'+val+'</strong>'+(cls?'</span>':'')+' <span>'+label+'</span></div>';
-  }
+// ── KPI SUMMARY ROW ───────────────────────────────────────────────────────
+function _drStatBar(cats, ap, act) {
+  ap = ap || {};
+  act = act || { lines:0, orders:0 };
+  var bk = ap.booked || { total: (ap.bookedToday||0) };
+  var sc = ap.statusChanges || { completed: 0 };
   var daT=cats.dayAfterTotal||0, daW=cats.dayAfterWorked||0;
-  var cov=daT>0?Math.round(daW/daT*100)+'%':'—';
-  return '<div class="dr-stat-bar">'+
-    pill('Day-After covered',daW+'/'+daT+' ('+cov+')')+
-    pill('Delivered worked',cats.deliveredWorked||0)+
-    pill('Issues worked',cats.issuesWorked||0)+
-    pill('No Answers',cats.noAnswerTotal||0,'dr-na-badge')+
-    pill('Escalations',cats.escalationTotal||0,'dr-esc-badge')+
+  var covPct = daT>0 ? Math.round(daW/daT*100) : null;
+  var covAccent = covPct===null?'#475569':covPct>=80?'#52c785':covPct>=50?'#eab308':'#e9756a';
+  function tile(value,label,accent,sub){
+    return '<div class="dr-kpi" style="border-top:2px solid '+(accent||'#3a4250')+'">'+
+      '<div class="dr-kpi-val">'+value+'</div>'+
+      '<div class="dr-kpi-lbl">'+label+'</div>'+
+      (sub?'<div class="dr-kpi-sub">'+sub+'</div>':'')+
     '</div>';
+  }
+  var actOrders=act.orders||0;
+  return '<div class="dr-kpi-row">'+
+    tile(act.lines||0,'Activated Today','#52c785',actOrders+' order'+(actOrders===1?'':'s'))+
+    tile(covPct===null?'—':covPct+'%','Day-After Coverage',covAccent,daW+' / '+daT+' worked')+
+    tile(cats.deliveredWorked||0,'Delivered Worked','#60a5fa')+
+    tile(cats.issuesWorked||0,'Issues Worked','#a78bfa')+
+    tile(cats.noAnswerTotal||0,'No Answers','#e9756a')+
+    tile(cats.escalationTotal||0,'Escalations','#cf6b62')+
+    tile(bk.total||0,'Appts Booked','#4A9FD4')+
+    tile(sc.completed||0,'Appts Completed','#3b82f6')+
+  '</div>';
+}
+
+// "Today at a glance" — one-line takeaway (the 5-second read).
+function _drAtAGlance(rpt) {
+  var cats=rpt.callCategories||{}, ap=rpt.appointments||{}, act=rpt.activatedToday||{lines:0,orders:0};
+  var sc=ap.statusChanges||{};
+  var daT=cats.dayAfterTotal||0, daW=cats.dayAfterWorked||0;
+  var parts=[];
+  var L=act.lines||0, O=act.orders||0;
+  parts.push('<b>'+L+'</b> line'+(L===1?'':'s')+' activated'+(O?' across <b>'+O+'</b> order'+(O===1?'':'s'):''));
+  if (daT) parts.push('<b>'+daW+'/'+daT+'</b> day-after calls worked');
+  if (ap.scheduled&&ap.scheduled.total) parts.push('<b>'+(sc.completed||0)+'</b> appt'+((sc.completed||0)===1?'':'s')+' completed'+(sc.noShow?', <b>'+sc.noShow+'</b> no-show':''));
+  var attn=(cats.noAnswerTotal||0)+(cats.escalationTotal||0);
+  if (attn) parts.push('<b>'+attn+'</b> item'+(attn===1?'':'s')+' need attention');
+  return '<div class="dr-glance">'+parts.join(' &nbsp;·&nbsp; ')+'</div>';
+}
+
+// Detail list of activator-marked line activations for the day.
+function _drSectionActivatedToday(act) {
+  act = act || { lines:0, orders:0, list:[] };
+  if (!act.list || !act.list.length) return '';
+  var rows=act.list.map(function(x){
+    return '<tr><td class="dr-nw">'+_drDsiCell(x.dsi)+'</td>'+
+      '<td class="dr-nw"><b>'+(x.lines||0)+'</b></td>'+
+      '<td>'+esc(x.activator||'—')+'</td>'+
+      '<td>'+esc(x.note||'—')+'</td></tr>';
+  }).join('');
+  return '<div class="dr-section"><div class="dr-sec-hdr">⚡ Lines Activated Today '+
+    '<span class="dr-subhdr">'+act.lines+' line'+(act.lines===1?'':'s')+' across '+act.orders+' order'+(act.orders===1?'':'s')+'</span></div>'+
+    '<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>DSI</th><th>Lines</th><th>Activator</th><th>Note</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 
 // ── STATUS BREAKDOWN ──────────────────────────────────────────────────────
@@ -2927,40 +3054,100 @@ function _drSectionEscalations(list) {
     '<table class="dr-table"><thead><tr><th>Rating</th><th>DSI</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
-// ── APPOINTMENTS & BOOKINGS (Phase 2 #1b) ─────────────────────────────────
+// ── APPOINTMENTS & BOOKINGS (Phase 2 #1b → 3-group, clean layout) ─────────
 function _drApptTime(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0],m=p[1]; return ((h%12)||12)+':'+m+' '+(h>=12?'PM':'AM'); }
 function _drApptOutcomeLabel(o){ var m={completed:'✓ Completed','no-show':'✗ No-Show',rescheduled:'↻ Rescheduled',canceled:'⊘ Canceled'}; return m[o]||'—'; }
+var _DR_OUTCOME_COLOR={completed:'#52c785','no-show':'#e9756a',rescheduled:'#f0995a',canceled:'#cf6b62'};
+function _drOutcomePill(o){
+  var c=_DR_OUTCOME_COLOR[o]||'#9aa0a6';
+  return '<span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:.72rem;font-weight:700;background:'+c+'22;color:'+c+'">'+esc(_drApptOutcomeLabel(o))+'</span>';
+}
+function _drDsiCell(dsi){ return dsi?'<span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>':'<span class="dr-muted">—</span>'; }
+// One quiet grey line of nonzero outcome counts (replaces the chip rainbow).
+function _drOutcomeBreakdown(o, includeUnmarked){
+  var parts=[];
+  if(o.completed)   parts.push(o.completed+' completed');
+  if(o.noShow)      parts.push(o.noShow+' no-show');
+  if(o.rescheduled) parts.push(o.rescheduled+' rescheduled');
+  if(o.canceled)    parts.push(o.canceled+' canceled');
+  if(includeUnmarked && o.unmarked) parts.push(o.unmarked+' unmarked');
+  return parts.join(' · ');
+}
+// Tooltip for secondary detail kept off the main grid.
+function _drApptTip(x){
+  var bits=[];
+  if(x.services) bits.push('Services: '+x.services+(x.devices?' ('+x.devices+' device'+(x.devices>1?'s':'')+')':''));
+  else if(x.devices) bits.push(x.devices+' device'+(x.devices>1?'s':''));
+  if(x.booker) bits.push('Booked by '+x.booker);
+  return bits.length?' title="'+esc(bits.join(' · '))+'"':'';
+}
+
 function _drSectionAppointments(ap) {
   if (!ap) return '';
-  var s=ap.scheduled||{total:0,completed:0,noShow:0,rescheduled:0,canceled:0,unmarked:0,list:[],byActivator:[]};
-  if (!s.total && !ap.bookedToday && !ap.tomorrow) {
+  var s  = ap.scheduled || {total:0,completed:0,noShow:0,rescheduled:0,canceled:0,unmarked:0,list:[],byActivator:[]};
+  var bk = ap.booked || {total:(ap.bookedToday||0),list:[]};
+  var sc = ap.statusChanges || {total:0,completed:0,noShow:0,rescheduled:0,canceled:0,list:[]};
+  if (!s.total && !bk.total && !sc.total && !ap.bookedToday && !ap.tomorrow) {
     return '<div class="dr-section"><div class="dr-sec-hdr">Appointments &amp; Bookings</div>'+
       '<div class="dr-muted" style="padding:.5rem .25rem">No appointment activity for this date.</div></div>';
   }
-  function chip(lbl,n,color){ return '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:.74rem;font-weight:700;margin:0 6px 6px 0;background:'+color+'22;color:'+color+'">'+lbl+': '+n+'</span>'; }
-  var summary='<div style="margin:6px 0 12px">'+
-    chip('Completed',s.completed,'#52c785')+chip('No-Show',s.noShow,'#e9756a')+
-    chip('Rescheduled',s.rescheduled,'#f0995a')+chip('Canceled',s.canceled,'#cf6b62')+
-    chip('Unmarked',s.unmarked,'#9aa0a6')+'</div>';
-  var actHtml='';
-  if ((s.byActivator||[]).length) {
-    actHtml='<table class="dr-table"><thead><tr><th>Activator</th><th>Booked</th><th>Completed</th><th>No-Show</th></tr></thead><tbody>'+
-      s.byActivator.map(function(a){return '<tr><td>'+esc(a.name)+'</td><td>'+a.total+'</td><td>'+a.completed+'</td><td>'+a.noShow+'</td></tr>';}).join('')+
-      '</tbody></table>';
+  function group(label,cnt,breakdown,inner){
+    return '<div class="dr-appt-group">'+
+      '<div class="dr-appt-ghdr">'+label+'<span class="dr-appt-gcnt">'+cnt+'</span>'+
+        (breakdown?'<span class="dr-appt-gbd">'+breakdown+'</span>':'')+'</div>'+
+      inner+'</div>';
   }
-  var listHtml='';
-  if ((s.list||[]).length) {
-    listHtml='<table class="dr-table" style="margin-top:10px"><thead><tr><th>Time</th><th>Activator</th><th>Customer</th><th>DSI</th><th>Services</th><th>Dev</th><th>Outcome</th></tr></thead><tbody>'+
-      s.list.map(function(x){
-        return '<tr><td>'+esc(_drApptTime(x.timeSlot))+'</td><td>'+esc(x.activator)+'</td><td>'+esc(x.customer||'—')+'</td>'+
-          '<td>'+(x.dsi?'<span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(x.dsi)+'\')">'+esc(x.dsi)+'</span>':'—')+'</td>'+
-          '<td style="font-size:.8rem">'+esc(x.services||'—')+'</td><td>'+(x.devices||1)+'</td><td>'+esc(_drApptOutcomeLabel(x.outcome))+'</td></tr>';
-      }).join('')+'</tbody></table>';
+
+  // ── Group 1: Booked that day ── Time · Date · Customer · DSI · Activator
+  var bookedHtml='';
+  if (bk.total) {
+    var inner;
+    if ((bk.list||[]).length) {
+      var bRows=bk.list.map(function(x){
+        return '<tr'+_drApptTip(x)+'><td class="dr-nw">'+esc(_drApptTime(x.timeSlot))+'</td>'+
+          '<td class="dr-nw">'+esc(_drFmtDate(x.forDate))+'</td>'+
+          '<td>'+esc(x.customer||'—')+'</td>'+
+          '<td class="dr-nw">'+_drDsiCell(x.dsi)+'</td>'+
+          '<td>'+esc(x.activator||'—')+'</td></tr>';
+      }).join('');
+      inner='<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>Time</th><th>Date</th><th>Customer</th><th>DSI</th><th>Activator</th></tr></thead><tbody>'+bRows+'</tbody></table></div>';
+    } else { inner='<div class="dr-muted" style="padding:.2rem .1rem">'+bk.total+' booked.</div>'; }
+    bookedHtml=group('📅 Booked That Day',bk.total,'',inner);
   }
-  var foot='<div class="dr-muted" style="margin-top:10px;font-size:.8rem">Booked on this day: <b>'+ap.bookedToday+'</b> &nbsp;·&nbsp; Scheduled for tomorrow: <b>'+ap.tomorrow+'</b></div>';
+
+  // ── Group 2: Scheduled this day ── Time · Customer · DSI · Activator · Outcome
+  var schedHtml='';
+  if (s.total) {
+    var sRows=(s.list||[]).map(function(x){
+      return '<tr'+_drApptTip(x)+'><td class="dr-nw">'+esc(_drApptTime(x.timeSlot))+'</td>'+
+        '<td>'+esc(x.customer||'—')+'</td>'+
+        '<td class="dr-nw">'+_drDsiCell(x.dsi)+'</td>'+
+        '<td>'+esc(x.activator||'—')+'</td>'+
+        '<td>'+(x.outcome?_drOutcomePill(x.outcome):'<span class="dr-muted">— not marked</span>')+'</td></tr>';
+    }).join('');
+    var sInner='<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>Time</th><th>Customer</th><th>DSI</th><th>Activator</th><th>Outcome</th></tr></thead><tbody>'+sRows+'</tbody></table></div>';
+    schedHtml=group('🗓️ Scheduled For This Day',s.total,_drOutcomeBreakdown(s,true),sInner);
+  }
+
+  // ── Group 3: Status changed that day ── Outcome · Customer · DSI · Activator · When
+  var changeHtml='';
+  if (sc.total) {
+    var cRows=(sc.list||[]).map(function(x){
+      return '<tr><td>'+_drOutcomePill(x.outcome)+'</td>'+
+        '<td>'+esc(x.customer||'—')+'</td>'+
+        '<td class="dr-nw">'+_drDsiCell(x.dsi)+'</td>'+
+        '<td>'+esc(x.activator||'—')+'</td>'+
+        '<td class="dr-nw">'+esc(_drFmtDate(x.apptDate))+' · '+esc(_drApptTime(x.timeSlot))+'</td></tr>';
+    }).join('');
+    var cInner='<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>Outcome</th><th>Customer</th><th>DSI</th><th>Activator</th><th>Appt</th></tr></thead><tbody>'+cRows+'</tbody></table></div>';
+    changeHtml=group('🔄 Status Changed That Day',sc.total,_drOutcomeBreakdown(sc,false),cInner);
+  }
+
+  var sub=(bk.total||0)+' booked · '+(s.total||0)+' scheduled · '+(sc.total||0)+' status changes'+
+    (ap.tomorrow?' · '+ap.tomorrow+' tomorrow':'');
   return '<div class="dr-section"><div class="dr-sec-hdr">Appointments &amp; Bookings '+
-    '<span class="dr-subhdr">'+s.total+' scheduled for this day</span></div>'+
-    summary+actHtml+listHtml+foot+'</div>';
+    '<span class="dr-subhdr">'+sub+'</span></div>'+
+    bookedHtml+schedHtml+changeHtml+'</div>';
 }
 
 // ── EMAIL COPY ───────────────────────────────────────────────────────────
@@ -3047,12 +3234,31 @@ function _drBuildEmailHtml() {
     return '<td style="'+TD+'"><span style="'+(isT?eCrTotCls(bkt,pct):eCrRepCls(bd.color||''))+'">('+disco+'/'+bd.acts+')<br>'+pct.toFixed(1)+'%</span></td>';
   }
 
-  // Stat bar
+  // KPI summary tiles (light, email-safe inline-block)
   var cats=rpt.callCategories||{};
+  var eAp=rpt.appointments||{};
+  var eBk=eAp.booked||{total:(eAp.bookedToday||0)};
+  var eSc=eAp.statusChanges||{completed:0};
+  var eAct=rpt.activatedToday||{lines:0,orders:0};
   var daT=cats.dayAfterTotal||0,daW=cats.dayAfterWorked||0;
-  var cov=daT>0?Math.round(daW/daT*100)+'%':'—';
-  function sPill(label,val,bg){return '<span style="background:'+(bg||'#1e3a5f')+';color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;font-weight:600;display:inline-block;margin:2px">'+val+' <span style="font-weight:400;font-size:11px">'+label+'</span></span>';}
-  var statBar=sPill('Day-After covered',daW+'/'+daT+' ('+cov+')')+sPill('Delivered worked',cats.deliveredWorked||0)+sPill('Issues worked',cats.issuesWorked||0)+sPill('No Answers',cats.noAnswerTotal||0,'#991b1b')+sPill('Escalations',cats.escalationTotal||0,'#991b1b');
+  var covPct=daT>0?Math.round(daW/daT*100):null;
+  var covColor=covPct===null?'#64748b':covPct>=80?'#16a34a':covPct>=50?'#ca8a04':'#dc2626';
+  function eTile(value,label,accent,sub){
+    return '<div style="display:inline-block;vertical-align:top;background:#f8fafc;border:1px solid #e2e8f0;border-top:3px solid '+accent+';border-radius:8px;padding:9px 13px;margin:0 6px 6px 0;min-width:92px">'+
+      '<div style="font-size:20px;font-weight:800;color:#0f172a;line-height:1">'+value+'</div>'+
+      '<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:3px">'+label+'</div>'+
+      (sub?'<div style="font-size:10px;color:#94a3b8;margin-top:1px">'+sub+'</div>':'')+
+    '</div>';
+  }
+  var eActOrders=eAct.orders||0;
+  var statBar=eTile(eAct.lines||0,'Activated Today','#16a34a',eActOrders+' order'+(eActOrders===1?'':'s'))+
+    eTile(covPct===null?'—':covPct+'%','Day-After Coverage',covColor,daW+'/'+daT+' worked')+
+    eTile(cats.deliveredWorked||0,'Delivered','#2563eb')+
+    eTile(cats.issuesWorked||0,'Issues','#7c3aed')+
+    eTile(cats.noAnswerTotal||0,'No Answers','#dc2626')+
+    eTile(cats.escalationTotal||0,'Escalations','#b91c1c')+
+    eTile(eBk.total||0,'Appts Booked','#0891b2')+
+    eTile(eSc.completed||0,'Appts Completed','#3b82f6');
 
   // Status breakdown — housing cells
   var EC={'sp-active':'background:#f0fdf4;border:1px solid #86efac','sp-posted':'background:#f0fdf4;border:1px solid #4ade80','sp-canceled':'background:#fef2f2;border:1px solid #fca5a5','sp-disconnected':'background:#fff1f2;border:1px solid #fda4af','sp-orange-bright':'background:#fff7ed;border:1px solid #fdba74','sp-orange':'background:#fff7ed;border:1px solid #fb923c','sp-dark-orange':'background:#fff7ed;border:1px solid #f97316','sp-purple':'background:#faf5ff;border:1px solid #d8b4fe','sp-yellow-bright':'background:#fefce8;border:1px solid #fde047','sp-yellow':'background:#fefce8;border:1px solid #fde68a','sp-pale-yellow':'background:#fefce8;border:1px solid #fef08a','':'background:#f8fafc;border:1px solid #e2e8f0'};
@@ -3166,29 +3372,77 @@ function _drBuildEmailHtml() {
     escSec=eHdr('Escalations That Day ('+escList.length+')')+eTbl('<tr><th style="'+TH+'">Rating</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Notes</th></tr>',escRows);
   }
 
-  // Appointments & bookings
-  var ap=rpt.appointments||null, apSec='';
-  if (ap && ((ap.scheduled&&ap.scheduled.total) || ap.bookedToday || ap.tomorrow)) {
-    var aps=ap.scheduled||{};
-    function eChip(lbl,n,bg,fg){return '<span style="display:inline-block;padding:2px 9px;border-radius:3px;font-size:11px;font-weight:700;margin:0 5px 5px 0;background:'+bg+';color:'+fg+'">'+lbl+': '+(n||0)+'</span>';}
-    var apSummary='<div style="margin:6px 0 8px">'+
-      eChip('Completed',aps.completed,'#166534','#bbf7d0')+eChip('No-Show',aps.noShow,'#991b1b','#fecaca')+
-      eChip('Rescheduled',aps.rescheduled,'#9a3412','#fed7aa')+eChip('Canceled',aps.canceled,'#7f1d1d','#fecaca')+
-      eChip('Unmarked',aps.unmarked,'#475569','#e2e8f0')+'</div>';
-    var apActs=(aps.byActivator||[]).length
-      ? eTbl('<tr><th style="'+TH+'">Activator</th><th style="'+TH+'">Booked</th><th style="'+TH+'">Completed</th><th style="'+TH+'">No-Show</th></tr>',
-          aps.byActivator.map(function(a){return '<tr><td style="'+TD+'">'+esc(a.name)+'</td><td style="'+TD+'">'+a.total+'</td><td style="'+TD+'">'+a.completed+'</td><td style="'+TD+'">'+a.noShow+'</td></tr>';}).join('')) : '';
-    var apList=(aps.list||[]).length
-      ? '<div style="margin-top:8px">'+eTbl('<tr><th style="'+TH+'">Time</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Services</th><th style="'+TH+'">Dev</th><th style="'+TH+'">Outcome</th></tr>',
-          aps.list.map(function(x){return '<tr><td style="'+TD+'">'+esc(_drApptTime(x.timeSlot))+'</td><td style="'+TD+'">'+esc(x.activator)+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.services||'—')+'</td><td style="'+TD+'">'+(x.devices||1)+'</td><td style="'+TD+'">'+esc(_drApptOutcomeLabel(x.outcome))+'</td></tr>';}).join(''))+'</div>' : '';
-    var apFoot='<div style="margin-top:6px;font-size:11px;color:#64748b">Booked on this day: <b>'+(ap.bookedToday||0)+'</b> · Scheduled for tomorrow: <b>'+(ap.tomorrow||0)+'</b></div>';
-    apSec=eHdr('Appointments &amp; Bookings ('+(aps.total||0)+' scheduled)')+apSummary+apActs+apList+apFoot;
+  // Today at a glance (one-line takeaway)
+  var glParts=[];
+  var gL=eAct.lines||0, gO=eAct.orders||0;
+  glParts.push('<b>'+gL+'</b> line'+(gL===1?'':'s')+' activated'+(gO?' across <b>'+gO+'</b> order'+(gO===1?'':'s'):''));
+  if (daT) glParts.push('<b>'+daW+'/'+daT+'</b> day-after calls worked');
+  if (eAp.scheduled&&eAp.scheduled.total) glParts.push('<b>'+(eSc.completed||0)+'</b> appt'+((eSc.completed||0)===1?'':'s')+' completed'+(eSc.noShow?', <b>'+eSc.noShow+'</b> no-show':''));
+  var gAttn=(cats.noAnswerTotal||0)+(cats.escalationTotal||0);
+  if (gAttn) glParts.push('<b>'+gAttn+'</b> item'+(gAttn===1?'':'s')+' need attention');
+  var glanceSec='<div style="font-size:13px;line-height:1.5;color:#1e293b;background:#eff6ff;border:1px solid #bfdbfe;border-left:3px solid #2563eb;border-radius:0 7px 7px 0;padding:10px 14px">'+glParts.join(' &nbsp;·&nbsp; ')+'</div>';
+
+  // Lines Activated Today
+  var actSec='';
+  if ((eAct.list||[]).length) {
+    var actRows=eAct.list.map(function(x){return '<tr><td style="'+TD+'">'+esc(x.dsi)+'</td><td style="'+TD+'"><b>'+(x.lines||0)+'</b></td><td style="'+TD+'">'+esc(x.activator||'—')+'</td><td style="'+TD+'">'+esc(x.note||'—')+'</td></tr>';}).join('');
+    actSec=eHdr('⚡ Lines Activated Today — '+eAct.lines+' line'+(eAct.lines===1?'':'s')+' across '+eAct.orders+' order'+(eAct.orders===1?'':'s'))+
+      eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">Lines</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Note</th></tr>',actRows);
   }
 
-  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;background:#fff;max-width:960px;padding:16px">'+
-    '<h2 style="margin:0 0 2px;font-size:16px;color:#0f172a">Daily Call Report — '+esc(dayLabel)+'</h2>'+
-    '<p style="margin:0 0 10px;color:#64748b;font-size:11px">Generated: '+_drFmtTs(rpt.generatedAt)+'</p>'+
-    '<div style="margin-bottom:10px">'+statBar+'</div>'+
+  // Appointments & bookings — 3 clean groups
+  var ap=rpt.appointments||null, apSec='';
+  if (ap) {
+    var aps=ap.scheduled||{total:0,list:[],byActivator:[]};
+    var apbk=ap.booked||{total:(ap.bookedToday||0),list:[]};
+    var apsc=ap.statusChanges||{total:0,completed:0,noShow:0,rescheduled:0,canceled:0,list:[]};
+    if (aps.total || apbk.total || apsc.total || ap.bookedToday || ap.tomorrow) {
+      var EOUT={completed:['✓ Completed','#166534','#bbf7d0'],'no-show':['✗ No-Show','#991b1b','#fecaca'],rescheduled:['↻ Rescheduled','#9a3412','#fed7aa'],canceled:['⊘ Canceled','#7f1d1d','#fecaca']};
+      function eOutcome(o){var x=EOUT[o]||['—','#e2e8f0','#334155'];return '<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;background:'+x[1]+';color:'+x[2]+'">'+x[0]+'</span>';}
+      function eBd(o,inclU){var p=[];if(o.completed)p.push(o.completed+' completed');if(o.noShow)p.push(o.noShow+' no-show');if(o.rescheduled)p.push(o.rescheduled+' rescheduled');if(o.canceled)p.push(o.canceled+' canceled');if(inclU&&o.unmarked)p.push(o.unmarked+' unmarked');return p.join(' · ');}
+      function eGroupBar(label,bd){return '<div style="border-bottom:1px solid #cbd5e1;padding:7px 2px 5px;margin-top:12px;font-size:12.5px;font-weight:700;color:#0f172a">'+label+(bd?'<span style="font-weight:400;color:#64748b;font-size:11px"> &nbsp;'+bd+'</span>':'')+'</div>';}
+
+      // Group 1: Booked that day — Time · Date · Customer · DSI · Activator
+      var apBooked='';
+      if (apbk.total) {
+        var bRows=(apbk.list||[]).map(function(x){return '<tr><td style="'+TD+'">'+esc(_drApptTime(x.timeSlot))+'</td><td style="'+TD+'">'+esc(_drFmtDate(x.forDate))+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator||'—')+'</td></tr>';}).join('');
+        apBooked=eGroupBar('📅 Booked That Day ('+apbk.total+')','')+
+          ((apbk.list||[]).length?eTbl('<tr><th style="'+TH+'">Time</th><th style="'+TH+'">Date</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th></tr>',bRows):'');
+      }
+
+      // Group 2: Scheduled this day — Time · Customer · DSI · Activator · Outcome
+      var apSched='';
+      if (aps.total) {
+        var apList=(aps.list||[]).length
+          ? eTbl('<tr><th style="'+TH+'">Time</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Outcome</th></tr>',
+              aps.list.map(function(x){return '<tr><td style="'+TD+'">'+esc(_drApptTime(x.timeSlot))+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator)+'</td><td style="'+TD+'">'+(x.outcome?eOutcome(x.outcome):'<span style="color:#94a3b8">— not marked</span>')+'</td></tr>';}).join('')) : '';
+        apSched=eGroupBar('🗓️ Scheduled For This Day ('+aps.total+')',eBd(aps,true))+apList;
+      }
+
+      // Group 3: Status changed that day — Outcome · Customer · DSI · Activator · Appt
+      var apChange='';
+      if (apsc.total) {
+        var cRows=(apsc.list||[]).map(function(x){return '<tr><td style="'+TD+'">'+eOutcome(x.outcome)+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator||'—')+'</td><td style="'+TD+'">'+esc(_drFmtDate(x.apptDate))+' · '+esc(_drApptTime(x.timeSlot))+'</td></tr>';}).join('');
+        apChange=eGroupBar('🔄 Status Changed That Day ('+apsc.total+')',eBd(apsc,false))+
+          ((apsc.list||[]).length?eTbl('<tr><th style="'+TH+'">Outcome</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Appt</th></tr>',cRows):'');
+      }
+
+      var apTitle='Appointments &amp; Bookings — '+(apbk.total||0)+' booked · '+(aps.total||0)+' scheduled · '+(apsc.total||0)+' changes'+(ap.tomorrow?' · '+ap.tomorrow+' tomorrow':'');
+      apSec=eHdr(apTitle)+apBooked+apSched+apChange;
+    }
+  }
+
+  var officeNm=(typeof CFG!=='undefined'&&CFG.officeName)?CFG.officeName:'';
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;background:#fff;max-width:960px;margin:0 auto;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden">'+
+    '<div style="background:#0f2740;color:#fff;padding:15px 20px">'+
+      (officeNm?'<div style="font-size:18px;font-weight:800;letter-spacing:.02em">'+esc(officeNm)+'</div>':'')+
+      '<div style="font-size:14px;font-weight:600;margin-top:'+(officeNm?'2px':'0')+'">📋 Daily Call Report</div>'+
+      '<div style="font-size:12px;color:#9fb4c7;margin-top:3px">'+esc(dayLabel)+' &nbsp;·&nbsp; Generated '+_drFmtTs(rpt.generatedAt)+'</div>'+
+    '</div>'+
+    '<div style="padding:16px 20px">'+
+    '<div style="margin-bottom:12px">'+glanceSec+'</div>'+
+    '<div style="margin-bottom:12px">'+statBar+'</div>'+
+    (actSec?'<div style="margin-top:10px">'+actSec+'</div>':'')+
     '<div style="margin-top:10px">'+statusSec+'</div>'+
     '<div style="margin-top:10px">'+arSec+'</div>'+
     '<div style="margin-top:10px">'+crSec+'</div>'+
@@ -3196,7 +3450,7 @@ function _drBuildEmailHtml() {
     (naSec?'<div style="margin-top:10px">'+naSec+'</div>':'')+
     (escSec?'<div style="margin-top:10px">'+escSec+'</div>':'')+
     (apSec?'<div style="margin-top:10px">'+apSec+'</div>':'')+
-    '</div>';
+    '</div></div>';
 }
 
 // ── PEOPLE ────────────────────────────────────────────────────────────────
@@ -5425,6 +5679,8 @@ function _apptUpcomingTable(appts) {
       actions+='<button class="appt-resched-btn" onclick="rescheduleApptUI(\''+esc(a.appointmentId)+'\')">Reschedule</button>';
     if (canX && !cancelled)
       actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>';
+    if (SESSION.role==='master-admin')
+      actions+='<button class="appt-del-btn" title="Delete permanently (master-admin)" onclick="deleteApptUI(\''+esc(a.appointmentId)+'\')">🗑</button>';
     var dsiCell = ok && a.customerDSI
       ? '<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>'
       : (ok?'—':'••••');
@@ -5806,6 +6062,17 @@ function cancelAppt(id) {
   });
 }
 
+// Hard-delete (master-admin only) — permanently removes the appointment row.
+// For clearing bad/test bookings; cancel only flags, this purges.
+function deleteApptUI(id) {
+  if (SESSION.role!=='master-admin') return;
+  if (!confirm('Permanently DELETE this appointment? This removes the row entirely and cannot be undone.')) return;
+  _apptPost({action:'deleteAppointment',appointmentId:id,role:SESSION.role,email:SESSION.email}).then(function(res){
+    if(res.ok){_APPT.appointments=null;renderAppointmentsTab();}
+    else alert(res.error||'Delete failed.');
+  }).catch(function(){ alert('Connection error.'); });
+}
+
 // Rebuild the appointments view from cached data (no refetch) — used to revert
 // an outcome <select> when the activator backs out of the note prompt.
 function _apptRerender() {
@@ -5814,11 +6081,38 @@ function _apptRerender() {
 }
 
 // ── Outcome (manual marking by the activator) ─────────────────
+var _APPT_OUTCOME = { id:'', outcome:'' };
+var _OUTCOME_LABELS = { completed:'✓ Completed','no-show':'✗ No-Show', rescheduled:'↻ Rescheduled', canceled:'⊘ Canceled' };
 function setApptOutcomeUI(id, outcome) {
   if (!outcome) return;
-  var note=prompt('Optional activation note for this appointment (saved to the customer’s notes). Leave blank to skip:','');
-  if (note===null) { _apptRerender(); return; }   // backed out → revert select
-  _apptPost({action:'setApptOutcome',appointmentId:id,outcome:outcome,note:note,
+  _APPT_OUTCOME = { id:id, outcome:outcome };
+  var canActivate = SESSION.role==='master-admin' || SESSION.role==='activator';
+  // Lines-activated only makes sense when the appointment actually happened.
+  var showLines = canActivate && outcome==='completed';
+  var linesField = showLines ? _linesFieldHtml('appt-outcome-body','⚡ Lines activated during this appointment') : '';
+  document.getElementById('appt-outcome-title').textContent = 'Mark Outcome — '+(_OUTCOME_LABELS[outcome]||outcome);
+  document.getElementById('appt-outcome-body').innerHTML =
+    '<label class="ao-label">Note '+(showLines?'':'(optional)')+'</label>'+
+    '<textarea id="appt-outcome-note" class="nm-textarea" placeholder="Activation note for this appointment (saved to the customer’s notes)…" style="margin-bottom:10px"></textarea>'+
+    linesField+
+    '<div class="nm-actions" style="margin-top:14px">'+
+      '<button class="nm-close-btn" style="flex:1" onclick="closeApptOutcomeModal(true)">Cancel</button>'+
+      '<button class="nm-add-btn" style="flex:2" onclick="submitApptOutcome()">Save Outcome</button>'+
+    '</div>';
+  document.getElementById('appt-outcome-modal').classList.add('open');
+}
+function closeApptOutcomeModal(revert) {
+  document.getElementById('appt-outcome-modal').classList.remove('open');
+  if (revert) _apptRerender();   // backed out → revert the select
+}
+function submitApptOutcome() {
+  var id=_APPT_OUTCOME.id, outcome=_APPT_OUTCOME.outcome;
+  if (!id||!outcome) return;
+  var noteEl=document.getElementById('appt-outcome-note');
+  var note=noteEl?noteEl.value.trim():'';
+  var lines=_linesGet('appt-outcome-body');
+  document.getElementById('appt-outcome-modal').classList.remove('open');
+  _apptPost({action:'setApptOutcome',appointmentId:id,outcome:outcome,note:note,linesActivated:lines,
     role:SESSION.role,email:SESSION.email}).then(function(res){
     if(res.ok){ _APPT.appointments=null; renderAppointmentsTab(); }
     else { alert(res.error||'Failed to set outcome.'); _apptRerender(); }
