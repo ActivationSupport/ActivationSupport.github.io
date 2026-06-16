@@ -210,19 +210,20 @@ function _callInBlock(office, customerPhone) {
 // Cross-writes an appointment's activation note into the portal's existing
 // _Notes_<officeId> tab (same Sheet ID) so it surfaces in the portal's note
 // sections for that DSI. Reuses the existing 'activation' note type.
-// Schema: dsi | timestamp | authorEmail | authorName | noteText | noteType
-function _appendActivationNote(officeId, dsi, authorEmail, authorName, noteText) {
+// Schema: dsi | timestamp | authorEmail | authorName | noteText | noteType | linesActivated
+function _appendActivationNote(officeId, dsi, authorEmail, authorName, noteText, linesActivated) {
   if (!officeId || !dsi || !noteText) return;
   var ss   = _getSS();
   var name = '_Notes_' + officeId;
   var sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
-    sheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText','noteType']);
-    sheet.getRange(1,1,1,6).setFontWeight('bold');
+    sheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText','noteType','linesActivated']);
+    sheet.getRange(1,1,1,7).setFontWeight('bold');
     sheet.setFrozenRows(1);
   }
-  sheet.appendRow([String(dsi).trim(), new Date(), authorEmail || '', authorName || '', noteText, 'activation']);
+  var n = Math.max(0, parseInt(linesActivated, 10) || 0);
+  sheet.appendRow([String(dsi).trim(), new Date(), authorEmail || '', authorName || '', noteText, 'activation', n]);
 }
 
 // ── Routing ───────────────────────────────────────────────────
@@ -251,6 +252,7 @@ function doPost(e) {
     var action = body.action || '';
     if (action === 'bookAppointment')      return _json(bookAppointment(body));
     if (action === 'cancelAppointment')    return _json(cancelAppointment(body));
+    if (action === 'deleteAppointment')    return _json(deleteAppointment(body));
     if (action === 'rescheduleAppointment') return _json(rescheduleAppointment(body));
     if (action === 'setApptOutcome')        return _json(setApptOutcome(body));
     if (action === 'setActivatorTimezone') return _json(setActivatorTimezone(body));
@@ -746,6 +748,24 @@ function cancelAppointment(body) {
   return { error: 'appointment not found' };
 }
 
+// ── Hard delete (master-admin only) — removes the row entirely. ───────────
+// Use for bad/test bookings. Cancel only flags a row; this purges it.
+function deleteAppointment(body) {
+  var sheet = _ensureSheet(APPT_TAB, APPT_HEADERS);
+  var id    = String(body.appointmentId || '').trim();
+  var role  = String(body.role || '').trim();
+  if (role !== 'master-admin') return { error: 'not authorized to delete appointments' };
+  if (!id) return { error: 'missing appointmentId' };
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() !== id) continue;
+    sheet.deleteRow(i + 1);
+    _bustCache(APPT_TAB);
+    return { ok: true };
+  }
+  return { error: 'appointment not found' };
+}
+
 // ── Outcome (manually set by the activator after the appointment) ─────────
 // outcome ∈ completed | rescheduled | no-show | canceled.
 // An optional note is stored on the row AND cross-written to the portal's
@@ -757,6 +777,7 @@ function setApptOutcome(body) {
   var email = String(body.email || '').trim().toLowerCase();
   var outcome = String(body.outcome || '').trim().toLowerCase();
   var note    = String(body.note || '').trim();
+  var linesActivated = Math.max(0, parseInt(body.linesActivated, 10) || 0);
   var VALID = ['completed','rescheduled','no-show','canceled'];
   if (!id) return { error: 'missing appointmentId' };
   if (VALID.indexOf(outcome) === -1) return { error: 'invalid outcome' };
@@ -774,13 +795,16 @@ function setApptOutcome(body) {
     ]]);
     _bustCache(APPT_TAB);
     // Surface the note in the portal's notes for this customer's DSI.
-    if (note) {
+    // Write a note row when there's a note OR the activator marked lines
+    // activated (so the activation is recorded + counted in the daily report).
+    if (note || linesActivated) {
       try {
         var dsi      = String(data[i][4] || '').trim();
         var office   = String(data[i][11] || '').trim();
         var label    = outcome.charAt(0).toUpperCase() + outcome.slice(1);
+        var body2    = note || ('Activated ' + linesActivated + ' line' + (linesActivated===1?'':'s') + ' during appointment.');
         _appendActivationNote(office, dsi, email, email,
-          '[Appointment ' + label + '] ' + note);
+          '[Appointment ' + label + '] ' + body2, linesActivated);
       } catch (err) { Logger.log('Outcome note error: ' + err); }
     }
     return { ok: true };
