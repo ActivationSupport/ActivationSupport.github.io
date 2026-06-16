@@ -407,6 +407,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-cw-oi  {background:#3d2200;color:#fbbf24}
 .dr-cw-other{background:#232323;color:#888}
 .dr-cw-cnt{background:rgba(255,255,255,.14);border-radius:3px;padding:0 .3rem;font-size:.69rem}
+.dr-cw-detail{font-size:.72rem;color:var(--text2);margin-top:2px}
 /* badges */
 .dr-na-badge{background:#3d1a1a;color:#f87171;border-radius:4px;padding:.1rem .4rem;font-size:.71rem;font-weight:700}
 .dr-esc-badge{background:#4a1414;color:#fca5a5;border-radius:4px;padding:.1rem .4rem;font-size:.71rem;font-weight:700}
@@ -2737,18 +2738,30 @@ function _drBuildHtml() {
       '</div></div>';
   }
 
+  // Notes live in ONE section only — highest priority first (Escalations > No Answers).
+  // A worked order that's also escalated/no-answer still lists under Calls Worked, but
+  // note-less (with a pointer up to where its notes are shown).
+  var _drDup = _drNotesShownSet(rpt);
   return '<div class="card">'+header+'<div class="card-body dr-body">'+
     _drAtAGlance(rpt)+
     _drStatBar(rpt.callCategories||{}, rpt.appointments, rpt.activatedToday)+
+    _drSectionEscalations(rpt.escalations||[])+
+    _drSectionNoAnswers(rpt.noAnswers||[])+
+    _drSectionCallsWorked(rpt.callsWorked||{}, _drDup)+
     _drSectionActivatedToday(rpt.activatedToday)+
     _drSectionStatus(rpt.statusBreakdown||[])+
     _drSectionActivation(rpt.activationSummary||{})+
     _drSectionChurn(rpt.churnSummary||{})+
-    _drSectionCallsWorked(rpt.callsWorked||{})+
-    _drSectionNoAnswers(rpt.noAnswers||[])+
-    _drSectionEscalations(rpt.escalations||[])+
     _drSectionAppointments(rpt.appointments)+
     '</div></div>';
+}
+
+// DSIs whose notes are shown in a higher-priority section (so Calls Worked omits them).
+function _drNotesShownSet(rpt) {
+  var escSet={}, naSet={};
+  (rpt.escalations||[]).forEach(function(e){ if(e.dsi) escSet[e.dsi]=true; });
+  (rpt.noAnswers||[]).forEach(function(e){ if(e.dsi) naSet[e.dsi]=true; });
+  return { esc:escSet, na:naSet };
 }
 
 function _drFmtTs(iso) {
@@ -2951,7 +2964,7 @@ function _drArCls(vol,acts,bkt) {
 function _drArCell(bktData,bkt) {
   if (!bktData||!bktData.vol) return '<td class="ar-cell"></td>';
   var vol=bktData.vol,acts=bktData.acts||0,p=Math.round(acts/vol*100);
-  return '<td class="ar-cell"><span class="ar-badge '+_drArCls(vol,acts,bkt)+'">('+acts+'/'+vol+')<br>'+p+'%</span></td>';
+  return '<td class="ar-cell"><span class="ar-badge '+_drArCls(vol,acts,bkt)+'">'+p+'% ('+acts+'/'+vol+')</span></td>';
 }
 function _drSectionActivation(arSummary) {
   var officeTotal=arSummary.officeTotal||{},repImpact=arSummary.repImpact||[];
@@ -2988,7 +3001,7 @@ function _drChurnCell(bktData,bkt,isTotal) {
   if (!bktData||!bktData.acts) return '<td class="ar-cell"></td>';
   var disco=bktData.disco||0,acts=bktData.acts,pct=disco/acts*100;
   var cls=isTotal?_drChurnTotalCls(bkt,pct):_drChurnCls(bktData.color||'');
-  return '<td class="ar-cell"><span class="ar-badge '+cls+'">('+disco+'/'+acts+')<br>'+pct.toFixed(1)+'%</span></td>';
+  return '<td class="ar-cell"><span class="ar-badge '+cls+'">'+pct.toFixed(1)+'% ('+disco+'/'+acts+')</span></td>';
 }
 function _drSectionChurn(churnSummary) {
   var officeTotal=churnSummary.officeTotal||{},repImpact=churnSummary.repImpact||[];
@@ -3028,34 +3041,47 @@ function _drNoteItems(notes) {
       ' — '+esc(n.noteText)+'</div>';
   }).join('');
 }
-function _drCwGroup(entries,label,cls) {
+// Quiet one-line order summary (date · products · statuses) — replaces the pill rainbow.
+function _drOrderLine(e) {
+  var parts=[];
+  var dt=_drFmtDate(e.orderDate); if (dt&&dt!=='—') parts.push(dt);
+  var prods=Object.keys(e.productCounts||{}).map(function(p){return p+' ×'+e.productCounts[p];});
+  if (prods.length) parts.push(prods.join(', '));
+  var stats=Object.keys(e.statusCounts||{}).map(function(s){return s+' ×'+e.statusCounts[s];});
+  if (stats.length) parts.push(stats.join(', '));
+  return parts.join(' · ');
+}
+function _drCwGroup(entries,label,cls,dup) {
   if (!entries||!entries.length) return '';
+  dup = dup || {esc:{},na:{}};
   var rows=entries.map(function(e){
+    var detail=_drOrderLine(e);
+    var notesCell;
+    if (dup.esc&&dup.esc[e.dsi])      notesCell='<span class="dr-muted">↑ Notes under Escalations</span>';
+    else if (dup.na&&dup.na[e.dsi])   notesCell='<span class="dr-muted">↑ Notes under No Answers</span>';
+    else                              notesCell=_drNoteItems(e.notes);
     return '<tr>'+
-      '<td style="white-space:nowrap">'+esc(e.rep||'—')+'</td>'+
-      '<td style="white-space:nowrap"><span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(e.dsi)+'\')">'+esc(e.dsi)+'</span></td>'+
-      '<td style="white-space:nowrap">'+esc(_drFmtDate(e.orderDate))+'</td>'+
-      '<td>'+_drProductPills(e.productCounts)+'</td>'+
-      '<td>'+_drStatusPills(e.statusCounts)+'</td>'+
-      '<td class="dr-notes-cell">'+_drNoteItems(e.notes)+'</td>'+
+      '<td class="dr-nw">'+esc(e.rep||'—')+'</td>'+
+      '<td>'+_drDsiCell(e.dsi)+(detail?'<div class="dr-cw-detail">'+esc(detail)+'</div>':'')+'</td>'+
+      '<td class="dr-notes-cell">'+notesCell+'</td>'+
       '</tr>';
   }).join('');
   return '<div class="dr-cw-group">'+
     '<div class="dr-cw-group-hdr '+cls+'">'+esc(label)+' <span class="dr-cw-cnt">'+entries.length+'</span></div>'+
     '<div class="tbl-wrap"><table class="dr-table"><thead><tr>'+
-    '<th>Rep</th><th>DSI</th><th>Order Date</th><th>Products</th><th>Status</th><th>Notes</th>'+
+    '<th>Rep</th><th>Order</th><th>Notes</th>'+
     '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
-function _drSectionCallsWorked(cw) {
+function _drSectionCallsWorked(cw, dup) {
   var total=(cw.dayafter||[]).length+(cw.delivered||[]).length+(cw.issues||[]).length+(cw.other||[]).length;
   if (!total) return '<div class="dr-section"><div class="dr-sec-hdr">Calls Worked That Day</div>'+
     '<div class="dr-muted" style="padding:.5rem .25rem">No notes recorded for this date.</div></div>';
   return '<div class="dr-section"><div class="dr-sec-hdr">Calls Worked That Day '+
     '<span class="dr-subhdr">'+total+' orders with notes</span></div>'+
-    _drCwGroup(cw.dayafter||[],  'Day-After',           'dr-cw-da')+
-    _drCwGroup(cw.delivered||[], 'Delivered Not Active', 'dr-cw-dna')+
-    _drCwGroup(cw.issues||[],    'Order Issues',        'dr-cw-oi')+
-    _drCwGroup(cw.other||[],     'Other',               'dr-cw-other')+
+    _drCwGroup(cw.dayafter||[],  'Day-After',            'dr-cw-da',    dup)+
+    _drCwGroup(cw.issues||[],    'Order Issues',         'dr-cw-oi',    dup)+
+    _drCwGroup(cw.delivered||[], 'Delivered Not Active', 'dr-cw-dna',   dup)+
+    _drCwGroup(cw.other||[],     'Other',                'dr-cw-other', dup)+
     '</div>';
 }
 
@@ -3247,7 +3273,7 @@ function _drBuildEmailHtml() {
   function eArCell(bd,bkt){
     if (!bd||!bd.vol) return '<td style="'+TD+'"></td>';
     var p=Math.round(bd.acts/bd.vol*100);
-    return '<td style="'+TD+'"><span style="'+eArCls(bd.vol,bd.acts,bkt)+'">('+bd.acts+'/'+bd.vol+')<br>'+p+'%</span></td>';
+    return '<td style="'+TD+'"><span style="'+eArCls(bd.vol,bd.acts,bkt)+'">'+p+'% ('+bd.acts+'/'+bd.vol+')</span></td>';
   }
   function eCrTotCls(bkt,pct){
     var t={'0-30 Day':[2.4,3.0],'30 Day':[4.9,6.9],'60 Day':[8.9,9.9],'90 Day':[10.9,13.9],'120 Day':[13.9,17.9]};
@@ -3264,7 +3290,7 @@ function _drBuildEmailHtml() {
   function eCrCell(bd,bkt,isT){
     if (!bd||!bd.acts) return '<td style="'+TD+'"></td>';
     var disco=bd.disco||0,pct=disco/bd.acts*100;
-    return '<td style="'+TD+'"><span style="'+(isT?eCrTotCls(bkt,pct):eCrRepCls(bd.color||''))+'">('+disco+'/'+bd.acts+')<br>'+pct.toFixed(1)+'%</span></td>';
+    return '<td style="'+TD+'"><span style="'+(isT?eCrTotCls(bkt,pct):eCrRepCls(bd.color||''))+'">'+pct.toFixed(1)+'% ('+disco+'/'+bd.acts+')</span></td>';
   }
 
   // KPI summary tiles (light, email-safe inline-block)
@@ -3384,20 +3410,32 @@ function _drBuildEmailHtml() {
   var crReps=repCr.map(function(r){return '<tr><td style="'+TD+'">'+esc(r.rep)+'</td>'+CR_BKTS.map(function(b){return eCrCell(r.buckets[b],b,false);}).join('')+'</tr>';}).join('');
   var crSec=eHdr('Churn Rates — office summary + top 5 reps by 0-30 Day disconnects')+eTbl(crHdr,crTot+crReps);
 
-  // Calls worked
+  // Calls worked — slim Rep | Order | Notes; notes dedupe to the highest-priority section.
+  var cwDupEsc={},cwDupNa={};
+  (rpt.escalations||[]).forEach(function(e){ if(e.dsi) cwDupEsc[e.dsi]=true; });
+  (rpt.noAnswers||[]).forEach(function(e){ if(e.dsi) cwDupNa[e.dsi]=true; });
+  function eOrderLine(e){
+    var parts=[];
+    var dt=_drFmtDate(e.orderDate); if(dt&&dt!=='—') parts.push(dt);
+    var prods=Object.keys(e.productCounts||{}).map(function(p){return p+' ×'+e.productCounts[p];}); if(prods.length) parts.push(prods.join(', '));
+    var stats=Object.keys(e.statusCounts||{}).map(function(s){return s+' ×'+e.statusCounts[s];}); if(stats.length) parts.push(stats.join(', '));
+    return parts.join(' · ');
+  }
   function eCwGroup(entries,label){
     if (!entries||!entries.length) return '';
     var rows=entries.map(function(e){
-      var prods=Object.keys(e.productCounts||{}).map(function(p){return '<span style="background:#e2e8f0;padding:1px 5px;border-radius:3px;font-size:10px;margin:1px;display:inline-block">'+esc(p)+' ×'+e.productCounts[p]+'</span>';}).join('');
-      var stats=Object.keys(e.statusCounts||{}).map(function(s){return ePill(s+' ×'+e.statusCounts[s],_DR_ST_CLS[s]||'');}).join(' ');
-      var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:1px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>';
-      return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+';white-space:nowrap">'+esc(_drFmtDate(e.orderDate))+'</td><td style="'+TD+'">'+prods+'</td><td style="'+TD+'">'+stats+'</td><td style="'+TD+'">'+notes+'</td></tr>';
+      var detail=eOrderLine(e);
+      var notes;
+      if (cwDupEsc[e.dsi])    notes='<span style="color:#94a3b8;font-size:11px">↑ Notes under Escalations</span>';
+      else if (cwDupNa[e.dsi])notes='<span style="color:#94a3b8;font-size:11px">↑ Notes under No Answers</span>';
+      else notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:1px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>';
+      return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+'">'+esc(e.dsi)+(detail?'<div style="font-size:10px;color:#64748b;margin-top:2px">'+esc(detail)+'</div>':'')+'</td><td style="'+TD+'">'+notes+'</td></tr>';
     }).join('');
-    return '<div style="margin-bottom:6px"><div style="background:#334155;color:#f1f5f9;font-size:12px;font-weight:700;padding:4px 9px">'+esc(label)+' ('+entries.length+')</div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Order Date</th><th style="'+TH+'">Products</th><th style="'+TH+'">Status</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>';
+    return '<div style="margin-bottom:6px"><div style="background:#334155;color:#f1f5f9;font-size:12px;font-weight:700;padding:4px 9px">'+esc(label)+' ('+entries.length+')</div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">Order</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>';
   }
   var cw=rpt.callsWorked||{};
   var cwTotal=(cw.dayafter||[]).length+(cw.delivered||[]).length+(cw.issues||[]).length+(cw.other||[]).length;
-  var cwSec=cwTotal?eHdr('Calls Worked That Day ('+cwTotal+' orders)')+eCwGroup(cw.dayafter,'Day-After')+eCwGroup(cw.delivered,'Delivered Not Active')+eCwGroup(cw.issues,'Order Issues')+eCwGroup(cw.other,'Other'):'';
+  var cwSec=cwTotal?eHdr('Calls Worked That Day ('+cwTotal+' orders)')+eCwGroup(cw.dayafter,'Day-After')+eCwGroup(cw.issues,'Order Issues')+eCwGroup(cw.delivered,'Delivered Not Active')+eCwGroup(cw.other,'Other'):'';
 
   // No answers
   var naList=rpt.noAnswers||[];
@@ -3492,13 +3530,13 @@ function _drBuildEmailHtml() {
     '<div style="padding:16px 20px">'+
     '<div style="margin-bottom:12px">'+glanceSec+'</div>'+
     '<div style="margin-bottom:12px">'+statBar+'</div>'+
+    (escSec?'<div style="margin-top:10px">'+escSec+'</div>':'')+
+    (naSec?'<div style="margin-top:10px">'+naSec+'</div>':'')+
+    (cwSec?'<div style="margin-top:10px">'+cwSec+'</div>':'')+
     (actSec?'<div style="margin-top:10px">'+actSec+'</div>':'')+
     '<div style="margin-top:10px">'+statusSec+'</div>'+
     '<div style="margin-top:10px">'+arSec+'</div>'+
     '<div style="margin-top:10px">'+crSec+'</div>'+
-    (cwSec?'<div style="margin-top:10px">'+cwSec+'</div>':'')+
-    (naSec?'<div style="margin-top:10px">'+naSec+'</div>':'')+
-    (escSec?'<div style="margin-top:10px">'+escSec+'</div>':'')+
     (apSec?'<div style="margin-top:10px">'+apSec+'</div>':'')+
     '</div></div>';
 }
