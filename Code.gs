@@ -1857,12 +1857,36 @@ function writeValidateAdminAccess(body, ss) {
   }
   return { ok:true, valid:false, error:'Email not recognized.' };
 }
+// Master-admin is a GLOBAL role: anyone who is a (non-deactivated) master-admin
+// in ANY office is treated as master-admin in every office, regardless of that
+// office's roster (or absence from it). Returns {pinHash, permissions} from the
+// first office where this email is a master-admin, or null.
+function _findGlobalMasterAdmin(ss, email) {
+  email=String(email||'').trim().toLowerCase(); if (!email) return null;
+  var offices=Object.keys(OFFICE_OWNER_MAP);
+  for (var i=0;i<offices.length;i++) {
+    var sheet=ss.getSheetByName(officeTab(TAB.ROSTER,offices[i])); if (!sheet) continue;
+    var rowIdx=findRowCI(sheet,0,email); if (rowIdx<0) continue;
+    var row=sheet.getRange(rowIdx,1,1,10).getValues()[0];
+    var deactivated=row[4]===true||String(row[4]).toUpperCase()==='TRUE'; if (deactivated) continue;
+    if (String(row[3]||'').trim().toLowerCase()!=='master-admin') continue;
+    return { pinHash:String(row[6]||'').trim(), permissions:String(row[9]||'').trim() };
+  }
+  return null;
+}
+function _allOfficeIds() { return Object.keys(OFFICE_OWNER_MAP).join(','); }
+
 function writeCheckEmail(body, ss, officeId) {
   var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
   var email=String(body.email||'').trim().toLowerCase();
   if (!email) return { error:'missing email' };
   var rowIdx=findRowCI(sheet,0,email);
-  if (rowIdx<0) return { ok:true, found:false };
+  if (rowIdx<0) {
+    // Not in this office's roster — but a global master-admin can sign in anywhere.
+    var gma=_findGlobalMasterAdmin(ss,email);
+    if (gma) return { ok:true, found:true, hasPin:!!gma.pinHash&&gma.pinHash!=='undefined' };
+    return { ok:true, found:false };
+  }
   var rowData=sheet.getRange(rowIdx,1,1,10).getValues()[0];
   var deactivated=rowData[4]===true||String(rowData[4]).toUpperCase()==='TRUE';
   if (deactivated) return { ok:true, found:false };
@@ -1881,23 +1905,34 @@ function writeSetPin(body, ss, officeId) {
   var existingHash=String(rowData[6]||'').trim();
   if (existingHash.length>0&&existingHash!=='undefined') return { error:'PIN already set. Use Sign In.' };
   sheet.getRange(rowIdx,7).setValue(hashPin(email,pin));
+  if (_findGlobalMasterAdmin(ss,email)) return { ok:true, valid:true, rank:'master-admin', permissions:_allOfficeIds() };
   var permissions=String(rowData[9]||'').trim()||officeId;
-  return { ok:true, valid:true, permissions:permissions };
+  return { ok:true, valid:true, rank:String(rowData[3]||'client-rep').trim(), permissions:permissions };
 }
 function writeValidatePin(body, ss, officeId) {
   var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
   var email=String(body.email||'').trim().toLowerCase(); var pin=String(body.pin||'').trim();
   if (!email) return { error:'missing email' }; if (!pin) return { error:'missing pin' };
   var rowIdx=findRowCI(sheet,0,email);
-  if (rowIdx<0) return { error:'Not authorized for this office' };
+  if (rowIdx<0) {
+    // Not in this office's roster — a global master-admin validates against their
+    // master-admin row in another office and gets all-office access.
+    var gma=_findGlobalMasterAdmin(ss,email);
+    if (!gma) return { error:'Not authorized for this office' };
+    if (!gma.pinHash||gma.pinHash==='undefined') return { error:'No PIN set for this account' };
+    if (hashPin(email,pin)===gma.pinHash) return { ok:true, valid:true, rank:'master-admin', permissions:_allOfficeIds() };
+    return { ok:true, valid:false, error:'Incorrect PIN' };
+  }
   var rowData=sheet.getRange(rowIdx,1,1,10).getValues()[0];
   var deactivated=rowData[4]===true||String(rowData[4]).toUpperCase()==='TRUE';
   if (deactivated) return { error:'Account deactivated. Contact your Admin.' };
   var storedHash=String(rowData[6]||'').trim();
   if (!storedHash||storedHash==='undefined') return { error:'No PIN set for this account' };
   if (hashPin(email,pin)===storedHash) {
+    // Master-admin is global — elevate even if this office's row says otherwise.
+    if (_findGlobalMasterAdmin(ss,email)) return { ok:true, valid:true, rank:'master-admin', permissions:_allOfficeIds() };
     var permissions=String(rowData[9]||'').trim()||officeId;
-    return { ok:true, valid:true, permissions:permissions };
+    return { ok:true, valid:true, rank:String(rowData[3]||'client-rep').trim(), permissions:permissions };
   }
   return { ok:true, valid:false, error:'Incorrect PIN' };
 }

@@ -1210,6 +1210,8 @@ function doLogin() {
   apiPost({ action: 'validatePin', email: LOGIN_EMAIL, pin: pin }).then(function(res) {
     if (res.ok && res.valid) {
       SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
+      if (res.rank) { SESSION.role = res.rank; SESSION._actualRole = res.rank; }
+      SESSION.isMaster = res.rank === 'master-admin';
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
     } else {
@@ -1237,6 +1239,8 @@ function doSetPin() {
   apiPost({ action: 'setPin', email: LOGIN_EMAIL, pin: newPin }).then(function(res) {
     if (res.ok && res.valid) {
       SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
+      if (res.rank) { SESSION.role = res.rank; SESSION._actualRole = res.rank; }
+      SESSION.isMaster = res.rank === 'master-admin';
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
     } else {
@@ -1464,7 +1468,13 @@ function loadData() {
     _CACHE.mainDataTs = Date.now();
     var roster = DATA.roster || {};
     var me = roster[SESSION.email];
-    if (me) {
+    if (SESSION.isMaster) {
+      // Master-admin is a global role — it never downgrades to this office's
+      // roster rank (or to client-rep when absent from this office's roster).
+      SESSION.role = 'master-admin';
+      if (me) { SESSION.name = me.name || SESSION.email; SESSION.tableauName = me.tableauName || ''; }
+      else if (!SESSION.name) { SESSION.name = SESSION.email; SESSION.tableauName = ''; }
+    } else if (me) {
       SESSION.role = me.rank || 'client-rep';
       SESSION.name = me.name || SESSION.email;
       SESSION.tableauName = me.tableauName || '';
