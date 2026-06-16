@@ -1513,10 +1513,10 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
   function eHdr(t){return '<div style="'+SEC+'">'+t+'</div>';}
   function eTbl(thead,tbody){return '<table style="'+TBL+'"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';}
   function eArCls(vol,acts,bkt){ if(!vol) return BADGE+';background:#e2e8f0;color:#334155'; var p=acts/vol*100; if(bkt==='0-7 Days') return p>=21?GRN:p>=10?YEL:RED; if(bkt==='8-14 Days') return p>=71?GRN:p>=51?YEL:RED; if(bkt==='15-30 Days') return p>=75?GRN:p>=70?YEL:RED; if(bkt==='31-60 Days') return p>=86?GRN:p>=79?YEL:RED; return BADGE+';background:#e2e8f0;color:#334155'; }
-  function eArCell(bd,bkt){ if(!bd||!bd.vol) return '<td style="'+TD+'"></td>'; var p=Math.round(bd.acts/bd.vol*100); return '<td style="'+TD+'"><span style="'+eArCls(bd.vol,bd.acts,bkt)+'">('+bd.acts+'/'+bd.vol+')<br>'+p+'%</span></td>'; }
+  function eArCell(bd,bkt){ if(!bd||!bd.vol) return '<td style="'+TD+'"></td>'; var p=Math.round(bd.acts/bd.vol*100); return '<td style="'+TD+'"><span style="'+eArCls(bd.vol,bd.acts,bkt)+'">'+p+'% ('+bd.acts+'/'+bd.vol+')</span></td>'; }
   function eCrTotCls(bkt,pct){ var t={'0-30 Day':[2.4,3.0],'30 Day':[4.9,6.9],'60 Day':[8.9,9.9],'90 Day':[10.9,13.9],'120 Day':[13.9,17.9]}; var th=t[bkt]; if(!th) return BADGE+';background:#e2e8f0;color:#334155'; return pct<=th[0]?GRN:pct<=th[1]?YEL:RED; }
   function eCrRepCls(color){ var c=String(color||'').toLowerCase(); if(c.indexOf('green')!==-1) return GRN; if(c.indexOf('red')!==-1||c.indexOf('orange')!==-1) return RED; if(c.indexOf('yellow')!==-1||c.indexOf('blue')!==-1) return YEL; return BADGE+';background:#e2e8f0;color:#334155'; }
-  function eCrCell(bd,bkt,isT){ if(!bd||!bd.acts) return '<td style="'+TD+'"></td>'; var disco=bd.disco||0,pct=disco/bd.acts*100; return '<td style="'+TD+'"><span style="'+(isT?eCrTotCls(bkt,pct):eCrRepCls(bd.color||''))+'">('+disco+'/'+bd.acts+')<br>'+pct.toFixed(1)+'%</span></td>'; }
+  function eCrCell(bd,bkt,isT){ if(!bd||!bd.acts) return '<td style="'+TD+'"></td>'; var disco=bd.disco||0,pct=disco/bd.acts*100; return '<td style="'+TD+'"><span style="'+(isT?eCrTotCls(bkt,pct):eCrRepCls(bd.color||''))+'">'+pct.toFixed(1)+'% ('+disco+'/'+bd.acts+')</span></td>'; }
 
   var cats=rpt.callCategories||{};
   var eAp=rpt.appointments||{};
@@ -1568,10 +1568,14 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
   var crReps=repCr.map(function(r){return '<tr><td style="'+TD+'">'+esc(r.rep)+'</td>'+CR_BKTS.map(function(b){return eCrCell(r.buckets[b],b,false);}).join('')+'</tr>';}).join('');
   var crSec=eHdr('Churn Rates — office summary + top 5 reps by 0-30 Day disconnects')+eTbl(crHdr,crTot+crReps);
 
-  function eCwGroup(entries,label){ if(!entries||!entries.length) return ''; var rows=entries.map(function(e){ var prods=Object.keys(e.productCounts||{}).map(function(p){return '<span style="background:#e2e8f0;padding:1px 5px;border-radius:3px;font-size:10px;margin:1px;display:inline-block">'+esc(p)+' &times;'+e.productCounts[p]+'</span>';}).join(''); var stats=Object.keys(e.statusCounts||{}).map(function(s){return ePill(s+' x'+e.statusCounts[s],ST_CLS[s]||'');}).join(' '); var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:1px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+';white-space:nowrap">'+esc(fmtDate(e.orderDate))+'</td><td style="'+TD+'">'+prods+'</td><td style="'+TD+'">'+stats+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join(''); return '<div style="margin-bottom:6px"><div style="background:#334155;color:#f1f5f9;font-size:12px;font-weight:700;padding:4px 9px">'+esc(label)+' ('+entries.length+')</div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Order Date</th><th style="'+TH+'">Products</th><th style="'+TH+'">Status</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>'; }
+  var cwDupEsc={},cwDupNa={};
+  (rpt.escalations||[]).forEach(function(e){ if(e.dsi) cwDupEsc[e.dsi]=true; });
+  (rpt.noAnswers||[]).forEach(function(e){ if(e.dsi) cwDupNa[e.dsi]=true; });
+  function eOrderLine(e){ var parts=[]; var dt=fmtDate(e.orderDate); if(dt&&dt!=='—') parts.push(dt); var prods=Object.keys(e.productCounts||{}).map(function(p){return p+' x'+e.productCounts[p];}); if(prods.length) parts.push(prods.join(', ')); var stats=Object.keys(e.statusCounts||{}).map(function(s){return s+' x'+e.statusCounts[s];}); if(stats.length) parts.push(stats.join(', ')); return parts.join(' · '); }
+  function eCwGroup(entries,label){ if(!entries||!entries.length) return ''; var rows=entries.map(function(e){ var detail=eOrderLine(e); var notes; if(cwDupEsc[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under Escalations</span>'; else if(cwDupNa[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under No Answers</span>'; else notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:1px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+'">'+esc(e.dsi)+(detail?'<div style="font-size:10px;color:#64748b;margin-top:2px">'+esc(detail)+'</div>':'')+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join(''); return '<div style="margin-bottom:6px"><div style="background:#334155;color:#f1f5f9;font-size:12px;font-weight:700;padding:4px 9px">'+esc(label)+' ('+entries.length+')</div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">Order</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>'; }
   var cw=rpt.callsWorked||{};
   var cwTotal=(cw.dayafter||[]).length+(cw.delivered||[]).length+(cw.issues||[]).length+(cw.other||[]).length;
-  var cwSec=cwTotal?eHdr('Calls Worked That Day ('+cwTotal+' orders)')+eCwGroup(cw.dayafter,'Day-After')+eCwGroup(cw.delivered,'Delivered Not Active')+eCwGroup(cw.issues,'Order Issues')+eCwGroup(cw.other,'Other'):'';
+  var cwSec=cwTotal?eHdr('Calls Worked That Day ('+cwTotal+' orders)')+eCwGroup(cw.dayafter,'Day-After')+eCwGroup(cw.issues,'Order Issues')+eCwGroup(cw.delivered,'Delivered Not Active')+eCwGroup(cw.other,'Other'):'';
 
   var naList=rpt.noAnswers||[];
   var naSec='';
@@ -1643,13 +1647,13 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
     '<div style="padding:16px 20px">'+
     '<div style="margin-bottom:12px">'+glanceSec+'</div>'+
     '<div style="margin-bottom:12px">'+statBar+'</div>'+
+    (escSec?'<div style="margin-top:10px">'+escSec+'</div>':'')+
+    (naSec?'<div style="margin-top:10px">'+naSec+'</div>':'')+
+    (cwSec?'<div style="margin-top:10px">'+cwSec+'</div>':'')+
     (actSec?'<div style="margin-top:10px">'+actSec+'</div>':'')+
     '<div style="margin-top:10px">'+statusSec+'</div>'+
     '<div style="margin-top:10px">'+arSec+'</div>'+
     '<div style="margin-top:10px">'+crSec+'</div>'+
-    (cwSec?'<div style="margin-top:10px">'+cwSec+'</div>':'')+
-    (naSec?'<div style="margin-top:10px">'+naSec+'</div>':'')+
-    (escSec?'<div style="margin-top:10px">'+escSec+'</div>':'')+
     (apSec?'<div style="margin-top:10px">'+apSec+'</div>':'')+
     '</div></div></body></html>';
   // Force every non-ASCII char (emoji, em-dashes, ·) to a numeric HTML entity so it
