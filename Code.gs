@@ -1465,6 +1465,25 @@ function sendDailyReportEmailTest(officeId) {
   return { ok:true, office:officeId, sentTo:'gavonfuller2024@gmail.com' };
 }
 
+// No-email preview — renders today's report for one office to an HTML file in
+// Drive and returns its link. Sends NO email to anyone. Run from the editor,
+// e.g. previewDailyReportToDrive('elevate'), then open the returned url.
+function previewDailyReportToDrive(officeId) {
+  officeId = officeId || 'elevate';
+  var sheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID')||'';
+  var ss = sheetId ? SpreadsheetApp.openById(sheetId) : SpreadsheetApp.getActiveSpreadsheet();
+  var todayStr = Utilities.formatDate(new Date(), DAILY_REPORT_TZ, 'yyyy-MM-dd');
+  generateDailyReport(ss, officeId, todayStr);
+  var rpt = readDailyReport(ss, officeId, todayStr);
+  if (!rpt) return { error:'no report for '+officeId };
+  var officeName = DAILY_REPORT_OFFICE_NAME[officeId] || officeId;
+  var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr);
+  var file = DriveApp.createFile('DailyReportPreview-'+officeId+'-'+todayStr+'.html', html, MimeType.HTML);
+  var url = file.getUrl();
+  Logger.log('Preview ('+officeId+'): '+url);
+  return { ok:true, office:officeId, url:url };
+}
+
 // Server-side port of the front-end "Copy for Email" report (_drBuildEmailHtml).
 // rpt = the saved report object; officeName = display name; dateStr = yyyy-MM-dd.
 function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
