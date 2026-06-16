@@ -2902,6 +2902,29 @@ function _drSectionStatus(sb) {
       '</div>'+
     '</div>';
   }
+  function _niCell(data){
+    if(!data||(!data.customers&&!data.lines)) return '';
+    var hid='drhdr-ni'+uid, bid='drbody-ni'+uid, v=data.voip||{};
+    function _st(k,val){ return '<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 10px;font-size:.8rem"><span style="color:var(--text2)">'+k+'</span><span style="font-weight:600">'+(val||0)+'</span></div>'; }
+    var summary='<div style="background:#161b22;border:1px solid #21262d;border-radius:6px;padding:5px 0;margin:4px 0 8px">'+
+      _st('New', data.newOrders)+
+      _st('Existing (upgrade)', data.existingOrders)+
+      _st('VoIPs attached (total)', v.total)+
+      _st('Orders with VoIP', v.ordersWith)+
+      _st('Orders without VoIP', v.ordersWithout)+
+    '</div>';
+    return '<div class="dr-housing-cell">'+
+      '<div class="dr-housing-hdr dr-housing-hdr-yellow" id="'+hid+'" onclick="_toggleHousing(\'ni\',\''+uid+'\')">'+
+        '<span class="dr-housing-label">New Internet</span>'+
+        '<div class="dr-housing-counts"><span>'+data.customers+' orders</span><span>'+data.lines+' lines</span></div>'+
+        '<span class="dr-housing-arrow">▾</span>'+
+      '</div>'+
+      '<div class="dr-housing-body dr-housing-body-yellow" id="'+bid+'">'+
+        summary+
+        '<div class="dr-status-cards" style="padding:4px 0">'+_subCards(data.sub)+'</div>'+
+      '</div>'+
+    '</div>';
+  }
   var total=sb.total||{customers:0,lines:0};
   var tot='<div class="dr-status-card dr-sc-total"><span class="dr-sc-total-label">Total</span><div class="dr-sc-total-nums"><span><span class="dr-sc-total-big">'+total.customers+'</span> <span class="dr-sc-total-sub">customers</span></span><span><span class="dr-sc-total-big">'+total.lines+'</span> <span class="dr-sc-total-sub">lines</span></span></div></div>';
   return '<div class="dr-section">'+
@@ -2909,7 +2932,7 @@ function _drSectionStatus(sb) {
     _hCell('co','Completed Orders','green', sb.completedOrders)+
     _hCell('oi','Order Issues',    'orange',sb.orderIssues)+
     _hCell('ap','All Pending Lines','purple',sb.allPendingLines)+
-    _hCell('fi','Fiber',           'yellow',sb.fiber)+
+    _niCell(sb.newInternet||sb.fiber)+
     '<div class="dr-status-cards" style="margin-top:8px">'+tot+'</div>'+
   '</div>';
 }
@@ -3297,6 +3320,23 @@ function _drBuildEmailHtml() {
       '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+eSubCards(data.sub)+'</div>'+
     '</details>';
   }
+  function eNiCell(data){
+    if (!data||(!data.customers&&!data.lines)) return '';
+    var hdrStyle=HOUSING_HDR['yellow'], v=data.voip||{};
+    function row(k,val){ return '<tr><td style="padding:3px 12px;font-size:12px;color:#475569;border:none">'+k+'</td><td style="padding:3px 12px;font-size:12px;font-weight:700;color:#0f172a;text-align:right;border:none">'+(val||0)+'</td></tr>'; }
+    var summary='<table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px">'+
+      row('New',data.newOrders)+row('Existing (upgrade)',data.existingOrders)+
+      row('VoIPs attached (total)',v.total)+row('Orders with VoIP',v.ordersWith)+row('Orders without VoIP',v.ordersWithout)+
+    '</table>';
+    return '<details style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+
+      '<summary style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;list-style:none;display:block">'+
+        'New Internet'+
+        ' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' orders &nbsp;·&nbsp; '+data.lines+' lines</span>'+
+        '&nbsp;&nbsp;<span style="font-size:11px;opacity:.7">▾</span>'+
+      '</summary>'+
+      '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+summary+eSubCards(data.sub)+'</div>'+
+    '</details>';
+  }
   var sbRaw=rpt.statusBreakdown||{};
   var sbTotal=Array.isArray(sbRaw)
     ? (sbRaw.find(function(r){return r.status==='TOTAL';})||{customerRows:0,totalLines:0})
@@ -3319,7 +3359,7 @@ function _drBuildEmailHtml() {
     sbContent=eHousingCell('Completed Orders','green', sbRaw.completedOrders)+
               eHousingCell('Order Issues',    'orange',sbRaw.orderIssues)+
               eHousingCell('All Pending Lines','purple',sbRaw.allPendingLines)+
-              eHousingCell('Fiber',           'yellow',sbRaw.fiber);
+              eNiCell(sbRaw.newInternet||sbRaw.fiber);
   }
   var sbTotalBar='<table style="width:100%;border-collapse:collapse;background:#f0f9ff;border:1px solid #bae6fd;border-radius:7px;margin-top:4px"><tr>'+
     '<td style="padding:9px 14px;border:none;font-size:12px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.06em">Total</td>'+
