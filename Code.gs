@@ -1204,7 +1204,18 @@ function generateDailyReport(ss, officeId, targetDateStr) {
   });
 
   // ── STATUS BREAKDOWN (housing cells) ──
-  var sbCustFiber={},sbLinesFiber={},sbCustOther={},sbLinesOther={};
+  // "New Internet" cell counts ONLY internet lines (product type contains "internet",
+  // Air excluded) — never the wireless/voice/DTV lines bundled on the same order. An
+  // internet line whose product type contains "upgrade" => existing, else new. VoIP
+  // attach = sum of the numeric Voice Line Count on the order's voice lines.
+  // The other three cells (Completed/Issues/Pending) are unchanged: they bucket non-
+  // internet orders by status exactly as before (any order with a fiber/internet line
+  // is excluded from them).
+  var sbCustOther={},sbLinesOther={};
+  var niStatusCust={},niStatusLines={};
+  var niOrders=0,niNew=0,niExisting=0,niVoipTotal=0,niWithVoip=0,niNoVoip=0;
+  function _isInternetPt(pt){ pt=String(pt||'').toLowerCase(); return pt.indexOf('internet')!==-1 && pt.indexOf('air')===-1; }
+  function _isVoicePt(pt){ return String(pt||'').toLowerCase().indexOf('voice')!==-1; }
   var tolData=_getSheetData(ss,TABLEAU_TAB);
   if (tolData&&tolData.length>=2) {
     var sbCol=buildTableauColumnMap(tolData[0]);
@@ -1218,21 +1229,35 @@ function generateDailyReport(ss, officeId, targetDateStr) {
     });
     Object.keys(dsiLineMap).forEach(function(d){
       var rows=dsiLineMap[d];
-      var isFiber=rows.some(function(r){
+      // ── New Internet: internet lines only (Air excluded) ──
+      var internetRows=rows.filter(function(r){return _isInternetPt(tCol(r,sbCol,'PRODUCT_TYPE'));});
+      if (internetRows.length){
+        niOrders++;
+        var seenNi={};
+        internetRows.forEach(function(r){
+          var st=String(tCol(r,sbCol,'DTR_STATUS')||'').trim()||'Null';
+          niStatusLines[st]=(niStatusLines[st]||0)+1;
+          if (!seenNi[st]){seenNi[st]=true;niStatusCust[st]=(niStatusCust[st]||0)+1;}
+        });
+        var hasUpgrade=internetRows.some(function(r){return String(tCol(r,sbCol,'PRODUCT_TYPE')||'').toLowerCase().indexOf('upgrade')!==-1;});
+        if (hasUpgrade) niExisting++; else niNew++;
+        var voip=0;
+        rows.forEach(function(r){ if (_isVoicePt(tCol(r,sbCol,'PRODUCT_TYPE'))) voip+=Number(tCol(r,sbCol,'VOICE_LINE_COUNT'))||0; });
+        niVoipTotal+=voip;
+        if (voip>0) niWithVoip++; else niNoVoip++;
+      }
+      // ── Other cells (unchanged): exclude any order with a fiber/internet line ──
+      var excludeFromOther=rows.some(function(r){
         var pt=String(tCol(r,sbCol,'PRODUCT_TYPE')||'').trim().toLowerCase();
         return pt.indexOf('fiber')!==-1||pt.indexOf('internet')!==-1;
       });
-      if (!isFiber&&rows.every(function(r){return _isExcludedStatus(tCol(r,sbCol,'DTR_STATUS'));})) return;
+      if (excludeFromOther) return;
+      if (rows.every(function(r){return _isExcludedStatus(tCol(r,sbCol,'DTR_STATUS'));})) return;
       var seen={};
       rows.forEach(function(r){
         var st=String(tCol(r,sbCol,'DTR_STATUS')||'').trim()||'Null';
-        if (isFiber){
-          sbLinesFiber[st]=(sbLinesFiber[st]||0)+1;
-          if (!seen[st]){seen[st]=true;sbCustFiber[st]=(sbCustFiber[st]||0)+1;}
-        } else {
-          sbLinesOther[st]=(sbLinesOther[st]||0)+1;
-          if (!seen[st]){seen[st]=true;sbCustOther[st]=(sbCustOther[st]||0)+1;}
-        }
+        sbLinesOther[st]=(sbLinesOther[st]||0)+1;
+        if (!seen[st]){seen[st]=true;sbCustOther[st]=(sbCustOther[st]||0)+1;}
       });
     });
   }
@@ -1252,10 +1277,15 @@ function generateDailyReport(ss, officeId, targetDateStr) {
   var sbCompleted=_sbCell(sbCustOther,sbLinesOther,HOUSING_DEF.completedOrders);
   var sbIssues   =_sbCell(sbCustOther,sbLinesOther,HOUSING_DEF.orderIssues);
   var sbPending  =_sbCell(sbCustOther,sbLinesOther,HOUSING_DEF.allPendingLines);
-  var sbFiber    =_sbCell(sbCustFiber,sbLinesFiber,null);
-  var sbGrandC=sbCompleted.customers+sbIssues.customers+sbPending.customers+sbFiber.customers;
-  var sbGrandL=sbCompleted.lines+sbIssues.lines+sbPending.lines+sbFiber.lines;
-  var statusBreakdown={completedOrders:sbCompleted,orderIssues:sbIssues,allPendingLines:sbPending,fiber:sbFiber,total:{customers:sbGrandC,lines:sbGrandL}};
+  var niSub=[],niTotL=0;
+  Object.keys(niStatusCust).forEach(function(st){ niSub.push({status:st,customers:niStatusCust[st],lines:niStatusLines[st]}); niTotL+=niStatusLines[st]; });
+  niSub.sort(function(a,b){ return (b.lines-a.lines)||String(a.status).localeCompare(String(b.status)); });
+  var newInternet={ customers:niOrders, lines:niTotL, sub:niSub,
+    newOrders:niNew, existingOrders:niExisting,
+    voip:{ total:niVoipTotal, ordersWith:niWithVoip, ordersWithout:niNoVoip } };
+  var sbGrandC=sbCompleted.customers+sbIssues.customers+sbPending.customers+newInternet.customers;
+  var sbGrandL=sbCompleted.lines+sbIssues.lines+sbPending.lines+newInternet.lines;
+  var statusBreakdown={completedOrders:sbCompleted,orderIssues:sbIssues,allPendingLines:sbPending,newInternet:newInternet,total:{customers:sbGrandC,lines:sbGrandL}};
 
   // ── ACTIVATION SUMMARY ──
   var AR_BUCKETS=['0-7 Days','8-14 Days','15-30 Days','31-60 Days'];
