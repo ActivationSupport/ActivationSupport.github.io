@@ -1406,6 +1406,234 @@ function setupDailyReportTrigger() {
   return {ok:true};
 }
 
+// ── AUTOMATED DAILY REPORT EMAIL (6pm Pacific, Mon–Fri) ─────────────────────
+// Per-office recipient lists for the scheduled report email.
+var DAILY_REPORT_RECIPIENTS = {
+  elevate:  ['jackieleroyatt@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com'],
+  midspire: ['jamisgaray18@gmail.com','brandonpurkett@gmail.com','angelmilan1206@gmail.com','midspireqc@gmail.com','ryan.turner.50@gmail.com'],
+  ignite:   ['jacobdennett0902@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com','jackieleroyatt@gmail.com'],
+  viridian: ['s.e.cameron21@gmail.com','jamisgaray18@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com']
+};
+var DAILY_REPORT_OFFICE_NAME = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
+var DAILY_REPORT_TZ = 'America/Los_Angeles';
+
+// Trigger handler: generates today's report fresh per office and emails the
+// branded HTML (same layout as the in-portal "Copy for Email"). Skips weekends.
+// Sends from whichever Google account owns/authorizes this script — set that to
+// gavonfuller2024@gmail.com (no alias needed) so the From is correct.
+function runDailyReportEmails() {
+  var dow = Number(Utilities.formatDate(new Date(), DAILY_REPORT_TZ, 'u')); // 1=Mon … 7=Sun
+  if (dow > 5) return; // Mon–Fri only
+  var sheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID')||'';
+  var ss = sheetId ? SpreadsheetApp.openById(sheetId) : SpreadsheetApp.getActiveSpreadsheet();
+  var todayStr = Utilities.formatDate(new Date(), DAILY_REPORT_TZ, 'yyyy-MM-dd');
+  Object.keys(DAILY_REPORT_RECIPIENTS).forEach(function(officeId) {
+    var to = (DAILY_REPORT_RECIPIENTS[officeId]||[]).filter(function(x){return x;});
+    if (!to.length) return;
+    try {
+      generateDailyReport(ss, officeId, todayStr);           // fresh today
+      var rpt = readDailyReport(ss, officeId, todayStr);
+      if (!rpt) { Logger.log('email: no report for '+officeId); return; }
+      var officeName = DAILY_REPORT_OFFICE_NAME[officeId] || officeId;
+      var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr);
+      var subject = officeName + ' — Daily Report — ' + Utilities.formatDate(new Date(todayStr+'T12:00:00'), DAILY_REPORT_TZ, 'EEE, MMM d');
+      GmailApp.sendEmail(to.join(','), subject, 'This report is best viewed in an HTML-capable email client.', { htmlBody: html, name: 'Activation Support' });
+    } catch(e) { Logger.log('runDailyReportEmails '+officeId+': '+e.message); }
+  });
+}
+
+function setupDailyReportEmailTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function(t){ if (t.getHandlerFunction()==='runDailyReportEmails') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('runDailyReportEmails').timeBased().atHour(18).nearMinute(0).everyDays(1).inTimezone(DAILY_REPORT_TZ).create();
+  return {ok:true};
+}
+
+// Manual preview — emails ONLY gavonfuller2024@gmail.com today's report for one
+// office, so the layout can be checked before turning on the scheduled send.
+// Run from the editor, e.g. sendDailyReportEmailTest('elevate').
+function sendDailyReportEmailTest(officeId) {
+  officeId = officeId || 'elevate';
+  var sheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID')||'';
+  var ss = sheetId ? SpreadsheetApp.openById(sheetId) : SpreadsheetApp.getActiveSpreadsheet();
+  var todayStr = Utilities.formatDate(new Date(), DAILY_REPORT_TZ, 'yyyy-MM-dd');
+  generateDailyReport(ss, officeId, todayStr);
+  var rpt = readDailyReport(ss, officeId, todayStr);
+  if (!rpt) return { error:'no report for '+officeId };
+  var officeName = DAILY_REPORT_OFFICE_NAME[officeId] || officeId;
+  var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr);
+  GmailApp.sendEmail('gavonfuller2024@gmail.com', '[TEST] '+officeName+' — Daily Report — '+Utilities.formatDate(new Date(todayStr+'T12:00:00'), DAILY_REPORT_TZ, 'EEE, MMM d'), 'This report is best viewed in an HTML-capable email client.', { htmlBody: html, name: 'Activation Support' });
+  return { ok:true, office:officeId, sentTo:'gavonfuller2024@gmail.com' };
+}
+
+// Server-side port of the front-end "Copy for Email" report (_drBuildEmailHtml).
+// rpt = the saved report object; officeName = display name; dateStr = yyyy-MM-dd.
+function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
+  if (!rpt) return '';
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtDate(iso){ if(!iso) return '—'; var dd=new Date(String(iso)+'T12:00:00'); if(isNaN(dd.getTime())) return String(iso); return MN[dd.getMonth()]+' '+dd.getDate()+', '+dd.getFullYear(); }
+  function fmtTs(iso){ if(!iso) return ''; var dd=new Date(iso); if(isNaN(dd.getTime())) return String(iso); return Utilities.formatDate(dd, DAILY_REPORT_TZ, "MMM d, yyyy 'at' h:mm a"); }
+  function apptTime(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0],m=p[1]; return ((h%12)||12)+':'+m+' '+(h>=12?'PM':'AM'); }
+  var d=new Date(String(dateStr)+'T12:00:00');
+  var dayLabel=DN[d.getDay()]+', '+MN[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+  var AR_BUCKETS=['0-7 Days','8-14 Days','15-30 Days','31-60 Days'];
+  var ST_CLS={'Active':'sp-active','Posted':'sp-posted','Approved':'sp-posted','Confirmed':'sp-pale-yellow','Canceled':'sp-canceled','Disconnected':'sp-disconnected','Porting Issue':'sp-orange-bright','Pending Valid Payment':'sp-orange-bright','BYOD':'sp-orange','Port Approved':'sp-dark-orange','Pending Order Port':'sp-dark-orange','Delivered':'sp-purple','Shipped':'sp-yellow-bright','Scheduled':'sp-yellow','Pending':'sp-pale-yellow','Pending Shipment':'sp-pale-yellow','Null':'sp-pale-yellow','Open':'sp-pale-yellow','Backordered':'sp-pale-yellow','TOTAL':''};
+
+  var TBL='border-collapse:collapse;width:100%;font-size:12px;margin:0';
+  var TH='border:1px solid #cbd5e1;padding:5px 9px;background:#f1f5f9;color:#0f172a;font-weight:700;text-align:left;white-space:nowrap';
+  var TD='border:1px solid #cbd5e1;padding:5px 9px;color:#111;vertical-align:top';
+  var TDG='border:1px solid #cbd5e1;padding:5px 9px;background:#f8fafc;font-weight:700;color:#111;vertical-align:top';
+  var SEC='background:#1e3a5f;color:#fff;font-size:13px;font-weight:700;padding:7px 10px;margin:0';
+  var BADGE='padding:2px 8px;border-radius:3px;font-weight:700;font-size:11px;white-space:nowrap;display:inline-block';
+  var GRN=BADGE+';background:#166534;color:#bbf7d0';
+  var YEL=BADGE+';background:#713f12;color:#fef9c3';
+  var RED=BADGE+';background:#991b1b;color:#fecaca';
+  var PILL_MAP={'sp-active':'background:#166534;color:#bbf7d0','sp-posted':'background:#14532d;color:#86efac','sp-canceled':'background:#991b1b;color:#fecaca','sp-disconnected':'background:#7f1d1d;color:#fecaca','sp-orange-bright':'background:#9a3412;color:#fed7aa','sp-orange':'background:#7c2d12;color:#fde68a','sp-dark-orange':'background:#6b2109;color:#fdba74','sp-purple':'background:#581c87;color:#e9d5ff','sp-yellow-bright':'background:#854d0e;color:#fef08a','sp-yellow':'background:#713f12;color:#fef9c3','sp-pale-yellow':'background:#a16207;color:#fef9c3','':'background:#e2e8f0;color:#111'};
+  function ePill(text,cls){return '<span style="display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(text)+'</span>';}
+  function eHdr(t){return '<div style="'+SEC+'">'+t+'</div>';}
+  function eTbl(thead,tbody){return '<table style="'+TBL+'"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';}
+  function eArCls(vol,acts,bkt){ if(!vol) return BADGE+';background:#e2e8f0;color:#334155'; var p=acts/vol*100; if(bkt==='0-7 Days') return p>=21?GRN:p>=10?YEL:RED; if(bkt==='8-14 Days') return p>=71?GRN:p>=51?YEL:RED; if(bkt==='15-30 Days') return p>=75?GRN:p>=70?YEL:RED; if(bkt==='31-60 Days') return p>=86?GRN:p>=79?YEL:RED; return BADGE+';background:#e2e8f0;color:#334155'; }
+  function eArCell(bd,bkt){ if(!bd||!bd.vol) return '<td style="'+TD+'"></td>'; var p=Math.round(bd.acts/bd.vol*100); return '<td style="'+TD+'"><span style="'+eArCls(bd.vol,bd.acts,bkt)+'">('+bd.acts+'/'+bd.vol+')<br>'+p+'%</span></td>'; }
+  function eCrTotCls(bkt,pct){ var t={'0-30 Day':[2.4,3.0],'30 Day':[4.9,6.9],'60 Day':[8.9,9.9],'90 Day':[10.9,13.9],'120 Day':[13.9,17.9]}; var th=t[bkt]; if(!th) return BADGE+';background:#e2e8f0;color:#334155'; return pct<=th[0]?GRN:pct<=th[1]?YEL:RED; }
+  function eCrRepCls(color){ var c=String(color||'').toLowerCase(); if(c.indexOf('green')!==-1) return GRN; if(c.indexOf('red')!==-1||c.indexOf('orange')!==-1) return RED; if(c.indexOf('yellow')!==-1||c.indexOf('blue')!==-1) return YEL; return BADGE+';background:#e2e8f0;color:#334155'; }
+  function eCrCell(bd,bkt,isT){ if(!bd||!bd.acts) return '<td style="'+TD+'"></td>'; var disco=bd.disco||0,pct=disco/bd.acts*100; return '<td style="'+TD+'"><span style="'+(isT?eCrTotCls(bkt,pct):eCrRepCls(bd.color||''))+'">('+disco+'/'+bd.acts+')<br>'+pct.toFixed(1)+'%</span></td>'; }
+
+  var cats=rpt.callCategories||{};
+  var eAp=rpt.appointments||{};
+  var eBk=eAp.booked||{total:(eAp.bookedToday||0)};
+  var eSc=eAp.statusChanges||{completed:0};
+  var eAct=rpt.activatedToday||{lines:0,orders:0};
+  var daT=cats.dayAfterTotal||0,daW=cats.dayAfterWorked||0;
+  var covPct=daT>0?Math.round(daW/daT*100):null;
+  var covColor=covPct===null?'#64748b':covPct>=80?'#16a34a':covPct>=50?'#ca8a04':'#dc2626';
+  function eTile(value,label,accent,sub){ return '<div style="display:inline-block;vertical-align:top;background:#f8fafc;border:1px solid #e2e8f0;border-top:3px solid '+accent+';border-radius:8px;padding:9px 13px;margin:0 6px 6px 0;min-width:92px">'+'<div style="font-size:20px;font-weight:800;color:#0f172a;line-height:1">'+value+'</div>'+'<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:3px">'+label+'</div>'+(sub?'<div style="font-size:10px;color:#94a3b8;margin-top:1px">'+sub+'</div>':'')+'</div>'; }
+  var eActOrders=eAct.orders||0;
+  var statBar=eTile(eAct.lines||0,'Activated Today','#16a34a',eActOrders+' order'+(eActOrders===1?'':'s'))+
+    eTile(covPct===null?'—':covPct+'%','Day-After Coverage',covColor,daW+'/'+daT+' worked')+
+    eTile(cats.deliveredWorked||0,'Delivered','#2563eb')+
+    eTile(cats.issuesWorked||0,'Issues','#7c3aed')+
+    eTile(cats.noAnswerTotal||0,'No Answers','#dc2626')+
+    eTile(cats.escalationTotal||0,'Escalations','#b91c1c')+
+    eTile(eBk.total||0,'Appts Booked','#0891b2')+
+    eTile(eSc.completed||0,'Appts Completed','#3b82f6');
+
+  var EC={'sp-active':'background:#f0fdf4;border:1px solid #86efac','sp-posted':'background:#f0fdf4;border:1px solid #4ade80','sp-canceled':'background:#fef2f2;border:1px solid #fca5a5','sp-disconnected':'background:#fff1f2;border:1px solid #fda4af','sp-orange-bright':'background:#fff7ed;border:1px solid #fdba74','sp-orange':'background:#fff7ed;border:1px solid #fb923c','sp-dark-orange':'background:#fff7ed;border:1px solid #f97316','sp-purple':'background:#faf5ff;border:1px solid #d8b4fe','sp-yellow-bright':'background:#fefce8;border:1px solid #fde047','sp-yellow':'background:#fefce8;border:1px solid #fde68a','sp-pale-yellow':'background:#fefce8;border:1px solid #fef08a','':'background:#f8fafc;border:1px solid #e2e8f0'};
+  var HOUSING_HDR={'green':'background:#f0fdf4;border:1px solid #86efac;color:#166534','orange':'background:#fff7ed;border:1px solid #fdba74;color:#9a3412','purple':'background:#faf5ff;border:1px solid #d8b4fe;color:#581c87','yellow':'background:#fefce8;border:1px solid #fde68a;color:#713f12'};
+  function eSubCards(sub){ return (sub||[]).map(function(s){ var cls=ST_CLS[s.status]||''; return '<div style="display:inline-block;'+(EC[cls]||EC[''])+';border-radius:6px;padding:7px 9px;text-align:center;vertical-align:top;margin:3px;min-width:90px">'+'<div style="padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(s.status)+'</div>'+'<table style="width:100%;border-collapse:collapse;margin-top:4px"><tr>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+s.customers+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Customers</div></td>'+'<td style="width:1px;background:#e2e8f0;padding:0;border:none"></td>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+s.lines+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Lines</div></td>'+'</tr></table></div>'; }).join(''); }
+  function eHousingCell(label,colorKey,data){ if(!data||(!data.customers&&!data.lines)) return ''; var hdrStyle=HOUSING_HDR[colorKey]||HOUSING_HDR['green']; return '<details style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+'<summary style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;list-style:none;display:block">'+esc(label)+' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' customers &nbsp;&middot;&nbsp; '+data.lines+' lines</span>'+'&nbsp;&nbsp;<span style="font-size:11px;opacity:.7">&#9662;</span>'+'</summary>'+'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+eSubCards(data.sub)+'</div>'+'</details>'; }
+  function eNiCell(data){ if(!data||(!data.customers&&!data.lines)) return ''; var hdrStyle=HOUSING_HDR['yellow'], v=data.voip||{}; function row(k,val){ return '<tr><td style="padding:3px 12px;font-size:12px;color:#475569;border:none">'+k+'</td><td style="padding:3px 12px;font-size:12px;font-weight:700;color:#0f172a;text-align:right;border:none">'+(val||0)+'</td></tr>'; } var summary='<table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px">'+row('New',data.newOrders)+row('Existing (upgrade)',data.existingOrders)+row('VoIPs attached (total)',v.total)+row('Orders with VoIP',v.ordersWith)+row('Orders without VoIP',v.ordersWithout)+'</table>'; return '<details style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+'<summary style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;list-style:none;display:block">'+'New Internet'+' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' orders &nbsp;&middot;&nbsp; '+data.lines+' lines</span>'+'&nbsp;&nbsp;<span style="font-size:11px;opacity:.7">&#9662;</span>'+'</summary>'+'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+summary+eSubCards(data.sub)+'</div>'+'</details>'; }
+  var sbRaw=rpt.statusBreakdown||{};
+  var sbTotal=Array.isArray(sbRaw) ? (function(){ for(var i=0;i<sbRaw.length;i++){ if(sbRaw[i].status==='TOTAL') return sbRaw[i]; } return {customerRows:0,totalLines:0}; })() : (sbRaw.total||{customers:0,lines:0});
+  var sbTotCust=sbTotal.customers||sbTotal.customerRows||0;
+  var sbTotLines=sbTotal.lines||sbTotal.totalLines||0;
+  var sbContent='';
+  if (Array.isArray(sbRaw)) {
+    sbContent=sbRaw.filter(function(r){return r.status!=='TOTAL';}).map(function(r){ var cls=ST_CLS[r.status]||''; return '<div style="display:inline-block;'+(EC[cls]||EC[''])+';border-radius:6px;padding:7px 9px;text-align:center;vertical-align:top;margin:3px;min-width:90px">'+'<div style="padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(r.status)+'</div>'+'<table style="width:100%;border-collapse:collapse;margin-top:4px"><tr>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+r.customerRows+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Customers</div></td>'+'<td style="width:1px;background:#e2e8f0;padding:0;border:none"></td>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+r.totalLines+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Lines</div></td>'+'</tr></table></div>'; }).join('');
+  } else {
+    sbContent=eHousingCell('Completed Orders','green', sbRaw.completedOrders)+eHousingCell('Order Issues','orange',sbRaw.orderIssues)+eHousingCell('All Pending Lines','purple',sbRaw.allPendingLines)+eNiCell(sbRaw.newInternet||sbRaw.fiber);
+  }
+  var sbTotalBar='<table style="width:100%;border-collapse:collapse;background:#f0f9ff;border:1px solid #bae6fd;border-radius:7px;margin-top:4px"><tr>'+'<td style="padding:9px 14px;border:none;font-size:12px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.06em">Total</td>'+'<td style="padding:9px 14px;border:none;text-align:right">'+'<span style="font-size:16px;font-weight:700;color:#0f172a">'+sbTotCust+'</span> <span style="font-size:11px;color:#64748b">customers</span>&nbsp;&nbsp;'+'<span style="font-size:16px;font-weight:700;color:#0f172a">'+sbTotLines+'</span> <span style="font-size:11px;color:#64748b">lines</span>'+'</td></tr></table>';
+  var statusSec=eHdr('Order Status Breakdown')+'<div style="padding:6px 0">'+sbContent+'</div>'+sbTotalBar;
+
+  var arSum=rpt.activationSummary||{},offAr=arSum.officeTotal||{},repAr=arSum.repImpact||[];
+  var arHdr='<tr><th style="'+TH+'">Rep</th>'+AR_BUCKETS.map(function(b){return '<th style="'+TH+'">'+b+'</th>';}).join('')+'</tr>';
+  var arTot='<tr><td style="'+TDG+'">Grand Total</td>'+AR_BUCKETS.map(function(b){return eArCell(offAr[b],b);}).join('')+'</tr>';
+  var arReps=repAr.map(function(r){return '<tr><td style="'+TD+'">'+esc(r.rep)+'</td>'+AR_BUCKETS.map(function(b){return eArCell(r.buckets[b],b);}).join('')+'</tr>';}).join('');
+  var arSec=eHdr('Activation Rates — office summary + bottom 5 reps')+eTbl(arHdr,arTot+arReps);
+
+  var crSum=rpt.churnSummary||{},offCr=crSum.officeTotal||{},repCr=crSum.repImpact||[];
+  var CR_BKTS=['0-30 Day','30 Day','60 Day','90 Day','120 Day'];
+  var crHdr='<tr><th style="'+TH+'">Rep</th>'+CR_BKTS.map(function(b){return '<th style="'+TH+'">'+b+'</th>';}).join('')+'</tr>';
+  var crTot='<tr><td style="'+TDG+'">Grand Total</td>'+CR_BKTS.map(function(b){return eCrCell(offCr[b],b,true);}).join('')+'</tr>';
+  var crReps=repCr.map(function(r){return '<tr><td style="'+TD+'">'+esc(r.rep)+'</td>'+CR_BKTS.map(function(b){return eCrCell(r.buckets[b],b,false);}).join('')+'</tr>';}).join('');
+  var crSec=eHdr('Churn Rates — office summary + top 5 reps by 0-30 Day disconnects')+eTbl(crHdr,crTot+crReps);
+
+  function eCwGroup(entries,label){ if(!entries||!entries.length) return ''; var rows=entries.map(function(e){ var prods=Object.keys(e.productCounts||{}).map(function(p){return '<span style="background:#e2e8f0;padding:1px 5px;border-radius:3px;font-size:10px;margin:1px;display:inline-block">'+esc(p)+' &times;'+e.productCounts[p]+'</span>';}).join(''); var stats=Object.keys(e.statusCounts||{}).map(function(s){return ePill(s+' x'+e.statusCounts[s],ST_CLS[s]||'');}).join(' '); var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:1px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+';white-space:nowrap">'+esc(fmtDate(e.orderDate))+'</td><td style="'+TD+'">'+prods+'</td><td style="'+TD+'">'+stats+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join(''); return '<div style="margin-bottom:6px"><div style="background:#334155;color:#f1f5f9;font-size:12px;font-weight:700;padding:4px 9px">'+esc(label)+' ('+entries.length+')</div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Order Date</th><th style="'+TH+'">Products</th><th style="'+TH+'">Status</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>'; }
+  var cw=rpt.callsWorked||{};
+  var cwTotal=(cw.dayafter||[]).length+(cw.delivered||[]).length+(cw.issues||[]).length+(cw.other||[]).length;
+  var cwSec=cwTotal?eHdr('Calls Worked That Day ('+cwTotal+' orders)')+eCwGroup(cw.dayafter,'Day-After')+eCwGroup(cw.delivered,'Delivered Not Active')+eCwGroup(cw.issues,'Order Issues')+eCwGroup(cw.other,'Other'):'';
+
+  var naList=rpt.noAnswers||[];
+  var naSec='';
+  if (naList.length) {
+    var naRows=naList.map(function(e){ var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
+    naSec=eHdr('No Answers That Day ('+naList.length+')')+eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">Notes</th></tr>',naRows);
+  }
+
+  var escList=rpt.escalations||[];
+  var escSec='';
+  if (escList.length) {
+    var escRows=escList.map(function(e){ var rbg=e.rating==='1 Star'?'#991b1b':'#7f1d1d'; var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr><td style="'+TD+';white-space:nowrap"><span style="background:'+rbg+';color:#fecaca;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700">'+esc(e.rating)+'</span></td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
+    escSec=eHdr('Escalations That Day ('+escList.length+')')+eTbl('<tr><th style="'+TH+'">Rating</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Notes</th></tr>',escRows);
+  }
+
+  var glParts=[];
+  var gL=eAct.lines||0, gO=eAct.orders||0;
+  glParts.push('<b>'+gL+'</b> line'+(gL===1?'':'s')+' activated'+(gO?' across <b>'+gO+'</b> order'+(gO===1?'':'s'):''));
+  if (daT) glParts.push('<b>'+daW+'/'+daT+'</b> day-after calls worked');
+  if (eAp.scheduled&&eAp.scheduled.total) glParts.push('<b>'+(eSc.completed||0)+'</b> appt'+((eSc.completed||0)===1?'':'s')+' completed'+(eSc.noShow?', <b>'+eSc.noShow+'</b> no-show':''));
+  var gAttn=(cats.noAnswerTotal||0)+(cats.escalationTotal||0);
+  if (gAttn) glParts.push('<b>'+gAttn+'</b> item'+(gAttn===1?'':'s')+' need attention');
+  var glanceSec='<div style="font-size:13px;line-height:1.5;color:#1e293b;background:#eff6ff;border:1px solid #bfdbfe;border-left:3px solid #2563eb;border-radius:0 7px 7px 0;padding:10px 14px">'+glParts.join(' &nbsp;&middot;&nbsp; ')+'</div>';
+
+  var actSec='';
+  if ((eAct.list||[]).length) {
+    var actRows=eAct.list.map(function(x){return '<tr><td style="'+TD+'">'+esc(x.dsi)+'</td><td style="'+TD+'"><b>'+(x.lines||0)+'</b></td><td style="'+TD+'">'+esc(x.activator||'—')+'</td><td style="'+TD+'">'+esc(x.note||'—')+'</td></tr>';}).join('');
+    actSec=eHdr('⚡ Lines Activated Today — '+eAct.lines+' line'+(eAct.lines===1?'':'s')+' across '+eAct.orders+' order'+(eAct.orders===1?'':'s'))+eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">Lines</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Note</th></tr>',actRows);
+  }
+
+  var ap=rpt.appointments||null, apSec='';
+  if (ap) {
+    var aps=ap.scheduled||{total:0,list:[],byActivator:[]};
+    var apbk=ap.booked||{total:(ap.bookedToday||0),list:[]};
+    var apsc=ap.statusChanges||{total:0,completed:0,noShow:0,rescheduled:0,canceled:0,list:[]};
+    if (aps.total || apbk.total || apsc.total || ap.bookedToday || ap.tomorrow) {
+      var EOUT={completed:['✓ Completed','#166534','#bbf7d0'],'no-show':['✗ No-Show','#991b1b','#fecaca'],rescheduled:['↻ Rescheduled','#9a3412','#fed7aa'],canceled:['⊘ Canceled','#7f1d1d','#fecaca']};
+      function eOutcome(o){var x=EOUT[o]||['—','#e2e8f0','#334155'];return '<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;background:'+x[1]+';color:'+x[2]+'">'+x[0]+'</span>';}
+      function eBd(o,inclU){var p=[];if(o.completed)p.push(o.completed+' completed');if(o.noShow)p.push(o.noShow+' no-show');if(o.rescheduled)p.push(o.rescheduled+' rescheduled');if(o.canceled)p.push(o.canceled+' canceled');if(inclU&&o.unmarked)p.push(o.unmarked+' unmarked');return p.join(' · ');}
+      function eGroupBar(label,bd){return '<div style="border-bottom:1px solid #cbd5e1;padding:7px 2px 5px;margin-top:12px;font-size:12.5px;font-weight:700;color:#0f172a">'+label+(bd?'<span style="font-weight:400;color:#64748b;font-size:11px"> &nbsp;'+bd+'</span>':'')+'</div>';}
+      var apBooked='';
+      if (apbk.total) {
+        var bRows=(apbk.list||[]).map(function(x){return '<tr><td style="'+TD+'">'+esc(apptTime(x.timeSlot))+'</td><td style="'+TD+'">'+esc(fmtDate(x.forDate))+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator||'—')+'</td></tr>';}).join('');
+        apBooked=eGroupBar('📅 Booked That Day ('+apbk.total+')','')+((apbk.list||[]).length?eTbl('<tr><th style="'+TH+'">Time</th><th style="'+TH+'">Date</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th></tr>',bRows):'');
+      }
+      var apSched='';
+      if (aps.total) {
+        var apList=(aps.list||[]).length ? eTbl('<tr><th style="'+TH+'">Time</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Outcome</th></tr>', aps.list.map(function(x){return '<tr><td style="'+TD+'">'+esc(apptTime(x.timeSlot))+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator)+'</td><td style="'+TD+'">'+(x.outcome?eOutcome(x.outcome):'<span style="color:#94a3b8">— not marked</span>')+'</td></tr>';}).join('')) : '';
+        apSched=eGroupBar('🗓️ Scheduled For This Day ('+aps.total+')',eBd(aps,true))+apList;
+      }
+      var apChange='';
+      if (apsc.total) {
+        var cRows=(apsc.list||[]).map(function(x){return '<tr><td style="'+TD+'">'+eOutcome(x.outcome)+'</td><td style="'+TD+'">'+esc(x.customer||'—')+'</td><td style="'+TD+'">'+esc(x.dsi||'—')+'</td><td style="'+TD+'">'+esc(x.activator||'—')+'</td><td style="'+TD+'">'+esc(fmtDate(x.apptDate))+' · '+esc(apptTime(x.timeSlot))+'</td></tr>';}).join('');
+        apChange=eGroupBar('🔄 Status Changed That Day ('+apsc.total+')',eBd(apsc,false))+((apsc.list||[]).length?eTbl('<tr><th style="'+TH+'">Outcome</th><th style="'+TH+'">Customer</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Activator</th><th style="'+TH+'">Appt</th></tr>',cRows):'');
+      }
+      var apTitle='Appointments &amp; Bookings — '+(apbk.total||0)+' booked · '+(aps.total||0)+' scheduled · '+(apsc.total||0)+' changes'+(ap.tomorrow?' · '+ap.tomorrow+' tomorrow':'');
+      apSec=eHdr(apTitle)+apBooked+apSched+apChange;
+    }
+  }
+
+  var officeNm=officeName||'';
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;background:#fff;max-width:960px;margin:0 auto;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden">'+
+    '<div style="background:#0f2740;color:#fff;padding:15px 20px">'+
+      (officeNm?'<div style="font-size:18px;font-weight:800;letter-spacing:.02em">'+esc(officeNm)+'</div>':'')+
+      '<div style="font-size:14px;font-weight:600;margin-top:'+(officeNm?'2px':'0')+'">📋 Daily Call Report</div>'+
+      '<div style="font-size:12px;color:#9fb4c7;margin-top:3px">'+esc(dayLabel)+' &nbsp;&middot;&nbsp; Generated '+fmtTs(rpt.generatedAt)+'</div>'+
+    '</div>'+
+    '<div style="padding:16px 20px">'+
+    '<div style="margin-bottom:12px">'+glanceSec+'</div>'+
+    '<div style="margin-bottom:12px">'+statBar+'</div>'+
+    (actSec?'<div style="margin-top:10px">'+actSec+'</div>':'')+
+    '<div style="margin-top:10px">'+statusSec+'</div>'+
+    '<div style="margin-top:10px">'+arSec+'</div>'+
+    '<div style="margin-top:10px">'+crSec+'</div>'+
+    (cwSec?'<div style="margin-top:10px">'+cwSec+'</div>':'')+
+    (naSec?'<div style="margin-top:10px">'+naSec+'</div>':'')+
+    (escSec?'<div style="margin-top:10px">'+escSec+'</div>':'')+
+    (apSec?'<div style="margin-top:10px">'+apSec+'</div>':'')+
+    '</div></div>';
+}
+
 function writeSetting(body, ss, officeId) {
   const sheet=getOrCreateSheet(ss,officeTab(TAB.SETTINGS,officeId),TAB.SETTINGS);
   const key=String(body.key||'').trim(); const value=String(body.value||'').trim();
