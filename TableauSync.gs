@@ -736,6 +736,42 @@ function setupDailyTrigger() {
   Logger.log('Daily trigger set: nightlySync at ~1:00 AM');
 }
 
+// Afternoon refresh — re-pulls ONLY Activation Rates + Churn (not the order log
+// or AOR) so the 6pm Daily Report email reflects same-day numbers for those two.
+// Scheduled ~5:30pm Pacific, ahead of the Portal project's 6pm email trigger.
+function afternoonSync() {
+  Logger.log('=== AFTERNOON SYNC (Activation Rates + Churn) START ===');
+  var keys = ['b2b-activation-rates', 'b2b-churn'];
+  var results = [];
+  for (var i = 0; i < keys.length; i++) {
+    try {
+      var r = syncReport(keys[i]);
+      results.push(r);
+      Logger.log('✓ ' + keys[i] + ': ' + r.rowsWritten + ' rows');
+    } catch (e) {
+      results.push({ ok: false, report: keys[i], error: e.message });
+      Logger.log('✗ ' + keys[i] + ': ' + e.message);
+    }
+  }
+  Logger.log('=== AFTERNOON SYNC COMPLETE ===');
+  return results;
+}
+
+function setupAfternoonSyncTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'afternoonSync') ScriptApp.deleteTrigger(triggers[i]);
+  }
+  ScriptApp.newTrigger('afternoonSync')
+    .timeBased()
+    .everyDays(1)
+    .atHour(17)
+    .nearMinute(30)
+    .inTimezone('America/Los_Angeles')
+    .create();
+  Logger.log('Afternoon sync trigger set: afternoonSync at ~5:30 PM Pacific');
+}
+
 function removeDailyTrigger() {
   var triggers = ScriptApp.getProjectTriggers();
   var removed = 0;
