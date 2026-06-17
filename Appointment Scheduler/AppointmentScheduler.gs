@@ -45,7 +45,12 @@ var APPT_HEADERS = [
   'customerDSI','customerPhone','customerEmail','services',
   'deviceCount','date','timeSlot','office','status','bookedAt','rem24hSent',
   // Phase 1 additions (append-only — never reorder the columns above):
-  'outcome','outcomeNote','outcomeBy','outcomeAt'
+  'outcome','outcomeNote','outcomeBy','outcomeAt',
+  // Customer self-booking additions (append-only):
+  //   source      — 'rep' (default) | 'customer'
+  //   cancelToken — random per-appointment token powering self-service
+  //                 cancel/reschedule links in the customer's email
+  'source','cancelToken'
 ];
 
 var SCHED_HEADERS = [
@@ -67,10 +72,49 @@ var BLOCKS_HEADERS = [
 // ── Core helpers ──────────────────────────────────────────────
 function _getApiKey()  { return PropertiesService.getScriptProperties().getProperty('API_KEY') || ''; }
 function _getSheetId() { return PropertiesService.getScriptProperties().getProperty('SHEET_ID') || ''; }
+// Base URL of the public Customer Booking web app. Used to build self-service
+// cancel/reschedule links in customer emails. Leave unset to omit those links.
+function _getCustomerAppUrl() { return PropertiesService.getScriptProperties().getProperty('CUSTOMER_APP_URL') || ''; }
 
 function _validateKey(key) {
   var expected = _getApiKey();
   return !expected || key === expected;
+}
+
+// ── Phase 1 Stage C: shared session "badges" (issued by the portal backend) ──
+// The portal writes badges to a _Sessions tab in the SAME spreadsheet; here we
+// only READ them to derive the caller's real role server-side instead of trusting
+// a client-supplied role. STRICT_AUTH (Script Property, default OFF) is the cutover.
+var SESSIONS_TAB = '_Sessions';
+function _strictAuth() {
+  return String(PropertiesService.getScriptProperties().getProperty('STRICT_AUTH') || '').toLowerCase() === 'true';
+}
+function _hashToken(token) {
+  var d = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(token), Utilities.Charset.UTF_8);
+  return d.map(function(b){ return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+}
+function _validateSession(token) {
+  if (!token) return { valid:false };
+  var sh = _getSS().getSheetByName(SESSIONS_TAB); if (!sh) return { valid:false };
+  var th = _hashToken(token);
+  var data = sh.getDataRange().getValues();
+  var nowIso = new Date().toISOString();
+  for (var i=1;i<data.length;i++) {
+    if (String(data[i][0]) !== th) continue;
+    if (String(data[i][5]) <= nowIso) return { valid:false };
+    return { valid:true, email:String(data[i][1]), rank:String(data[i][2]) };
+  }
+  return { valid:false };
+}
+// Server-derived role: the badge's role when a valid badge is present; otherwise
+// the client-claimed role during the grace period, or '' once strict (so a caller
+// can no longer grant itself privilege — same-day, see-PII, cancel — by claiming
+// a role). The customer cancel/reschedule flow authorizes by cancelToken, not role,
+// so it is unaffected.
+function _resolveRole(obj) {
+  var s = _validateSession(obj && obj.token);
+  if (s && s.valid) return String(s.rank || '');
+  return _strictAuth() ? '' : String((obj && obj.role) || '');
 }
 
 function _getSS() {
@@ -233,6 +277,7 @@ function doGet(e) {
   try {
     var action = (e && e.parameter && e.parameter.action) || '';
     var p      = (e && e.parameter) || {};
+    p.role = _resolveRole(p);   // Stage C: trust the badge's role, not the client's claim
     if (action === 'getActivators')        return _json({ activators: getActivators(p.officeId || '') });
     if (action === 'getAvailableSlots')    return _json({ slots: getAvailableSlots(p.activatorEmail, p.date, p.excludeId || '', _sameDayAllowed(p.role)) });
     if (action === 'getNextAvailableSlots') return _json({ slots: getNextAvailableSlots(p.officeId || '', p.date, _sameDayAllowed(p.role)) });
@@ -240,6 +285,7 @@ function doGet(e) {
     if (action === 'getActivatorSchedule') return _json({ schedule: getActivatorSchedule(p.email) });
     if (action === 'getActivatorBlocks')   return _json({ blocks: getActivatorBlocks(p.email) });
     if (action === 'getBookingWindow')      return _json({ window: _bookingWindow(_sameDayAllowed(p.role)) });
+    if (action === 'getAppointmentByToken') return _json({ appointment: getAppointmentByToken(p.token) });
     return _json({ error: 'unknown action: ' + action });
   } catch (err) { return _json({ error: err.message }); }
 }
@@ -250,6 +296,7 @@ function doPost(e) {
   if (!_validateKey(body.key || '')) return _json({ error: 'unauthorized' });
   try {
     var action = body.action || '';
+    body.role = _resolveRole(body);   // Stage C: trust the badge's role, not the client's claim
     if (action === 'bookAppointment')      return _json(bookAppointment(body));
     if (action === 'cancelAppointment')    return _json(cancelAppointment(body));
     if (action === 'deleteAppointment')    return _json(deleteAppointment(body));
@@ -615,7 +662,13 @@ function bookAppointment(body) {
   // Keep date (col 10) & timeSlot (col 11) as plain text so Sheets doesn't
   // coerce "2026-06-12"/"10:00" into Date objects on write.
   sheet.getRange(1, 10, sheet.getMaxRows(), 2).setNumberFormat('@');
+  // 'customer' = public self-booking via the Customer Booking app; anything
+  // else is treated as a rep booking from the portal.
+  var source         = String(body.source || 'rep').trim().toLowerCase() === 'customer' ? 'customer' : 'rep';
   var bookerEmail    = String(body.bookerEmail || '').trim().toLowerCase();
+  // Self-booking customers have no rep "booker" — stamp a system sentinel so
+  // the row still has a non-empty booker (used by getAppointments scoping).
+  if (!bookerEmail && source === 'customer') bookerEmail = 'customer-self-booking';
   var activatorEmail = String(body.activatorEmail || '').trim().toLowerCase();
   var date           = String(body.date || '').trim();
   var timeSlot       = String(body.timeSlot || '').trim();
@@ -623,14 +676,37 @@ function bookAppointment(body) {
 
   if (!bookerEmail || !activatorEmail || !date || !timeSlot || !office)
     return { error: 'missing required fields' };
-  if (!body.customerName || !body.customerDSI || !body.customerPhone || !body.customerEmail)
+  // Name / phone / email are always required. DSI is required for REP bookings
+  // only — a self-booking customer doesn't know their DSI (the activator
+  // matches the order later).
+  if (!body.customerName || !body.customerPhone || !body.customerEmail)
+    return { error: 'missing customer fields' };
+  if (source !== 'customer' && !body.customerDSI)
     return { error: 'missing customer fields' };
 
   // Same-day override: granted only when the booker's role is activator/master-admin.
+  // Customer self-bookings pass role 'customer', so they never get same-day.
   var allowSameDay = _sameDayAllowed(body.role);
 
   // No same-day / outside the rolling window (unless overridden above).
   if (!_inBookingWindow(date, allowSameDay)) return { error: 'outside_window' };
+
+  // Light spam/duplicate guard for customer self-bookings: the same phone
+  // number can't hold two active appointments on the same date.
+  if (source === 'customer') {
+    var phoneNorm = String(body.customerPhone || '').replace(/\D/g, '');
+    if (phoneNorm) {
+      var existRows = _sheetData(APPT_TAB);
+      for (var di = 1; di < existRows.length; di++) {
+        var er = existRows[di];
+        if (!er[0]) continue;
+        if (String(er[12]).trim().toLowerCase() === 'cancelled') continue;
+        if (_normDateCell(er[9]) !== date) continue;
+        if (String(er[5] || '').replace(/\D/g, '') === phoneNorm)
+          return { error: 'duplicate' };
+      }
+    }
+  }
 
   // "Next Available Agent": resolve to whichever activator is free for this slot.
   // nextMode ('soonest' default | 'balance') selects round-robin fairness.
@@ -644,6 +720,7 @@ function bookAppointment(body) {
   if (available.indexOf(timeSlot) === -1) return { error: 'slot_unavailable' };
 
   var appointmentId = 'APT' + Date.now();
+  var cancelToken   = Utilities.getUuid();   // powers self-service cancel/reschedule links
   var services      = Array.isArray(body.services)
     ? body.services.join(', ')
     : String(body.services || '');
@@ -667,7 +744,9 @@ function bookAppointment(body) {
     '',     // outcome
     '',     // outcomeNote
     '',     // outcomeBy
-    ''      // outcomeAt
+    '',     // outcomeAt
+    source,       // 'rep' | 'customer'
+    cancelToken   // self-service token
   ];
 
   sheet.appendRow(row);
@@ -684,7 +763,8 @@ function bookAppointment(body) {
       timeSlot:       timeSlot,
       office:         office,
       services:       services,
-      deviceCount:    body.deviceCount || 1
+      deviceCount:    body.deviceCount || 1,
+      cancelToken:    cancelToken
     });
   } catch (err) { Logger.log('Confirmation email error: ' + err); }
 
@@ -721,11 +801,37 @@ function getAppointments(officeId, bookerEmail, role) {
       outcome:        r[15] || '',
       outcomeNote:    showName ? (r[16] || '') : '',
       outcomeBy:      r[17] || '',
-      outcomeAt:      r[18] || ''
+      outcomeAt:      r[18] || '',
+      source:         r[19] || 'rep'
     });
   }
 
   return result;
+}
+
+// Look up a single appointment by its self-service cancelToken. Returns ONLY
+// the fields the customer needs to see on the cancel/reschedule page — never
+// any other customer's data. Powers the public Customer Booking app.
+function getAppointmentByToken(token) {
+  var t = String(token || '').trim();
+  if (!t) return null;
+  var rows = _sheetData(APPT_TAB);
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    if (!r[0]) continue;
+    if (String(r[20] || '').trim() !== t) continue;
+    return {
+      appointmentId: r[0],
+      customerName:  r[3],
+      date:          _normDateCell(r[9]),
+      timeSlot:      _normTimeCell(r[10]),
+      office:        r[11],
+      services:      r[7],
+      deviceCount:   r[8],
+      status:        r[12]
+    };
+  }
+  return null;
 }
 
 function cancelAppointment(body) {
@@ -737,9 +843,13 @@ function cancelAppointment(body) {
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() !== id) continue;
-    // Only the booker, activators, or master-admin can cancel
-    var booker = String(data[i][2]).trim().toLowerCase();
-    if (role !== 'master-admin' && role !== 'activator' && email !== booker)
+    // Authorization: the booker, an activator, or master-admin — OR a customer
+    // holding the matching self-service token (from their confirmation email).
+    var booker   = String(data[i][2]).trim().toLowerCase();
+    var token    = String(body.token || '').trim();
+    var rowToken = String(data[i][20] || '').trim();
+    var byToken  = token && rowToken && token === rowToken;
+    if (!byToken && role !== 'master-admin' && role !== 'activator' && email !== booker)
       return { error: 'not authorized to cancel this appointment' };
     sheet.getRange(i + 1, 13).setValue('cancelled'); // column M
     _bustCache(APPT_TAB);
@@ -832,9 +942,12 @@ function rescheduleAppointment(body) {
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() !== id) continue;
-    var r      = data[i];
-    var booker = String(r[2]).trim().toLowerCase();
-    if (role !== 'master-admin' && role !== 'activator' && email !== booker)
+    var r        = data[i];
+    var booker   = String(r[2]).trim().toLowerCase();
+    var token    = String(body.token || '').trim();
+    var rowToken = String(r[20] || '').trim();
+    var byToken  = token && rowToken && token === rowToken;
+    if (!byToken && role !== 'master-admin' && role !== 'activator' && email !== booker)
       return { error: 'not authorized' };
     if (String(r[12]).trim().toLowerCase() === 'cancelled')
       return { error: 'appointment is cancelled' };
@@ -864,7 +977,8 @@ function rescheduleAppointment(body) {
         timeSlot:      newSlot,
         office:        r[11],
         services:      r[7],
-        deviceCount:   r[8]
+        deviceCount:   r[8],
+        cancelToken:   r[20]
       });
     } catch (err) { Logger.log('Moved email error: ' + err); }
     return { ok: true, activatorEmail: activator };
@@ -873,6 +987,19 @@ function rescheduleAppointment(body) {
 }
 
 // ── Emails ────────────────────────────────────────────────────
+// Builds the "need to make a change?" cancel/reschedule block for customer
+// emails. Returns '' when the Customer Booking app URL isn't configured or the
+// appointment has no token (e.g. legacy rows booked before this feature).
+function _selfServiceBlock(office, token) {
+  var base = _getCustomerAppUrl();
+  if (!base || !token) return '';
+  var sep = base.indexOf('?') === -1 ? '?' : '&';
+  var q   = sep + 'office=' + encodeURIComponent(office || '') + '&token=' + encodeURIComponent(token);
+  return '\nNeed to make a change?\n' +
+         'Reschedule: ' + base + q + '&action=reschedule\n' +
+         'Cancel:     ' + base + q + '&action=cancel\n';
+}
+
 function _sendConfirmation(appt) {
   var to = String(appt.customerEmail || '').trim();
   if (!to) return;
@@ -889,7 +1016,8 @@ function _sendConfirmation(appt) {
     'Devices:  ' + (appt.deviceCount || 1)    + '\n' +
     '───────────────────────\n\n' +
     'This is a PHONE appointment — there is nothing to attend in person.\n' +
-    _callInBlock(appt.office, appt.customerPhone) + '\n\n' +
+    _callInBlock(appt.office, appt.customerPhone) +
+    _selfServiceBlock(appt.office, appt.cancelToken) + '\n' +
     'Activation Support Team';
   GmailApp.sendEmail(to, subject, body, {
     name:    'Activation Support Bookings',
@@ -914,7 +1042,8 @@ function _sendMoved(appt) {
     'Devices:  ' + (appt.deviceCount || 1)    + '\n' +
     '───────────────────────\n\n' +
     'This is a PHONE appointment — there is nothing to attend in person.\n' +
-    _callInBlock(appt.office, appt.customerPhone) + '\n\n' +
+    _callInBlock(appt.office, appt.customerPhone) +
+    _selfServiceBlock(appt.office, appt.cancelToken) + '\n' +
     'Activation Support Team';
   GmailApp.sendEmail(to, subject, body, {
     name:    'Activation Support Bookings',

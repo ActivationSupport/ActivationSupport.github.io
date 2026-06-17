@@ -1,0 +1,145 @@
+// ============================================================
+//  Activation Support — Customer Booking (PUBLIC web app)
+//  Standalone Apps Script project — SEPARATE from the portal.
+//  Deploy: Execute as = Me, Who has access = Anyone.
+//
+//  This app serves the public booking/cancel/reschedule pages and
+//  PROXIES every data call to the live Appointment Scheduler backend.
+//  The backend API key lives ONLY in this project's Script Properties
+//  (server-side) and is NEVER sent to the browser.
+//
+//  Required Script Properties:
+//    APPT_API_URL  — the Appointment Scheduler web app /exec URL
+//    APPT_API_KEY  — that backend's API_KEY value
+// ============================================================
+
+var OFFICES = ['elevate', 'midspire', 'viridian', 'ignite'];
+
+// ── Page routing ──────────────────────────────────────────────
+// ?office=<id>            → booking page (locked to that office)
+// ?action=cancel&token=…  → cancel page
+// ?action=reschedule&token=… → reschedule page
+function doGet(e) {
+  var p      = (e && e.parameter) || {};
+  var action = String(p.action || 'book').toLowerCase();
+  var office = String(p.office || '').toLowerCase();
+  var token  = String(p.token || '');
+
+  var file = action === 'cancel' ? 'cancel'
+           : action === 'reschedule' ? 'reschedule'
+           : 'booking';
+
+  var t   = HtmlService.createTemplateFromFile(file);
+  t.office = OFFICES.indexOf(office) !== -1 ? office : '';
+  t.token  = token;
+
+  return t.evaluate()
+    .setTitle('Schedule Your AT&T Activation')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ── Backend proxy helpers (key kept server-side) ──────────────
+function _apptUrl() { return PropertiesService.getScriptProperties().getProperty('APPT_API_URL') || ''; }
+function _apptKey() { return PropertiesService.getScriptProperties().getProperty('APPT_API_KEY') || ''; }
+
+function _apiGet(action, params) {
+  var url = _apptUrl();
+  if (!url) return { error: 'backend not configured' };
+  var qs = ['action=' + encodeURIComponent(action), 'key=' + encodeURIComponent(_apptKey())];
+  params = params || {};
+  Object.keys(params).forEach(function (k) {
+    if (params[k] !== null && params[k] !== undefined && params[k] !== '')
+      qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+  });
+  var full = url + (url.indexOf('?') === -1 ? '?' : '&') + qs.join('&');
+  var resp = UrlFetchApp.fetch(full, { muteHttpExceptions: true, followRedirects: true });
+  try { return JSON.parse(resp.getContentText()); }
+  catch (err) { return { error: 'bad backend response' }; }
+}
+
+function _apiPost(bodyObj) {
+  var url = _apptUrl();
+  if (!url) return { error: 'backend not configured' };
+  bodyObj.key = _apptKey();
+  var resp = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(bodyObj),
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+  try { return JSON.parse(resp.getContentText()); }
+  catch (err) { return { error: 'bad backend response' }; }
+}
+
+// ── Public functions (called from the pages via google.script.run) ──
+// All are read-or-book only and pass role 'customer' so the backend never
+// grants same-day overrides or reveals other customers' data.
+
+function getActivatorsPublic(office) {
+  if (OFFICES.indexOf(office) === -1) return [];
+  var acts = _apiGet('getActivators', { officeId: office }).activators || [];
+  // Strip to display-safe fields only (name + an opaque value).
+  return acts.map(function (a) { return { email: a.email, name: a.name }; });
+}
+
+function getWindowPublic() {
+  return _apiGet('getBookingWindow', { role: 'customer' }).window || null;
+}
+
+function getSlotsPublic(activatorEmail, date) {
+  if (activatorEmail === '__next__') return [];   // use getNextSlotsPublic instead
+  return _apiGet('getAvailableSlots', { activatorEmail: activatorEmail, date: date, role: 'customer' }).slots || [];
+}
+
+function getNextSlotsPublic(office, date) {
+  if (OFFICES.indexOf(office) === -1) return [];
+  return _apiGet('getNextAvailableSlots', { officeId: office, date: date, role: 'customer' }).slots || [];
+}
+
+function bookPublic(payload) {
+  payload = payload || {};
+  if (OFFICES.indexOf(payload.office) === -1) return { error: 'invalid office' };
+  // Build the backend request from an explicit allowlist so a caller can't
+  // smuggle extra fields (role/booker/status/etc.) through the public app.
+  var clean = {
+    action:         'bookAppointment',
+    source:         'customer',
+    role:           'customer',
+    office:         payload.office,
+    activatorEmail: payload.activatorEmail,
+    date:           payload.date,
+    timeSlot:       payload.timeSlot,
+    customerName:   payload.customerName,
+    customerPhone:  payload.customerPhone,
+    customerEmail:  payload.customerEmail,
+    services:       payload.services,
+    deviceCount:    payload.deviceCount,
+    nextMode:       payload.nextMode
+  };
+  return _apiPost(clean);
+}
+
+function getByTokenPublic(token) {
+  return _apiGet('getAppointmentByToken', { token: token }).appointment || null;
+}
+
+function cancelPublic(appointmentId, token) {
+  if (!appointmentId || !token) return { error: 'missing token' };
+  return _apiPost({ action: 'cancelAppointment', appointmentId: appointmentId, token: token });
+}
+
+function reschedulePublic(p) {
+  p = p || {};
+  if (!p.appointmentId || !p.token || !p.date || !p.timeSlot) return { error: 'missing fields' };
+  return _apiPost({
+    action: 'rescheduleAppointment',
+    appointmentId: p.appointmentId,
+    token: p.token,
+    date: p.date,
+    timeSlot: p.timeSlot,
+    activatorEmail: '__next__',   // customer reschedules into any open slot in their office
+    role: 'customer'
+  });
+}

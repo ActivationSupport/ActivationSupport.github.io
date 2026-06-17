@@ -148,6 +148,113 @@ function hashPin(email, pin) {
   return digest.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
 }
 
+// ── SESSION TOKENS ("badges") — Phase 1 Stage A (additive/invisible) ─────────
+// On a successful login the backend issues a random session token tied to the
+// user's server-verified email + real role, and stores only its HASH in a
+// private _Sessions tab. The raw token is returned to the client, which may
+// carry it. NOTHING is enforced yet — existing key-based calls keep working.
+// Both backends share the spreadsheet (SHEET_ID), so either can validate a token.
+var SESSIONS_TAB = '_Sessions';
+var SESSION_TTL_MS = 12 * 60 * 60 * 1000;   // 12 hours
+
+function _hashToken(token) {
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(token), Utilities.Charset.UTF_8);
+  return digest.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+}
+function _sessionsSheet(ss) {
+  var sh = ss.getSheetByName(SESSIONS_TAB);
+  if (!sh) { sh = ss.insertSheet(SESSIONS_TAB); sh.appendRow(['tokenHash','email','rank','permissions','issuedAt','expiresAt']); }
+  return sh;
+}
+// Issue a badge. Returns {token, expiresAt}; only the token HASH is stored.
+function _issueSession(ss, email, rank, permissions) {
+  var sh = _sessionsSheet(ss);
+  _pruneSessions(sh);
+  var token = Utilities.getUuid() + Utilities.getUuid();   // 256 bits of randomness
+  var now = Date.now();
+  var expIso = new Date(now + SESSION_TTL_MS).toISOString();
+  sh.appendRow([_hashToken(token), String(email||'').trim().toLowerCase(), String(rank||''), String(permissions||''), new Date(now).toISOString(), expIso]);
+  return { token: token, expiresAt: expIso };
+}
+// Validate a badge. Returns {valid:true,email,rank,permissions,expiresAt} or {valid:false}.
+function _validateSession(ss, token) {
+  if (!token) return { valid:false };
+  var sh = ss.getSheetByName(SESSIONS_TAB); if (!sh) return { valid:false };
+  var th = _hashToken(token);
+  var data = sh.getDataRange().getValues();
+  var nowIso = new Date().toISOString();
+  for (var i=1;i<data.length;i++) {
+    if (String(data[i][0])!==th) continue;
+    if (String(data[i][5]) <= nowIso) return { valid:false, expired:true };
+    return { valid:true, email:String(data[i][1]), rank:String(data[i][2]), permissions:String(data[i][3]), expiresAt:String(data[i][5]) };
+  }
+  return { valid:false };
+}
+// Revoke a badge (logout). Safe to call with an unknown/empty token.
+function _revokeSession(ss, token) {
+  if (!token) return { ok:true };
+  var sh = ss.getSheetByName(SESSIONS_TAB); if (!sh) return { ok:true };
+  var th = _hashToken(token);
+  var data = sh.getDataRange().getValues();
+  for (var i=data.length-1;i>=1;i--) { if (String(data[i][0])===th) sh.deleteRow(i+1); }
+  return { ok:true };
+}
+// Drop expired rows so the tab can't grow unbounded (called on each issue).
+function _pruneSessions(sh) {
+  var data = sh.getDataRange().getValues();
+  var nowIso = new Date().toISOString();
+  for (var i=data.length-1;i>=1;i--) { if (data[i][0] && String(data[i][5]) <= nowIso) sh.deleteRow(i+1); }
+}
+
+// ── Phase 1 Stage C: server-side authorization (badge-derived role) ──────────
+// STRICT_AUTH (Script Property 'true'/'false', default OFF) is the cutover switch.
+//  OFF  = grace period: unchanged behavior, so clients not yet sending a badge keep
+//         working. ON = privileged calls REQUIRE a valid badge and the caller's role
+//         is taken from the badge, never from any client-supplied role/rank field.
+function _strictAuth() {
+  return String(PropertiesService.getScriptProperties().getProperty('STRICT_AUTH')||'').toLowerCase()==='true';
+}
+// Effective caller role: prefer the server-issued badge (authoritative); fall back
+// to the client-claimed role only when no valid badge is present (grace period).
+function _callerRole(ss, body) {
+  var s = _validateSession(ss, body && body.token);
+  if (s && s.valid) return { authed:true, role:String(s.rank||''), email:String(s.email||'') };
+  return { authed:false, role:String((body&&body.role)||''), email:String((body&&body.email)||'') };
+}
+// Returns null to allow the call, or an {error} object to reject it.
+function _authz(ss, body, allowedRoles) {
+  var c = _callerRole(ss, body);
+  if (_strictAuth() && !c.authed) return { error:'auth_required' };
+  if (allowedRoles && allowedRoles.indexOf(c.role) === -1) return { error:'forbidden' };
+  return null;
+}
+var _ADMIN_ROLES = ['master-admin','owner','admin','manager'];
+// Login/utility actions need no badge (you don't have one yet at login).
+var _PREAUTH_ACTIONS = { checkEmail:1, validatePin:1, setPin:1, changePin:1, checkAdminEmail:1, validateAdminAccess:1, validateSession:1, logout:1 };
+// Actions restricted to specific roles. Anything not listed = any authenticated user.
+var _ADMIN_ACTIONS = {
+  addRosterEntry:_ADMIN_ROLES, updateRosterEntry:_ADMIN_ROLES, deleteRosterEntry:['master-admin'],
+  toggleDeactivate:_ADMIN_ROLES, setTableauName:_ADMIN_ROLES,
+  addTeam:_ADMIN_ROLES, updateTeam:_ADMIN_ROLES, deleteTeam:_ADMIN_ROLES,
+  saveChallengeConfig:_ADMIN_ROLES, endChallenge:_ADMIN_ROLES,
+  createOfficeTabs:['master-admin'], migrateFromLegacy:['master-admin'],
+  migrateFromExternal:['master-admin'], migrateOfficeIds:['master-admin']
+};
+// Central authorization gate for doPost. Returns null to proceed.
+function _authGate(ss, body) {
+  var action = body && body.action;
+  if (_PREAUTH_ACTIONS[action]) return null;
+  var az = _authz(ss, body, _ADMIN_ACTIONS[action] || null);
+  if (az) return az;
+  // Only a master-admin may grant the master-admin rank or change office permissions.
+  if ((action==='addRosterEntry' || action==='updateRosterEntry') && _strictAuth()) {
+    var elevating = String(body.rank||'').trim().toLowerCase()==='master-admin' ||
+                    (body.permissions!==undefined && String(body.permissions)!=='');
+    if (elevating && _callerRole(ss, body).role!=='master-admin') return { error:'forbidden' };
+  }
+  return null;
+}
+
 // ── OFFICE FILTERING ─────────────────────────────────────────────────────
 function _officeMatch(officeId) { return (OFFICE_OWNER_MAP[officeId]||'').toLowerCase(); }
 
@@ -556,6 +663,8 @@ function doGet(e) {
     const action = (e && e.parameter && e.parameter.action) || '';
     const officeId = (e && e.parameter && e.parameter.officeId) || DEFAULT_OFFICE_ID;
     const ss = getSheet(e && e.parameter);
+    // Stage C: in strict mode, reads also require a valid badge.
+    if (_strictAuth()) { var _gs=_validateSession(ss, e.parameter && e.parameter.token); if (!_gs || !_gs.valid) return jsonResponse({ error:'auth_required' }); }
     if (action === 'debugOrderLog') {
       var sheet = ss.getSheetByName(TABLEAU_TAB);
       if (!sheet) return jsonResponse({ error: 'No _TableauOrderLog tab found' });
@@ -1416,30 +1525,74 @@ var DAILY_REPORT_RECIPIENTS = {
 };
 var DAILY_REPORT_OFFICE_NAME = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
 var DAILY_REPORT_TZ = 'America/Los_Angeles';
+// Where the daily admin heartbeat/status email goes. Silence on a weekday by
+// ~6:05pm PT = the 6pm trigger did not fire. Set '' to disable the heartbeat.
+var DAILY_REPORT_HEARTBEAT_TO = 'gavonfuller2024@gmail.com';
 
 // Trigger handler: generates today's report fresh per office and emails the
 // branded HTML (same layout as the in-portal "Copy for Email"). Skips weekends.
 // Sends from whichever Google account owns/authorizes this script — set that to
 // gavonfuller2024@gmail.com (no alias needed) so the From is correct.
 function runDailyReportEmails() {
+  // Self-heal: re-assert the 6pm trigger so a deletion in the editor can't
+  // silently kill future sends. (Any run that happens re-creates it if gone.)
+  try { _ensureDailyReportEmailTrigger(); } catch(e) { Logger.log('ensure trigger: '+e.message); }
+
   var dow = Number(Utilities.formatDate(new Date(), DAILY_REPORT_TZ, 'u')); // 1=Mon … 7=Sun
   if (dow > 5) return; // Mon–Fri only
   var sheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID')||'';
   var ss = sheetId ? SpreadsheetApp.openById(sheetId) : SpreadsheetApp.getActiveSpreadsheet();
   var todayStr = Utilities.formatDate(new Date(), DAILY_REPORT_TZ, 'yyyy-MM-dd');
+  var sent = [], failed = [];
   Object.keys(DAILY_REPORT_RECIPIENTS).forEach(function(officeId) {
+    var officeName = DAILY_REPORT_OFFICE_NAME[officeId] || officeId;
     var to = (DAILY_REPORT_RECIPIENTS[officeId]||[]).filter(function(x){return x;});
-    if (!to.length) return;
+    if (!to.length) return; // no recipients configured → intentionally skipped
     try {
       generateDailyReport(ss, officeId, todayStr);           // fresh today
       var rpt = readDailyReport(ss, officeId, todayStr);
-      if (!rpt) { Logger.log('email: no report for '+officeId); return; }
-      var officeName = DAILY_REPORT_OFFICE_NAME[officeId] || officeId;
+      if (!rpt) throw new Error('no report generated');
       var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr);
       var subject = officeName + ' — Daily Report — ' + Utilities.formatDate(new Date(todayStr+'T12:00:00'), DAILY_REPORT_TZ, 'EEE, MMM d');
       GmailApp.sendEmail(to.join(','), subject, 'This report is best viewed in an HTML-capable email client.', { htmlBody: html, name: 'Activation Support' });
-    } catch(e) { Logger.log('runDailyReportEmails '+officeId+': '+e.message); }
+      sent.push(officeName);
+    } catch(e) {
+      Logger.log('runDailyReportEmails '+officeId+': '+e.message);
+      failed.push(officeName + ' — ' + e.message);
+    }
   });
+
+  // Record the last actual run + email an admin heartbeat. On a weekday, NO
+  // heartbeat by ~6:05pm PT means the trigger never fired → go re-run setup.
+  try { PropertiesService.getScriptProperties().setProperty('lastDailyEmailRun', new Date().toISOString()); } catch(e) {}
+  _sendDailyEmailHeartbeat(sent, failed, todayStr);
+}
+
+// Idempotent: creates the 6pm Pacific trigger only if it isn't already present.
+function _ensureDailyReportEmailTrigger() {
+  var has = ScriptApp.getProjectTriggers().some(function(t){ return t.getHandlerFunction()==='runDailyReportEmails'; });
+  if (!has) {
+    ScriptApp.newTrigger('runDailyReportEmails').timeBased().atHour(18).nearMinute(0).everyDays(1).inTimezone(DAILY_REPORT_TZ).create();
+  }
+}
+
+// Admin status email after each run so silent failures become visible.
+function _sendDailyEmailHeartbeat(sent, failed, todayStr) {
+  if (!DAILY_REPORT_HEARTBEAT_TO) return;
+  try {
+    var dateLabel = Utilities.formatDate(new Date(todayStr+'T12:00:00'), DAILY_REPORT_TZ, 'EEE, MMM d');
+    var ok = !failed.length;
+    var subject = (ok ? '✅' : '⚠️') + ' Daily Report email ' + (ok ? 'sent' : 'PARTIAL/FAILED') + ' — ' + dateLabel;
+    var lines = [];
+    lines.push('Daily Report automated email run — ' + dateLabel);
+    lines.push('');
+    lines.push('Sent OK (' + sent.length + '): ' + (sent.length ? sent.join(', ') : 'none'));
+    lines.push('Failed (' + failed.length + '):' + (failed.length ? '' : ' none'));
+    failed.forEach(function(f){ lines.push('  - ' + f); });
+    lines.push('');
+    lines.push('If you do NOT receive this email on a weekday by ~6:05pm Pacific, the 6pm trigger did not fire — re-run setupDailyReportEmailTrigger() in the Apps Script editor.');
+    GmailApp.sendEmail(DAILY_REPORT_HEARTBEAT_TO, subject, lines.join('\n'), { name: 'Activation Support' });
+  } catch(e) { Logger.log('heartbeat: '+e.message); }
 }
 
 function setupDailyReportEmailTrigger() {
@@ -1980,6 +2133,7 @@ function doPost(e) {
   if (!validateKey(body.key||'')) return jsonResponse({ error:'unauthorized' });
   const officeId=body.officeId||DEFAULT_OFFICE_ID; const ss=getSheet(body);
   try {
+    var _gate=_authGate(ss, body); if (_gate) return jsonResponse(_gate);   // Stage C: server-side authorization
     let result;
     switch (body.action) {
       case 'addRosterEntry':      result=writeAddRosterEntry(body,ss,officeId); break;
@@ -2021,7 +2175,20 @@ function doPost(e) {
       case 'migrateFromLegacy':   result=migrateFromLegacy(ss,officeId); break;
       case 'migrateFromExternal': result=migrateFromExternal(body,ss); break;
       case 'migrateOfficeIds':    result=migrateOfficeIds(ss); break;
+      case 'validateSession':     result=_validateSession(ss, body.token); break;
+      case 'logout':              result=_revokeSession(ss, body.token); break;
       default: result={ error:'unknown action: '+body.action };
+    }
+    // Phase 1 Stage A: on a successful login, also issue a session "badge".
+    // Additive only — the client may ignore the token; nothing is enforced yet.
+    if (result && result.ok && result.valid &&
+        (body.action==='validatePin'||body.action==='setPin'||body.action==='validateAdminAccess')) {
+      try {
+        var _email = String(body.email||'').trim().toLowerCase();
+        var _perms = result.permissions || (result.homeOffice ? _allOfficeIds() : officeId);
+        var _sess = _issueSession(ss, _email, result.rank, _perms);
+        result.token = _sess.token; result.tokenExpires = _sess.expiresAt;
+      } catch(_e) { /* never block login if the session store hiccups */ }
     }
     return jsonResponse(result);
   } catch(err) { return jsonResponse({ error:err.message }); }
