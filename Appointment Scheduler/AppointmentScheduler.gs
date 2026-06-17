@@ -76,9 +76,12 @@ function _getSheetId() { return PropertiesService.getScriptProperties().getPrope
 // cancel/reschedule links in customer emails. Leave unset to omit those links.
 function _getCustomerAppUrl() { return PropertiesService.getScriptProperties().getProperty('CUSTOMER_APP_URL') || ''; }
 
+// Fail CLOSED (Phase 2): if API_KEY is unset/blank, deny — never default to allow.
+// (API_KEY is confirmed set in production; this only guards against the property
+// being cleared by accident and does not change normal behavior.)
 function _validateKey(key) {
   var expected = _getApiKey();
-  return !expected || key === expected;
+  return !!expected && key === expected;
 }
 
 // ── Phase 1 Stage C: shared session "badges" (issued by the portal backend) ──

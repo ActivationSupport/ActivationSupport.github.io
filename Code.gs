@@ -99,7 +99,10 @@ function buildTableauColumnMap(headerRow) {
 }
 function tCol(row, col, key) { return col.hasOwnProperty(key) ? row[col[key]] : ''; }
 function getApiKey() { return PropertiesService.getScriptProperties().getProperty('API_KEY') || ''; }
-function validateKey(key) { const expected = getApiKey(); if (!expected) return true; return key === expected; }
+// Fail CLOSED (Phase 2): if API_KEY is unset/blank, deny — never default to allow.
+// (API_KEY is confirmed set in production, so this only guards against the property
+// being cleared by accident; it does not change normal behavior.)
+function validateKey(key) { const expected = getApiKey(); if (!expected) return false; return key === expected; }
 function jsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
