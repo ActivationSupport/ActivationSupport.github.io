@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<base target="_top" />
+<style>
+  :root{--bg:#0c1116;--panel:#141b23;--panel2:#1b242e;--line:#26313d;--text:#e8eef4;--text2:#9fb0c0;
+    --muted:#6f8296;--accent:#27a8e0;--accent2:#4ab8ee;--accentdim:#16384a;--green:#3ecf8e;--greendim:#123226;--radius:14px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#16222e 0%,var(--bg) 55%);color:var(--text);
+    min-height:100vh;line-height:1.45}
+  .wrap{max-width:500px;margin:0 auto;padding:30px 16px 60px}
+  .head{display:flex;align-items:center;gap:13px;margin-bottom:20px}
+  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#1b6f9b);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff}
+  .head h1{font-size:17px;font-weight:750}
+  .head p{font-size:12.5px;color:var(--text2);margin-top:2px}
+  .card{background:linear-gradient(180deg,var(--panel),#10171e);border:1px solid var(--line);
+    border-radius:var(--radius);padding:22px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  h2{font-size:19px;margin-bottom:6px}
+  .sub{color:var(--text2);font-size:14px;margin-bottom:14px}
+  .cur{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:13px 16px;
+    margin-bottom:18px;font-size:13.5px;color:var(--text2)}
+  .cur b{color:var(--text)}
+  .step-label{font-size:11.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);
+    font-weight:700;margin:16px 0 9px}
+  input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:10px;padding:12px 13px;font-size:15px;outline:none;transition:.15s}
+  input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(39,168,224,.16)}
+  .note{font-size:11.5px;color:var(--muted);margin-top:7px}
+  .slots{display:flex;flex-wrap:wrap;gap:8px}
+  .slot{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;
+    padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer;transition:.12s}
+  .slot:hover{border-color:var(--accent2)}
+  .slot.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+  .slots-msg{font-size:13px;color:var(--muted);padding:6px 0}
+  .btn{width:100%;background:linear-gradient(135deg,var(--accent),#1c7aa8);color:#fff;border:none;
+    border-radius:11px;padding:14px;font-size:15px;font-weight:750;cursor:pointer;margin-top:18px;
+    transition:.15s;box-shadow:0 8px 22px rgba(39,168,224,.3)}
+  .btn:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .err{background:rgba(239,107,107,.1);border:1px solid rgba(239,107,107,.4);color:#ffb4b4;
+    border-radius:10px;padding:11px 13px;font-size:13.5px;margin-top:14px;display:none}
+  .center{text-align:center}
+  .ico{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    margin:4px auto 14px;font-size:28px}
+  .ico-q{background:rgba(239,107,107,.12);border:1px solid rgba(239,107,107,.45)}
+  .ico-ok{background:var(--greendim);border:1px solid rgba(62,207,142,.5)}
+  .recap{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:15px 17px;
+    margin:14px 0;font-size:14px;text-align:left}
+  .recap div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .recap div:last-child{border-bottom:none}
+  .recap .k{color:var(--text2)} .recap .v{font-weight:650}
+  .msg{color:var(--text2);font-size:14px;margin-top:8px}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.4);
+    border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .hidden{display:none!important}
+  .foot{text-align:center;font-size:11px;color:var(--muted);margin-top:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="logo">A</div>
+    <div><h1>Activation Support</h1><p>Reschedule your appointment</p></div>
+  </div>
+
+  <div class="card center" id="loading"><div class="msg"><span class="spin"></span> Looking up your appointment…</div></div>
+
+  <div class="card center hidden" id="invalid">
+    <div class="ico ico-q">!</div>
+    <h2>Appointment not found</h2>
+    <div class="msg">This link may have expired or the appointment was already changed. Please contact your activation team.</div>
+  </div>
+
+  <div class="card hidden" id="form">
+    <h2>Pick a new time</h2>
+    <div class="sub">Choose a new date and time below — your old slot is freed up automatically.</div>
+    <div class="cur" id="cur"></div>
+
+    <div class="step-label">New date</div>
+    <input type="date" id="date" />
+    <div class="note">Appointments open from tomorrow through the next 7 days.</div>
+
+    <div class="step-label">New time</div>
+    <div class="slots" id="slots"><div class="slots-msg">Select a date to see open times.</div></div>
+
+    <button class="btn" id="submit">Confirm new time</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card center hidden" id="done">
+    <div class="ico ico-ok">✓</div>
+    <h2>Appointment moved</h2>
+    <div class="msg">Your new time is confirmed — we've emailed you the updated details.</div>
+    <div class="recap" id="recap"></div>
+  </div>
+
+  <div class="foot">Activation Support · AT&amp;T activation scheduling</div>
+</div>
+
+<script>
+  var TOKEN="<?= token ?>";
+  var appt=null, win=null, selectedSlot="";
+  function $(id){return document.getElementById(id);}
+  function show(id){["loading","invalid","form","done"].forEach(function(x){$(x).classList.toggle("hidden",x!==id);});}
+  function showErr(m){var e=$("err");e.textContent=m;e.style.display="block";}
+  function clearErr(){$("err").style.display="none";}
+  function fmtTime(t){var p=String(t).split(":").map(Number),h=p[0],m=p[1];var ap=h>=12?"PM":"AM",hr=h>12?h-12:(h===0?12:h);return hr+":"+(m<10?"0"+m:m)+" "+ap;}
+  function fmtDate(d){var p=String(d).split("-").map(Number);var mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return mo[p[1]-1]+" "+p[2]+", "+p[0];}
+  function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):"";}
+
+  function init(){
+    if(!TOKEN){ show("invalid"); return; }
+    google.script.run.withSuccessHandler(function(a){
+      if(!a || String(a.status).toLowerCase()==="cancelled"){ show("invalid"); return; }
+      appt=a;
+      $("cur").innerHTML="Current: <b>"+fmtDate(a.date)+" at "+fmtTime(a.timeSlot)+"</b> · "+cap(a.office);
+      google.script.run.withSuccessHandler(function(w){
+        win=w; if(w){ var d=$("date"); d.min=w.min; d.max=w.max; d.value=w.min; loadSlots(); }
+      }).getWindowPublic();
+      show("form");
+    }).withFailureHandler(function(){ show("invalid"); }).getByTokenPublic(TOKEN);
+
+    $("date").addEventListener("change", loadSlots);
+    $("submit").addEventListener("click", submit);
+  }
+
+  function loadSlots(){
+    selectedSlot=""; clearErr();
+    var date=$("date").value, box=$("slots");
+    if(!date || !appt){ box.innerHTML='<div class="slots-msg">Select a date to see open times.</div>'; return; }
+    box.innerHTML='<div class="slots-msg"><span class="spin"></span> Loading open times…</div>';
+    google.script.run.withSuccessHandler(function(slots){
+      if(!slots||!slots.length){ box.innerHTML='<div class="slots-msg">No open times that day — try another date.</div>'; return; }
+      box.innerHTML="";
+      slots.forEach(function(s){
+        var b=document.createElement("div"); b.className="slot"; b.textContent=fmtTime(s);
+        b.addEventListener("click",function(){ selectedSlot=s; box.querySelectorAll(".slot").forEach(function(x){x.classList.remove("sel");}); b.classList.add("sel"); });
+        box.appendChild(b);
+      });
+    }).withFailureHandler(function(){ box.innerHTML='<div class="slots-msg">Couldn\'t load times. Please try again.</div>'; })
+      .getNextSlotsPublic(appt.office, date);
+  }
+
+  function submit(){
+    clearErr();
+    var date=$("date").value;
+    if(!date) return showErr("Please pick a date.");
+    if(!selectedSlot) return showErr("Please pick a time.");
+    var btn=$("submit"); btn.disabled=true; btn.innerHTML='<span class="spin"></span> Saving…';
+    google.script.run.withSuccessHandler(function(res){
+      if(res&&res.ok){
+        $("recap").innerHTML=
+          '<div><span class="k">New date</span><span class="v">'+fmtDate(date)+'</span></div>'+
+          '<div><span class="k">New time</span><span class="v">'+fmtTime(selectedSlot)+'</span></div>';
+        show("done"); window.scrollTo(0,0);
+      } else {
+        btn.disabled=false; btn.textContent="Confirm new time";
+        showErr(mapErr(res&&res.error)); loadSlots();
+      }
+    }).withFailureHandler(function(){
+      btn.disabled=false; btn.textContent="Confirm new time"; showErr("Something went wrong. Please try again.");
+    }).reschedulePublic({ appointmentId:appt.appointmentId, token:TOKEN, date:date, timeSlot:selectedSlot });
+  }
+
+  function mapErr(e){
+    switch(e){
+      case "slot_unavailable": return "Sorry, that time was just taken. Please pick another.";
+      case "outside_window":   return "That date is outside the booking window. Please pick another.";
+      case "appointment is cancelled": return "This appointment was cancelled and can't be moved.";
+      default: return "We couldn't reschedule. Please try again.";
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
