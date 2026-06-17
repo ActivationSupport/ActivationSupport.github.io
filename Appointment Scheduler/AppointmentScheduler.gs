@@ -656,6 +656,17 @@ function _isSlotBlocked(slot, blocks) {
   return false;
 }
 
+// ── Formula-injection guard (Phase 2) ────────────────────────────────────────
+// Customer free-text (name, phone, email, services, DSI) lands in a sheet that
+// staff later open. A value beginning with = + - @ (or a tab/CR that Sheets may
+// reinterpret) would be evaluated as a formula. Prefixing a single quote forces
+// Sheets to treat it as literal text without changing what staff see.
+function _sanitizeCell(v) {
+  var s = String(v == null ? '' : v);
+  if (s && /^[=+\-@\t\r]/.test(s)) return "'" + s;
+  return s;
+}
+
 // ── Appointments ──────────────────────────────────────────────
 function bookAppointment(body) {
   var sheet          = _ensureSheet(APPT_TAB, APPT_HEADERS);
@@ -729,11 +740,11 @@ function bookAppointment(body) {
     appointmentId,
     activatorEmail,
     bookerEmail,
-    String(body.customerName  || '').trim(),
-    String(body.customerDSI   || '').trim(),
-    String(body.customerPhone || '').trim(),
-    String(body.customerEmail || '').trim(),
-    services,
+    _sanitizeCell(String(body.customerName  || '').trim()),
+    _sanitizeCell(String(body.customerDSI   || '').trim()),
+    _sanitizeCell(String(body.customerPhone || '').trim()),
+    _sanitizeCell(String(body.customerEmail || '').trim()),
+    _sanitizeCell(services),
     Number(body.deviceCount)  || 1,
     date,
     timeSlot,
