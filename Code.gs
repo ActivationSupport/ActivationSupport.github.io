@@ -148,6 +148,64 @@ function hashPin(email, pin) {
   return digest.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
 }
 
+// ── SESSION TOKENS ("badges") — Phase 1 Stage A (additive/invisible) ─────────
+// On a successful login the backend issues a random session token tied to the
+// user's server-verified email + real role, and stores only its HASH in a
+// private _Sessions tab. The raw token is returned to the client, which may
+// carry it. NOTHING is enforced yet — existing key-based calls keep working.
+// Both backends share the spreadsheet (SHEET_ID), so either can validate a token.
+var SESSIONS_TAB = '_Sessions';
+var SESSION_TTL_MS = 12 * 60 * 60 * 1000;   // 12 hours
+
+function _hashToken(token) {
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(token), Utilities.Charset.UTF_8);
+  return digest.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+}
+function _sessionsSheet(ss) {
+  var sh = ss.getSheetByName(SESSIONS_TAB);
+  if (!sh) { sh = ss.insertSheet(SESSIONS_TAB); sh.appendRow(['tokenHash','email','rank','permissions','issuedAt','expiresAt']); }
+  return sh;
+}
+// Issue a badge. Returns {token, expiresAt}; only the token HASH is stored.
+function _issueSession(ss, email, rank, permissions) {
+  var sh = _sessionsSheet(ss);
+  _pruneSessions(sh);
+  var token = Utilities.getUuid() + Utilities.getUuid();   // 256 bits of randomness
+  var now = Date.now();
+  var expIso = new Date(now + SESSION_TTL_MS).toISOString();
+  sh.appendRow([_hashToken(token), String(email||'').trim().toLowerCase(), String(rank||''), String(permissions||''), new Date(now).toISOString(), expIso]);
+  return { token: token, expiresAt: expIso };
+}
+// Validate a badge. Returns {valid:true,email,rank,permissions,expiresAt} or {valid:false}.
+function _validateSession(ss, token) {
+  if (!token) return { valid:false };
+  var sh = ss.getSheetByName(SESSIONS_TAB); if (!sh) return { valid:false };
+  var th = _hashToken(token);
+  var data = sh.getDataRange().getValues();
+  var nowIso = new Date().toISOString();
+  for (var i=1;i<data.length;i++) {
+    if (String(data[i][0])!==th) continue;
+    if (String(data[i][5]) <= nowIso) return { valid:false, expired:true };
+    return { valid:true, email:String(data[i][1]), rank:String(data[i][2]), permissions:String(data[i][3]), expiresAt:String(data[i][5]) };
+  }
+  return { valid:false };
+}
+// Revoke a badge (logout). Safe to call with an unknown/empty token.
+function _revokeSession(ss, token) {
+  if (!token) return { ok:true };
+  var sh = ss.getSheetByName(SESSIONS_TAB); if (!sh) return { ok:true };
+  var th = _hashToken(token);
+  var data = sh.getDataRange().getValues();
+  for (var i=data.length-1;i>=1;i--) { if (String(data[i][0])===th) sh.deleteRow(i+1); }
+  return { ok:true };
+}
+// Drop expired rows so the tab can't grow unbounded (called on each issue).
+function _pruneSessions(sh) {
+  var data = sh.getDataRange().getValues();
+  var nowIso = new Date().toISOString();
+  for (var i=data.length-1;i>=1;i--) { if (data[i][0] && String(data[i][5]) <= nowIso) sh.deleteRow(i+1); }
+}
+
 // ── OFFICE FILTERING ─────────────────────────────────────────────────────
 function _officeMatch(officeId) { return (OFFICE_OWNER_MAP[officeId]||'').toLowerCase(); }
 
@@ -2065,7 +2123,20 @@ function doPost(e) {
       case 'migrateFromLegacy':   result=migrateFromLegacy(ss,officeId); break;
       case 'migrateFromExternal': result=migrateFromExternal(body,ss); break;
       case 'migrateOfficeIds':    result=migrateOfficeIds(ss); break;
+      case 'validateSession':     result=_validateSession(ss, body.token); break;
+      case 'logout':              result=_revokeSession(ss, body.token); break;
       default: result={ error:'unknown action: '+body.action };
+    }
+    // Phase 1 Stage A: on a successful login, also issue a session "badge".
+    // Additive only — the client may ignore the token; nothing is enforced yet.
+    if (result && result.ok && result.valid &&
+        (body.action==='validatePin'||body.action==='setPin'||body.action==='validateAdminAccess')) {
+      try {
+        var _email = String(body.email||'').trim().toLowerCase();
+        var _perms = result.permissions || (result.homeOffice ? _allOfficeIds() : officeId);
+        var _sess = _issueSession(ss, _email, result.rank, _perms);
+        result.token = _sess.token; result.tokenExpires = _sess.expiresAt;
+      } catch(_e) { /* never block login if the session store hiccups */ }
     }
     return jsonResponse(result);
   } catch(err) { return jsonResponse({ error:err.message }); }
