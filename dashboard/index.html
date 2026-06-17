@@ -1134,6 +1134,7 @@ function showError(msg) {
 function api(params) {
   params.key = API_KEY;
   params.officeId = CFG.officeId;
+  if (SESSION && SESSION.token) params.token = SESSION.token;   // Phase 1 Stage B: carry the badge
   var qs = Object.keys(params).map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
   return fetch(APPS_SCRIPT_URL + '?' + qs).then(function(r) { return r.json(); });
 }
@@ -1141,6 +1142,7 @@ function api(params) {
 function apiPost(body) {
   body.key = API_KEY;
   body.officeId = CFG.officeId;
+  if (SESSION && SESSION.token) body.token = SESSION.token;     // Phase 1 Stage B: carry the badge
   return fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     redirect: 'follow',
@@ -1227,6 +1229,7 @@ function doLogin() {
       SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
       if (res.rank) { SESSION.role = res.rank; SESSION._actualRole = res.rank; }
       SESSION.isMaster = res.rank === 'master-admin';
+      if (res.token) { SESSION.token = res.token; SESSION.tokenExpires = res.tokenExpires; }   // Phase 1 Stage B: keep the badge
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
     } else {
@@ -1256,6 +1259,7 @@ function doSetPin() {
       SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
       if (res.rank) { SESSION.role = res.rank; SESSION._actualRole = res.rank; }
       SESSION.isMaster = res.rank === 'master-admin';
+      if (res.token) { SESSION.token = res.token; SESSION.tokenExpires = res.tokenExpires; }   // Phase 1 Stage B: keep the badge
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
     } else {
@@ -1276,6 +1280,8 @@ function signOut() {
   clearInterval(_luInterval);
   _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
   _pendingRefresh = false;
+  // Phase 1 Stage B: best-effort revoke the badge server-side on sign-out.
+  try { if (SESSION && SESSION.token) apiPost({ action: 'logout', token: SESSION.token }); } catch(e) {}
   sessionStorage.removeItem('as_session_' + CFG.officeId);
   DATA = {}; SESSION = {}; LOGIN_EMAIL = '';
   document.getElementById('app').style.display = 'none';
@@ -5462,14 +5468,16 @@ var _APPT = { activators:null, appointments:null, weekOffset:0, dayOffset:0, vie
 
 function _apptGet(params) {
   var p = Object.assign({}, params, { key: API_KEY });
+  if (SESSION && SESSION.token) p.token = SESSION.token;   // Phase 1 Stage B: carry the badge
   var qs = Object.keys(p).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(p[k]||''); }).join('&');
   return fetch(APPT_SCRIPT_URL+'?'+qs, { redirect:'follow' }).then(function(r){ return r.json(); });
 }
 function _apptPost(body) {
+  var extra = (SESSION && SESSION.token) ? { key: API_KEY, token: SESSION.token } : { key: API_KEY };
   return fetch(APPT_SCRIPT_URL, {
     method:'POST', redirect:'follow',
     headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({}, body, { key: API_KEY }))
+    body: JSON.stringify(Object.assign({}, body, extra))
   }).then(function(r){ return r.json(); });
 }
 function _apptWeekStart(offset) {
