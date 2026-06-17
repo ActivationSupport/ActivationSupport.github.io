@@ -35,8 +35,10 @@ function doGet(e) {
 
   return t.evaluate()
     .setTitle('Schedule Your AT&T Activation')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+  // No setXFrameOptionsMode → defaults to DENY-other-origins (Phase 2): the page
+  // is opened directly via its per-office link, never embedded, so disallowing
+  // framing closes a clickjacking vector with no UX impact.
 }
 
 // ── Backend proxy helpers (key kept server-side) ──────────────
@@ -77,20 +79,41 @@ function _apiPost(bodyObj) {
 // All are read-or-book only and pass role 'customer' so the backend never
 // grants same-day overrides or reveals other customers' data.
 
+// Opaque, stable public id for an activator so the real work EMAIL never reaches
+// the public booking page (Phase 2 — stops harvesting employee emails from the
+// page source). Resolved back to the email server-side by recomputing + matching.
+function _activatorId(email) {
+  var raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(email || '').trim().toLowerCase());
+  return raw.map(function (b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('').slice(0, 16);
+}
+// Map a public activator id back to the real email by matching against the
+// office's roster. '__next__' (Next Available) passes straight through.
+function _resolveActivatorId(office, id) {
+  if (id === '__next__') return '__next__';
+  if (OFFICES.indexOf(office) === -1) return '';
+  var acts = _apiGet('getActivators', { officeId: office }).activators || [];
+  for (var i = 0; i < acts.length; i++) {
+    if (_activatorId(acts[i].email) === id) return String(acts[i].email || '').trim().toLowerCase();
+  }
+  return '';
+}
+
 function getActivatorsPublic(office) {
   if (OFFICES.indexOf(office) === -1) return [];
   var acts = _apiGet('getActivators', { officeId: office }).activators || [];
-  // Strip to display-safe fields only (name + an opaque value).
-  return acts.map(function (a) { return { email: a.email, name: a.name }; });
+  // Display-safe only: an opaque id + the display name. No email leaves the server.
+  return acts.map(function (a) { return { id: _activatorId(a.email), name: a.name }; });
 }
 
 function getWindowPublic() {
   return _apiGet('getBookingWindow', { role: 'customer' }).window || null;
 }
 
-function getSlotsPublic(activatorEmail, date) {
-  if (activatorEmail === '__next__') return [];   // use getNextSlotsPublic instead
-  return _apiGet('getAvailableSlots', { activatorEmail: activatorEmail, date: date, role: 'customer' }).slots || [];
+function getSlotsPublic(activatorId, date, office) {
+  if (activatorId === '__next__') return [];   // use getNextSlotsPublic instead
+  var email = _resolveActivatorId(office, activatorId);
+  if (!email) return [];
+  return _apiGet('getAvailableSlots', { activatorEmail: email, date: date, role: 'customer' }).slots || [];
 }
 
 function getNextSlotsPublic(office, date) {
@@ -101,6 +124,14 @@ function getNextSlotsPublic(office, date) {
 function bookPublic(payload) {
   payload = payload || {};
   if (OFFICES.indexOf(payload.office) === -1) return { error: 'invalid office' };
+  // Honeypot (Phase 2): a hidden field no human fills. If it has any value the
+  // caller is a bot — drop the request but return a normal-looking success so
+  // the bot can't tell it was rejected.
+  if (String(payload.hp || '').trim() !== '') return { ok: true };
+  // Resolve the opaque activator id back to a real email server-side (the email
+  // never travels through the browser). '__next__' passes through.
+  var activatorEmail = _resolveActivatorId(payload.office, payload.activatorId);
+  if (!activatorEmail) return { error: 'invalid activator' };
   // Build the backend request from an explicit allowlist so a caller can't
   // smuggle extra fields (role/booker/status/etc.) through the public app.
   var clean = {
@@ -108,7 +139,7 @@ function bookPublic(payload) {
     source:         'customer',
     role:           'customer',
     office:         payload.office,
-    activatorEmail: payload.activatorEmail,
+    activatorEmail: activatorEmail,
     date:           payload.date,
     timeSlot:       payload.timeSlot,
     customerName:   payload.customerName,

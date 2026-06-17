@@ -135,6 +135,11 @@
       </div>
     </div>
 
+    <!-- Honeypot: off-screen, hidden from humans; bots that fill it are silently dropped server-side. -->
+    <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;">
+      <label>Company<input id="hp" name="company" tabindex="-1" autocomplete="off" /></label>
+    </div>
+
     <button class="btn" id="submit">Confirm appointment</button>
     <div class="err" id="err"></div>
   </div>
@@ -204,7 +209,7 @@
     google.script.run.withSuccessHandler(function(acts){
       var sel=$("activator");
       (acts||[]).forEach(function(a){
-        var o=document.createElement("option"); o.value=a.email; o.textContent=a.name; sel.appendChild(o);
+        var o=document.createElement("option"); o.value=a.id; o.textContent=a.name; sel.appendChild(o);
       });
     }).getActivatorsPublic(OFFICE);
 
@@ -243,7 +248,7 @@
     };
     var fail=function(){ loadingSlots=false; box.innerHTML='<div class="slots-msg">Couldn\'t load times. Please try again.</div>'; };
     if(act==="__next__") google.script.run.withSuccessHandler(cb).withFailureHandler(fail).getNextSlotsPublic(OFFICE,date);
-    else google.script.run.withSuccessHandler(cb).withFailureHandler(fail).getSlotsPublic(act,date);
+    else google.script.run.withSuccessHandler(cb).withFailureHandler(fail).getSlotsPublic(act,date,OFFICE);
   }
 
   function fmtTime(t){
@@ -295,9 +300,9 @@
       btn.disabled=false; btn.textContent="Confirm appointment";
       showErr("Something went wrong. Please try again.");
     }).bookPublic({
-      office:OFFICE, activatorEmail:act, date:date, timeSlot:selectedSlot,
+      office:OFFICE, activatorId:act, date:date, timeSlot:selectedSlot,
       customerName:name, customerPhone:phone, customerEmail:email,
-      services:svcs, deviceCount:devices
+      services:svcs, deviceCount:devices, hp:$("hp").value
     });
   }
 
