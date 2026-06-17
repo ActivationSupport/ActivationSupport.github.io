@@ -1131,12 +1131,27 @@ function showError(msg) {
 }
 
 // ── API ──────────────────────────────────────────────────────────────────
+// Phase 1 Stage C: if the backend rejects a call because the badge is missing or
+// expired (strict mode), clear the session and send the user back to sign in.
+var _reauthing = false;
+function _forceReauth() {
+  if (_reauthing) return; _reauthing = true;
+  try { sessionStorage.removeItem('as_session_' + CFG.officeId); } catch(e) {}
+  SESSION = {};
+  var app = document.getElementById('app'); if (app) app.style.display = 'none';
+  var ls = document.getElementById('login-screen'); if (ls) ls.style.display = 'flex';
+  if (typeof loginShowStep === 'function') loginShowStep('email');
+  var err = document.getElementById('login-error');
+  if (err) { err.textContent = 'Your session expired — please sign in again.'; err.style.display = 'block'; }
+}
+function _authIntercept(j) { if (j && j.error === 'auth_required') _forceReauth(); return j; }
+
 function api(params) {
   params.key = API_KEY;
   params.officeId = CFG.officeId;
   if (SESSION && SESSION.token) params.token = SESSION.token;   // Phase 1 Stage B: carry the badge
   var qs = Object.keys(params).map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
-  return fetch(APPS_SCRIPT_URL + '?' + qs).then(function(r) { return r.json(); });
+  return fetch(APPS_SCRIPT_URL + '?' + qs).then(function(r) { return r.json(); }).then(_authIntercept);
 }
 
 function apiPost(body) {
@@ -1148,7 +1163,7 @@ function apiPost(body) {
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(body)
-  }).then(function(r) { return r.json(); });
+  }).then(function(r) { return r.json(); }).then(_authIntercept);
 }
 
 // ── AUTH ─────────────────────────────────────────────────────────────────
@@ -1230,6 +1245,7 @@ function doLogin() {
       if (res.rank) { SESSION.role = res.rank; SESSION._actualRole = res.rank; }
       SESSION.isMaster = res.rank === 'master-admin';
       if (res.token) { SESSION.token = res.token; SESSION.tokenExpires = res.tokenExpires; }   // Phase 1 Stage B: keep the badge
+      _reauthing = false;   // fresh session — re-arm the expiry handler
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
     } else {
@@ -1260,6 +1276,7 @@ function doSetPin() {
       if (res.rank) { SESSION.role = res.rank; SESSION._actualRole = res.rank; }
       SESSION.isMaster = res.rank === 'master-admin';
       if (res.token) { SESSION.token = res.token; SESSION.tokenExpires = res.tokenExpires; }   // Phase 1 Stage B: keep the badge
+      _reauthing = false;   // fresh session — re-arm the expiry handler
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
     } else {
@@ -5470,7 +5487,7 @@ function _apptGet(params) {
   var p = Object.assign({}, params, { key: API_KEY });
   if (SESSION && SESSION.token) p.token = SESSION.token;   // Phase 1 Stage B: carry the badge
   var qs = Object.keys(p).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(p[k]||''); }).join('&');
-  return fetch(APPT_SCRIPT_URL+'?'+qs, { redirect:'follow' }).then(function(r){ return r.json(); });
+  return fetch(APPT_SCRIPT_URL+'?'+qs, { redirect:'follow' }).then(function(r){ return r.json(); }).then(_authIntercept);
 }
 function _apptPost(body) {
   var extra = (SESSION && SESSION.token) ? { key: API_KEY, token: SESSION.token } : { key: API_KEY };
@@ -5478,7 +5495,7 @@ function _apptPost(body) {
     method:'POST', redirect:'follow',
     headers:{ 'Content-Type':'text/plain;charset=utf-8' },
     body: JSON.stringify(Object.assign({}, body, extra))
-  }).then(function(r){ return r.json(); });
+  }).then(function(r){ return r.json(); }).then(_authIntercept);
 }
 function _apptWeekStart(offset) {
   var d = new Date(); var dow = d.getDay();
