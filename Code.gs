@@ -148,6 +148,57 @@ function hashPin(email, pin) {
   return digest.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
 }
 
+// ── PIN brute-force lockout (Phase 2) ────────────────────────────────────────
+// Per-email failed-attempt counter in CacheService. After _PIN_MAX_FAILS wrong
+// PINs the account is locked for _PIN_LOCK_SECONDS; a successful login clears it.
+// Cache-based (not a sheet) so it's fast and self-expiring; eviction only ever
+// errs toward letting a legit user back in, never toward exposing the account.
+var _PIN_MAX_FAILS = 5;
+var _PIN_LOCK_SECONDS = 900; // 15 minutes
+function _pinFailKey(email) { return 'pinfail_' + String(email||'').trim().toLowerCase(); }
+// Returns seconds remaining on an active lockout, or 0 if not locked.
+function _pinLockedSeconds(email) {
+  try {
+    var raw = CacheService.getScriptCache().get(_pinFailKey(email));
+    if (!raw) return 0;
+    var o = JSON.parse(raw);
+    if ((o.n||0) >= _PIN_MAX_FAILS && o.until) {
+      var left = Math.ceil((new Date(o.until).getTime() - new Date().getTime()) / 1000);
+      return left > 0 ? left : 0;
+    }
+  } catch(e) {}
+  return 0;
+}
+// Record one failed attempt; sets a lockout once the threshold is reached.
+function _recordPinFail(email) {
+  try {
+    var cache = CacheService.getScriptCache(); var k = _pinFailKey(email);
+    var n = 1; var raw = cache.get(k);
+    if (raw) { try { n = (JSON.parse(raw).n || 0) + 1; } catch(e) {} }
+    var until = n >= _PIN_MAX_FAILS ? new Date(new Date().getTime() + _PIN_LOCK_SECONDS*1000).toISOString() : null;
+    cache.put(k, JSON.stringify({ n:n, until:until }), _PIN_LOCK_SECONDS);
+  } catch(e) {}
+}
+function _clearPinFails(email) { try { CacheService.getScriptCache().remove(_pinFailKey(email)); } catch(e) {} }
+
+// ── Light global rate-limit (Phase 2) — speed bump against bulk abuse ─────────
+// Approximate fixed-window counter in cache. Generous enough never to bother
+// real logins; caps a script hammering an endpoint (e.g. harvesting valid
+// employee emails via checkEmail). Fails OPEN on any cache hiccup so it can
+// never block legitimate use. Counter isn't strictly atomic — fine for a speed
+// bump (a tiny over-count under concurrency is acceptable).
+function _rateLimitOk(bucket, maxPerWindow, windowSeconds) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var win = Math.floor(new Date().getTime() / (windowSeconds*1000));
+    var k = 'rl_' + bucket + '_' + win;
+    var n = parseInt(cache.get(k) || '0', 10) || 0;
+    if (n >= maxPerWindow) return false;
+    cache.put(k, String(n+1), windowSeconds + 5);
+    return true;
+  } catch(e) { return true; }
+}
+
 // ── SESSION TOKENS ("badges") — Phase 1 Stage A (additive/invisible) ─────────
 // On a successful login the backend issues a random session token tied to the
 // user's server-verified email + real role, and stores only its HASH in a
@@ -2331,6 +2382,8 @@ function _findGlobalMasterAdmin(ss, email) {
 function _allOfficeIds() { return Object.keys(OFFICE_OWNER_MAP).join(','); }
 
 function writeCheckEmail(body, ss, officeId) {
+  // Light speed-bump so the email-lookup step can't be used for bulk harvesting.
+  if (!_rateLimitOk('checkEmail', 120, 60)) return { ok:false, error:'Too many requests. Please wait a moment and try again.' };
   var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
   var email=String(body.email||'').trim().toLowerCase();
   if (!email) return { error:'missing email' };
@@ -2367,6 +2420,8 @@ function writeValidatePin(body, ss, officeId) {
   var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
   var email=String(body.email||'').trim().toLowerCase(); var pin=String(body.pin||'').trim();
   if (!email) return { error:'missing email' }; if (!pin) return { error:'missing pin' };
+  var _locked=_pinLockedSeconds(email);
+  if (_locked>0) return { ok:true, valid:false, locked:true, error:'Too many incorrect attempts. Try again in '+Math.ceil(_locked/60)+' min.' };
   var rowIdx=findRowCI(sheet,0,email);
   if (rowIdx<0) {
     // Not in this office's roster — a global master-admin validates against their
@@ -2374,8 +2429,8 @@ function writeValidatePin(body, ss, officeId) {
     var gma=_findGlobalMasterAdmin(ss,email);
     if (!gma) return { error:'Not authorized for this office' };
     if (!gma.pinHash||gma.pinHash==='undefined') return { error:'No PIN set for this account' };
-    if (hashPin(email,pin)===gma.pinHash) return { ok:true, valid:true, rank:'master-admin', permissions:_allOfficeIds() };
-    return { ok:true, valid:false, error:'Incorrect PIN' };
+    if (hashPin(email,pin)===gma.pinHash) { _clearPinFails(email); return { ok:true, valid:true, rank:'master-admin', permissions:_allOfficeIds() }; }
+    _recordPinFail(email); return { ok:true, valid:false, error:'Incorrect PIN' };
   }
   var rowData=sheet.getRange(rowIdx,1,1,10).getValues()[0];
   var deactivated=rowData[4]===true||String(rowData[4]).toUpperCase()==='TRUE';
@@ -2383,12 +2438,13 @@ function writeValidatePin(body, ss, officeId) {
   var storedHash=String(rowData[6]||'').trim();
   if (!storedHash||storedHash==='undefined') return { error:'No PIN set for this account' };
   if (hashPin(email,pin)===storedHash) {
+    _clearPinFails(email);
     // Master-admin is global — elevate even if this office's row says otherwise.
     if (_findGlobalMasterAdmin(ss,email)) return { ok:true, valid:true, rank:'master-admin', permissions:_allOfficeIds() };
     var permissions=String(rowData[9]||'').trim()||officeId;
     return { ok:true, valid:true, rank:String(rowData[3]||'client-rep').trim(), permissions:permissions };
   }
-  return { ok:true, valid:false, error:'Incorrect PIN' };
+  _recordPinFail(email); return { ok:true, valid:false, error:'Incorrect PIN' };
 }
 function writeChangePin(body, ss, officeId) {
   var sheet=getOrCreateSheet(ss,officeTab(TAB.ROSTER,officeId),TAB.ROSTER);
