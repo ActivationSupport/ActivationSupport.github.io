@@ -34,10 +34,10 @@ var OFFICE_TZ = {
 // Leave '' to omit the call-in line (the email still tells the customer the
 // activator will call them). Fill these in when the office numbers are known.
 var OFFICE_CALLIN = {
-  midspire: '',
-  viridian: '',
-  elevate:  '',
-  ignite:   ''
+  midspire: '(224) 524-8968',
+  viridian: '(314) 789-1988',
+  elevate:  '(858) 321-5699',
+  ignite:   '(949) 841-2241'
 };
 
 var APPT_HEADERS = [
@@ -1014,6 +1014,84 @@ function _selfServiceBlock(office, token) {
          'Cancel:     ' + base + q + '&action=cancel\n';
 }
 
+// HTML-escape customer-supplied values before they enter an HTML email body.
+function _htmlEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Styled Reschedule/Cancel buttons (HTML) for customer emails. Returns '' when
+// the Customer Booking app URL isn't configured or the row has no token.
+function _selfServiceButtonsHtml(office, token) {
+  var base = _getCustomerAppUrl();
+  if (!base || !token) return '';
+  var sep = base.indexOf('?') === -1 ? '?' : '&';
+  var q   = sep + 'office=' + encodeURIComponent(office || '') + '&token=' + encodeURIComponent(token);
+  var resch = base + q + '&action=reschedule';
+  var canc  = base + q + '&action=cancel';
+  return '' +
+    '<tr><td style="padding:4px 32px 26px;">' +
+      '<p style="margin:0 0 12px;font:600 14px Arial,sans-serif;color:#16314f;">Need to make a change?</p>' +
+      '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
+        '<td style="padding-right:10px;"><a href="' + resch + '" style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;font:600 14px Arial,sans-serif;padding:11px 22px;border-radius:6px;">Reschedule</a></td>' +
+        '<td><a href="' + canc + '" style="display:inline-block;background:#ffffff;color:#b42318;text-decoration:none;font:600 14px Arial,sans-serif;padding:10px 22px;border:1px solid #f1c4bf;border-radius:6px;">Cancel</a></td>' +
+      '</tr></table>' +
+    '</td></tr>';
+}
+
+// Builds the branded HTML body shared by the confirmation / moved / reminder
+// emails. o = { name, badge, heading, intro, date, time, office, services,
+// devices, phone, buttons }. All customer-supplied fields are HTML-escaped.
+function _apptEmailHtml(o) {
+  var rows = [
+    ['Date', _formatDate(o.date)],
+    ['Time', _formatTime(o.time)],
+    ['Office', _capitalize(o.office)],
+    ['Activating', o.services || 'N/A'],
+    ['Devices', o.devices || 1]
+  ];
+  var detailRows = rows.map(function (r) {
+    return '<tr>' +
+      '<td style="padding:9px 0;font:13px Arial,sans-serif;color:#667085;width:108px;vertical-align:top;">' + _htmlEsc(r[0]) + '</td>' +
+      '<td style="padding:9px 0;font:600 14px Arial,sans-serif;color:#16314f;">' + _htmlEsc(r[1]) + '</td>' +
+      '</tr>';
+  }).join('');
+  var phoneLine = o.phone
+    ? 'Your activation specialist will call you at <b>' + _htmlEsc(o.phone) + '</b> at the time above.'
+    : 'Your activation specialist will call you at the time above.';
+  var callIn = OFFICE_CALLIN[String(o.office || '').toLowerCase()] || '';
+  var callInLine = callIn ? '<br>If you need to reach us, call <b>' + _htmlEsc(callIn) + '</b>.' : '';
+
+  return '' +
+  '<!doctype html><html><body style="margin:0;padding:0;background:#f4f6f8;">' +
+  '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 12px;"><tr><td align="center">' +
+    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e7ec;">' +
+      '<tr><td style="background:#16314f;padding:22px 32px;">' +
+        '<div style="font:700 18px Arial,sans-serif;color:#ffffff;letter-spacing:.3px;">Activation Support</div>' +
+        '<div style="font:13px Arial,sans-serif;color:#9db8d6;margin-top:2px;">AT&amp;T Activation Scheduling</div>' +
+      '</td></tr>' +
+      '<tr><td style="padding:26px 32px 2px;">' +
+        '<span style="display:inline-block;background:#e7f4ec;color:#1a7f43;font:600 12px Arial,sans-serif;padding:5px 12px;border-radius:20px;">' + _htmlEsc(o.badge || 'Confirmed') + '</span>' +
+        '<h1 style="margin:14px 0 6px;font:700 22px Arial,sans-serif;color:#16314f;">' + _htmlEsc(o.heading) + '</h1>' +
+        '<p style="margin:0;font:15px/1.5 Arial,sans-serif;color:#475467;">Hi ' + _htmlEsc(o.name || 'there') + ', ' + _htmlEsc(o.intro) + '</p>' +
+      '</td></tr>' +
+      '<tr><td style="padding:18px 32px 2px;">' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #eef1f5;border-radius:10px;"><tr><td style="padding:4px 20px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + detailRows + '</table></td></tr></table>' +
+      '</td></tr>' +
+      '<tr><td style="padding:18px 32px 2px;">' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef5ff;border-left:4px solid #1d4ed8;border-radius:6px;"><tr><td style="padding:13px 16px;font:14px/1.5 Arial,sans-serif;color:#1e3a5f;">' +
+          '<b>This is a phone appointment</b> — there is nothing to attend in person.<br>' + phoneLine + callInLine +
+        '</td></tr></table>' +
+      '</td></tr>' +
+      (o.buttons || '') +
+      '<tr><td style="padding:18px 32px 26px;border-top:1px solid #eef1f5;">' +
+        '<p style="margin:0;font:12px/1.5 Arial,sans-serif;color:#98a2b3;">Sent by Activation Support Bookings · please do not reply to this email.</p>' +
+      '</td></tr>' +
+    '</table>' +
+  '</td></tr></table></body></html>';
+}
+
 function _sendConfirmation(appt) {
   var to = String(appt.customerEmail || '').trim();
   if (!to) return;
@@ -1033,9 +1111,17 @@ function _sendConfirmation(appt) {
     _callInBlock(appt.office, appt.customerPhone) +
     _selfServiceBlock(appt.office, appt.cancelToken) + '\n' +
     'Activation Support Team';
+  var html = _apptEmailHtml({
+    name: appt.customerName, badge: 'Confirmed', heading: "You're all set!",
+    intro: 'your AT&T activation appointment is confirmed.',
+    date: appt.date, time: appt.timeSlot, office: appt.office,
+    services: appt.services, devices: appt.deviceCount, phone: appt.customerPhone,
+    buttons: _selfServiceButtonsHtml(appt.office, appt.cancelToken)
+  });
   GmailApp.sendEmail(to, subject, body, {
-    name:    'Activation Support Bookings',
-    replyTo: 'activationsupport.bookings@gmail.com'
+    name:     'Activation Support Bookings',
+    replyTo:  'activationsupport.bookings@gmail.com',
+    htmlBody: html
   });
 }
 
@@ -1059,9 +1145,17 @@ function _sendMoved(appt) {
     _callInBlock(appt.office, appt.customerPhone) +
     _selfServiceBlock(appt.office, appt.cancelToken) + '\n' +
     'Activation Support Team';
+  var html = _apptEmailHtml({
+    name: appt.customerName, badge: 'Updated', heading: 'Your appointment was moved',
+    intro: 'your AT&T activation appointment has been rescheduled to a new time.',
+    date: appt.date, time: appt.timeSlot, office: appt.office,
+    services: appt.services, devices: appt.deviceCount, phone: appt.customerPhone,
+    buttons: _selfServiceButtonsHtml(appt.office, appt.cancelToken)
+  });
   GmailApp.sendEmail(to, subject, body, {
-    name:    'Activation Support Bookings',
-    replyTo: 'activationsupport.bookings@gmail.com'
+    name:     'Activation Support Bookings',
+    replyTo:  'activationsupport.bookings@gmail.com',
+    htmlBody: html
   });
 }
 
@@ -1102,9 +1196,17 @@ function checkAndSendReminders() {
         'This is a PHONE appointment — there is nothing to attend in person.\n' +
         _callInBlock(String(r[11]), String(r[5] || '')) + '\n\n' +
         'Activation Support Team';
+      var html = _apptEmailHtml({
+        name: r[3], badge: 'Tomorrow', heading: 'See you tomorrow',
+        intro: 'this is a friendly reminder about your AT&T activation appointment tomorrow.',
+        date: String(r[9]), time: String(r[10]), office: String(r[11]),
+        services: r[7], devices: r[8], phone: String(r[5] || ''),
+        buttons: _selfServiceButtonsHtml(String(r[11]), String(r[20] || ''))
+      });
       GmailApp.sendEmail(to, subject, body, {
-        name:    'Activation Support Bookings',
-        replyTo: 'activationsupport.bookings@gmail.com'
+        name:     'Activation Support Bookings',
+        replyTo:  'activationsupport.bookings@gmail.com',
+        htmlBody: html
       });
       sheet.getRange(i + 1, 15).setValue(true); // mark rem24hSent = TRUE
     } catch (err) {
