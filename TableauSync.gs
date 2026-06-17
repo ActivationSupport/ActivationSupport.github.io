@@ -792,9 +792,15 @@ function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || 'syncAll';
   var key    = (e && e.parameter && e.parameter.key)    || '';
 
+  // Fail CLOSED (Phase 2): deny unless a matching SYNC_API_KEY is supplied. With
+  // SYNC_API_KEY unset this locks the public web-app URL entirely — by design.
+  // The scheduled sync is unaffected: it runs via internal time-triggers
+  // (nightlySync/afternoonSync) that call syncAllReports() directly, never doGet.
+  // To re-enable on-demand HTTP runs, set SYNC_API_KEY and pass ?key=… in the URL;
+  // otherwise run nightlySync from the Apps Script editor.
   var apiKey = PropertiesService.getScriptProperties().getProperty('SYNC_API_KEY') || '';
-  if (apiKey && key !== apiKey) {
-    return ContentService.createTextOutput(JSON.stringify({ error: 'Invalid API key' }))
+  if (!apiKey || key !== apiKey) {
+    return ContentService.createTextOutput(JSON.stringify({ error: 'unauthorized' }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
