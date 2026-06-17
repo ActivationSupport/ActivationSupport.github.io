@@ -1357,6 +1357,14 @@ function switchOffice(newOfficeId) {
   window.history.pushState({}, '', window.location.pathname + '?office=' + newOfficeId);
   updateOfficeDropdown();
   TAB_CACHE = {};
+  // Daily Report keeps its own cache (loadData skips re-rendering it). Clear it
+  // on office switch so the tab can't show the previous office's report, and
+  // re-render now if the user is sitting on it (regenerates for the new office).
+  _DR_DATA = undefined; _DR_DATES = null; _DR_SEL_DATE = null; _DR_LOADING = false;
+  if (CURRENT_TAB === 'dailyreport') {
+    var _drc = document.getElementById('main-content');
+    if (_drc) _drc.innerHTML = renderDailyReport();
+  }
   loadData();
 }
 
@@ -2657,19 +2665,32 @@ function _drTodayStr() {
 }
 
 function renderDailyReport() {
-  if (!_DR_SEL_DATE) _DR_SEL_DATE = _drTodayStr();
-  if (_DR_DATA !== undefined && _DR_DATES) return _drBuildHtml();
-  if (_DR_LOADING) return '<div class="card"><div class="card-body"><div class="empty">Loading daily report…</div></div></div>';
+  // Opening the tab always REGENERATES today's report for the CURRENT office,
+  // from live data, so it's never stale and never another office's (user choice).
+  // The date picker can still pull older SAVED reports afterward via drSelectDate.
+  _DR_SEL_DATE = _drTodayStr();            // reset to today on every entry (handles midnight rollover)
+  if (_DR_LOADING) return '<div class="card"><div class="card-body"><div class="empty">Generating today’s report…</div></div></div>';
   _DR_LOADING = true;
-  api({action:'getDailyReportDates'}).then(function(d) {
-    _DR_DATES = d.dates || [];
-    return api({action:'readDailyReport', date:_DR_SEL_DATE});
-  }).then(function(r) {
-    _DR_DATA = (r && r.report) ? r.report : null;
+  _DR_DATA    = undefined;
+  var selDate   = _DR_SEL_DATE;
+  var selOffice = CFG.officeId;             // pin office so a stale regen can't paint over a new one
+  // Dates list (for the picker) loads in parallel with the generate→read chain.
+  var datesP  = api({action:'getDailyReportDates'}).then(function(d){ return d.dates || []; }).catch(function(){ return _DR_DATES || []; });
+  var reportP = apiPost({action:'generateDailyReport', date:selDate}).then(function(){ return api({action:'readDailyReport', date:selDate}); });
+  Promise.all([datesP, reportP]).then(function(res) {
     _DR_LOADING = false;
+    // Bail if the user navigated away, switched office, or changed the date mid-flight.
+    if (CURRENT_TAB !== 'dailyreport' || CFG.officeId !== selOffice || _DR_SEL_DATE !== selDate) return;
+    _DR_DATES = res[0];
+    _DR_DATA  = (res[1] && res[1].report) ? res[1].report : null;
     var c = document.getElementById('main-content'); if (c) c.innerHTML = _drBuildHtml();
-  }).catch(function() { _DR_LOADING = false; });
-  return '<div class="card"><div class="card-body"><div class="empty">Loading daily report…</div></div></div>';
+  }).catch(function() {
+    _DR_LOADING = false;
+    if (CURRENT_TAB !== 'dailyreport' || CFG.officeId !== selOffice || _DR_SEL_DATE !== selDate) return;
+    _DR_DATA = null;
+    var c = document.getElementById('main-content'); if (c) c.innerHTML = _drBuildHtml();
+  });
+  return '<div class="card"><div class="card-body"><div class="empty">Generating today’s report for '+esc(CFG.officeName||CFG.officeId)+'… this may take a moment.</div></div></div>';
 }
 
 function drSelectDate(date) {
