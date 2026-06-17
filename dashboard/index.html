@@ -734,6 +734,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-svc-glyph.svc-a{background:rgba(112,173,71,.22);color:#8fce63}
 .appt-svc-glyph.svc-f{background:rgba(237,125,49,.22);color:#f0995a}
 .appt-dev-badge{font-size:.6rem;font-weight:800;color:var(--text2);background:rgba(255,255,255,.07);padding:0 4px;border-radius:4px}
+.appt-src-badge{font-size:.66rem;margin-left:5px;vertical-align:1px;cursor:default;opacity:.92}
 .appt-oc-glyph{font-weight:800;font-size:.72rem}
 .appt-oc-glyph.oc-done{color:#52c785}
 .appt-oc-glyph.oc-noshow{color:#e9756a}
@@ -5501,6 +5502,12 @@ function _apptSvcGlyphs(servicesStr){
   if(s.indexOf('fiber')!==-1||s.indexOf('internet')!==-1) g+='<span class="appt-svc-glyph svc-f" title="Fiber">F</span>';
   return g;
 }
+// 🌐 badge for appointments the customer booked themselves (source==='customer'),
+// vs rep-booked. Source comes from getAppointments.
+function _apptSrcBadge(a){
+  return String(a&&a.source||'').toLowerCase()==='customer'
+    ? '<span class="appt-src-badge" title="Booked online by the customer">🌐</span>' : '';
+}
 function _apptOutcomeGlyph(a){
   var o=String(a.outcome||'').toLowerCase();
   if(o==='completed')   return '<span class="appt-oc-glyph oc-done" title="Completed">✓ </span>';
@@ -5686,7 +5693,7 @@ function _apptCalGrid(appts, acts, ws) {
           var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||mine.bookerEmail===SESSION.email;
           var col=_apptActColor(fe);
           html+='<div class="appt-cal-cell appt-cell-booked" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(mine.customerName):'Booked')+' · '+esc(mine.services||'')+' ×'+(mine.deviceCount||1)+'">'+
-            '<div class="appt-cell-name">'+_apptOutcomeGlyph(mine)+(ok?esc(mine.customerName):'••••••')+'</div>'+
+            '<div class="appt-cell-name">'+_apptOutcomeGlyph(mine)+(ok?esc(mine.customerName):'••••••')+_apptSrcBadge(mine)+'</div>'+
             '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(mine.services)+'<span class="appt-dev-badge">×'+(mine.deviceCount||1)+'</span></div></div>';
         } else if(offWin){
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
@@ -5776,7 +5783,7 @@ function _apptUpcomingTable(appts) {
     h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
       '<td>'+esc(_apptFmtDate(a.date))+'</td><td>'+esc(_apptFmt12(a.timeSlot))+'</td>'+
       '<td>'+esc(_apptActName(a.activatorEmail))+'</td>'+
-      '<td>'+(ok?esc(a.customerName):'••••••')+'</td>'+
+      '<td>'+(ok?esc(a.customerName):'••••••')+_apptSrcBadge(a)+'</td>'+
       '<td>'+dsiCell+'</td>'+
       '<td style="font-size:.78rem">'+esc(a.services||'—')+'</td>'+
       '<td><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span></td>'+
@@ -5829,7 +5836,7 @@ function _apptAllActGrid(appts, acts, dStr){
         var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||ap.bookerEmail===SESSION.email;
         var col=_apptActColor(a.email);
         html+='<div class="appt-cal-cell appt-cell-booked" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(ap.customerName):'Booked')+' · '+esc(ap.services||'')+' ×'+(ap.deviceCount||1)+'">'+
-          '<div class="appt-cell-name">'+_apptOutcomeGlyph(ap)+(ok?esc(ap.customerName):'••••••')+'</div>'+
+          '<div class="appt-cell-name">'+_apptOutcomeGlyph(ap)+(ok?esc(ap.customerName):'••••••')+_apptSrcBadge(ap)+'</div>'+
           '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(ap.services)+'<span class="appt-dev-badge">×'+(ap.deviceCount||1)+'</span></div></div>';
       } else if(offWin){
         html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
@@ -5857,7 +5864,7 @@ function _apptDayAgenda(appts, acts, dStr){
     h+='<div class="appt-agenda-row" style="border-left:3px solid '+col+'">'+
       '<div class="appt-agenda-time">'+esc(_apptFmt12(a.timeSlot))+'</div>'+
       '<div class="appt-agenda-main">'+
-        '<div class="appt-agenda-cust">'+(ok?esc(a.customerName):'••••••')+dsi+'</div>'+
+        '<div class="appt-agenda-cust">'+(ok?esc(a.customerName):'••••••')+_apptSrcBadge(a)+dsi+'</div>'+
         '<div class="appt-agenda-sub"><span style="color:'+col+';font-weight:700">'+esc(_apptActName(a.activatorEmail))+'</span> · '+_apptSvcGlyphs(a.services)+'<span class="appt-dev-badge">×'+(a.deviceCount||1)+'</span></div>'+
         _apptLifecyclePath(a, today)+
       '</div>'+
