@@ -81,6 +81,42 @@ function _validateKey(key) {
   return !expected || key === expected;
 }
 
+// ── Phase 1 Stage C: shared session "badges" (issued by the portal backend) ──
+// The portal writes badges to a _Sessions tab in the SAME spreadsheet; here we
+// only READ them to derive the caller's real role server-side instead of trusting
+// a client-supplied role. STRICT_AUTH (Script Property, default OFF) is the cutover.
+var SESSIONS_TAB = '_Sessions';
+function _strictAuth() {
+  return String(PropertiesService.getScriptProperties().getProperty('STRICT_AUTH') || '').toLowerCase() === 'true';
+}
+function _hashToken(token) {
+  var d = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(token), Utilities.Charset.UTF_8);
+  return d.map(function(b){ return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+}
+function _validateSession(token) {
+  if (!token) return { valid:false };
+  var sh = _getSS().getSheetByName(SESSIONS_TAB); if (!sh) return { valid:false };
+  var th = _hashToken(token);
+  var data = sh.getDataRange().getValues();
+  var nowIso = new Date().toISOString();
+  for (var i=1;i<data.length;i++) {
+    if (String(data[i][0]) !== th) continue;
+    if (String(data[i][5]) <= nowIso) return { valid:false };
+    return { valid:true, email:String(data[i][1]), rank:String(data[i][2]) };
+  }
+  return { valid:false };
+}
+// Server-derived role: the badge's role when a valid badge is present; otherwise
+// the client-claimed role during the grace period, or '' once strict (so a caller
+// can no longer grant itself privilege — same-day, see-PII, cancel — by claiming
+// a role). The customer cancel/reschedule flow authorizes by cancelToken, not role,
+// so it is unaffected.
+function _resolveRole(obj) {
+  var s = _validateSession(obj && obj.token);
+  if (s && s.valid) return String(s.rank || '');
+  return _strictAuth() ? '' : String((obj && obj.role) || '');
+}
+
 function _getSS() {
   var id = _getSheetId();
   return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
@@ -241,6 +277,7 @@ function doGet(e) {
   try {
     var action = (e && e.parameter && e.parameter.action) || '';
     var p      = (e && e.parameter) || {};
+    p.role = _resolveRole(p);   // Stage C: trust the badge's role, not the client's claim
     if (action === 'getActivators')        return _json({ activators: getActivators(p.officeId || '') });
     if (action === 'getAvailableSlots')    return _json({ slots: getAvailableSlots(p.activatorEmail, p.date, p.excludeId || '', _sameDayAllowed(p.role)) });
     if (action === 'getNextAvailableSlots') return _json({ slots: getNextAvailableSlots(p.officeId || '', p.date, _sameDayAllowed(p.role)) });
@@ -259,6 +296,7 @@ function doPost(e) {
   if (!_validateKey(body.key || '')) return _json({ error: 'unauthorized' });
   try {
     var action = body.action || '';
+    body.role = _resolveRole(body);   // Stage C: trust the badge's role, not the client's claim
     if (action === 'bookAppointment')      return _json(bookAppointment(body));
     if (action === 'cancelAppointment')    return _json(cancelAppointment(body));
     if (action === 'deleteAppointment')    return _json(deleteAppointment(body));
