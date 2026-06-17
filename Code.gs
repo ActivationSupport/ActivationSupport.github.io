@@ -1416,30 +1416,74 @@ var DAILY_REPORT_RECIPIENTS = {
 };
 var DAILY_REPORT_OFFICE_NAME = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
 var DAILY_REPORT_TZ = 'America/Los_Angeles';
+// Where the daily admin heartbeat/status email goes. Silence on a weekday by
+// ~6:05pm PT = the 6pm trigger did not fire. Set '' to disable the heartbeat.
+var DAILY_REPORT_HEARTBEAT_TO = 'gavonfuller2024@gmail.com';
 
 // Trigger handler: generates today's report fresh per office and emails the
 // branded HTML (same layout as the in-portal "Copy for Email"). Skips weekends.
 // Sends from whichever Google account owns/authorizes this script — set that to
 // gavonfuller2024@gmail.com (no alias needed) so the From is correct.
 function runDailyReportEmails() {
+  // Self-heal: re-assert the 6pm trigger so a deletion in the editor can't
+  // silently kill future sends. (Any run that happens re-creates it if gone.)
+  try { _ensureDailyReportEmailTrigger(); } catch(e) { Logger.log('ensure trigger: '+e.message); }
+
   var dow = Number(Utilities.formatDate(new Date(), DAILY_REPORT_TZ, 'u')); // 1=Mon … 7=Sun
   if (dow > 5) return; // Mon–Fri only
   var sheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID')||'';
   var ss = sheetId ? SpreadsheetApp.openById(sheetId) : SpreadsheetApp.getActiveSpreadsheet();
   var todayStr = Utilities.formatDate(new Date(), DAILY_REPORT_TZ, 'yyyy-MM-dd');
+  var sent = [], failed = [];
   Object.keys(DAILY_REPORT_RECIPIENTS).forEach(function(officeId) {
+    var officeName = DAILY_REPORT_OFFICE_NAME[officeId] || officeId;
     var to = (DAILY_REPORT_RECIPIENTS[officeId]||[]).filter(function(x){return x;});
-    if (!to.length) return;
+    if (!to.length) return; // no recipients configured → intentionally skipped
     try {
       generateDailyReport(ss, officeId, todayStr);           // fresh today
       var rpt = readDailyReport(ss, officeId, todayStr);
-      if (!rpt) { Logger.log('email: no report for '+officeId); return; }
-      var officeName = DAILY_REPORT_OFFICE_NAME[officeId] || officeId;
+      if (!rpt) throw new Error('no report generated');
       var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr);
       var subject = officeName + ' — Daily Report — ' + Utilities.formatDate(new Date(todayStr+'T12:00:00'), DAILY_REPORT_TZ, 'EEE, MMM d');
       GmailApp.sendEmail(to.join(','), subject, 'This report is best viewed in an HTML-capable email client.', { htmlBody: html, name: 'Activation Support' });
-    } catch(e) { Logger.log('runDailyReportEmails '+officeId+': '+e.message); }
+      sent.push(officeName);
+    } catch(e) {
+      Logger.log('runDailyReportEmails '+officeId+': '+e.message);
+      failed.push(officeName + ' — ' + e.message);
+    }
   });
+
+  // Record the last actual run + email an admin heartbeat. On a weekday, NO
+  // heartbeat by ~6:05pm PT means the trigger never fired → go re-run setup.
+  try { PropertiesService.getScriptProperties().setProperty('lastDailyEmailRun', new Date().toISOString()); } catch(e) {}
+  _sendDailyEmailHeartbeat(sent, failed, todayStr);
+}
+
+// Idempotent: creates the 6pm Pacific trigger only if it isn't already present.
+function _ensureDailyReportEmailTrigger() {
+  var has = ScriptApp.getProjectTriggers().some(function(t){ return t.getHandlerFunction()==='runDailyReportEmails'; });
+  if (!has) {
+    ScriptApp.newTrigger('runDailyReportEmails').timeBased().atHour(18).nearMinute(0).everyDays(1).inTimezone(DAILY_REPORT_TZ).create();
+  }
+}
+
+// Admin status email after each run so silent failures become visible.
+function _sendDailyEmailHeartbeat(sent, failed, todayStr) {
+  if (!DAILY_REPORT_HEARTBEAT_TO) return;
+  try {
+    var dateLabel = Utilities.formatDate(new Date(todayStr+'T12:00:00'), DAILY_REPORT_TZ, 'EEE, MMM d');
+    var ok = !failed.length;
+    var subject = (ok ? '✅' : '⚠️') + ' Daily Report email ' + (ok ? 'sent' : 'PARTIAL/FAILED') + ' — ' + dateLabel;
+    var lines = [];
+    lines.push('Daily Report automated email run — ' + dateLabel);
+    lines.push('');
+    lines.push('Sent OK (' + sent.length + '): ' + (sent.length ? sent.join(', ') : 'none'));
+    lines.push('Failed (' + failed.length + '):' + (failed.length ? '' : ' none'));
+    failed.forEach(function(f){ lines.push('  - ' + f); });
+    lines.push('');
+    lines.push('If you do NOT receive this email on a weekday by ~6:05pm Pacific, the 6pm trigger did not fire — re-run setupDailyReportEmailTrigger() in the Apps Script editor.');
+    GmailApp.sendEmail(DAILY_REPORT_HEARTBEAT_TO, subject, lines.join('\n'), { name: 'Activation Support' });
+  } catch(e) { Logger.log('heartbeat: '+e.message); }
 }
 
 function setupDailyReportEmailTrigger() {
