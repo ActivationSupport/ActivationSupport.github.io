@@ -881,6 +881,20 @@ tr:hover td{background:rgba(74,159,212,.07)}
 #appt-booking-modal .appt-checkbox-row .appt-chk{padding:9px 14px;border:1.5px solid #383838;border-radius:9px;background:#1c1c1c;transition:all .15s}
 #appt-booking-modal .appt-checkbox-row .appt-chk:hover{border-color:var(--blue2)}
 #appt-booking-modal .appt-checkbox-row .appt-chk:has(input:checked){border-color:var(--blue2);background:rgba(74,159,212,.12)}
+/* per-product quantity picker (mirrors the customer booking page) */
+#appt-booking-modal .abm-prod-list{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+#appt-booking-modal .abm-prod{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1c1c1c;border:1.5px solid #383838;border-radius:9px;padding:10px 13px;transition:all .15s}
+#appt-booking-modal .abm-prod.on{border-color:var(--blue2);background:rgba(74,159,212,.12)}
+#appt-booking-modal .abm-prod-tap{display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;flex:1;min-width:0}
+#appt-booking-modal .abm-prod-box{width:19px;height:19px;border-radius:5px;border:1.5px solid var(--text2);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;transition:.12s}
+#appt-booking-modal .abm-prod.on .abm-prod-box{background:var(--blue2);border-color:var(--blue2)}
+#appt-booking-modal .abm-prod-name{font-size:.86rem;font-weight:500}
+#appt-booking-modal .abm-prod.on .abm-prod-name{color:var(--blue2)}
+#appt-booking-modal .abm-qty{display:flex;align-items:center;gap:0;flex:0 0 auto}
+#appt-booking-modal .abm-qty.hidden{display:none}
+#appt-booking-modal .abm-qty button{width:30px;height:30px;border-radius:7px;border:1px solid #383838;background:#161616;color:var(--text);font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+#appt-booking-modal .abm-qty button:hover{border-color:var(--blue2)}
+#appt-booking-modal .abm-qty .abm-n{min-width:32px;text-align:center;font-size:.92rem;font-weight:700}
 /* same-day override: subtle amber callout box */
 #appt-booking-modal .abm-sameday-chk{margin-top:12px;padding:10px 13px;border:1px solid rgba(237,125,49,.32);background:rgba(237,125,49,.07);border-radius:9px}
 #appt-booking-modal .abm-sameday-chk input[type=checkbox]{border-color:#ED7D31}
@@ -5977,6 +5991,37 @@ function _abmNiceDate(ds){
   var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][p[1]-1];
   return wd+' '+mo+' '+p[2];
 }
+// Per-product quantity picker (mirrors the customer booking page): tap a row to
+// select, then −/+ sets quantity per product; 0 deselects. One delegated click
+// handler (bound in openApptBookingModal) survives every re-render.
+var _ABM_PRODUCTS = ['Wireless','Air','Fiber - Self Install'];
+var _ABM_QTY = {};   // product name -> quantity (0 = not selected)
+function _abmRenderSvcs() {
+  var box=document.getElementById('abm-svcs'); if(!box) return; box.innerHTML='';
+  _ABM_PRODUCTS.forEach(function(p){
+    _ABM_QTY[p]=_ABM_QTY[p]||0;
+    var on=_ABM_QTY[p]>0;
+    var row=document.createElement('div');
+    row.className='abm-prod'+(on?' on':'');
+    row.setAttribute('data-p',p);
+    row.innerHTML='<div class="abm-prod-tap"><span class="abm-prod-box">'+(on?'✓':'')+'</span><span class="abm-prod-name">'+esc(p)+'</span></div>'+
+      '<div class="abm-qty'+(on?'':' hidden')+'">'+
+        '<button type="button" class="abm-dec">−</button>'+
+        '<span class="abm-n">'+(on?_ABM_QTY[p]:1)+'</span>'+
+        '<button type="button" class="abm-inc">+</button>'+
+      '</div>';
+    box.appendChild(row);
+  });
+}
+function _abmSvcsClick(e) {
+  var row=e.target.closest('.abm-prod'); if(!row) return;
+  var p=row.getAttribute('data-p'); if(!p) return;
+  if(e.target.closest('.abm-inc'))           _ABM_QTY[p]=Math.min(20,(_ABM_QTY[p]||1)+1);
+  else if(e.target.closest('.abm-dec'))      _ABM_QTY[p]=Math.max(0,(_ABM_QTY[p]||1)-1);
+  else if(e.target.closest('.abm-prod-tap')) _ABM_QTY[p]=_ABM_QTY[p]>0?0:1;
+  else return;
+  _abmRenderSvcs();
+}
 function openApptBookingModal(date, activatorEmail, timeSlot) {
   _ABM = { when:'soonest', soonest:null };
   var acts = _APPT.activators||[];
@@ -6011,14 +6056,9 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
         '<div class="field"><label>DSI Number</label><input type="text" class="appt-form-input" id="abm-dsi" placeholder="DSI #"></div>'+
         '<div class="field"><label>Contact Number</label><input type="tel" class="appt-form-input" id="abm-phone" placeholder="(555) 555-5555"></div>'+
         '<div class="field"><label>Customer Email</label><input type="email" class="appt-form-input" id="abm-email" placeholder="customer@email.com"></div>'+
-        '<div class="field" style="grid-column:1/-1"><label>Services (select all that apply)</label>'+
-          '<div class="appt-checkbox-row">'+
-            '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Wireless"> Wireless</label>'+
-            '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Air"> Air</label>'+
-            '<label class="appt-chk"><input type="checkbox" class="abm-svc" value="Fiber - Self Install"> Fiber - Self Install</label>'+
-          '</div>'+
+        '<div class="field" style="grid-column:1/-1"><label>Services &amp; quantity (tap to select)</label>'+
+          '<div class="abm-prod-list" id="abm-svcs"></div>'+
         '</div>'+
-        '<div class="field"><label>Number of Devices</label><input type="number" class="appt-form-input" id="abm-devices" value="1" min="1" max="20"></div>'+
       '</div>'+
     '</div>'+
     '<div id="abm-error" style="color:var(--red);font-size:.82rem;margin-top:10px;display:none"></div>'+
@@ -6027,6 +6067,10 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
       '<button class="appt-book-btn" id="abm-submit-btn" onclick="submitApptBooking()">Confirm Booking</button>'+
     '</div>';
   document.getElementById('appt-booking-modal').classList.add('open');
+  _ABM_QTY = {};
+  _abmRenderSvcs();
+  var svcsBox = document.getElementById('abm-svcs');
+  if (svcsBox) svcsBox.addEventListener('click', _abmSvcsClick);
   // Pre-fill from a clicked grid cell → start in "Pick a date" mode; otherwise
   // default to the streamlined "Soonest available".
   if (activatorEmail) document.getElementById('abm-act').value = activatorEmail;
@@ -6146,8 +6190,11 @@ function submitApptBooking() {
   var dsi=(document.getElementById('abm-dsi')||{}).value||'';
   var phone=(document.getElementById('abm-phone')||{}).value||'';
   var email=(document.getElementById('abm-email')||{}).value||'';
-  var devices=parseInt((document.getElementById('abm-devices')||{}).value||'1');
-  var svcs=Array.from(document.querySelectorAll('.abm-svc:checked')).map(function(cb){return cb.value;});
+  // Encode per-product quantities into the existing fields (no backend change):
+  // services becomes ["Wireless ×2","Air ×1"] (backend joins with ", "); deviceCount = total.
+  var products=_ABM_PRODUCTS.filter(function(p){return _ABM_QTY[p]>0;}).map(function(p){return {name:p,qty:_ABM_QTY[p]};});
+  var svcs=products.map(function(p){return p.name+' ×'+p.qty;});
+  var devices=products.reduce(function(s,p){return s+p.qty;},0);
   var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
   var nextMode='balance';   // Next Available Agent always balances the load (backend only uses this for __next__)
   var errEl=document.getElementById('abm-error');
