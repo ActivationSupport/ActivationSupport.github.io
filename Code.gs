@@ -206,6 +206,55 @@ function _pruneSessions(sh) {
   for (var i=data.length-1;i>=1;i--) { if (data[i][0] && String(data[i][5]) <= nowIso) sh.deleteRow(i+1); }
 }
 
+// ── Phase 1 Stage C: server-side authorization (badge-derived role) ──────────
+// STRICT_AUTH (Script Property 'true'/'false', default OFF) is the cutover switch.
+//  OFF  = grace period: unchanged behavior, so clients not yet sending a badge keep
+//         working. ON = privileged calls REQUIRE a valid badge and the caller's role
+//         is taken from the badge, never from any client-supplied role/rank field.
+function _strictAuth() {
+  return String(PropertiesService.getScriptProperties().getProperty('STRICT_AUTH')||'').toLowerCase()==='true';
+}
+// Effective caller role: prefer the server-issued badge (authoritative); fall back
+// to the client-claimed role only when no valid badge is present (grace period).
+function _callerRole(ss, body) {
+  var s = _validateSession(ss, body && body.token);
+  if (s && s.valid) return { authed:true, role:String(s.rank||''), email:String(s.email||'') };
+  return { authed:false, role:String((body&&body.role)||''), email:String((body&&body.email)||'') };
+}
+// Returns null to allow the call, or an {error} object to reject it.
+function _authz(ss, body, allowedRoles) {
+  var c = _callerRole(ss, body);
+  if (_strictAuth() && !c.authed) return { error:'auth_required' };
+  if (allowedRoles && allowedRoles.indexOf(c.role) === -1) return { error:'forbidden' };
+  return null;
+}
+var _ADMIN_ROLES = ['master-admin','owner','admin','manager'];
+// Login/utility actions need no badge (you don't have one yet at login).
+var _PREAUTH_ACTIONS = { checkEmail:1, validatePin:1, setPin:1, changePin:1, checkAdminEmail:1, validateAdminAccess:1, validateSession:1, logout:1 };
+// Actions restricted to specific roles. Anything not listed = any authenticated user.
+var _ADMIN_ACTIONS = {
+  addRosterEntry:_ADMIN_ROLES, updateRosterEntry:_ADMIN_ROLES, deleteRosterEntry:['master-admin'],
+  toggleDeactivate:_ADMIN_ROLES, setTableauName:_ADMIN_ROLES,
+  addTeam:_ADMIN_ROLES, updateTeam:_ADMIN_ROLES, deleteTeam:_ADMIN_ROLES,
+  saveChallengeConfig:_ADMIN_ROLES, endChallenge:_ADMIN_ROLES,
+  createOfficeTabs:['master-admin'], migrateFromLegacy:['master-admin'],
+  migrateFromExternal:['master-admin'], migrateOfficeIds:['master-admin']
+};
+// Central authorization gate for doPost. Returns null to proceed.
+function _authGate(ss, body) {
+  var action = body && body.action;
+  if (_PREAUTH_ACTIONS[action]) return null;
+  var az = _authz(ss, body, _ADMIN_ACTIONS[action] || null);
+  if (az) return az;
+  // Only a master-admin may grant the master-admin rank or change office permissions.
+  if ((action==='addRosterEntry' || action==='updateRosterEntry') && _strictAuth()) {
+    var elevating = String(body.rank||'').trim().toLowerCase()==='master-admin' ||
+                    (body.permissions!==undefined && String(body.permissions)!=='');
+    if (elevating && _callerRole(ss, body).role!=='master-admin') return { error:'forbidden' };
+  }
+  return null;
+}
+
 // ── OFFICE FILTERING ─────────────────────────────────────────────────────
 function _officeMatch(officeId) { return (OFFICE_OWNER_MAP[officeId]||'').toLowerCase(); }
 
@@ -614,6 +663,8 @@ function doGet(e) {
     const action = (e && e.parameter && e.parameter.action) || '';
     const officeId = (e && e.parameter && e.parameter.officeId) || DEFAULT_OFFICE_ID;
     const ss = getSheet(e && e.parameter);
+    // Stage C: in strict mode, reads also require a valid badge.
+    if (_strictAuth()) { var _gs=_validateSession(ss, e.parameter && e.parameter.token); if (!_gs || !_gs.valid) return jsonResponse({ error:'auth_required' }); }
     if (action === 'debugOrderLog') {
       var sheet = ss.getSheetByName(TABLEAU_TAB);
       if (!sheet) return jsonResponse({ error: 'No _TableauOrderLog tab found' });
@@ -2082,6 +2133,7 @@ function doPost(e) {
   if (!validateKey(body.key||'')) return jsonResponse({ error:'unauthorized' });
   const officeId=body.officeId||DEFAULT_OFFICE_ID; const ss=getSheet(body);
   try {
+    var _gate=_authGate(ss, body); if (_gate) return jsonResponse(_gate);   // Stage C: server-side authorization
     let result;
     switch (body.action) {
       case 'addRosterEntry':      result=writeAddRosterEntry(body,ss,officeId); break;
