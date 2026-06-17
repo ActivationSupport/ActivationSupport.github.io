@@ -768,13 +768,16 @@ function setupInitialAdmin() {
     Logger.log('An active superadmin already exists.');
     return { success: false, error: 'Superadmin already exists' };
   }
+  // DECOMMISSIONED: the initial password is no longer hard-coded. Supply it via
+  // the Script Property INITIAL_ADMIN_PASSWORD before running this (one-time).
   const username = 'admin';
-  const password = 'ATT@ctiv8!';
+  const password = PropertiesService.getScriptProperties().getProperty('INITIAL_ADMIN_PASSWORD') || '';
+  if (!password) return { success: false, error: 'Set INITIAL_ADMIN_PASSWORD script property first' };
   const hash     = hashPassword(password, username.toLowerCase());
   const id       = 'ADM' + Date.now();
   sheet.appendRow([id, username, hash, 'superadmin', 'ALL', 'System Admin', true, '', '']);
-  Logger.log('Superadmin created! Username: admin | Password: ATT@ctiv8! — CHANGE PASSWORD AFTER FIRST LOGIN.');
-  return { success: true, username, tempPassword: password };
+  Logger.log('Superadmin created! Username: admin — CHANGE PASSWORD AFTER FIRST LOGIN.');
+  return { success: true, username };
 }
 
 // ── Setup ─────────────────────────────────────────────────────
@@ -856,7 +859,8 @@ function pad(n) { return String(n).padStart(2,'0'); }
 function setScriptProperties() {
   const props = PropertiesService.getScriptProperties();
   props.setProperty('WEB_APP_URL', 'https://script.google.com/macros/s/AKfycbwdTwcAvsAYQ72li2MSAQ_14U6D3lkwoSPeksNKm5o9TFhla_Qam0orQO3jZCnFS7DxZA/exec');
-  props.setProperty('ADMIN_PASSWORD', 'ATT@ctiv8!');
+  // DECOMMISSIONED: do not hard-code the admin password. Set ADMIN_PASSWORD
+  // manually in Script Properties if this legacy app is ever re-enabled.
   Logger.log('Properties set.');
   return { success: true };
 }

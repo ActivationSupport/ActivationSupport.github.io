@@ -101,10 +101,24 @@ function getNextSlotsPublic(office, date) {
 function bookPublic(payload) {
   payload = payload || {};
   if (OFFICES.indexOf(payload.office) === -1) return { error: 'invalid office' };
-  payload.action = 'bookAppointment';
-  payload.source = 'customer';
-  payload.role   = 'customer';
-  return _apiPost(payload);
+  // Build the backend request from an explicit allowlist so a caller can't
+  // smuggle extra fields (role/booker/status/etc.) through the public app.
+  var clean = {
+    action:         'bookAppointment',
+    source:         'customer',
+    role:           'customer',
+    office:         payload.office,
+    activatorEmail: payload.activatorEmail,
+    date:           payload.date,
+    timeSlot:       payload.timeSlot,
+    customerName:   payload.customerName,
+    customerPhone:  payload.customerPhone,
+    customerEmail:  payload.customerEmail,
+    services:       payload.services,
+    deviceCount:    payload.deviceCount,
+    nextMode:       payload.nextMode
+  };
+  return _apiPost(clean);
 }
 
 function getByTokenPublic(token) {
