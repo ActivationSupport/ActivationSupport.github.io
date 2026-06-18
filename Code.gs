@@ -754,6 +754,7 @@ function doGet(e) {
       var payrollMode = (e.parameter && e.parameter.payrollMode) || 'commission-split';
       return jsonResponse({ orders: readPayrollOrders(ss, officeId, payrollMode) });
     }
+    if (action === 'readTrainingOrders') return jsonResponse({ orders: readTrainingOrders(ss, officeId) });
     if (action === 'readTableauSummary') return jsonResponse(getTableauSummaryWithCache(ss, officeId));
     if (action === 'readDayAfter') return jsonResponse({ orders: readDayAfterOrders(ss, officeId) });
     if (action === 'readDelivered') return jsonResponse({ orders: readDeliveredNotActive(ss, officeId) });
@@ -1015,13 +1016,10 @@ function readPayrollOrders(ss, officeId, payrollMode) {
     const trainee=String(row[OL.TRAINEE]||'').trim().toLowerCase();
     const codesUsedBy=String(row[OL.CODES_USED_BY]||'').trim().toLowerCase();
     var isTraineeOrder=(trainee==='yes'); var isCodesSwap=(codesUsedBy!=='');
+    if (mode==='flat-rate') { if (!isCodesSwap) continue; } else { if (!isTraineeOrder&&!isCodesSwap) continue; }
     const rawDate=row[OL.DATE_OF_SALE]; if (!rawDate) continue;
     const saleDate=new Date(rawDate); if (isNaN(saleDate.getTime())) continue;
     saleDate.setHours(0,0,0,0); if (saleDate<cutoff) continue;
-    var isSunday=(saleDate.getDay()===0);   // Sunday Order = sale date lands on a Sunday (Owner's Stroke)
-    if (mode==='flat-rate') { if (!isCodesSwap) continue; } else { if (!isTraineeOrder&&!isCodesSwap&&!isSunday) continue; }
-    // Badge precedence: Sunday Order > Profit Transfer (codes-swap) > Split (trainee)
-    var payType=isSunday?'sunday':(isCodesSwap?'profit-transfer':'split');
     let paidOut={}; try { const rp=String(row[OL.PAID_OUT]||'').trim(); if (rp) paidOut=JSON.parse(rp); } catch(e) {}
     let speCache=[]; try { const rs=String(row[OL.SPE_CACHE]||'').trim(); if (rs) speCache=JSON.parse(rs); } catch(e) {}
     orders.push({ rowIndex:i+1, sheetRow:i, email:email, repName:String(row[OL.REP_NAME]||'').trim(),
@@ -1029,7 +1027,7 @@ function readPayrollOrders(ss, officeId, payrollMode) {
       dateOfSale:saleDate.toISOString().split('T')[0], air:Number(row[OL.AIR])||0,
       cell:Number(row[OL.CELL])||0, fiber:Number(row[OL.FIBER])||0, voip:Number(row[OL.VOIP_QTY])||0,
       units:Number(row[OL.UNITS])||0, status:String(row[OL.STATUS]||'Pending').trim(),
-      notes:String(row[OL.NOTES]||'').trim(), paidOut:paidOut, payType:payType,
+      notes:String(row[OL.NOTES]||'').trim(), paidOut:paidOut,
       orderChannel:String(row[OL.ORDER_CHANNEL]||'Sara').trim(), codesUsedBy:codesUsedBy, speCache:speCache });
   }
   var tableauSummary=getTableauSummaryWithCache(ss,officeId); var dsiSummary=tableauSummary.dsiSummary||{};
@@ -1044,6 +1042,65 @@ function readPayrollOrders(ss, officeId, payrollMode) {
   speCacheWrites.forEach(function(w) { olSheet.getRange(w[0],w[1]).setValue(w[2]); });
   orders.forEach(function(o) { delete o.speCache; delete o.sheetRow; });
   orders.sort((a,b)=>b.dateOfSale.localeCompare(a.dateOfSale)); return orders;
+}
+
+// ── TRAINING & TRACKING ───────────────────────────────────────────────────
+// Source = the Post Sale form's sheet (_PostedSales_<office>) so orders appear
+// as reps post them. Filters to the 3 payout types (trainee Split, codes-swap
+// Profit Transfer, Sunday Order) over a 60-day window, attaches SPE numbers from
+// the Tableau sync by DSI, and reads/writes a self-contained 'Paid Out' column.
+var POSTED = { REP_NAME:2, DATE:4, DSI:5, CODES_USED_BY:9, TRAINEE:10, TRAINEE_NAME:11,
+               AIR:12, WIRELESS_NEW:13, WIRELESS_BYOD:14, FIBER_PKG:15, VOIP:17, NOTES:20 };
+
+// Ensure the Post Sale sheet has a 'Paid Out' column; return its 1-based index.
+function _ensurePostedPaidOutCol(sheet) {
+  var lastCol = sheet.getLastColumn();
+  var header = sheet.getRange(1,1,1,lastCol).getValues()[0];
+  for (var c=0;c<header.length;c++) { if (String(header[c]||'').trim()==='Paid Out') return c+1; }
+  var col = lastCol + 1;
+  sheet.getRange(1,col).setValue('Paid Out').setFontWeight('bold');
+  return col;
+}
+
+function readTrainingOrders(ss, officeId) {
+  var sheet = ss.getSheetByName('_PostedSales_' + officeId); if (!sheet) return [];
+  var paidCol = _ensurePostedPaidOutCol(sheet); var paidIdx = paidCol - 1;
+  var data = sheet.getDataRange().getValues(); if (data.length < 2) return [];
+  var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-60); cutoff.setHours(0,0,0,0);
+  var orders = [];
+  for (var i=1;i<data.length;i++) {
+    var row = data[i];
+    var dsi = String(row[POSTED.DSI]||'').trim();
+    var trainee = String(row[POSTED.TRAINEE]||'').trim().toLowerCase();
+    var codesUsedBy = String(row[POSTED.CODES_USED_BY]||'').trim().toLowerCase();
+    var isTraineeOrder = (trainee==='yes'); var isCodesSwap = (codesUsedBy!=='');
+    var rawDate = row[POSTED.DATE]; if (!rawDate) continue;
+    var saleDate = new Date(rawDate); if (isNaN(saleDate.getTime())) continue;
+    saleDate.setHours(0,0,0,0); if (saleDate < cutoff) continue;
+    var isSunday = (saleDate.getDay()===0);
+    if (!isTraineeOrder && !isCodesSwap && !isSunday) continue;
+    var payType = isSunday ? 'sunday' : (isCodesSwap ? 'profit-transfer' : 'split');
+    var paidOut = {}; try { var rp = String(row[paidIdx]||'').trim(); if (rp) paidOut = JSON.parse(rp); } catch(e) {}
+    orders.push({
+      rowIndex: i+1, repName: String(row[POSTED.REP_NAME]||'').trim(),
+      traineeName: String(row[POSTED.TRAINEE_NAME]||'').trim(), dsi: dsi,
+      dateOfSale: _drNormDate(saleDate),
+      air: Number(row[POSTED.AIR])||0,
+      cell: (Number(row[POSTED.WIRELESS_NEW])||0) + (Number(row[POSTED.WIRELESS_BYOD])||0),
+      fiber: String(row[POSTED.FIBER_PKG]||'').trim() ? 1 : 0,
+      voip: Number(row[POSTED.VOIP])||0,
+      notes: String(row[POSTED.NOTES]||'').trim(), codesUsedBy: codesUsedBy,
+      payType: payType, paidOut: paidOut, speList: []
+    });
+  }
+  // Attach SPE numbers from the Tableau sync, matched by DSI (same source as the call tabs).
+  try {
+    var summary = getTableauSummaryWithCache(ss, officeId);
+    var dsiSummary = (summary && summary.dsiSummary) || {};
+    orders.forEach(function(o) { var ts = dsiSummary[o.dsi]; if (ts && ts.speList && ts.speList.length) o.speList = ts.speList; });
+  } catch(e) {}
+  orders.sort(function(a,b) { return b.dateOfSale.localeCompare(a.dateOfSale); });
+  return orders;
 }
 
 function readSettings(ss, officeId) {
@@ -2260,6 +2317,7 @@ function doPost(e) {
       case 'updateOrder':         result=writeUpdateOrder(body,ss,officeId); break;
       case 'setSetting':          result=writeSetting(body,ss,officeId); break;
       case 'savePaidOut':         result=writeSavePaidOut(body,ss,officeId); break;
+      case 'saveTrainingPaid':    result=writeTrainingPaid(body,ss,officeId); break;
       case 'addTicket':           result=writeAddTicket(body,ss,officeId); break;
       case 'toggleTicket':        result=writeToggleTicket(body,ss,officeId); break;
       case 'addSale':             result=writeAddSale(body,ss,officeId); break;
@@ -2590,6 +2648,13 @@ function writeSavePaidOut(body, ss, officeId) {
   var sheet=ss.getSheetByName(officeTab(TAB.SALES,officeId)); if (!sheet) return { error:'Sales sheet not found' };
   var rowIndex=Number(body.rowIndex); if (!rowIndex||rowIndex<2) return { error:'Invalid row' };
   sheet.getRange(rowIndex,OL.PAID_OUT+1).setValue(JSON.stringify(body.paidOut||{})); return { ok:true };
+}
+// Persist a Training & Tracking row's paid-out state to the Post Sale sheet's 'Paid Out' column.
+function writeTrainingPaid(body, ss, officeId) {
+  var sheet=ss.getSheetByName('_PostedSales_'+officeId); if (!sheet) return { error:'Post Sale sheet not found' };
+  var rowIndex=Number(body.rowIndex); if (!rowIndex||rowIndex<2) return { error:'Invalid row' };
+  var col=_ensurePostedPaidOutCol(sheet);
+  sheet.getRange(rowIndex,col).setValue(JSON.stringify(body.paidOut||{})); return { ok:true };
 }
 
 function readLeaderboard(ss, officeId) {
@@ -2948,8 +3013,8 @@ function _getPostedSalesSheet(ss, officeId) {
     sheet.appendRow(['Timestamp','Rep Email','Rep Name','Rep Team','Date of Sale','DSI',
       'Account Type','Processed Via','Under Codes','Codes Used By','Trainee','Trainee Name',
       'Air Qty','Wireless New','Wireless BYOD','Fiber Package','Fiber Install Date',
-      'VoIP Qty','DTV Qty','DTV Package','Notes','Units']);
-    sheet.getRange(1,1,1,22).setFontWeight('bold');
+      'VoIP Qty','DTV Qty','DTV Package','Notes','Units','Paid Out']);
+    sheet.getRange(1,1,1,23).setFontWeight('bold');
     sheet.setFrozenRows(1);
   }
   return sheet;

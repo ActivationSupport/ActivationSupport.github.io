@@ -2560,18 +2560,39 @@ function renderCallTable(orders, title, emptyMsg) {
 var _TRAINING_ORDERS = null;
 var _trSearch = '';
 var _trHidePaid = false;
+var _trTimer = null;
+var _trFlight = false;
 
 function renderTrainingTab() {
   var c = document.getElementById('main-content');
   c.innerHTML = skelLoader();
-  api({ action:'readPayrollOrders', payrollMode:'commission-split' }).then(function(res) {
+  api({ action:'readTrainingOrders' }).then(function(res) {
     if (CURRENT_TAB !== 'training') return;
     if (res.error) { c.innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>'; return; }
     _TRAINING_ORDERS = res.orders || [];
     _trPaint();
+    _trStartLive();
   }).catch(function() {
     if (CURRENT_TAB === 'training') c.innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="renderTrainingTab()">Retry</a></div>';
   });
+}
+
+// Live page: silently re-pull every 30s while the tab is open and refresh rows
+// in place (keeps search box, scroll, and saved checkbox state). Self-stops on
+// navigating away.
+function _trStartLive() {
+  if (_trTimer) return;
+  _trTimer = setInterval(function() {
+    if (CURRENT_TAB !== 'training') { clearInterval(_trTimer); _trTimer = null; return; }
+    if (_trFlight) return;
+    _trFlight = true;
+    api({ action:'readTrainingOrders' }).then(function(res) {
+      _trFlight = false;
+      if (CURRENT_TAB !== 'training' || !res || res.error) return;
+      _TRAINING_ORDERS = res.orders || [];
+      _trRenderRows();
+    }).catch(function() { _trFlight = false; });
+  }, 30000);
 }
 
 function _trBadge(o) {
@@ -2618,7 +2639,7 @@ function _trPaint() {
   var total = (_TRAINING_ORDERS||[]).length;
   c.innerHTML =
     '<div class="card"><div class="card-header dark">Training &amp; Tracking &nbsp;' +
-      '<span style="font-weight:400;font-size:.82rem;opacity:.8">' + total + ' orders &middot; Past 2 months</span></div>' +
+      '<span style="font-weight:400;font-size:.82rem;opacity:.8">' + total + ' orders &middot; Past 2 months &middot; <span style="color:#22c55e">&#9679; live</span></span></div>' +
     '<div class="card-body">' +
       '<div class="tr-controls">' +
         '<input id="tr-search" class="tr-search" type="text" placeholder="Search by rep, trainee, DSI, or SPE…" value="' + esc(_trSearch) + '" oninput="_trOnSearch(this.value)">' +
@@ -2686,7 +2707,7 @@ function _trToggleAll(idx, checked) {
 }
 
 function _trSave(o) {
-  apiPost({ action:'savePaidOut', rowIndex:o.rowIndex, paidOut:o.paidOut }).then(function(res) {
+  apiPost({ action:'saveTrainingPaid', rowIndex:o.rowIndex, paidOut:o.paidOut }).then(function(res) {
     if (res && res.error) showToast('Save failed: ' + res.error);
   }).catch(function() { showToast('Save failed — check connection'); });
 }
