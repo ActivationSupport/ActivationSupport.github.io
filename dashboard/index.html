@@ -8,6 +8,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --blue:#1F4E78;--blue2:#4A9FD4;--blue3:#1a3347;--blueHover:#2563a8;--blueText:#fff;
+  --blue2-fade:rgba(96,165,250,.13);--blue2-faint:rgba(96,165,250,.05);
   --green:#27ae60;--green2:#1a4a2a;--green3:#c6efce;
   --yellow:#f0b429;--yellow2:#3a2c00;--yellow3:#fff2cc;
   --red:#e74c3c;--red2:#3d0d0d;--red3:#fce4d6;
@@ -336,7 +337,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 
 /* ── DAILY REPORT ── */
 .dr-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
-.dr-titlewrap{display:flex;align-items:baseline;flex-wrap:wrap;gap:.55rem}
+.dr-titlewrap{display:flex;align-items:center;flex-wrap:wrap;gap:.55rem}
+.dr-logo{max-width:150px;object-fit:contain;vertical-align:middle}
 .dr-office{font-weight:800;font-size:1.02rem;letter-spacing:.01em;color:#fff;padding-right:.55rem;margin-right:.1rem;border-right:2px solid var(--blue2)}
 .dr-title{font-weight:700;font-size:.95rem;letter-spacing:.02em}
 .dr-daylabel{font-size:.86rem;font-weight:600;color:#9fb4c7}
@@ -359,7 +361,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-kpi-lbl{font-size:.67rem;color:#8a94a0;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
 .dr-kpi-sub{font-size:.69rem;color:#667284}
 .dr-section{}
-.dr-sec-hdr{font-size:.84rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#8cc0f7;padding:.5rem .8rem;background:rgba(96,165,250,.13);border-left:4px solid #60a5fa;margin-bottom:.65rem;border-radius:0 6px 6px 0;display:flex;align-items:center;gap:.5rem}
+.dr-sec-hdr{font-size:.84rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--blue2);padding:.5rem .8rem;background:var(--blue2-fade);border-left:4px solid var(--blue2);margin-bottom:.65rem;border-radius:0 6px 6px 0;display:flex;align-items:center;gap:.5rem}
 .dr-subhdr{font-size:.71rem;font-weight:400;letter-spacing:0;text-transform:none;color:#8a94a0}
 .dr-table{width:100%;border-collapse:collapse;font-size:.81rem}
 .dr-table th{padding:.28rem .5rem;text-align:left;color:#888;font-weight:600;font-size:.71rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid #2a2a2a}
@@ -375,8 +377,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-sc-divider{width:1px;background:rgba(255,255,255,.07);margin:2px 4px;align-self:stretch}
 .dr-sc-num{font-size:1.2rem;font-weight:700;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
 .dr-sc-lbl{font-size:.6rem;color:#666;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
-.dr-sc-total{grid-column:1/-1;background:rgba(96,165,250,.05);border-color:#2a3a4a;flex-direction:row;justify-content:space-between;align-items:center;padding:7px 14px;gap:0}
-.dr-sc-total-label{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#60a5fa}
+.dr-sc-total{grid-column:1/-1;background:var(--blue2-faint);border-color:#2a3a4a;flex-direction:row;justify-content:space-between;align-items:center;padding:7px 14px;gap:0}
+.dr-sc-total-label{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue2)}
 .dr-sc-total-nums{display:flex;gap:1.5rem;align-items:baseline}
 .dr-sc-total-big{font-size:1.15rem;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
 .dr-sc-total-sub{font-size:.72rem;color:#555}
@@ -390,7 +392,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .dr-appt-gcnt{font-size:.7rem;font-weight:700;background:rgba(255,255,255,.08);color:#c2cbd6;border-radius:10px;padding:.05rem .45rem;font-variant-numeric:tabular-nums}
 .dr-appt-gbd{font-size:.73rem;font-weight:400;color:#8a94a0;margin-left:auto}
 .dr-note-item{margin-bottom:.3rem;font-size:.81rem;line-height:1.45;color:var(--text)}
-.dr-note-who{font-weight:600;color:#60a5fa}
+.dr-note-who{font-weight:600;color:var(--blue2)}
 .dr-note-time{color:#555;font-size:.76rem;margin-left:.25rem}
 .dr-notes-cell{max-width:400px;min-width:160px}
 .dr-no-report{text-align:center;padding:2.5rem 1rem;color:#555}
@@ -1089,6 +1091,19 @@ var OFFICE_THEME = {
   viridian: { btn:'#2E7A4E', accent:'#5FB87E', dark:'#16281e', hover:'#24633f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a' },
   ignite:   { btn:'#C8102E', accent:'#F1564E', dark:'#2e1416', hover:'#a50f25', glow:'#4a1518', band:'#C8102E', onBand:'#ffffff', sidebar:'#211210' }
 };
+// Light-email Daily Report branding — MIRROR of Code.gs OFFICE_BRAND so the
+// "Copy for Email" export matches the automated 6pm email exactly. (Keep in sync.)
+var DR_ASSET_BASE = 'https://activationsupport.github.io/dashboard/assets/';
+var OFFICE_REPORT_BRAND = {
+  elevate:  { band:'#0B2E9C', headerText:'#ffffff', headerSub:'#c7d2f0', accent:'#0B2E9C', accentText:'#0B2E9C', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
+  midspire: { band:'#0E7BD4', headerText:'#ffffff', headerSub:'#d7ecfb', accent:'#0E7BD4', accentText:'#0b5a9c', logo:'midspire-logo-full.png',           logoH:38 },
+  viridian: { band:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#2E7D52', accentText:'#1B3A2D', logo:'viridian-logo-full.png',           logoH:54 },
+  ignite:   { band:'#C8102E', headerText:'#ffffff', headerSub:'#f7cdd3', accent:'#C8102E', accentText:'#a51325', logo:'ignite-logo-full.png',             logoH:40 }
+};
+function _drReportBrand(officeId) {
+  return OFFICE_REPORT_BRAND[officeId] ||
+    { band:'#0f2740', headerText:'#ffffff', headerSub:'#9fb4c7', accent:'#0f2740', accentText:'#0f2740', logo:'', logoH:40 };
+}
 // Recolor the entire portal to an office's brand by overriding the accent CSS
 // variables (every button/heading/border/highlight reads these) + the login glow.
 function applyOfficeTheme(officeId) {
@@ -1100,6 +1115,15 @@ function applyOfficeTheme(officeId) {
   r.setProperty('--blueHover', t.hover);
   r.setProperty('--blueText', t.btnText || '#fff');
   r.setProperty('--sidebar-bg', t.sidebar || '#111827');
+  r.setProperty('--blue2-fade', _hexToRgba(t.accent, 0.14));
+  r.setProperty('--blue2-faint', _hexToRgba(t.accent, 0.06));
+}
+// hex (#rgb or #rrggbb) → rgba() string at the given alpha.
+function _hexToRgba(hex, a) {
+  hex = String(hex || '').replace('#','');
+  if (hex.length === 3) hex = hex.split('').map(function(c){return c+c;}).join('');
+  var n = parseInt(hex, 16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
   var ls = document.getElementById('login-screen');
   if (ls) ls.style.background = 'radial-gradient(ellipse at center, '+t.glow+' 0%, #111 65%)';
 }
@@ -2813,9 +2837,12 @@ function _drBuildHtml() {
   dates.forEach(function(dt){opts.push('<option value="'+esc(dt)+'"'+(dt===selDate?' selected':'')+'>'+esc(dt)+'</option>');});
 
   var officeNm = (typeof CFG!=='undefined' && CFG.officeName) ? CFG.officeName : '';
+  var _drLg = (typeof OFFICE_LOGOS!=='undefined' && typeof CFG!=='undefined' && CFG.officeId) ? OFFICE_LOGOS[CFG.officeId] : null;
+  var drLogoImg = (_drLg && _drLg.full) ? '<img class="dr-logo" src="'+_drLg.full+'" alt="'+esc(officeNm)+'" style="height:'+(_drLg.drHeaderH||26)+'px">' : '';
   var genAt = rpt ? '<span class="dr-gents">Generated '+_drFmtTs(rpt.generatedAt)+'</span>' : '';
   var header = '<div class="card-header dark dr-header">'+
     '<div class="dr-titlewrap">'+
+      drLogoImg+
       (officeNm?'<span class="dr-office">'+esc(officeNm)+'</span>':'')+
       '<span class="dr-title">📋 Daily Call Report</span>'+
       '<span class="dr-daylabel">'+esc(dayLabel)+'</span>'+genAt+
@@ -3335,6 +3362,8 @@ function _drToast(msg) {
 
 function _drBuildEmailHtml() {
   var rpt=_DR_DATA; if (!rpt) return '';
+  var BR=_drReportBrand((typeof CFG!=='undefined')?CFG.officeId:'');
+  var logoUrl=BR.logo?(DR_ASSET_BASE+BR.logo):'';
   var selDate=_DR_SEL_DATE||_drTodayStr();
   var d=new Date(selDate+'T12:00:00');
   var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -3345,7 +3374,7 @@ function _drBuildEmailHtml() {
   var TH='padding:7px 10px;background:#f8fafc;color:#475569;font-weight:700;text-align:left;white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e2e8f0';
   var TD='padding:8px 10px;color:#1e293b;vertical-align:top;border-bottom:1px solid #e2e8f0';
   var TDG='padding:8px 10px;background:#eef4fb;font-weight:700;color:#0f172a;vertical-align:top;border-bottom:1px solid #e2e8f0';
-  var SEC='background:#e7eef6;color:#0f2740;font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-left:4px solid #0f2740;border-radius:0 5px 5px 0;margin:0';
+  var SEC='background:#f2f5f8;color:'+BR.accentText+';font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-left:4px solid '+BR.accent+';border-radius:0 5px 5px 0;margin:0';
   var SUB='font-size:12px;font-weight:700;color:#1e293b;padding:6px 10px;background:#eef2f7;border-left:3px solid #94a3b8;border-radius:4px;margin:14px 0 7px';
   var ZEB='background:#f4f7fa';
   var BADGE='padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;white-space:nowrap;display:inline-block';
@@ -3565,7 +3594,7 @@ function _drBuildEmailHtml() {
   if (eAp.scheduled&&eAp.scheduled.total) glParts.push('<b>'+(eSc.completed||0)+'</b> appt'+((eSc.completed||0)===1?'':'s')+' completed'+(eSc.noShow?', <b>'+eSc.noShow+'</b> no-show':''));
   var gAttn=(cats.noAnswerTotal||0)+(cats.escalationTotal||0);
   if (gAttn) glParts.push('<b>'+gAttn+'</b> item'+(gAttn===1?'':'s')+' need attention');
-  var glanceSec='<div style="font-size:13px;line-height:1.5;color:#1e293b;background:#eff6ff;border:1px solid #bfdbfe;border-left:3px solid #2563eb;border-radius:0 7px 7px 0;padding:10px 14px">'+glParts.join(' &nbsp;·&nbsp; ')+'</div>';
+  var glanceSec='<div style="font-size:13px;line-height:1.5;color:#1e293b;background:#f6f8fb;border:1px solid #e2e8f0;border-left:3px solid '+BR.accent+';border-radius:0 7px 7px 0;padding:10px 14px">'+glParts.join(' &nbsp;·&nbsp; ')+'</div>';
 
   // Lines Activated Today
   var actSec='';
@@ -3619,10 +3648,14 @@ function _drBuildEmailHtml() {
 
   var officeNm=(typeof CFG!=='undefined'&&CFG.officeName)?CFG.officeName:'';
   return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;background:#fff;max-width:960px;margin:0 auto;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden">'+
-    '<div style="background:#0f2740;color:#fff;padding:15px 20px">'+
-      (officeNm?'<div style="font-size:18px;font-weight:800;letter-spacing:.02em">'+esc(officeNm)+'</div>':'')+
-      '<div style="font-size:14px;font-weight:600;margin-top:'+(officeNm?'2px':'0')+'">📋 Daily Call Report</div>'+
-      '<div style="font-size:12px;color:#9fb4c7;margin-top:3px">'+esc(dayLabel)+' &nbsp;·&nbsp; Generated '+_drFmtTs(rpt.generatedAt)+'</div>'+
+    (logoUrl
+      ? '<div style="background:'+BR.band+';text-align:center;padding:16px 20px'+(BR.band==='#ffffff'?';border-bottom:1px solid #eef1f5':'')+'">'+
+          '<img src="'+logoUrl+'" alt="'+esc(officeNm)+'" style="max-height:'+BR.logoH+'px;max-width:240px;vertical-align:middle">'+
+        '</div>'
+      : '')+
+    '<div style="background:'+BR.band+';padding:13px 22px">'+
+      '<div style="font-size:15px;font-weight:700;color:'+BR.headerText+'">📋 Daily Call Report'+((!logoUrl&&officeNm)?' · '+esc(officeNm):'')+'</div>'+
+      '<div style="font-size:12px;color:'+BR.headerSub+';margin-top:3px">'+esc(dayLabel)+' &nbsp;·&nbsp; Generated '+_drFmtTs(rpt.generatedAt)+'</div>'+
     '</div>'+
     '<div style="padding:18px 22px">'+
     '<div style="margin-bottom:14px">'+glanceSec+'</div>'+
