@@ -7,12 +7,12 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --blue:#1F4E78;--blue2:#4A9FD4;--blue3:#1a3347;
+  --blue:#1F4E78;--blue2:#4A9FD4;--blue3:#1a3347;--blueHover:#2563a8;--blueText:#fff;
   --green:#27ae60;--green2:#1a4a2a;--green3:#c6efce;
   --yellow:#f0b429;--yellow2:#3a2c00;--yellow3:#fff2cc;
   --red:#e74c3c;--red2:#3d0d0d;--red3:#fce4d6;
   --gray:#aaa;--gray2:#2e2e2e;
-  --bg:#111111;--surface:#242424;--surface2:#2c2c2c;
+  --bg:#111111;--surface:#242424;--surface2:#2c2c2c;--sidebar-bg:#111827;
   --border:rgba(255,255,255,.10);
   --text:#e2e2e2;--text2:#b3b3b3;
   --sidebar:240px;
@@ -29,8 +29,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .field label{display:block;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:6px}
 .field input{width:100%;padding:10px 12px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.95rem;outline:none;transition:border .15s;background:#1e1e1e;color:var(--text)}
 .field input:focus{border-color:var(--blue2)}
-.btn{width:100%;padding:11px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s}
-.btn:hover{background:#2563a8}
+.btn{width:100%;padding:11px;background:var(--blue);color:var(--blueText);border:none;border-radius:6px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s}
+.btn:hover{background:var(--blueHover)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 #login-error{color:#e74c3c;font-size:.82rem;margin-top:10px;display:none}
 .login-who{font-size:.88rem;color:var(--blue2);font-weight:600;margin-bottom:14px;word-break:break-all}
@@ -43,7 +43,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .shell{display:flex;height:100vh}
 
 /* ── SIDEBAR ── */
-.sidebar{width:var(--sidebar);background:#111827;color:#fff;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar{width:var(--sidebar);background:var(--sidebar-bg);color:#fff;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
 .sidebar-header{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,.08)}
 .sidebar-office{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.4);margin-bottom:2px}
 .sidebar-name{font-size:1rem;font-weight:700;color:#fff}
@@ -1074,10 +1074,42 @@ var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9hfE_HDTDueNr-s
 var APPT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDy8ZMiho7BL5U1-CV29CpPQ2odQZ4TmPkO51uIAsomrJWuJYCQCV_xycNBGeYhO6tAw/exec';
 var API_KEY = 'activation-dash-2026-secret';
 var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
-var OFFICE_COLORS = { midspire:'#1F4E78', viridian:'#1E5631', elevate:'#2E75B6', ignite:'#C0392B' };
+// Per-office accent (sampled from each office's logo; see memory
+// reference-office-branding). Viridian's accent is GOLD (its green is used as a
+// fill/band color via OFFICE_THEME); the others use their brand color.
+var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', ignite:'#C8102E' };
+// Richer per-office theme, used to recolor the whole UI at load (applyOfficeTheme):
+//  btn    = primary button fill (--blue)       accent = bright accent on dark (--blue2)
+//  dark   = subtle dark accent (--blue3)        hover  = button hover (--blueHover)
+//  glow   = login-screen background glow center
+//  band   = colored header background           onBand = text on the band
+var OFFICE_THEME = {
+  elevate:  { btn:'#0B2E9C', accent:'#3D6EE8', dark:'#14224a', hover:'#0a2576', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
+  midspire: { btn:'#0E7BD4', accent:'#2E9BE0', dark:'#0f2f44', hover:'#0c69b6', glow:'#0f3f5e', band:'#0E7BD4', onBand:'#ffffff', sidebar:'#0c1d2e' },
+  viridian: { btn:'#2E7A4E', accent:'#5FB87E', dark:'#16281e', hover:'#24633f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a' },
+  ignite:   { btn:'#C8102E', accent:'#F1564E', dark:'#2e1416', hover:'#a50f25', glow:'#4a1518', band:'#C8102E', onBand:'#ffffff', sidebar:'#211210' }
+};
+// Recolor the entire portal to an office's brand by overriding the accent CSS
+// variables (every button/heading/border/highlight reads these) + the login glow.
+function applyOfficeTheme(officeId) {
+  var t = OFFICE_THEME[officeId]; if (!t) return;
+  var r = document.documentElement.style;
+  r.setProperty('--blue', t.btn);
+  r.setProperty('--blue2', t.accent);
+  r.setProperty('--blue3', t.dark);
+  r.setProperty('--blueHover', t.hover);
+  r.setProperty('--blueText', t.btnText || '#fff');
+  r.setProperty('--sidebar-bg', t.sidebar || '#111827');
+  var ls = document.getElementById('login-screen');
+  if (ls) ls.style.background = 'radial-gradient(ellipse at center, '+t.glow+' 0%, #111 65%)';
+}
+// .full = wordmark for the dark UI (Ignite uses its white "reverse" version so
+// its dark "SOLUTIONS" text stays legible). .emblem = small symbol for switcher.
 var OFFICE_LOGOS  = {
-  elevate: { full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
-  ignite:  { full:'assets/ignite-logo-full-standard.png',       emblem:'assets/ignite-logo-symbol-square.png' }
+  elevate:  { full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
+  midspire: { full:'assets/midspire-logo-full.png',              emblem:'assets/midspire-logo-symbol.png' },
+  viridian: { full:'assets/viridian-logo-full.png',              emblem:'assets/viridian-logo-full.png', sidebarH:68 },
+  ignite:   { full:'assets/ignite-logo-full-reverse.png',        emblem:'assets/ignite-logo-symbol.png',  sidebarH:44 }
 };
 // Discord webhook URLs per office — leave blank to disable notifications for that office
 var DISCORD_WEBHOOKS = {
@@ -1117,12 +1149,14 @@ function loadConfig() {
   var _lg = OFFICE_LOGOS[officeId];
   if (_lg && _lg.full) {
     var _logoEl = document.getElementById('login-office-logo');
-    _logoEl.innerHTML = '<img src="'+_lg.full+'" alt="'+CFG.officeName+'" style="max-width:220px;max-height:64px;object-fit:contain">';
+    _logoEl.innerHTML = '<img src="'+_lg.full+'" alt="'+CFG.officeName+'" style="max-width:230px;max-height:'+(_lg.loginH||66)+'px;object-fit:contain">';
     _logoEl.style.display = 'block';
     document.getElementById('login-office-name').style.display = 'none';
   } else {
     document.getElementById('login-office-name').textContent = CFG.officeName;
   }
+  // Recolor the whole portal (buttons, accents, login glow) to this office.
+  applyOfficeTheme(officeId);
   return true;
 }
 
@@ -1339,7 +1373,7 @@ function _setSidebarOfficeLogo(officeId) {
   var el = document.getElementById('sb-office-name');
   var lg = OFFICE_LOGOS[officeId];
   if (lg && lg.full) {
-    el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="max-height:36px;max-width:176px;object-fit:contain">';
+    el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:200px;object-fit:contain;object-position:left center">';
   } else {
     el.textContent = OFFICE_NAMES[officeId] || '—';
   }
@@ -1365,8 +1399,10 @@ function updateOfficeDropdown() {
     var isCurrent = o === CFG.officeId;
     var color = OFFICE_COLORS[o] || '#555';
     var oLogo = OFFICE_LOGOS[o];
+    // Gold/light emblems (Viridian) wash out on white — give them a dark tile.
+    var _iconBg = (OFFICE_THEME[o] && o === 'viridian') ? OFFICE_THEME[o].band : '#fff';
     var iconHtml = oLogo && oLogo.emblem
-      ? '<div class="office-dd-icon" style="background:#fff;padding:2px;overflow:hidden"><img src="'+oLogo.emblem+'" alt="'+(OFFICE_NAMES[o]||o)+'" style="width:100%;height:100%;object-fit:contain"></div>'
+      ? '<div class="office-dd-icon" style="background:'+_iconBg+';padding:2px;overflow:hidden"><img src="'+oLogo.emblem+'" alt="'+(OFFICE_NAMES[o]||o)+'" style="width:100%;height:100%;object-fit:contain"></div>'
       : '<div class="office-dd-icon" style="background:'+color+'">'+((OFFICE_NAMES[o]||o).charAt(0).toUpperCase())+'</div>';
     return '<div class="office-dd-item" onclick="selectOffice(\''+o+'\')">'+
       iconHtml+
@@ -1390,6 +1426,7 @@ function switchOffice(newOfficeId) {
   if (!OFFICE_NAMES[newOfficeId] || newOfficeId === CFG.officeId) return;
   CFG.officeId = newOfficeId;
   CFG.officeName = OFFICE_NAMES[newOfficeId];
+  applyOfficeTheme(newOfficeId);   // recolor the UI to the new office
   _setSidebarOfficeLogo(newOfficeId);
   window.history.pushState({}, '', window.location.pathname + '?office=' + newOfficeId);
   updateOfficeDropdown();

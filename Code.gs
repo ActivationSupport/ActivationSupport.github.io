@@ -1591,7 +1591,7 @@ var DAILY_REPORT_ASSET_BASE = 'https://activationsupport.github.io/dashboard/ass
 var OFFICE_BRAND = {
   elevate:  { band:'#ffffff', header:'#0B2E9C', headerText:'#ffffff', headerSub:'#c7d2f0', accent:'#0B2E9C', accentText:'#0B2E9C', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
   midspire: { band:'#ffffff', header:'#0E7BD4', headerText:'#ffffff', headerSub:'#d7ecfb', accent:'#0E7BD4', accentText:'#0b5a9c', logo:'midspire-logo-full.png',           logoH:38 },
-  viridian: { band:'#0F5132', header:'#0F5132', headerText:'#E7C66B', headerSub:'#cfe6d8', accent:'#C9A23C', accentText:'#0F5132', logo:'viridian-logo-full.png',           logoH:54 },
+  viridian: { band:'#1B3A2D', header:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#2E7D52', accentText:'#1B3A2D', logo:'viridian-logo-full.png',           logoH:54 },
   ignite:   { band:'#ffffff', header:'#C8102E', headerText:'#ffffff', headerSub:'#f7cdd3', accent:'#C8102E', accentText:'#a51325', logo:'ignite-logo-full.png',             logoH:40 }
 };
 function _drBrand(officeId) {
