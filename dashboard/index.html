@@ -276,7 +276,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .tr-table td{padding:12px;border-bottom:1px solid var(--border);vertical-align:top}
 .tr-rep{font-weight:700;color:var(--text)}
 .tr-trainee{color:var(--blue2);font-weight:600}
-.tr-badge{display:inline-block;margin-top:5px;padding:2px 9px;border-radius:10px;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.tr-badge{display:inline-block;margin-top:5px;margin-right:5px;padding:2px 9px;border-radius:10px;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
 .tr-badge-split{background:rgba(74,159,212,.15);color:var(--blue2)}
 .tr-badge-transfer{background:rgba(34,197,94,.15);color:#22c55e}
 .tr-badge-sunday{background:rgba(234,179,8,.15);color:#eab308}
@@ -2595,10 +2595,18 @@ function _trStartLive() {
   }, 30000);
 }
 
+var _TR_BADGE_MAP = {
+  'sunday':         ['tr-badge-sunday',   'Sunday Order'],
+  'profit-transfer':['tr-badge-transfer', 'Profit Transfer'],
+  'split':          ['tr-badge-split',    'Split']
+};
+// Every applicable type shows — badges stack (display order Sunday > Profit Transfer > Split).
 function _trBadge(o) {
-  if (o.payType === 'sunday')          return '<span class="tr-badge tr-badge-sunday">Sunday Order</span>';
-  if (o.payType === 'profit-transfer') return '<span class="tr-badge tr-badge-transfer">Profit Transfer</span>';
-  return '<span class="tr-badge tr-badge-split">Split</span>';
+  var types = o.payTypes || (o.payType ? [o.payType] : []);
+  return types.map(function(k) {
+    var m = _TR_BADGE_MAP[k];
+    return m ? '<span class="tr-badge ' + m[0] + '">' + m[1] + '</span>' : '';
+  }).join('');
 }
 
 function _trProducts(o) {
