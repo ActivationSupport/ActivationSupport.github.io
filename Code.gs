@@ -1079,7 +1079,11 @@ function readTrainingOrders(ss, officeId) {
     saleDate.setHours(0,0,0,0); if (saleDate < cutoff) continue;
     var isSunday = (saleDate.getDay()===0);
     if (!isTraineeOrder && !isCodesSwap && !isSunday) continue;
-    var payType = isSunday ? 'sunday' : (isCodesSwap ? 'profit-transfer' : 'split');
+    // Every applicable type stacks (display order Sunday > Profit Transfer > Split).
+    var payTypes = [];
+    if (isSunday) payTypes.push('sunday');
+    if (isCodesSwap) payTypes.push('profit-transfer');
+    if (isTraineeOrder) payTypes.push('split');
     var paidOut = {}; try { var rp = String(row[paidIdx]||'').trim(); if (rp) paidOut = JSON.parse(rp); } catch(e) {}
     orders.push({
       rowIndex: i+1, repName: String(row[POSTED.REP_NAME]||'').trim(),
@@ -1090,7 +1094,7 @@ function readTrainingOrders(ss, officeId) {
       fiber: String(row[POSTED.FIBER_PKG]||'').trim() ? 1 : 0,
       voip: Number(row[POSTED.VOIP])||0,
       notes: String(row[POSTED.NOTES]||'').trim(), codesUsedBy: codesUsedBy,
-      payType: payType, paidOut: paidOut, speList: []
+      payTypes: payTypes, paidOut: paidOut, speList: []
     });
   }
   // Attach SPE numbers from the Tableau sync, matched by DSI (same source as the call tabs).
