@@ -1015,10 +1015,13 @@ function readPayrollOrders(ss, officeId, payrollMode) {
     const trainee=String(row[OL.TRAINEE]||'').trim().toLowerCase();
     const codesUsedBy=String(row[OL.CODES_USED_BY]||'').trim().toLowerCase();
     var isTraineeOrder=(trainee==='yes'); var isCodesSwap=(codesUsedBy!=='');
-    if (mode==='flat-rate') { if (!isCodesSwap) continue; } else { if (!isTraineeOrder&&!isCodesSwap) continue; }
     const rawDate=row[OL.DATE_OF_SALE]; if (!rawDate) continue;
     const saleDate=new Date(rawDate); if (isNaN(saleDate.getTime())) continue;
     saleDate.setHours(0,0,0,0); if (saleDate<cutoff) continue;
+    var isSunday=(saleDate.getDay()===0);   // Sunday Order = sale date lands on a Sunday (Owner's Stroke)
+    if (mode==='flat-rate') { if (!isCodesSwap) continue; } else { if (!isTraineeOrder&&!isCodesSwap&&!isSunday) continue; }
+    // Badge precedence: Sunday Order > Profit Transfer (codes-swap) > Split (trainee)
+    var payType=isSunday?'sunday':(isCodesSwap?'profit-transfer':'split');
     let paidOut={}; try { const rp=String(row[OL.PAID_OUT]||'').trim(); if (rp) paidOut=JSON.parse(rp); } catch(e) {}
     let speCache=[]; try { const rs=String(row[OL.SPE_CACHE]||'').trim(); if (rs) speCache=JSON.parse(rs); } catch(e) {}
     orders.push({ rowIndex:i+1, sheetRow:i, email:email, repName:String(row[OL.REP_NAME]||'').trim(),
@@ -1026,7 +1029,7 @@ function readPayrollOrders(ss, officeId, payrollMode) {
       dateOfSale:saleDate.toISOString().split('T')[0], air:Number(row[OL.AIR])||0,
       cell:Number(row[OL.CELL])||0, fiber:Number(row[OL.FIBER])||0, voip:Number(row[OL.VOIP_QTY])||0,
       units:Number(row[OL.UNITS])||0, status:String(row[OL.STATUS]||'Pending').trim(),
-      notes:String(row[OL.NOTES]||'').trim(), paidOut:paidOut,
+      notes:String(row[OL.NOTES]||'').trim(), paidOut:paidOut, payType:payType,
       orderChannel:String(row[OL.ORDER_CHANNEL]||'Sara').trim(), codesUsedBy:codesUsedBy, speCache:speCache });
   }
   var tableauSummary=getTableauSummaryWithCache(ss,officeId); var dsiSummary=tableauSummary.dsiSummary||{};
