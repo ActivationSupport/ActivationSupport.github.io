@@ -50,7 +50,10 @@ var APPT_HEADERS = [
   //   source      — 'rep' (default) | 'customer'
   //   cancelToken — random per-appointment token powering self-service
   //                 cancel/reschedule links in the customer's email
-  'source','cancelToken'
+  'source','cancelToken',
+  // Google Calendar two-way sync (append-only): id of the event pushed onto the
+  // activator's calendar for this appointment, so cancel/reschedule can sync it.
+  'calEventId'
 ];
 
 var SCHED_HEADERS = [
@@ -546,6 +549,9 @@ function getAvailableSlots(activatorEmail, dateStr, excludeAppointmentId, allowS
 
   var slots  = _generateSlots(daySched.start, daySched.end);
   var blocks = getActivatorBlocks(email).filter(function(b) { return String(b.date) === dateStr; });
+  // Two-way calendar: the activator's external Google Calendar events also block
+  // slots (times only). Unlinked activators contribute nothing here.
+  blocks = blocks.concat(_getCalendarBlocks(email, dateStr));
 
   slots = slots.filter(function(s) { return !booked[s]; });
   slots = slots.filter(function(s) { return !_isSlotBlocked(s, blocks); });
@@ -659,6 +665,116 @@ function _isSlotBlocked(slot, blocks) {
   return false;
 }
 
+// ── Google Calendar two-way sync ──────────────────────────────────────────────
+// Activators link by sharing their personal Google Calendar with THIS backend's
+// owner account (activationsupport.bookings) at "Make changes to events". Then:
+//   • READ  — every event on their calendar that day blocks the overlapping slot
+//             (times only; we never read titles/details). Events they've DECLINED
+//             are skipped; all-day events block the whole day.
+//   • WRITE — a booked activation is pushed onto their calendar as
+//             "Activation Appointment – <Office>"; cancel removes it, reschedule
+//             moves it. The event id is stored on the appointment row (col 22).
+// Not linked → getCalendarById returns null and every call silently no-ops, so
+// unlinked activators behave exactly as before.
+
+function _hmToMin(hm)  { var p = String(hm).split(':'); return Number(p[0]) * 60 + Number(p[1]); }
+function _minToHm(min) { return _pad(Math.floor(min / 60)) + ':' + _pad(min % 60); }
+
+// The activator's scheduling timezone (their schedule's tz, else the script tz).
+function _activatorTz(email) {
+  return getActivatorSchedule(email).timezone || Session.getScriptTimeZone();
+}
+
+// Absolute Date for `dateStr` at `minutes` past midnight, as read in `tz`.
+// Offset-correction: render a UTC guess in tz, measure the gap, shift by it.
+// DST-safe for business hours (the guess sits the same day as the result).
+function _localDateTime(dateStr, minutes, tz) {
+  var hhmm  = _minToHm(minutes);
+  var guess = new Date(dateStr + 'T' + hhmm + ':00Z');                  // treat as UTC
+  var shown = Utilities.formatDate(guess, tz, "yyyy-MM-dd'T'HH:mm:ss"); // what tz shows
+  var delta = new Date(dateStr + 'T' + hhmm + ':00').getTime() - new Date(shown).getTime();
+  return new Date(guess.getTime() + delta);
+}
+
+function _bustCalCache(email, dateStr) {
+  try { CacheService.getScriptCache().remove('calblk_' + String(email).trim().toLowerCase() + '_' + dateStr); }
+  catch (e) {}
+}
+
+// The activator's external Google Calendar events for dateStr, as block objects
+// ({allDay:true} or {startTime,endTime}) compatible with _isSlotBlocked. Cached
+// ~45s so the Next-Available roster loop doesn't re-hit the Calendar API per call.
+function _getCalendarBlocks(activatorEmail, dateStr) {
+  var email = String(activatorEmail || '').trim().toLowerCase();
+  if (!email || !dateStr) return [];
+  var ckey  = 'calblk_' + email + '_' + dateStr;
+  var cache = CacheService.getScriptCache();
+  var hit   = cache.get(ckey);
+  if (hit !== null) { try { return JSON.parse(hit); } catch (e) {} }
+
+  var blocks = [];
+  try {
+    var cal = CalendarApp.getCalendarById(email);
+    if (cal) {
+      var tz       = _activatorTz(email);
+      var dayStart = new Date(dateStr + 'T00:00:00');
+      var dayEnd   = new Date(dateStr + 'T23:59:59');
+      // Pad the query window ±12h so events near local midnight / across timezones
+      // are still caught, then we filter precisely in the activator's tz below.
+      var events = cal.getEvents(new Date(dayStart.getTime() - 432e5),
+                                 new Date(dayEnd.getTime()   + 432e5));
+      for (var i = 0; i < events.length; i++) {
+        var ev = events[i];
+        try { if (ev.getMyStatus() === CalendarApp.GuestStatus.NO) continue; } catch (e) {}  // skip declined
+        if (ev.isAllDayEvent()) {
+          var s  = Utilities.formatDate(ev.getAllDayStartDate(), tz, 'yyyy-MM-dd');
+          var e2 = Utilities.formatDate(ev.getAllDayEndDate(),   tz, 'yyyy-MM-dd');  // exclusive end
+          if (dateStr >= s && dateStr < e2) blocks.push({ allDay: true });
+          continue;
+        }
+        var dS = Utilities.formatDate(ev.getStartTime(), tz, 'yyyy-MM-dd');
+        var dE = Utilities.formatDate(ev.getEndTime(),   tz, 'yyyy-MM-dd');
+        if (dateStr < dS || dateStr > dE) continue;                       // event doesn't touch this day
+        var startMin = (dateStr > dS) ? 0    : _hmToMin(Utilities.formatDate(ev.getStartTime(), tz, 'HH:mm'));
+        var endMin   = (dateStr < dE) ? 1440 : _hmToMin(Utilities.formatDate(ev.getEndTime(),   tz, 'HH:mm'));
+        if (endMin > startMin) blocks.push({ startTime: _minToHm(startMin), endTime: _minToHm(endMin) });
+      }
+    }
+  } catch (err) { Logger.log('Calendar read error for ' + email + ': ' + err); }
+  cache.put(ckey, JSON.stringify(blocks), 45);
+  return blocks;
+}
+
+// Pushes an activation onto the activator's calendar. Returns the event id (or '').
+function _createCalendarEvent(activatorEmail, dateStr, timeSlot, office) {
+  var email = String(activatorEmail || '').trim().toLowerCase();
+  if (!email || !dateStr || !timeSlot) return '';
+  try {
+    var cal = CalendarApp.getCalendarById(email);
+    if (!cal) return '';
+    var tz    = _activatorTz(email);
+    var start = _localDateTime(dateStr, _hmToMin(timeSlot), tz);
+    var end   = _localDateTime(dateStr, _hmToMin(timeSlot) + SLOT_MINS, tz);
+    var ev    = cal.createEvent('Activation Appointment – ' + _capitalize(office), start, end);
+    _bustCalCache(email, dateStr);
+    return ev.getId() || '';
+  } catch (err) { Logger.log('createCalendarEvent error for ' + email + ': ' + err); return ''; }
+}
+
+// Removes a pushed activation event from the activator's calendar.
+function _deleteCalendarEvent(activatorEmail, calEventId, dateStr) {
+  var email = String(activatorEmail || '').trim().toLowerCase();
+  var id    = String(calEventId || '').trim();
+  if (!email || !id) return;
+  try {
+    var cal = CalendarApp.getCalendarById(email);
+    if (!cal) return;
+    var ev = cal.getEventById(id);
+    if (ev) ev.deleteEvent();
+    if (dateStr) _bustCalCache(email, dateStr);
+  } catch (err) { Logger.log('deleteCalendarEvent error for ' + email + ': ' + err); }
+}
+
 // ── Formula-injection guard (Phase 2) ────────────────────────────────────────
 // Customer free-text (name, phone, email, services, DSI) lands in a sheet that
 // staff later open. A value beginning with = + - @ (or a tab/CR that Sheets may
@@ -766,6 +882,13 @@ function bookAppointment(body) {
   sheet.appendRow(row);
   _bustCache(APPT_TAB);
 
+  // Two-way calendar: push this activation onto the activator's Google Calendar
+  // (if linked) and remember the event id on the row so cancel/reschedule sync.
+  try {
+    var calEventId = _createCalendarEvent(activatorEmail, date, timeSlot, office);
+    if (calEventId) sheet.getRange(sheet.getLastRow(), 22).setValue(calEventId);
+  } catch (err) { Logger.log('Calendar push error: ' + err); }
+
   try {
     _sendConfirmation({
       appointmentId:  appointmentId,
@@ -867,6 +990,9 @@ function cancelAppointment(body) {
       return { error: 'not authorized to cancel this appointment' };
     sheet.getRange(i + 1, 13).setValue('cancelled'); // column M
     _bustCache(APPT_TAB);
+    // Two-way calendar: remove the pushed event from the activator's calendar.
+    try { _deleteCalendarEvent(String(data[i][1]), String(data[i][21] || ''), _normDateCell(data[i][9])); }
+    catch (err) { Logger.log('Calendar cancel sync error: ' + err); }
     return { ok: true };
   }
   return { error: 'appointment not found' };
@@ -883,6 +1009,8 @@ function deleteAppointment(body) {
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() !== id) continue;
+    try { _deleteCalendarEvent(String(data[i][1]), String(data[i][21] || ''), _normDateCell(data[i][9])); }
+    catch (err) { Logger.log('Calendar delete sync error: ' + err); }
     sheet.deleteRow(i + 1);
     _bustCache(APPT_TAB);
     return { ok: true };
@@ -981,6 +1109,14 @@ function rescheduleAppointment(body) {
     sheet.getRange(rowNum, 11).setValue(newSlot);    // timeSlot
     sheet.getRange(rowNum, 15).setValue(false);      // rem24hSent — re-arm reminder
     _bustCache(APPT_TAB);
+
+    // Two-way calendar: the activator and/or time may have changed, so remove the
+    // old pushed event and create a fresh one, storing the new id on the row.
+    try {
+      _deleteCalendarEvent(String(r[1]), String(r[21] || ''), _normDateCell(r[9]));
+      var movedCalId = _createCalendarEvent(activator, newDate, newSlot, String(r[11]).trim());
+      sheet.getRange(rowNum, 22).setValue(movedCalId || '');
+    } catch (err) { Logger.log('Calendar reschedule sync error: ' + err); }
 
     try {
       _sendMoved({
