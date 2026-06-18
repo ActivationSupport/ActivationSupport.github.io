@@ -1583,6 +1583,40 @@ var DAILY_REPORT_TZ = 'America/Los_Angeles';
 // ~6:05pm PT = the 6pm trigger did not fire. Set '' to disable the heartbeat.
 var DAILY_REPORT_HEARTBEAT_TO = 'gavonfuller2024@gmail.com';
 
+// Per-office Daily Report branding (colors sampled from each office's real logo;
+// see memory reference-office-branding). band = logo-strip background, header =
+// title-bar bg, accent = section borders / glance bar, accentText = readable
+// section-header text, logo = file under dashboard/assets, logoH = render height.
+var DAILY_REPORT_ASSET_BASE = 'https://activationsupport.github.io/dashboard/assets/';
+var OFFICE_BRAND = {
+  elevate:  { band:'#ffffff', header:'#0B2E9C', headerText:'#ffffff', headerSub:'#c7d2f0', accent:'#0B2E9C', accentText:'#0B2E9C', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
+  midspire: { band:'#ffffff', header:'#0E7BD4', headerText:'#ffffff', headerSub:'#d7ecfb', accent:'#0E7BD4', accentText:'#0b5a9c', logo:'midspire-logo-full.png',           logoH:38 },
+  viridian: { band:'#0F5132', header:'#0F5132', headerText:'#E7C66B', headerSub:'#cfe6d8', accent:'#C9A23C', accentText:'#0F5132', logo:'viridian-logo-full.png',           logoH:54 },
+  ignite:   { band:'#ffffff', header:'#C8102E', headerText:'#ffffff', headerSub:'#f7cdd3', accent:'#C8102E', accentText:'#a51325', logo:'ignite-logo-full.png',             logoH:40 }
+};
+function _drBrand(officeId) {
+  return OFFICE_BRAND[String(officeId||'').toLowerCase()] ||
+    { band:'#0f2740', header:'#0f2740', headerText:'#ffffff', headerSub:'#9fb4c7', accent:'#0f2740', accentText:'#0f2740', logo:'', logoH:40 };
+}
+// Upgrade the report's external logo <img> to an inline (cid) image so it always
+// shows in Gmail without "display images". Fetches the asset from the public site;
+// on any failure (e.g. asset not yet live) it silently leaves the external URL.
+// Mutates the GmailApp options object in place.
+function _drInlineLogo(opts, officeId) {
+  var BR = _drBrand(officeId);
+  if (!BR.logo || !opts || !opts.htmlBody) return;
+  var url = DAILY_REPORT_ASSET_BASE + BR.logo;
+  if (opts.htmlBody.indexOf(url) === -1) return;
+  try {
+    var resp = UrlFetchApp.fetch(url, { muteHttpExceptions:true, followRedirects:true });
+    if (resp.getResponseCode() === 200) {
+      opts.inlineImages = opts.inlineImages || {};
+      opts.inlineImages.drlogo = resp.getBlob().setName('drlogo');
+      opts.htmlBody = opts.htmlBody.split(url).join('cid:drlogo');
+    }
+  } catch(e) { /* external URL stays as the fallback */ }
+}
+
 // Trigger handler: generates today's report fresh per office and emails the
 // branded HTML (same layout as the in-portal "Copy for Email"). Skips weekends.
 // Sends from whichever Google account owns/authorizes this script — set that to
@@ -1606,9 +1640,11 @@ function runDailyReportEmails() {
       generateDailyReport(ss, officeId, todayStr);           // fresh today
       var rpt = readDailyReport(ss, officeId, todayStr);
       if (!rpt) throw new Error('no report generated');
-      var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr);
+      var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr, officeId);
       var subject = officeName + ' — Daily Report — ' + Utilities.formatDate(new Date(todayStr+'T12:00:00'), DAILY_REPORT_TZ, 'EEE, MMM d');
-      GmailApp.sendEmail(to.join(','), subject, 'This report is best viewed in an HTML-capable email client.', { htmlBody: html, name: 'Activation Support' });
+      var opts = { htmlBody: html, name: 'Activation Support' };
+      _drInlineLogo(opts, officeId);
+      GmailApp.sendEmail(to.join(','), subject, 'This report is best viewed in an HTML-capable email client.', opts);
       sent.push(officeName);
     } catch(e) {
       Logger.log('runDailyReportEmails '+officeId+': '+e.message);
@@ -1667,8 +1703,10 @@ function sendDailyReportEmailTest(officeId) {
   var rpt = readDailyReport(ss, officeId, todayStr);
   if (!rpt) return { error:'no report for '+officeId };
   var officeName = DAILY_REPORT_OFFICE_NAME[officeId] || officeId;
-  var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr);
-  GmailApp.sendEmail('gavonfuller2024@gmail.com', '[TEST] '+officeName+' — Daily Report — '+Utilities.formatDate(new Date(todayStr+'T12:00:00'), DAILY_REPORT_TZ, 'EEE, MMM d'), 'This report is best viewed in an HTML-capable email client.', { htmlBody: html, name: 'Activation Support' });
+  var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr, officeId);
+  var opts = { htmlBody: html, name: 'Activation Support' };
+  _drInlineLogo(opts, officeId);
+  GmailApp.sendEmail('gavonfuller2024@gmail.com', '[TEST] '+officeName+' — Daily Report — '+Utilities.formatDate(new Date(todayStr+'T12:00:00'), DAILY_REPORT_TZ, 'EEE, MMM d'), 'This report is best viewed in an HTML-capable email client.', opts);
   return { ok:true, office:officeId, sentTo:'gavonfuller2024@gmail.com' };
 }
 
@@ -1684,7 +1722,7 @@ function previewDailyReportToDrive(officeId) {
   var rpt = readDailyReport(ss, officeId, todayStr);
   if (!rpt) return { error:'no report for '+officeId };
   var officeName = DAILY_REPORT_OFFICE_NAME[officeId] || officeId;
-  var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr);
+  var html = _buildDailyReportEmailHtml(rpt, officeName, todayStr, officeId);
   var file = DriveApp.createFile('DailyReportPreview-'+officeId+'-'+todayStr+'.html', html, MimeType.HTML);
   var url = file.getUrl();
   Logger.log('Preview ('+officeId+'): '+url);
@@ -1693,8 +1731,10 @@ function previewDailyReportToDrive(officeId) {
 
 // Server-side port of the front-end "Copy for Email" report (_drBuildEmailHtml).
 // rpt = the saved report object; officeName = display name; dateStr = yyyy-MM-dd.
-function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
+function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
   if (!rpt) return '';
+  var BR = _drBrand(officeId);
+  var logoUrl = BR.logo ? (DAILY_REPORT_ASSET_BASE + BR.logo) : '';
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   var MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1710,7 +1750,7 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
   var TH='padding:7px 10px;background:#f8fafc;color:#475569;font-weight:700;text-align:left;white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e2e8f0';
   var TD='padding:8px 10px;color:#1e293b;vertical-align:top;border-bottom:1px solid #e2e8f0';
   var TDG='padding:8px 10px;background:#eef4fb;font-weight:700;color:#0f172a;vertical-align:top;border-bottom:1px solid #e2e8f0';
-  var SEC='background:#e7eef6;color:#0f2740;font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-left:4px solid #0f2740;border-radius:0 5px 5px 0;margin:0';
+  var SEC='background:#f2f5f8;color:'+BR.accentText+';font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-left:4px solid '+BR.accent+';border-radius:0 5px 5px 0;margin:0';
   var SUB='font-size:12px;font-weight:700;color:#1e293b;padding:6px 10px;background:#eef2f7;border-left:3px solid #94a3b8;border-radius:4px;margin:14px 0 7px';
   var ZEB='background:#f4f7fa';
   var BADGE='padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;white-space:nowrap;display:inline-block';
@@ -1807,7 +1847,7 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
   if (eAp.scheduled&&eAp.scheduled.total) glParts.push('<b>'+(eSc.completed||0)+'</b> appt'+((eSc.completed||0)===1?'':'s')+' completed'+(eSc.noShow?', <b>'+eSc.noShow+'</b> no-show':''));
   var gAttn=(cats.noAnswerTotal||0)+(cats.escalationTotal||0);
   if (gAttn) glParts.push('<b>'+gAttn+'</b> item'+(gAttn===1?'':'s')+' need attention');
-  var glanceSec='<div style="font-size:13px;line-height:1.5;color:#1e293b;background:#eff6ff;border:1px solid #bfdbfe;border-left:3px solid #2563eb;border-radius:0 7px 7px 0;padding:10px 14px">'+glParts.join(' &nbsp;&middot;&nbsp; ')+'</div>';
+  var glanceSec='<div style="font-size:13px;line-height:1.5;color:#1e293b;background:#f6f8fb;border:1px solid #e2e8f0;border-left:3px solid '+BR.accent+';border-radius:0 7px 7px 0;padding:10px 14px">'+glParts.join(' &nbsp;&middot;&nbsp; ')+'</div>';
 
   var actSec='';
   if ((eAct.list||[]).length) {
@@ -1848,10 +1888,14 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr) {
   var officeNm=officeName||'';
   var __html='<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#fff">'+
     '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;background:#fff;max-width:960px;margin:0 auto;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden">'+
-    '<div style="background:#0f2740;color:#fff;padding:15px 20px">'+
-      (officeNm?'<div style="font-size:18px;font-weight:800;letter-spacing:.02em">'+esc(officeNm)+'</div>':'')+
-      '<div style="font-size:14px;font-weight:600;margin-top:'+(officeNm?'2px':'0')+'">📋 Daily Call Report</div>'+
-      '<div style="font-size:12px;color:#9fb4c7;margin-top:3px">'+esc(dayLabel)+' &nbsp;&middot;&nbsp; Generated '+fmtTs(rpt.generatedAt)+'</div>'+
+    (logoUrl
+      ? '<div style="background:'+BR.band+';text-align:center;padding:16px 20px'+(BR.band==='#ffffff'?';border-bottom:1px solid #eef1f5':'')+'">'+
+          '<img src="'+logoUrl+'" alt="'+esc(officeNm)+'" style="max-height:'+BR.logoH+'px;max-width:240px;vertical-align:middle">'+
+        '</div>'
+      : '')+
+    '<div style="background:'+BR.header+';padding:13px 22px">'+
+      '<div style="font-size:15px;font-weight:700;color:'+BR.headerText+'">📋 Daily Call Report'+((!logoUrl&&officeNm)?' &middot; '+esc(officeNm):'')+'</div>'+
+      '<div style="font-size:12px;color:'+BR.headerSub+';margin-top:3px">'+esc(dayLabel)+' &nbsp;&middot;&nbsp; Generated '+fmtTs(rpt.generatedAt)+'</div>'+
     '</div>'+
     '<div style="padding:18px 22px">'+
     '<div style="margin-bottom:14px">'+glanceSec+'</div>'+
