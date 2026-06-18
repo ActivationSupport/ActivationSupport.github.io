@@ -1117,6 +1117,8 @@ function applyOfficeTheme(officeId) {
   r.setProperty('--sidebar-bg', t.sidebar || '#111827');
   r.setProperty('--blue2-fade', _hexToRgba(t.accent, 0.14));
   r.setProperty('--blue2-faint', _hexToRgba(t.accent, 0.06));
+  var ls = document.getElementById('login-screen');
+  if (ls) ls.style.background = 'radial-gradient(ellipse at center, '+t.glow+' 0%, #111 65%)';
 }
 // hex (#rgb or #rrggbb) → rgba() string at the given alpha.
 function _hexToRgba(hex, a) {
@@ -1124,8 +1126,6 @@ function _hexToRgba(hex, a) {
   if (hex.length === 3) hex = hex.split('').map(function(c){return c+c;}).join('');
   var n = parseInt(hex, 16);
   return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
-  var ls = document.getElementById('login-screen');
-  if (ls) ls.style.background = 'radial-gradient(ellipse at center, '+t.glow+' 0%, #111 65%)';
 }
 // .full = wordmark for the dark UI (Ignite uses its white "reverse" version so
 // its dark "SOLUTIONS" text stays legible). .emblem = small symbol for switcher.
