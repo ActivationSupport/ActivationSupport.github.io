@@ -736,6 +736,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-cell-offwindow{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 6px,rgba(255,255,255,.018) 6px,rgba(255,255,255,.018) 12px);color:#2c2c2c;cursor:default;font-size:.9rem}
 /* Calendar/manual-block conflict — slot exists but is unavailable (greyed + hatched + 🔒) */
 .appt-cell-blocked{background:repeating-linear-gradient(45deg,rgba(200,70,50,.06),rgba(200,70,50,.06) 6px,rgba(200,70,50,.14) 6px,rgba(200,70,50,.14) 12px);color:#8a8a8a;cursor:not-allowed;font-size:.82rem;display:flex;align-items:center;justify-content:center}
+.appt-xoffice-logo{width:24px;height:24px;object-fit:contain;pointer-events:none}
 /* Customer booking link panel (top of the Appointments tab) */
 .appt-booklink{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:14px}
 .appt-booklink-label{font-weight:700;font-size:.82rem;color:var(--blue2);white-space:nowrap}
@@ -5758,6 +5759,21 @@ var _APPT = { activators:null, appointments:null, weekOffset:0, dayOffset:0, vie
 // activator's in-schedule slots that are unavailable (Google Calendar conflict,
 // manual block, or buffer/cap) so blocked cells can render as 🔒 unavailable.
 function _apptBlocked(email, ds, slot){ var m=_APPT.blocked[email+'|'+ds]; return (m && m[slot]) || ''; }
+// Cross-office cell styling: each booking office's brand color + small logo
+// (Ignite = their red, Viridian = their green). Parsed from the "Booked — <Office>"
+// label; calendar/manual blocks have no office → generic red-hatch 🔒.
+var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', ignite:'#C8102E', viridian:'#2E7A4E' };
+var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', ignite:'ignite-logo-symbol.png', viridian:'viridian-logo-full.png' };
+function _apptBlockOffice(label){
+  if(!label || label.indexOf('Booked')!==0) return '';
+  var p=label.split('—'); if(p.length<2) return '';
+  var oid=p[1].trim().toLowerCase();
+  return OFFICE_BOOK_TINT[oid] ? oid : '';
+}
+function _apptXofficeCell(label, oid){
+  var c=OFFICE_BOOK_TINT[oid];
+  return '<div class="appt-cal-cell appt-cell-blocked" style="background:'+_hexToRgba(c,.22)+';box-shadow:inset 3px 0 0 '+c+'" title="'+esc(label)+'"><img class="appt-xoffice-logo" src="assets/'+OFFICE_BOOK_LOGO[oid]+'" alt=""></div>';
+}
 function _apptLoadBlocks(dates){
   var win=_apptWindow();
   var need=dates.filter(function(d){ return d>=win.min && d<=win.max && !_APPT.blockedLoaded[d]; });
@@ -6075,7 +6091,9 @@ function _apptCalGrid(appts, acts, ws) {
         } else if(offWin){
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
         } else if(_apptBlocked(fe,ds,slot)){
-          html+='<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_apptBlocked(fe,ds,slot))+'">🔒</div>';
+          var _bl=_apptBlocked(fe,ds,slot), _oid=_apptBlockOffice(_bl);
+          html+= _oid ? _apptXofficeCell(_bl,_oid)
+                      : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">🔒</div>';
         } else if(availAt(ds,slot)){
           html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+slot+'\')">'+
             '<span class="appt-avail-plus">+</span> Book</div>';
@@ -6220,7 +6238,9 @@ function _apptAllActGrid(appts, acts, dStr){
       } else if(offWin){
         html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
       } else if(inSched && _apptBlocked(a.email,dStr,slot)){
-        html+='<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_apptBlocked(a.email,dStr,slot))+'">🔒</div>';
+        var _bl=_apptBlocked(a.email,dStr,slot), _oid=_apptBlockOffice(_bl);
+        html+= _oid ? _apptXofficeCell(_bl,_oid)
+                    : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">🔒</div>';
       } else if(inSched){
         html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+dStr+'\',\''+esc(a.email)+'\',\''+slot+'\')"><span class="appt-avail-plus">+</span> Book</div>';
       } else {
