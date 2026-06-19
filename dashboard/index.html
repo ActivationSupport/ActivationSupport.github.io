@@ -734,6 +734,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-status-cancelled{color:var(--red);font-weight:600;font-size:.75rem;text-decoration:line-through}
 /* Phase 1: out-of-window (un-bookable) calendar cells — tonal, not interactive */
 .appt-cell-offwindow{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 6px,rgba(255,255,255,.018) 6px,rgba(255,255,255,.018) 12px);color:#2c2c2c;cursor:default;font-size:.9rem}
+/* Calendar/manual-block conflict — slot exists but is unavailable (greyed + hatched + 🔒) */
+.appt-cell-blocked{background:repeating-linear-gradient(45deg,rgba(200,70,50,.06),rgba(200,70,50,.06) 6px,rgba(200,70,50,.14) 6px,rgba(200,70,50,.14) 12px);color:#8a8a8a;cursor:not-allowed;font-size:.82rem;display:flex;align-items:center;justify-content:center}
 /* Phase 1: appointment outcome badges + controls */
 .appt-outcome{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;text-transform:capitalize}
 .appt-outcome-completed{background:rgba(39,174,96,.16);color:#52c785}
@@ -5740,7 +5742,30 @@ function _lstRepChurnHtml(tableauName) {
 }
 
 // ── APPOINTMENTS ─────────────────────────────────────────────────────────
-var _APPT = { activators:null, appointments:null, weekOffset:0, dayOffset:0, viewMode:'week', filterEmail:'', loading:false };
+var _APPT = { activators:null, appointments:null, weekOffset:0, dayOffset:0, viewMode:'week', filterEmail:'', loading:false, blocked:{}, blockedLoaded:{} };
+
+// Calendar/manual-block awareness for the grid. _APPT.blocked is keyed
+// 'email|date' → { slot:true }. The backend (getOfficeBlocks) returns each
+// activator's in-schedule slots that are unavailable (Google Calendar conflict,
+// manual block, or buffer/cap) so blocked cells can render as 🔒 unavailable.
+function _apptBlocked(email, ds, slot){ var m=_APPT.blocked[email+'|'+ds]; return !!(m && m[slot]); }
+function _apptLoadBlocks(dates){
+  var win=_apptWindow();
+  var need=dates.filter(function(d){ return d>=win.min && d<=win.max && !_APPT.blockedLoaded[d]; });
+  if(!need.length) return;
+  need.forEach(function(d){ _APPT.blockedLoaded[d]=true; });   // mark in-flight (avoid duplicate fetches)
+  _apptGet({action:'getOfficeBlocks',officeId:CFG.officeId,dates:need.join(','),role:SESSION.role}).then(function(res){
+    var bl=res.blocks||{};
+    Object.keys(bl).forEach(function(email){
+      var byDate=bl[email]||{};
+      Object.keys(byDate).forEach(function(d){
+        var m={}; (byDate[d]||[]).forEach(function(s){ m[s]=true; });
+        _APPT.blocked[email+'|'+d]=m;
+      });
+    });
+    _apptRerender();
+  }).catch(function(){ /* leave marked-loaded; grid just shows nothing blocked */ });
+}
 
 function _apptGet(params) {
   var p = Object.assign({}, params, { key: API_KEY });
@@ -5897,6 +5922,7 @@ function renderAppointmentsTab() {
   var c = document.getElementById('main-content');
   c.innerHTML = '<div class="empty">Loading appointments…</div>';
   _APPT.loading = true;
+  _APPT.blocked = {}; _APPT.blockedLoaded = {};   // refetch block state on every full load
   var actsP = _APPT.activators ? Promise.resolve({activators:_APPT.activators}) : _apptGet({action:'getActivators',officeId:CFG.officeId});
   var apptP = _apptGet({action:'getAppointments',officeId:CFG.officeId,bookerEmail:SESSION.email,role:SESSION.role});
   Promise.all([actsP, apptP]).then(function(res) {
@@ -5921,6 +5947,10 @@ function _apptBuildView() {
   // Chosen day for Day / All-Activators modes (offset in days from today).
   var dDate = new Date(); dDate.setHours(0,0,0,0); dDate.setDate(dDate.getDate()+(_APPT.dayOffset||0));
   var dStr = _apptDateStr(dDate);
+  // Kick off the block-state fetch for the dates this view shows (lazy; no-ops if
+  // already loaded). On arrival it re-renders so blocked cells flip to 🔒.
+  if (mode==='week') { var _wd=[]; for(var _i=0;_i<7;_i++){var _x=new Date(ws);_x.setDate(ws.getDate()+_i);_wd.push(_apptDateStr(_x));} _apptLoadBlocks(_wd); }
+  else if (mode==='all') { _apptLoadBlocks([dStr]); }
   var label, body;
   if (mode==='week') {
     label = mo[ws.getMonth()]+' '+ws.getDate()+' – '+mo[we.getMonth()]+' '+we.getDate()+', '+we.getFullYear();
@@ -5982,10 +6012,10 @@ function _apptCalGrid(appts, acts, ws) {
     if (fe){
       var sc=_apptDaySched(sMap[fe],dk);
       if(!sc||!_apptSlotInSched(slot,sc.start,sc.end)) return false;
-      return !slotAppts.some(function(a){return a.activatorEmail===fe;});
+      return !slotAppts.some(function(a){return a.activatorEmail===fe;}) && !_apptBlocked(fe,ds,slot);
     }
     if (slotAppts.length>0) return false;
-    return Object.keys(sMap).some(function(em){var s=_apptDaySched(sMap[em],dk);return s&&_apptSlotInSched(slot,s.start,s.end);});
+    return Object.keys(sMap).some(function(em){var s=_apptDaySched(sMap[em],dk);return s&&_apptSlotInSched(slot,s.start,s.end)&&!_apptBlocked(em,ds,slot);});
   }
   var availCount=[0,0,0,0,0,0,0];
   for (var di=0;di<7;di++){ slots.forEach(function(slot){ if(availAt(dates[di],slot)) availCount[di]++; }); }
@@ -6016,6 +6046,8 @@ function _apptCalGrid(appts, acts, ws) {
             '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(mine.services)+'<span class="appt-dev-badge">×'+(mine.deviceCount||1)+'</span></div></div>';
         } else if(offWin){
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
+        } else if(_apptBlocked(fe,ds,slot)){
+          html+='<div class="appt-cal-cell appt-cell-blocked" title="Unavailable — calendar conflict">🔒</div>';
         } else if(availAt(ds,slot)){
           html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+slot+'\')">'+
             '<span class="appt-avail-plus">+</span> Book</div>';
@@ -6159,6 +6191,8 @@ function _apptAllActGrid(appts, acts, dStr){
           '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(ap.services)+'<span class="appt-dev-badge">×'+(ap.deviceCount||1)+'</span></div></div>';
       } else if(offWin){
         html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
+      } else if(inSched && _apptBlocked(a.email,dStr,slot)){
+        html+='<div class="appt-cal-cell appt-cell-blocked" title="Unavailable — calendar conflict">🔒</div>';
       } else if(inSched){
         html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+dStr+'\',\''+esc(a.email)+'\',\''+slot+'\')"><span class="appt-avail-plus">+</span> Book</div>';
       } else {
