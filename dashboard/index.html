@@ -5757,7 +5757,7 @@ var _APPT = { activators:null, appointments:null, weekOffset:0, dayOffset:0, vie
 // 'email|date' → { slot:true }. The backend (getOfficeBlocks) returns each
 // activator's in-schedule slots that are unavailable (Google Calendar conflict,
 // manual block, or buffer/cap) so blocked cells can render as 🔒 unavailable.
-function _apptBlocked(email, ds, slot){ var m=_APPT.blocked[email+'|'+ds]; return !!(m && m[slot]); }
+function _apptBlocked(email, ds, slot){ var m=_APPT.blocked[email+'|'+ds]; return (m && m[slot]) || ''; }
 function _apptLoadBlocks(dates){
   var win=_apptWindow();
   var need=dates.filter(function(d){ return d>=win.min && d<=win.max && !_APPT.blockedLoaded[d]; });
@@ -5767,10 +5767,7 @@ function _apptLoadBlocks(dates){
     var bl=res.blocks||{};
     Object.keys(bl).forEach(function(email){
       var byDate=bl[email]||{};
-      Object.keys(byDate).forEach(function(d){
-        var m={}; (byDate[d]||[]).forEach(function(s){ m[s]=true; });
-        _APPT.blocked[email+'|'+d]=m;
-      });
+      Object.keys(byDate).forEach(function(d){ _APPT.blocked[email+'|'+d]=byDate[d]||{}; });
     });
     _apptRerender();
   }).catch(function(){ /* leave marked-loaded; grid just shows nothing blocked */ });
@@ -6078,7 +6075,7 @@ function _apptCalGrid(appts, acts, ws) {
         } else if(offWin){
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
         } else if(_apptBlocked(fe,ds,slot)){
-          html+='<div class="appt-cal-cell appt-cell-blocked" title="Unavailable — calendar conflict">🔒</div>';
+          html+='<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_apptBlocked(fe,ds,slot))+'">🔒</div>';
         } else if(availAt(ds,slot)){
           html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+slot+'\')">'+
             '<span class="appt-avail-plus">+</span> Book</div>';
@@ -6223,7 +6220,7 @@ function _apptAllActGrid(appts, acts, dStr){
       } else if(offWin){
         html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
       } else if(inSched && _apptBlocked(a.email,dStr,slot)){
-        html+='<div class="appt-cal-cell appt-cell-blocked" title="Unavailable — calendar conflict">🔒</div>';
+        html+='<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_apptBlocked(a.email,dStr,slot))+'">🔒</div>';
       } else if(inSched){
         html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+dStr+'\',\''+esc(a.email)+'\',\''+slot+'\')"><span class="appt-avail-plus">+</span> Book</div>';
       } else {
