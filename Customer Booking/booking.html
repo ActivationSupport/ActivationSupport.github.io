@@ -8,19 +8,22 @@
     --bg:#0c1116; --panel:#141b23; --panel2:#1b242e; --line:#26313d;
     --text:#e8eef4; --text2:#9fb0c0; --muted:#6f8296;
     --accent:#27a8e0; --accent2:#4ab8ee; --accentdim:#16384a;
+    --accent-deep:#1c7aa8; --on-accent:#fff; --glow:#16222e;
     --green:#3ecf8e; --greendim:#123226; --red:#ef6b6b;
     --radius:14px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:radial-gradient(1200px 600px at 50% -10%,#16222e 0%,var(--bg) 55%);
+    background:radial-gradient(1200px 600px at 50% -10%,var(--glow) 0%,var(--bg) 55%);
     color:var(--text);min-height:100vh;line-height:1.45;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:540px;margin:0 auto;padding:22px 16px 60px}
+  .wm{position:fixed;inset:0;z-index:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+  .wm img{width:min(72vw,520px);opacity:.06}
+  .wrap{max-width:540px;margin:0 auto;padding:22px 16px 60px;position:relative;z-index:1}
   .head{display:flex;align-items:center;gap:13px;margin-bottom:20px}
-  .logo{width:46px;height:46px;border-radius:12px;flex:0 0 auto;
-    background:linear-gradient(135deg,var(--accent),#1b6f9b);
-    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;
-    box-shadow:0 4px 14px rgba(39,168,224,.35)}
+  .logo{width:46px;height:46px;border-radius:12px;flex:0 0 auto;overflow:hidden;
+    background:var(--panel2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:var(--accent2)}
+  .logo img{width:36px;height:36px;object-fit:contain}
   .head h1{font-size:17px;font-weight:750;letter-spacing:.2px}
   .head p{font-size:12.5px;color:var(--text2);margin-top:2px}
   .card{background:linear-gradient(180deg,var(--panel),#10171e);border:1px solid var(--line);
@@ -33,7 +36,7 @@
     color:var(--accent2);align-items:center;justify-content:center;font-size:11px;font-weight:800}
   input,select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
     border-radius:10px;padding:12px 13px;font-size:15px;font-family:inherit;outline:none;transition:.15s}
-  input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(39,168,224,.16)}
+  input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentdim)}
   input::placeholder{color:var(--muted)}
   .fld{display:block;margin-bottom:13px}
   .fld:last-child{margin-bottom:0}
@@ -43,7 +46,7 @@
   .slot{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--text);
     border-radius:9px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer;transition:.12s}
   .slot:hover{border-color:var(--accent2)}
-  .slot.sel{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(39,168,224,.4)}
+  .slot.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);box-shadow:0 4px 12px var(--accentdim)}
   .slots-msg{font-size:13px;color:var(--muted);padding:6px 0}
   .prod-list{display:flex;flex-direction:column;gap:9px}
   .prod{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--panel2);
@@ -51,7 +54,7 @@
   .prod.on{border-color:var(--accent);background:var(--accentdim)}
   .prod-tap{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;flex:1;min-width:0}
   .prod-box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--muted);flex:0 0 auto;
-    display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;transition:.12s}
+    display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--on-accent);transition:.12s}
   .prod.on .prod-box{background:var(--accent);border-color:var(--accent)}
   .prod-name{font-size:14.5px;font-weight:600}
   .prod.on .prod-name{color:var(--accent2)}
@@ -61,9 +64,9 @@
     color:var(--text);font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
   .qty button:hover{border-color:var(--accent2)}
   .qty .n{min-width:34px;text-align:center;font-size:15px;font-weight:700}
-  .btn{width:100%;background:linear-gradient(135deg,var(--accent),#1c7aa8);color:#fff;border:none;
+  .btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:var(--on-accent);border:none;
     border-radius:11px;padding:15px;font-size:15.5px;font-weight:750;cursor:pointer;margin-top:6px;
-    transition:.15s;box-shadow:0 8px 22px rgba(39,168,224,.32)}
+    transition:.15s;box-shadow:0 8px 22px var(--accentdim)}
   .btn:hover{filter:brightness(1.07)}
   .btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
   .err{background:rgba(239,107,107,.1);border:1px solid rgba(239,107,107,.4);color:#ffb4b4;
@@ -87,6 +90,7 @@
 </style>
 </head>
 <body>
+<div class="wm"><img id="wm" src="" alt=""></div>
 <div class="wrap">
   <div class="head">
     <div class="logo" id="logo">A</div>
@@ -159,6 +163,25 @@
 <script>
   var OFFICE = "<?= office ?>";
   var OFFICE_NAMES = { elevate:"Elevate", midspire:"Midspire", viridian:"Viridian", ignite:"Ignite" };
+  // Per-office branding (matches the staff portal). Logos are served publicly from
+  // the GitHub Pages site; the accent recolors the whole page, the logo also sits
+  // as a faint watermark behind the card.
+  var BASE_ASSET="https://activationsupport.github.io/dashboard/assets/";
+  var THEMES={
+    elevate:  {accent:'#3D5BFF',accent2:'#7088FF',dim:'#19224d',deep:'#1F2DAE',on:'#ffffff',glow:'#1b2552',logo:'elevate-logo-symbol-only-blue.png'},
+    midspire: {accent:'#4FB0FF',accent2:'#80C8FF',dim:'#123047',deep:'#1E78C4',on:'#06243b',glow:'#143650',logo:'midspire-logo-symbol.png'},
+    ignite:   {accent:'#F0431E',accent2:'#FF6E4D',dim:'#3a160e',deep:'#B02C12',on:'#ffffff',glow:'#3a190f',logo:'ignite-logo-symbol.png'},
+    viridian: {accent:'#D9C87E',accent2:'#E8DBA6',dim:'#2b2a18',deep:'#A98F45',on:'#1b2814',glow:'#27301d',logo:'viridian-logo-full.png'}
+  };
+  function applyTheme(o){
+    var t=THEMES[o]; if(!t) return;
+    var r=document.documentElement.style;
+    r.setProperty('--accent',t.accent); r.setProperty('--accent2',t.accent2);
+    r.setProperty('--accentdim',t.dim); r.setProperty('--accent-deep',t.deep);
+    r.setProperty('--on-accent',t.on); r.setProperty('--glow',t.glow);
+    var wm=document.getElementById('wm'); if(wm) wm.src=BASE_ASSET+t.logo;
+    var lg=document.getElementById('logo'); if(lg) lg.innerHTML='<img src="'+BASE_ASSET+t.logo+'" alt="">';
+  }
   var PRODUCTS = ["Wireless", "Air", "Fiber - Self Install"];
   var qty = {};            // product name -> quantity (0 = not selected)
   var win = null, selectedSlot = "", loadingSlots = false;
@@ -203,7 +226,7 @@
 
   function init(){
     if(!OFFICE || !OFFICE_NAMES[OFFICE]){ $("form").classList.add("hidden"); $("bad").classList.remove("hidden"); return; }
-    $("logo").textContent = OFFICE_NAMES[OFFICE].charAt(0);
+    applyTheme(OFFICE);
     $("subhead").textContent = OFFICE_NAMES[OFFICE] + " · Schedule your AT&T activation call";
 
     google.script.run.withSuccessHandler(function(acts){

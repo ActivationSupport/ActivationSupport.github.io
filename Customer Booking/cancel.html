@@ -5,15 +5,18 @@
 <base target="_top" />
 <style>
   :root{--bg:#0c1116;--panel:#141b23;--panel2:#1b242e;--line:#26313d;--text:#e8eef4;--text2:#9fb0c0;
-    --muted:#6f8296;--accent:#27a8e0;--green:#3ecf8e;--greendim:#123226;--red:#ef6b6b;--radius:14px}
+    --muted:#6f8296;--accent:#27a8e0;--accent2:#4ab8ee;--accentdim:#16384a;--accent-deep:#1c7aa8;--on-accent:#fff;--glow:#16222e;--green:#3ecf8e;--greendim:#123226;--red:#ef6b6b;--radius:14px}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:radial-gradient(1200px 600px at 50% -10%,#16222e 0%,var(--bg) 55%);color:var(--text);
+    background:radial-gradient(1200px 600px at 50% -10%,var(--glow) 0%,var(--bg) 55%);color:var(--text);
     min-height:100vh;line-height:1.45}
-  .wrap{max-width:480px;margin:0 auto;padding:30px 16px 60px}
+  .wm{position:fixed;inset:0;z-index:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+  .wm img{width:min(72vw,520px);opacity:.06}
+  .wrap{max-width:480px;margin:0 auto;padding:30px 16px 60px;position:relative;z-index:1}
   .head{display:flex;align-items:center;gap:13px;margin-bottom:20px}
-  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#1b6f9b);
-    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff}
+  .logo{width:46px;height:46px;border-radius:12px;overflow:hidden;background:var(--panel2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:var(--accent2)}
+  .logo img{width:36px;height:36px;object-fit:contain}
   .head h1{font-size:17px;font-weight:750}
   .head p{font-size:12.5px;color:var(--text2);margin-top:2px}
   .card{background:linear-gradient(180deg,var(--panel),#10171e);border:1px solid var(--line);
@@ -44,9 +47,10 @@
 </style>
 </head>
 <body>
+<div class="wm"><img id="wm" src="" alt=""></div>
 <div class="wrap">
   <div class="head">
-    <div class="logo">A</div>
+    <div class="logo" id="logo">A</div>
     <div><h1>Activation Support</h1><p>Cancel your appointment</p></div>
   </div>
 
@@ -78,7 +82,24 @@
 
 <script>
   var TOKEN="<?= token ?>";
+  var OFFICE="<?= office ?>";
   var appt=null;
+  var BASE_ASSET="https://activationsupport.github.io/dashboard/assets/";
+  var THEMES={
+    elevate:  {accent:'#3D5BFF',accent2:'#7088FF',dim:'#19224d',deep:'#1F2DAE',on:'#ffffff',glow:'#1b2552',logo:'elevate-logo-symbol-only-blue.png'},
+    midspire: {accent:'#4FB0FF',accent2:'#80C8FF',dim:'#123047',deep:'#1E78C4',on:'#06243b',glow:'#143650',logo:'midspire-logo-symbol.png'},
+    ignite:   {accent:'#F0431E',accent2:'#FF6E4D',dim:'#3a160e',deep:'#B02C12',on:'#ffffff',glow:'#3a190f',logo:'ignite-logo-symbol.png'},
+    viridian: {accent:'#D9C87E',accent2:'#E8DBA6',dim:'#2b2a18',deep:'#A98F45',on:'#1b2814',glow:'#27301d',logo:'viridian-logo-full.png'}
+  };
+  function applyTheme(o){
+    var t=THEMES[o]; if(!t) return;
+    var r=document.documentElement.style;
+    r.setProperty('--accent',t.accent); r.setProperty('--accent2',t.accent2);
+    r.setProperty('--accentdim',t.dim); r.setProperty('--accent-deep',t.deep);
+    r.setProperty('--on-accent',t.on); r.setProperty('--glow',t.glow);
+    var wm=document.getElementById('wm'); if(wm) wm.src=BASE_ASSET+t.logo;
+    var lg=document.getElementById('logo'); if(lg) lg.innerHTML='<img src="'+BASE_ASSET+t.logo+'" alt="">';
+  }
   function $(id){return document.getElementById(id);}
   function show(id){["loading","invalid","confirm","done"].forEach(function(x){$(x).classList.toggle("hidden",x!==id);});}
   function fmtTime(t){var p=String(t).split(":").map(Number),h=p[0],m=p[1];var ap=h>=12?"PM":"AM",hr=h>12?h-12:(h===0?12:h);return hr+":"+(m<10?"0"+m:m)+" "+ap;}
@@ -86,10 +107,11 @@
   function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):"";}
 
   function init(){
+    applyTheme(OFFICE);
     if(!TOKEN){ show("invalid"); return; }
     google.script.run.withSuccessHandler(function(a){
       if(!a){ show("invalid"); return; }
-      appt=a;
+      appt=a; applyTheme(a.office);
       if(String(a.status).toLowerCase()==="cancelled"){ show("done"); return; }
       $("recap").innerHTML=
         '<div><span class="k">Date</span><span class="v">'+fmtDate(a.date)+'</span></div>'+
