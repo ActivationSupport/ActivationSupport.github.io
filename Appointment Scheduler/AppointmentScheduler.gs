@@ -287,6 +287,7 @@ function doGet(e) {
     if (action === 'getActivators')        return _json({ activators: getActivators(p.officeId || '') });
     if (action === 'getAvailableSlots')    return _json({ slots: getAvailableSlots(p.activatorEmail, p.date, p.excludeId || '', _sameDayAllowed(p.role)) });
     if (action === 'getNextAvailableSlots') return _json({ slots: getNextAvailableSlots(p.officeId || '', p.date, _sameDayAllowed(p.role)) });
+    if (action === 'getOfficeBlocks')      return _json({ blocks: getOfficeBlocks(p.officeId || '', p.dates || '', p.role) });
     if (action === 'getAppointments')      return _json({ appointments: getAppointments(p.officeId, p.bookerEmail, p.role) });
     if (action === 'getActivatorSchedule') return _json({ schedule: getActivatorSchedule(p.email) });
     if (action === 'getActivatorBlocks')   return _json({ blocks: getActivatorBlocks(p.email) });
@@ -589,6 +590,44 @@ function getNextAvailableSlots(officeId, dateStr, allowSameDay) {
   return Object.keys(set).sort();
 }
 
+// Per-office "unavailable" slots for the calendar grid. For each activator/date,
+// returns the in-schedule 1-hr slots that are NOT bookable and NOT already booked
+// — i.e. blocked by a Google Calendar event, a manual block, or a buffer/cap. The
+// portal grid is otherwise client-side + block-blind; this lets it mark those
+// cells. Batched (all activators × the given dates) so it's one call. Out-of-window
+// dates return [] (the grid already shows those as "outside the window").
+function getOfficeBlocks(officeId, datesCsv, role) {
+  var allowSameDay = _sameDayAllowed(role);
+  var dates = String(datesCsv || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  if (!dates.length) return {};
+  var SLOTS   = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00'];
+  var dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
+  var acts = getActivators(officeId || '');
+  var out  = {};
+  acts.forEach(function(a){
+    var email  = String(a.email || '').trim().toLowerCase();
+    var byDate = {};
+    dates.forEach(function(d){
+      if (!_inBookingWindow(d, allowSameDay)) { byDate[d] = []; return; }
+      var sched = getActivatorSchedule(email);
+      var dk    = dayKeys[new Date(d + 'T12:00:00').getDay()];
+      var day   = sched[dk];
+      if (!day || !day.start || !day.end) {
+        if (DEFAULT_HOURS.days.indexOf(dk) === -1) { byDate[d] = []; return; }
+        day = { start: DEFAULT_HOURS.start, end: DEFAULT_HOURS.end };
+      }
+      var availSet = {};
+      getAvailableSlots(email, d, '', allowSameDay).forEach(function(s){ availSet[s] = true; });
+      var booked = _getBookedSlots(email, d, '');
+      byDate[d] = SLOTS.filter(function(s){
+        return _slotInRange(s, day.start, day.end) && !availSet[s] && !booked[s];
+      });
+    });
+    out[email] = byDate;
+  });
+  return out;
+}
+
 // Resolves "Next Available Agent" to a concrete activator for a date+slot.
 // mode 'soonest' (default) = first free in roster order (original behavior).
 // mode 'balance' (Phase 3 #1a, round-robin) = the free activator with the
@@ -679,6 +718,11 @@ function _isSlotBlocked(slot, blocks) {
 
 function _hmToMin(hm)  { var p = String(hm).split(':'); return Number(p[0]) * 60 + Number(p[1]); }
 function _minToHm(min) { return _pad(Math.floor(min / 60)) + ':' + _pad(min % 60); }
+// True if a 1-hour slot starting at `slot` fits entirely within [start,end).
+function _slotInRange(slot, start, end) {
+  var s = _hmToMin(slot), st = _hmToMin(start), en = _hmToMin(end);
+  return s >= st && s + SLOT_MINS <= en;
+}
 
 // The activator's scheduling timezone (their schedule's tz, else the script tz).
 function _activatorTz(email) {
