@@ -25,6 +25,17 @@ function doGet(e) {
   var office = String(p.office || '').toLowerCase();
   var token  = String(p.token || '');
 
+  // ── JSON data API ─────────────────────────────────────────────
+  // Called by the public booking/cancel/reschedule pages that now live on the
+  // GitHub Pages site (so the page never loads from script.google.com → no
+  // multi-account "unable to open the file" Google glitch). The backend API key
+  // stays server-side; only display-safe data (opaque activator ids) is returned.
+  if (action === 'activators') return _json({ activators: getActivatorsPublic(office) });
+  if (action === 'window')     return _json({ window: getWindowPublic() });
+  if (action === 'slots')      return _json({ slots: getSlotsPublic(p.activatorId, p.date, office) });
+  if (action === 'nextslots')  return _json({ slots: getNextSlotsPublic(office, p.date) });
+  if (action === 'appt')       return _json({ appointment: getByTokenPublic(token) });
+
   var file = action === 'cancel' ? 'cancel'
            : action === 'reschedule' ? 'reschedule'
            : 'booking';
@@ -39,6 +50,26 @@ function doGet(e) {
   // No setXFrameOptionsMode → defaults to DENY-other-origins (Phase 2): the page
   // is opened directly via its per-office link, never embedded, so disallowing
   // framing closes a clickjacking vector with no UX impact.
+}
+
+// ── JSON write API (book / cancel / reschedule) ───────────────
+// POSTed by the GitHub-hosted pages. text/plain content-type (set by the page)
+// keeps it a CORS "simple request" — no preflight — same pattern the staff portal
+// already uses against the scheduler. All three reuse the existing public fns
+// (honeypot + opaque-id resolution + allowlist still apply inside bookPublic).
+function doPost(e) {
+  var body;
+  try { body = JSON.parse((e && e.postData && e.postData.contents) || '{}'); }
+  catch (err) { return _json({ error: 'invalid JSON' }); }
+  var action = String(body.action || '').toLowerCase();
+  if (action === 'book')       return _json(bookPublic(body));
+  if (action === 'cancel')     return _json(cancelPublic(body.appointmentId, body.token));
+  if (action === 'reschedule') return _json(reschedulePublic(body));
+  return _json({ error: 'unknown action' });
+}
+
+function _json(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ── Backend proxy helpers (key kept server-side) ──────────────

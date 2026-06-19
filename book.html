@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Schedule Your AT&amp;T Activation</title>
+<style>
+  :root{
+    --bg:#0c1116; --panel:#141b23; --panel2:#1b242e; --line:#26313d;
+    --text:#e8eef4; --text2:#9fb0c0; --muted:#6f8296;
+    --accent:#27a8e0; --accent2:#4ab8ee; --accentdim:#16384a;
+    --accent-deep:#1c7aa8; --on-accent:#fff; --glow:#16222e;
+    --green:#3ecf8e; --greendim:#123226; --red:#ef6b6b;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,var(--glow) 0%,var(--bg) 55%);
+    color:var(--text);min-height:100vh;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wm{position:fixed;inset:0;z-index:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+  .wm img{width:min(72vw,520px);opacity:.06}
+  .wrap{max-width:540px;margin:0 auto;padding:22px 16px 60px;position:relative;z-index:1}
+  .head{display:flex;align-items:center;gap:13px;margin-bottom:20px}
+  .logo{width:46px;height:46px;border-radius:12px;flex:0 0 auto;overflow:hidden;
+    background:var(--panel2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:var(--accent2)}
+  .logo img{width:36px;height:36px;object-fit:contain}
+  .head h1{font-size:17px;font-weight:750;letter-spacing:.2px}
+  .head p{font-size:12.5px;color:var(--text2);margin-top:2px}
+  .card{background:linear-gradient(180deg,var(--panel),#10171e);border:1px solid var(--line);
+    border-radius:var(--radius);padding:20px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  .step{margin-bottom:20px}
+  .step:last-child{margin-bottom:0}
+  .step-label{font-size:11.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);
+    font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:7px}
+  .step-num{display:inline-flex;width:19px;height:19px;border-radius:50%;background:var(--accentdim);
+    color:var(--accent2);align-items:center;justify-content:center;font-size:11px;font-weight:800}
+  input,select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:10px;padding:12px 13px;font-size:15px;font-family:inherit;outline:none;transition:.15s}
+  input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentdim)}
+  input::placeholder{color:var(--muted)}
+  .fld{display:block;margin-bottom:13px}
+  .fld:last-child{margin-bottom:0}
+  .fld > span{display:block;font-size:12.5px;color:var(--text2);margin-bottom:6px;font-weight:600}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .slots{display:flex;flex-wrap:wrap;gap:8px}
+  .slot{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:9px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer;transition:.12s}
+  .slot:hover{border-color:var(--accent2)}
+  .slot.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);box-shadow:0 4px 12px var(--accentdim)}
+  .slots-msg{font-size:13px;color:var(--muted);padding:6px 0}
+  .prod-list{display:flex;flex-direction:column;gap:9px}
+  .prod{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:11px;padding:11px 13px;transition:.12s}
+  .prod.on{border-color:var(--accent);background:var(--accentdim)}
+  .prod-tap{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;flex:1;min-width:0}
+  .prod-box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--muted);flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--on-accent);transition:.12s}
+  .prod.on .prod-box{background:var(--accent);border-color:var(--accent)}
+  .prod-name{font-size:14.5px;font-weight:600}
+  .prod.on .prod-name{color:var(--accent2)}
+  .qty{display:flex;align-items:center;gap:0;flex:0 0 auto}
+  .qty.hidden{display:none}
+  .qty button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);
+    color:var(--text);font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+  .qty button:hover{border-color:var(--accent2)}
+  .qty .n{min-width:34px;text-align:center;font-size:15px;font-weight:700}
+  .btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:var(--on-accent);border:none;
+    border-radius:11px;padding:15px;font-size:15.5px;font-weight:750;cursor:pointer;margin-top:6px;
+    transition:.15s;box-shadow:0 8px 22px var(--accentdim)}
+  .btn:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+  .err{background:rgba(239,107,107,.1);border:1px solid rgba(239,107,107,.4);color:#ffb4b4;
+    border-radius:10px;padding:11px 13px;font-size:13.5px;margin-top:14px;display:none}
+  .note{font-size:11.5px;color:var(--muted);margin-top:7px}
+  .center{text-align:center}
+  .ok-ico{width:62px;height:62px;border-radius:50%;background:var(--greendim);border:1px solid rgba(62,207,142,.5);
+    display:flex;align-items:center;justify-content:center;margin:6px auto 16px;font-size:30px}
+  .ok h2{font-size:20px;margin-bottom:8px}
+  .ok p{color:var(--text2);font-size:14px;margin-bottom:5px}
+  .recap{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:15px 17px;
+    margin:18px 0;text-align:left;font-size:14px}
+  .recap div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .recap div:last-child{border-bottom:none}
+  .recap .k{color:var(--text2)} .recap .v{font-weight:650}
+  .foot{text-align:center;font-size:11px;color:var(--muted);margin-top:22px}
+  .hidden{display:none!important}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.4);
+    border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wm"><img id="wm" src="" alt=""></div>
+<div class="wrap">
+  <div class="head">
+    <div class="logo" id="logo">A</div>
+    <div>
+      <h1>Activation Support</h1>
+      <p id="subhead">Schedule your AT&amp;T activation call</p>
+    </div>
+  </div>
+
+  <!-- Invalid-office guard -->
+  <div class="card hidden" id="bad">
+    <div class="center" style="padding:18px 0">
+      <div class="ok-ico" style="background:rgba(239,107,107,.12);border-color:rgba(239,107,107,.45)">!</div>
+      <h2 style="font-size:18px">This booking link isn't valid</h2>
+      <p style="color:var(--text2);font-size:14px;margin-top:8px">Please use the booking link your activation team sent you, or contact them for a new one.</p>
+    </div>
+  </div>
+
+  <!-- Booking form -->
+  <div class="card" id="form">
+    <div class="step">
+      <div class="step-label"><span class="step-num">1</span> Choose your activator</div>
+      <select id="activator"><option value="__next__">Next available activator</option></select>
+    </div>
+
+    <div class="step">
+      <div class="step-label"><span class="step-num">2</span> Pick a date</div>
+      <input type="date" id="date" />
+      <div class="note">Appointments open from tomorrow through the next 7 days.</div>
+    </div>
+
+    <div class="step">
+      <div class="step-label"><span class="step-num">3</span> Pick a time</div>
+      <div class="slots" id="slots"><div class="slots-msg">Select a date to see open times.</div></div>
+    </div>
+
+    <div class="step">
+      <div class="step-label"><span class="step-num">4</span> Your details</div>
+      <label class="fld"><span>Full name</span><input id="cname" placeholder="First &amp; last name" autocomplete="name" /></label>
+      <div class="grid2">
+        <label class="fld"><span>Phone number</span><input id="cphone" type="tel" placeholder="(555) 555-5555" autocomplete="tel" /></label>
+        <label class="fld"><span>Email</span><input id="cemail" type="email" placeholder="you@email.com" autocomplete="email" /></label>
+      </div>
+      <div class="fld"><span>What are you activating? Tap a product, then set how many.</span>
+        <div class="prod-list" id="svcs"></div>
+      </div>
+    </div>
+
+    <!-- Honeypot: off-screen, hidden from humans; bots that fill it are silently dropped server-side. -->
+    <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;">
+      <label>Company<input id="hp" name="company" tabindex="-1" autocomplete="off" /></label>
+    </div>
+
+    <button class="btn" id="submit">Confirm appointment</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <!-- Success -->
+  <div class="card ok center hidden" id="done">
+    <div class="ok-ico">✓</div>
+    <h2>You're booked!</h2>
+    <p>A confirmation email is on its way with the details and links to change or cancel.</p>
+    <div class="recap" id="recap"></div>
+    <p class="note">This is a <b>phone</b> appointment — your activator will call you at the time you chose. Nothing to attend in person.</p>
+  </div>
+
+  <div class="foot">Activation Support · AT&amp;T activation scheduling</div>
+</div>
+
+<script>
+  // Public booking page hosted on GitHub Pages. Talks to the Customer Booking
+  // Apps Script app (JSON API) via fetch — the page itself never loads from
+  // script.google.com, so multi-account Google logins don't hit the "unable to
+  // open the file" error. The backend key stays server-side in that app.
+  var API = "https://script.google.com/macros/s/AKfycbxXJfk5XAwiRY6LE3l_jLGLPItaiWqCYwySiHBXoMntR8ssSTcOk3B3SWtWFUA7MaTE/exec";
+  var OFFICE = String((new URLSearchParams(location.search)).get("office") || "").toLowerCase();
+  var OFFICE_NAMES = { elevate:"Elevate", midspire:"Midspire", viridian:"Viridian", ignite:"Ignite" };
+  var PRODUCTS = ["Wireless", "Air", "Fiber - Self Install"];
+  var qty = {};
+  var win = null, selectedSlot = "", loadingSlots = false;
+
+  function $(id){ return document.getElementById(id); }
+
+  function apiGet(action, params){
+    var qs = "action=" + encodeURIComponent(action);
+    params = params || {};
+    Object.keys(params).forEach(function(k){
+      if (params[k] !== null && params[k] !== undefined && params[k] !== "")
+        qs += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
+    });
+    return fetch(API + "?" + qs, { redirect:"follow" }).then(function(r){ return r.json(); });
+  }
+  function apiPost(body){
+    return fetch(API, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify(body), redirect:"follow" }).then(function(r){ return r.json(); });
+  }
+
+  // ── Per-office branding (matches the staff portal) ──
+  var BASE_ASSET = "https://activationsupport.github.io/dashboard/assets/";
+  var THEMES = {
+    elevate:  {accent:'#3D5BFF',accent2:'#7088FF',dim:'#19224d',deep:'#1F2DAE',on:'#ffffff',glow:'#1b2552',logo:'elevate-logo-symbol-only-blue.png'},
+    midspire: {accent:'#4FB0FF',accent2:'#80C8FF',dim:'#123047',deep:'#1E78C4',on:'#06243b',glow:'#143650',logo:'midspire-logo-symbol.png'},
+    ignite:   {accent:'#F0431E',accent2:'#FF6E4D',dim:'#3a160e',deep:'#B02C12',on:'#ffffff',glow:'#3a190f',logo:'ignite-logo-symbol.png'},
+    viridian: {accent:'#D9C87E',accent2:'#E8DBA6',dim:'#2b2a18',deep:'#A98F45',on:'#1b2814',glow:'#27301d',logo:'viridian-logo-full.png'}
+  };
+  function applyTheme(o){
+    var t = THEMES[o]; if(!t) return;
+    var r = document.documentElement.style;
+    r.setProperty('--accent',t.accent); r.setProperty('--accent2',t.accent2);
+    r.setProperty('--accentdim',t.dim); r.setProperty('--accent-deep',t.deep);
+    r.setProperty('--on-accent',t.on); r.setProperty('--glow',t.glow);
+    var wm = $("wm"); if(wm) wm.src = BASE_ASSET + t.logo;
+    var lg = $("logo"); if(lg) lg.innerHTML = '<img src="' + BASE_ASSET + t.logo + '" alt="">';
+  }
+
+  // ── Product picker (tap to select, +/− stepper sets quantity) ──
+  function renderSvcs(){
+    var box = $("svcs"); box.innerHTML = "";
+    PRODUCTS.forEach(function(p){
+      qty[p] = qty[p] || 0;
+      var on = qty[p] > 0;
+      var row = document.createElement("div");
+      row.className = "prod" + (on ? " on" : "");
+      row.setAttribute("data-p", p);
+      row.innerHTML =
+        '<div class="prod-tap"><span class="prod-box">' + (on ? "✓" : "") + '</span><span class="prod-name">' + p + '</span></div>' +
+        '<div class="qty' + (on ? "" : " hidden") + '">' +
+          '<button type="button" class="dec">−</button>' +
+          '<span class="n">' + (on ? qty[p] : 1) + '</span>' +
+          '<button type="button" class="inc">+</button>' +
+        '</div>';
+      box.appendChild(row);
+    });
+  }
+  function onSvcsClick(e){
+    var row = e.target.closest(".prod"); if(!row) return;
+    var p = row.getAttribute("data-p"); if(!p) return;
+    if(e.target.closest(".inc"))           qty[p] = Math.min(20, (qty[p]||1) + 1);
+    else if(e.target.closest(".dec"))      qty[p] = Math.max(0, (qty[p]||1) - 1);
+    else if(e.target.closest(".prod-tap")) qty[p] = qty[p] > 0 ? 0 : 1;
+    else return;
+    renderSvcs();
+  }
+  function gatherProducts(){
+    var out = []; PRODUCTS.forEach(function(p){ if(qty[p] > 0) out.push({ name:p, qty:qty[p] }); }); return out;
+  }
+  function showErr(m){ var e = $("err"); e.textContent = m; e.style.display = "block"; }
+  function clearErr(){ $("err").style.display = "none"; }
+
+  function init(){
+    if(!OFFICE || !OFFICE_NAMES[OFFICE]){ $("form").classList.add("hidden"); $("bad").classList.remove("hidden"); return; }
+    applyTheme(OFFICE);
+    $("subhead").textContent = OFFICE_NAMES[OFFICE] + " · Schedule your AT&T activation call";
+
+    apiGet("activators", { office:OFFICE }).then(function(res){
+      var sel = $("activator");
+      (res.activators || []).forEach(function(a){
+        var o = document.createElement("option"); o.value = a.id; o.textContent = a.name; sel.appendChild(o);
+      });
+    }).catch(function(){});
+
+    apiGet("window", {}).then(function(res){
+      win = res.window; if(!win) return;
+      var d = $("date"); d.min = win.min; d.max = win.max; d.value = win.min; loadSlots();
+    }).catch(function(){});
+
+    $("activator").addEventListener("change", loadSlots);
+    $("date").addEventListener("change", loadSlots);
+    $("submit").addEventListener("click", submit);
+    $("svcs").addEventListener("click", onSvcsClick);
+    renderSvcs();
+  }
+
+  function loadSlots(){
+    selectedSlot = ""; clearErr();
+    var date = $("date").value, act = $("activator").value, box = $("slots");
+    if(!date){ box.innerHTML = '<div class="slots-msg">Select a date to see open times.</div>'; return; }
+    box.innerHTML = '<div class="slots-msg"><span class="spin"></span> Loading open times…</div>';
+    var cb = function(slots){
+      if(!slots || !slots.length){ box.innerHTML = '<div class="slots-msg">No open times that day — try another date.</div>'; return; }
+      box.innerHTML = "";
+      slots.forEach(function(s){
+        var b = document.createElement("div"); b.className = "slot"; b.textContent = fmtTime(s); b.dataset.slot = s;
+        b.addEventListener("click", function(){
+          selectedSlot = s;
+          box.querySelectorAll(".slot").forEach(function(x){ x.classList.remove("sel"); });
+          b.classList.add("sel");
+        });
+        box.appendChild(b);
+      });
+    };
+    var fail = function(){ box.innerHTML = '<div class="slots-msg">Couldn\'t load times. Please try again.</div>'; };
+    var req = act === "__next__" ? apiGet("nextslots", { office:OFFICE, date:date })
+                                 : apiGet("slots", { activatorId:act, date:date, office:OFFICE });
+    req.then(function(res){ cb(res.slots || []); }).catch(fail);
+  }
+
+  function fmtTime(t){
+    var p = String(t).split(":").map(Number), h = p[0], m = p[1];
+    var ap = h >= 12 ? "PM" : "AM", hr = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+    return hr + ":" + (m < 10 ? "0" + m : m) + " " + ap;
+  }
+  function fmtDate(d){
+    var p = String(d).split("-").map(Number);
+    var mo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return mo[p[1]-1] + " " + p[2] + ", " + p[0];
+  }
+  function validEmail(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
+  function submit(){
+    clearErr();
+    var name = $("cname").value.trim(), phone = $("cphone").value.trim(), email = $("cemail").value.trim();
+    var products = gatherProducts();
+    var date = $("date").value, act = $("activator").value;
+
+    if(!date) return showErr("Please pick a date.");
+    if(!selectedSlot) return showErr("Please pick a time.");
+    if(!name) return showErr("Please enter your name.");
+    if(phone.replace(/\D/g,"").length < 10) return showErr("Please enter a valid phone number.");
+    if(!validEmail(email)) return showErr("Please enter a valid email address.");
+    if(!products.length) return showErr("Please select at least one product.");
+
+    var svcs = products.map(function(p){ return p.name + " ×" + p.qty; });
+    var devices = products.reduce(function(s,p){ return s + p.qty; }, 0);
+
+    var btn = $("submit"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Booking…';
+    apiPost({
+      action:"book", office:OFFICE, activatorId:act, date:date, timeSlot:selectedSlot,
+      customerName:name, customerPhone:phone, customerEmail:email,
+      services:svcs, deviceCount:devices, hp:$("hp").value
+    }).then(function(res){
+      if(res && res.ok){
+        $("recap").innerHTML =
+          '<div><span class="k">Date</span><span class="v">' + fmtDate(date) + '</span></div>' +
+          '<div><span class="k">Time</span><span class="v">' + fmtTime(selectedSlot) + '</span></div>' +
+          '<div><span class="k">Activating</span><span class="v">' + products.map(function(p){ return p.name + " ×" + p.qty; }).join(", ") + '</span></div>' +
+          '<div><span class="k">Total devices</span><span class="v">' + devices + '</span></div>';
+        $("form").classList.add("hidden"); $("done").classList.remove("hidden");
+        window.scrollTo(0,0);
+      } else {
+        btn.disabled = false; btn.textContent = "Confirm appointment";
+        showErr(mapErr(res && res.error));
+        loadSlots();
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = "Confirm appointment";
+      showErr("Something went wrong. Please try again.");
+    });
+  }
+
+  function mapErr(e){
+    switch(e){
+      case "slot_unavailable": return "Sorry, that time was just taken. Please pick another.";
+      case "outside_window":   return "That date is outside the booking window. Please pick another.";
+      case "duplicate":        return "It looks like you already have an appointment that day.";
+      case "missing customer fields": return "Please fill in all your details.";
+      default: return "We couldn't complete your booking. Please try again.";
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
