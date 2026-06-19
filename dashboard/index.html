@@ -736,6 +736,13 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-cell-offwindow{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 6px,rgba(255,255,255,.018) 6px,rgba(255,255,255,.018) 12px);color:#2c2c2c;cursor:default;font-size:.9rem}
 /* Calendar/manual-block conflict — slot exists but is unavailable (greyed + hatched + 🔒) */
 .appt-cell-blocked{background:repeating-linear-gradient(45deg,rgba(200,70,50,.06),rgba(200,70,50,.06) 6px,rgba(200,70,50,.14) 6px,rgba(200,70,50,.14) 12px);color:#8a8a8a;cursor:not-allowed;font-size:.82rem;display:flex;align-items:center;justify-content:center}
+/* Customer booking link panel (top of the Appointments tab) */
+.appt-booklink{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:14px}
+.appt-booklink-label{font-weight:700;font-size:.82rem;color:var(--blue2);white-space:nowrap}
+.appt-booklink-url{flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:7px 9px;color:var(--text2);font-size:.76rem;font-family:ui-monospace,Menlo,Consolas,monospace}
+.appt-booklink-btn{background:var(--blue2);color:var(--on-accent,#fff);border:none;border-radius:7px;padding:7px 15px;font-size:.8rem;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;white-space:nowrap}
+.appt-booklink-btn:hover{filter:brightness(1.08)}
+.appt-booklink-btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}
 /* Phase 1: appointment outcome badges + controls */
 .appt-outcome{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;text-transform:capitalize}
 .appt-outcome-completed{background:rgba(39,174,96,.16);color:#52c785}
@@ -1095,6 +1102,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 // ── CONFIG ──────────────────────────────────────────────────────────────
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9hfE_HDTDueNr-s-wQRNDvqWfQX-EkYkSFVQQeitc3_ccO8FqBabAhKe7YTqVzPQ21Q/exec';
 var APPT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDy8ZMiho7BL5U1-CV29CpPQ2odQZ4TmPkO51uIAsomrJWuJYCQCV_xycNBGeYhO6tAw/exec';
+// Public Customer Booking app (standalone) — per-office link = this + ?office=<id>.
+var CUSTOMER_BOOKING_URL = 'https://script.google.com/macros/s/AKfycbxXJfk5XAwiRY6LE3l_jLGLPItaiWqCYwySiHBXoMntR8ssSTcOk3B3SWtWFUA7MaTE/exec';
 var API_KEY = 'activation-dash-2026-secret';
 var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
 // Per-office accent (sampled from each office's logo; see memory
@@ -5936,6 +5945,27 @@ function renderAppointmentsTab() {
   });
 }
 
+// Per-office public booking link, shown at the top of the Appointments tab so any
+// staffer can copy it to send a customer (self-booking flows into the same pool).
+function _apptBookingLinkPanel() {
+  if (!CUSTOMER_BOOKING_URL) return '';
+  var url = CUSTOMER_BOOKING_URL + '?office=' + encodeURIComponent(CFG.officeId || '');
+  return '<div class="appt-booklink">'+
+    '<span class="appt-booklink-label">🔗 Customer booking link</span>'+
+    '<input class="appt-booklink-url" id="apptBookUrl" readonly value="'+esc(url)+'" onclick="this.select()">'+
+    '<button class="appt-booklink-btn" onclick="_apptCopyBookLink(this)">Copy</button>'+
+    '<a class="appt-booklink-btn ghost" href="'+esc(url)+'" target="_blank" rel="noopener">Open</a>'+
+  '</div>';
+}
+function _apptCopyBookLink(btn) {
+  var i = document.getElementById('apptBookUrl'); if (!i) return;
+  i.focus(); i.select(); try { i.setSelectionRange(0, 99999); } catch(e){}
+  var done = function(){ var t=btn.getAttribute('data-l')||btn.textContent; btn.setAttribute('data-l',t); btn.textContent='Copied!'; setTimeout(function(){ btn.textContent=t; },1400); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(i.value).then(done, function(){ try{ document.execCommand('copy'); done(); }catch(e){} });
+  } else { try{ document.execCommand('copy'); done(); }catch(e){} }
+}
+
 function _apptBuildView() {
   _APPT._colorMap = null;   // recompute per render so colors track the current activator set
   var acts = _APPT.activators||[], appts = _APPT.appointments||[];
@@ -5968,6 +5998,7 @@ function _apptBuildView() {
   }).join('');
   function vbtn(m,lbl){ return '<button class="appt-view-btn'+(mode===m?' active':'')+'" onclick="_apptSetView(\''+m+'\')">'+lbl+'</button>'; }
   var html = '<div class="appt-wrap">'+
+    _apptBookingLinkPanel()+
     _apptMetricsPanel(appts)+
     '<div class="appt-controls">'+
       '<div class="appt-nav">'+
