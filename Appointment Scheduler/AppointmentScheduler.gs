@@ -602,26 +602,39 @@ function getOfficeBlocks(officeId, datesCsv, role) {
   if (!dates.length) return {};
   var SLOTS   = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00'];
   var dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
-  var acts = getActivators(officeId || '');
+  var acts       = getActivators(officeId || '');
+  var thisOffice = String(officeId || '').trim().toLowerCase();
   var out  = {};
   acts.forEach(function(a){
     var email  = String(a.email || '').trim().toLowerCase();
     var byDate = {};
     dates.forEach(function(d){
-      if (!_inBookingWindow(d, allowSameDay)) { byDate[d] = []; return; }
+      if (!_inBookingWindow(d, allowSameDay)) { byDate[d] = {}; return; }
       var sched = getActivatorSchedule(email);
       var dk    = dayKeys[new Date(d + 'T12:00:00').getDay()];
       var day   = sched[dk];
       if (!day || !day.start || !day.end) {
-        if (DEFAULT_HOURS.days.indexOf(dk) === -1) { byDate[d] = []; return; }
+        if (DEFAULT_HOURS.days.indexOf(dk) === -1) { byDate[d] = {}; return; }
         day = { start: DEFAULT_HOURS.start, end: DEFAULT_HOURS.end };
       }
       var availSet = {};
       getAvailableSlots(email, d, '', allowSameDay).forEach(function(s){ availSet[s] = true; });
-      var booked = _getBookedSlots(email, d, '');
-      byDate[d] = SLOTS.filter(function(s){
-        return _slotInRange(s, day.start, day.end) && !availSet[s] && !booked[s];
+      // {slot: officeId} for THIS activator across ALL offices, so a slot taken at
+      // a different office shows as "Booked — <office>" rather than open.
+      var bookedOffice = _bookedSlotOffices(email, d);
+      var map = {};
+      SLOTS.forEach(function(s){
+        if (!_slotInRange(s, day.start, day.end)) return;   // outside schedule → "closed", not blocked
+        if (availSet[s]) return;                            // still bookable → not blocked
+        var bo = bookedOffice[s];
+        if (bo) {
+          if (bo === thisOffice) return;                    // booked HERE → already shown as a booked cell
+          map[s] = 'Booked — ' + _capitalize(bo);      // cross-office booking
+        } else {
+          map[s] = 'Unavailable';                           // calendar event / manual block / buffer
+        }
       });
+      byDate[d] = map;
     });
     out[email] = byDate;
   });
@@ -684,6 +697,23 @@ function _getBookedSlots(activatorEmail, dateStr, excludeId) {
     booked[_normTimeCell(r[10])] = true;
   }
   return booked;
+}
+
+// Like _getBookedSlots but returns { slot: officeId } for this activator's active
+// appointments on a date, ACROSS ALL offices — lets the grid label a slot
+// "Booked — <office>" when it's taken at a different office than the one in view.
+function _bookedSlotOffices(activatorEmail, dateStr) {
+  var out  = {};
+  var rows = _sheetData(APPT_TAB);
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    if (!r[0]) continue;
+    if (String(r[1]).trim().toLowerCase() !== activatorEmail) continue;
+    if (_normDateCell(r[9]) !== dateStr) continue;
+    if (String(r[12]).trim().toLowerCase() === 'cancelled') continue;
+    out[_normTimeCell(r[10])] = String(r[11] || '').trim().toLowerCase();
+  }
+  return out;
 }
 
 function _isSlotBlocked(slot, blocks) {
