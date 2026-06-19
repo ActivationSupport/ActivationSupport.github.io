@@ -745,6 +745,26 @@ function _bustCalCache(email, dateStr) {
   catch (e) {}
 }
 
+// Resolve an activator's calendar, auto-subscribing if needed. Google quirk: a
+// calendar shared WITH this account isn't readable via getCalendarById until the
+// account has "added" (subscribed to) it — the share grants access, subscribing
+// makes it appear. So on a miss we subscribe once and retry, which means an
+// activator only has to SHARE their calendar; the backend adds itself. A short
+// cache stops us re-subscribing every call for activators who haven't shared.
+function _getActivatorCalendar(email) {
+  var cal = CalendarApp.getCalendarById(email);
+  if (cal) return cal;
+  var ckey  = 'calsub_' + email;
+  var cache = CacheService.getScriptCache();
+  if (cache.get(ckey)) return null;            // recently tried + failed → don't hammer
+  try {
+    CalendarApp.subscribeToCalendar(email);
+    cal = CalendarApp.getCalendarById(email);
+  } catch (e) { cal = null; }                  // not shared with us → no access
+  if (!cal) cache.put(ckey, '1', 300);         // 5-min cooldown before retrying an unshared calendar
+  return cal;
+}
+
 // The activator's external Google Calendar events for dateStr, as block objects
 // ({allDay:true} or {startTime,endTime}) compatible with _isSlotBlocked. Cached
 // ~45s so the Next-Available roster loop doesn't re-hit the Calendar API per call.
@@ -758,7 +778,7 @@ function _getCalendarBlocks(activatorEmail, dateStr) {
 
   var blocks = [];
   try {
-    var cal = CalendarApp.getCalendarById(email);
+    var cal = _getActivatorCalendar(email);
     if (cal) {
       var tz       = _activatorTz(email);
       var dayStart = new Date(dateStr + 'T00:00:00');
@@ -794,7 +814,7 @@ function _createCalendarEvent(activatorEmail, dateStr, timeSlot, office) {
   var email = String(activatorEmail || '').trim().toLowerCase();
   if (!email || !dateStr || !timeSlot) return '';
   try {
-    var cal = CalendarApp.getCalendarById(email);
+    var cal = _getActivatorCalendar(email);
     if (!cal) return '';
     var tz    = _activatorTz(email);
     var start = _localDateTime(dateStr, _hmToMin(timeSlot), tz);
@@ -811,7 +831,7 @@ function _deleteCalendarEvent(activatorEmail, calEventId, dateStr) {
   var id    = String(calEventId || '').trim();
   if (!email || !id) return;
   try {
-    var cal = CalendarApp.getCalendarById(email);
+    var cal = _getActivatorCalendar(email);
     if (!cal) return;
     var ev = cal.getEventById(id);
     if (ev) ev.deleteEvent();
