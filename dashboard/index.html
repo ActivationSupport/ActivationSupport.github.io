@@ -724,6 +724,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .appt-cell-avail-light{background:transparent;cursor:pointer}
 .appt-cell-avail-light:hover{background:rgba(74,159,212,.07)}
 .appt-avail-dot{font-size:1.3rem;color:#404040}
+.appt-avail-freecount{display:block;font-size:.62rem;font-weight:700;color:var(--green);opacity:.85;margin-top:1px;font-variant-numeric:tabular-nums}
 .appt-cell-booked-multi{background:rgba(31,78,120,.22);flex-direction:column;gap:2px;cursor:default}
 .appt-cell-closed{background:var(--bg);color:#303030;cursor:default;font-size:1rem}
 .appt-cell-name{font-weight:700;color:var(--text);font-size:.75rem;line-height:1.2}
@@ -6061,6 +6062,17 @@ function _apptCalGrid(appts, acts, ws) {
     if (slotAppts.length>0) return false;
     return Object.keys(sMap).some(function(em){var s=_apptDaySched(sMap[em],dk);return s&&_apptSlotInSched(slot,s.start,s.end)&&!_apptBlocked(em,ds,slot);});
   }
+  // How many activators are free at (ds,slot) — in-schedule, in-window, not blocked.
+  // Drives the per-cell count on the default (no-filter) week view.
+  function freeCount(ds, slot){
+    if (ds<win.min || ds>win.max) return 0;
+    var dk=dayKeys[new Date(ds+'T12:00:00').getDay()], n=0;
+    Object.keys(sMap).forEach(function(em){
+      var s=_apptDaySched(sMap[em],dk);
+      if(s && _apptSlotInSched(slot,s.start,s.end) && !_apptBlocked(em,ds,slot)) n++;
+    });
+    return n;
+  }
   var availCount=[0,0,0,0,0,0,0];
   for (var di=0;di<7;di++){ slots.forEach(function(slot){ if(availAt(dates[di],slot)) availCount[di]++; }); }
 
@@ -6111,8 +6123,9 @@ function _apptCalGrid(appts, acts, ws) {
         } else if(offWin){
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
         } else if(availAt(ds,slot)){
-          html+='<div class="appt-cal-cell appt-cell-avail-light" onclick="openApptBookingModal(\''+ds+'\',\'\',\''+slot+'\')">'+
-            '<span class="appt-avail-dot">·</span></div>';
+          var _fc=freeCount(ds,slot);
+          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\'\',\''+slot+'\')" title="'+_fc+' activator'+(_fc===1?'':'s')+' free">'+
+            '<span class="appt-avail-plus">+</span> Book<span class="appt-avail-freecount">'+_fc+' free</span></div>';
         } else {
           html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
         }
