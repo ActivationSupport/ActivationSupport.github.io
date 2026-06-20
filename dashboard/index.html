@@ -5775,20 +5775,31 @@ function _apptXofficeCell(label, oid){
   var c=OFFICE_BOOK_TINT[oid];
   return '<div class="appt-cal-cell appt-cell-blocked" style="background:'+_hexToRgba(c,.22)+';box-shadow:inset 3px 0 0 '+c+'" title="'+esc(label)+'"><img class="appt-xoffice-logo" src="assets/'+OFFICE_BOOK_LOGO[oid]+'" alt=""></div>';
 }
-function _apptLoadBlocks(dates){
+// Fetch cross-office / calendar block state for `dates` (skips already-loaded +
+// out-of-window). Stores into _APPT.blocked; resolves true if it actually fetched.
+function _apptFetchBlocks(dates){
   var win=_apptWindow();
   var need=dates.filter(function(d){ return d>=win.min && d<=win.max && !_APPT.blockedLoaded[d]; });
-  if(!need.length) return;
+  if(!need.length) return Promise.resolve(false);
   need.forEach(function(d){ _APPT.blockedLoaded[d]=true; });   // mark in-flight (avoid duplicate fetches)
-  _apptGet({action:'getOfficeBlocks',officeId:CFG.officeId,dates:need.join(','),role:SESSION.role}).then(function(res){
+  return _apptGet({action:'getOfficeBlocks',officeId:CFG.officeId,dates:need.join(','),role:SESSION.role}).then(function(res){
     var bl=res.blocks||{};
     Object.keys(bl).forEach(function(email){
       var byDate=bl[email]||{};
       Object.keys(byDate).forEach(function(d){ _APPT.blocked[email+'|'+d]=byDate[d]||{}; });
     });
-    _apptRerender();
-  }).catch(function(){ /* leave marked-loaded; grid just shows nothing blocked */ });
+    return true;
+  }).catch(function(){ return false; });
 }
+// Dates the current view needs block data for (week = its 7 days; all = that day).
+function _apptViewDates(){
+  var mode=_APPT.viewMode||'week';
+  if(mode==='week'){ var ws=_apptWeekStart(_APPT.weekOffset),out=[]; for(var i=0;i<7;i++){var x=new Date(ws);x.setDate(ws.getDate()+i);out.push(_apptDateStr(x));} return out; }
+  if(mode==='all'){ var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+(_APPT.dayOffset||0)); return [_apptDateStr(d)]; }
+  return [];
+}
+// Lazy loader used during in-page navigation: fetch + re-render only if it loaded.
+function _apptLoadBlocks(dates){ _apptFetchBlocks(dates).then(function(did){ if(did) _apptRerender(); }); }
 
 function _apptGet(params) {
   var p = Object.assign({}, params, { key: API_KEY });
@@ -5949,9 +5960,13 @@ function renderAppointmentsTab() {
   var actsP = _APPT.activators ? Promise.resolve({activators:_APPT.activators}) : _apptGet({action:'getActivators',officeId:CFG.officeId});
   var apptP = _apptGet({action:'getAppointments',officeId:CFG.officeId,bookerEmail:SESSION.email,role:SESSION.role});
   Promise.all([actsP, apptP]).then(function(res) {
-    _APPT.loading = false;
     if (res[0].activators) _APPT.activators = res[0].activators;
     _APPT.appointments = res[1].appointments || [];
+    // Load cross-office / calendar block state for the opening view BEFORE the
+    // first paint, so other-office bookings are present immediately (no pop-in).
+    return _apptFetchBlocks(_apptViewDates());
+  }).then(function() {
+    _APPT.loading = false;
     if (CURRENT_TAB==='appointments') { c.innerHTML = _apptBuildView(); _apptBindEvents(); }
   }).catch(function() {
     _APPT.loading = false;
