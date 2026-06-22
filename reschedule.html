@@ -204,7 +204,10 @@
         show("done"); window.scrollTo(0,0);
       } else {
         btn.disabled=false; btn.textContent="Confirm new time";
-        showErr(mapErr(res && res.error)); loadSlots();
+        // Only refresh the time list when the slot was just taken — otherwise
+        // loadSlots()'s clearErr() wipes the message before it can be read.
+        if (res && res.error === "slot_unavailable") loadSlots();
+        showErr(mapErr(res && res.error));
       }
     }).catch(function(){
       btn.disabled=false; btn.textContent="Confirm new time"; showErr("Something went wrong. Please try again.");
