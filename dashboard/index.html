@@ -991,6 +991,19 @@ tr:hover td{background:rgba(74,159,212,.07)}
   .appt-book-btn{width:100%;padding:14px 16px;font-size:1rem}
   /* Week grid stays default — momentum side-scroll on iOS */
   .appt-cal-outer{-webkit-overflow-scrolling:touch}
+  /* ── Slice 4: wide data tables — pin the FIRST column (rep Name / Rep) so the
+     row's identifier stays visible while the rest of the row side-scrolls.
+     Covers Master Tracker + all 5 call tables (table.call-table) and Training
+     (table.tr-table). The wrappers already scroll (overflow-x:auto); here we add
+     momentum scroll + an opaque pinned column, z-index-layered against the
+     existing sticky header row (th is position:sticky;top:0;z-index:2). */
+  .tbl-wrap,.call-table-wrap,.tr-wrap{-webkit-overflow-scrolling:touch}
+  .call-table td:first-child,.tr-table td:first-child{
+    position:sticky;left:0;z-index:1;background:var(--surface);
+    box-shadow:inset -1px 0 0 rgba(255,255,255,.08)}
+  .call-table th:first-child,.tr-table th:first-child{
+    position:sticky;left:0;z-index:3;background:var(--surface2);
+    box-shadow:inset -1px 0 0 rgba(255,255,255,.08),inset 0 -1px 0 rgba(255,255,255,.08)}
 }
 /* Phase 3: booking-availability toggle in Manage My Schedule */
 #appt-sched-modal .sc-bookable-box{padding:13px 15px;background:rgba(74,159,212,.08);border:1px solid rgba(74,159,212,.28);border-radius:10px;margin-bottom:18px}
