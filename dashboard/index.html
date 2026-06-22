@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Activation Support</title>
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1218,12 +1220,14 @@ var _inactivityInterval = null;
 // ── CACHE STATE ───────────────────────────────────────────────────────────
 var _CACHE = {
   mainDataTs: 0, lstSalesTs: 0,
-  mainFlight: false, lstFlight: false,
-  MAIN_TTL: 90000, LST_TTL: 90000
+  mainFlight: false, lstFlight: false, notesFlight: false,
+  MAIN_TTL: 90000, LST_TTL: 90000, NOTES_TTL: 25000
 };
 var _pendingRefresh = false;
 var _bgInterval = null;
 var _luInterval = null;
+var _notesInterval = null;
+var _noteAddFlight = false;   // true while a local note is being saved (pauses the notes poll)
 var CURRENT_TAB = 'master';
 
 function loadConfig() {
@@ -1260,6 +1264,7 @@ var _reauthing = false;
 function _forceReauth() {
   if (_reauthing) return; _reauthing = true;
   try { sessionStorage.removeItem('as_session_' + CFG.officeId); } catch(e) {}
+  _clearDataCache();
   SESSION = {};
   var app = document.getElementById('app'); if (app) app.style.display = 'none';
   var ls = document.getElementById('login-screen'); if (ls) ls.style.display = 'flex';
@@ -1418,11 +1423,13 @@ function signOut() {
   clearInterval(_inactivityInterval);
   clearInterval(_bgInterval);
   clearInterval(_luInterval);
+  clearInterval(_notesInterval);
   _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
   _pendingRefresh = false;
   // Phase 1 Stage B: best-effort revoke the badge server-side on sign-out.
   try { if (SESSION && SESSION.token) apiPost({ action: 'logout', token: SESSION.token }); } catch(e) {}
   sessionStorage.removeItem('as_session_' + CFG.officeId);
+  _clearDataCache();
   DATA = {}; SESSION = {}; LOGIN_EMAIL = '';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
@@ -1533,6 +1540,11 @@ function switchOffice(newOfficeId) {
     var _drc = document.getElementById('main-content');
     if (_drc) _drc.innerHTML = renderDailyReport();
   }
+  // Tab data caches are office-specific — clear them so the new office refetches.
+  _APPT.appointments = null; _APPT.activators = null; _APPT.blocked = {}; _APPT.blockedLoaded = {}; _APPT.filterEmail = ''; _apptFlight = null;
+  if (_trTimer) { clearInterval(_trTimer); _trTimer = null; }
+  _TRAINING_ORDERS = null;
+  PEOPLE_TABLEAU_NAMES = null;
   loadData();
 }
 
@@ -1652,50 +1664,96 @@ function skelLoader() {
          '<div class="skel-card"><div class="skel skel-hdr"></div>'+lines([70,50,65,40,80,55])+'</div>';
 }
 
-function loadData() {
+// ── Stale-while-revalidate cache for the main data blob ──
+// The Apps Script fetch is the slow part. We stash each office's last data blob in
+// sessionStorage so a reload / office-switch / return paints INSTANTLY from the last
+// copy, then a fresh fetch runs in the background and re-renders. Cleared on sign-out.
+function _mainDataKey() { return 'as_data_' + CFG.officeId; }
+function _cacheMainData(res) {
+  try { sessionStorage.setItem(_mainDataKey(), JSON.stringify({ ts: Date.now(), data: res })); } catch (e) {}
+}
+function _readCachedMainData() {
+  try {
+    var raw = sessionStorage.getItem(_mainDataKey());
+    if (!raw) return null;
+    var o = JSON.parse(raw);
+    return (o && o.data) ? o : null;
+  } catch (e) { return null; }
+}
+function _clearDataCache() {
+  try {
+    var rm = [];
+    for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf('as_data_') === 0) rm.push(k); }
+    rm.forEach(function(k) { sessionStorage.removeItem(k); });
+  } catch (e) {}
+}
+function _applyMainData(res, ts) {
+  DATA = res;
+  _CACHE.mainDataTs = ts || Date.now();
+  var roster = DATA.roster || {};
+  var me = roster[SESSION.email];
+  if (SESSION.isMaster) {
+    // Master-admin is a global role — it never downgrades to this office's
+    // roster rank (or to client-rep when absent from this office's roster).
+    SESSION.role = 'master-admin';
+    if (me) { SESSION.name = me.name || SESSION.email; SESSION.tableauName = me.tableauName || ''; }
+    else if (!SESSION.name) { SESSION.name = SESSION.email; SESSION.tableauName = ''; }
+  } else if (me) {
+    SESSION.role = me.rank || 'client-rep';
+    SESSION.name = me.name || SESSION.email;
+    SESSION.tableauName = me.tableauName || '';
+  } else if (!SESSION.role) {
+    SESSION.role = 'client-rep';
+    SESSION.name = SESSION.email;
+    SESSION.tableauName = '';
+  }
+  SESSION._actualRole = SESSION.role;
+  try { sessionStorage.setItem('as_session_' + (SESSION.homeOffice || CFG.officeId), JSON.stringify(SESSION)); } catch (e) {}
+  var nameEl = document.getElementById('sb-user-name');
+  if (nameEl) nameEl.textContent = SESSION.name + ' · ' + SESSION.role;
+  _updateLastUpdated();
+  var devWrap = document.getElementById('dev-toggle-wrap');
+  if (devWrap) { devWrap.style.display = SESSION._actualRole === 'master-admin' ? 'block' : 'none'; if (SESSION._actualRole === 'master-admin') devWrap.innerHTML = _devToggleHtml(); }
+  buildNav();
+  var tab = TABS.find(function(t) { return t.id === CURRENT_TAB; });
+  if (!tab || !tab.roles.includes(SESSION.role)) {
+    CURRENT_TAB = TABS.find(function(t) { return t.roles.includes(SESSION.role); }).id;
+  }
+}
+function loadData(forceFresh) {
   TAB_CACHE = {};
+  // Fire the independent secondary fetches NOW (parallel with the main blob) instead
+  // of waiting for it to resolve first.
+  _bgRefreshLst();
+  _preloadArLines();
+  // Instant paint from the cached blob (skipped on a manual refresh).
+  var painted = false;
+  if (!forceFresh) {
+    var cached = _readCachedMainData();
+    if (cached) {
+      try { _applyMainData(cached.data, cached.ts); switchTab(CURRENT_TAB); painted = true; _preloadTabs(); } catch (e) { painted = false; }
+    }
+  }
+  if (!painted) document.getElementById('main-content').innerHTML = skelLoader();
   _CACHE.mainFlight = true;
-  document.getElementById('main-content').innerHTML = skelLoader();
   api({}).then(function(res) {
     _CACHE.mainFlight = false;
-    if (res.error) { document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>'; return; }
-    DATA = res;
-    _CACHE.mainDataTs = Date.now();
-    var roster = DATA.roster || {};
-    var me = roster[SESSION.email];
-    if (SESSION.isMaster) {
-      // Master-admin is a global role — it never downgrades to this office's
-      // roster rank (or to client-rep when absent from this office's roster).
-      SESSION.role = 'master-admin';
-      if (me) { SESSION.name = me.name || SESSION.email; SESSION.tableauName = me.tableauName || ''; }
-      else if (!SESSION.name) { SESSION.name = SESSION.email; SESSION.tableauName = ''; }
-    } else if (me) {
-      SESSION.role = me.rank || 'client-rep';
-      SESSION.name = me.name || SESSION.email;
-      SESSION.tableauName = me.tableauName || '';
-    } else if (!SESSION.role) {
-      SESSION.role = 'client-rep';
-      SESSION.name = SESSION.email;
-      SESSION.tableauName = '';
+    if (res.error) { if (!painted) document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>'; return; }
+    var firstPaint = !painted;
+    _applyMainData(res, Date.now());
+    _cacheMainData(res);
+    if (firstPaint) {
+      switchTab(CURRENT_TAB);
+    } else {
+      // Already showed cached data — refresh the current tab in place (skip tabs that
+      // manage their own state, same as the background refresher).
+      var skipRender = { postsale:1, dailyreport:1, training:1 };
+      if (!skipRender[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
     }
-    SESSION._actualRole = SESSION.role;
-    sessionStorage.setItem('as_session_' + (SESSION.homeOffice || CFG.officeId), JSON.stringify(SESSION));
-    document.getElementById('sb-user-name').textContent = SESSION.name + ' · ' + SESSION.role;
-    _updateLastUpdated();
-    var devWrap = document.getElementById('dev-toggle-wrap');
-    if (devWrap) { devWrap.style.display = SESSION._actualRole === 'master-admin' ? 'block' : 'none'; if (SESSION._actualRole === 'master-admin') devWrap.innerHTML = _devToggleHtml(); }
-    buildNav();
-    var tab = TABS.find(function(t) { return t.id === CURRENT_TAB; });
-    if (!tab || !tab.roles.includes(SESSION.role)) {
-      CURRENT_TAB = TABS.find(function(t) { return t.roles.includes(SESSION.role); }).id;
-    }
-    switchTab(CURRENT_TAB);
-    // Pre-load secondary data in background so those tabs are instant
-    _bgRefreshLst();
-    _preloadArLines();
+    _preloadTabs();
   }).catch(function() {
     _CACHE.mainFlight = false;
-    document.getElementById('main-content').innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="loadData()">Retry</a></div>';
+    if (!painted) document.getElementById('main-content').innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="loadData()">Retry</a></div>';
   });
 }
 
@@ -1703,7 +1761,8 @@ function refreshData() {
   TAB_CACHE = {};
   _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
   _LST_SALES = null; _AR_LINES = null; _AR_LOADING = false;
-  loadData();
+  _TRAINING_ORDERS = null; _APPT.appointments = null;   // re-warm the secondary tabs too
+  loadData(true);   // manual refresh: skip the instant-cache paint, fetch fresh
 }
 
 // ── CACHE MANAGER ─────────────────────────────────────────────────────────
@@ -1727,8 +1786,91 @@ function _bgRefreshMain() {
     _updateLastUpdated();
     // Re-render current tab (skip tabs that manage their own full state)
     var skipRender = { postsale:1, dailyreport:1, training:1 };
-    if (!skipRender[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
+    if (skipRender[CURRENT_TAB]) return;
+    // Non-disruptive: if the user is actively typing/focused in a field, don't yank
+    // the view out from under them — the data is already fresh in DATA, and the
+    // notes poll keeps note counts live; the full view re-renders on their next action.
+    var ae = document.activeElement, mc = document.getElementById('main-content');
+    if (ae && mc && mc.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
+    // Otherwise rebuild, but keep their scroll position so it doesn't jump.
+    var snap = _snapScroll();
+    TAB_CACHE = {}; renderTab(CURRENT_TAB);
+    _restoreScroll(snap);
   }).catch(function() { _CACHE.mainFlight = false; });
+}
+// Capture / restore scroll so a background re-render doesn't jump the page or table.
+function _snapScroll() {
+  var main = document.querySelector('.main');
+  var wrap = document.querySelector('#main-content .call-table-wrap, #main-content .tbl-wrap, #main-content .tr-wrap');
+  return { main: main ? main.scrollTop : 0, top: wrap ? wrap.scrollTop : 0, left: wrap ? wrap.scrollLeft : 0 };
+}
+function _restoreScroll(s) {
+  if (!s) return;
+  var main = document.querySelector('.main');
+  if (main) main.scrollTop = s.main;
+  var wrap = document.querySelector('#main-content .call-table-wrap, #main-content .tbl-wrap, #main-content .tr-wrap');
+  if (wrap) { wrap.scrollTop = s.top; wrap.scrollLeft = s.left; }
+}
+
+// ── NOTES POLL (frequent + non-disruptive) ────────────────────────────────
+// Notes are the one thing that needs to reach everyone fast. We poll the small
+// readNotes endpoint every ~25s ONLY where notes are shown, and update the note
+// counts + an open notes window IN PLACE — no table rebuild, so nothing is disrupted.
+function _notesTabActive() {
+  var t = { master:1, dayafter:1, delivered:1, issues:1, escalations:1, noanswer:1, completed:1 };
+  if (t[CURRENT_TAB]) return true;
+  var dm = document.getElementById('detail-modal');
+  return !!(dm && dm.classList.contains('open') && document.getElementById('nm-act-hist'));
+}
+function _bgRefreshNotes() {
+  if (_CACHE.notesFlight || _noteAddFlight) return;   // skip while a fetch or a local add is running
+  if (!_notesTabActive()) return;                     // only poll where notes are visible
+  _CACHE.notesFlight = true;
+  api({ action:'readNotes' }).then(function(res) {
+    _CACHE.notesFlight = false;
+    if (!res || res.error || !res.notes) return;
+    DATA.notes = res.notes;
+    _applyNoteCounts();
+    _refreshOpenNotesModal();
+  }).catch(function() { _CACHE.notesFlight = false; });
+}
+// Update the NOTES button counts in the current table without rebuilding it.
+function _applyNoteCounts() {
+  var btns = document.querySelectorAll('.notes-btn[data-dsi]');
+  for (var i = 0; i < btns.length; i++) {
+    var btn = btns[i], dsi = btn.getAttribute('data-dsi');
+    var n = ((DATA.notes || {})[dsi] || []).length;
+    var span = btn.querySelector('.notes-count');
+    if (n > 0) {
+      btn.classList.add('has-notes');
+      if (span) span.textContent = n;
+      else { var s = document.createElement('span'); s.className = 'notes-count'; s.id = 'nc-' + dsi.replace(/\W/g, '_'); s.textContent = n; btn.appendChild(s); }
+    } else {
+      btn.classList.remove('has-notes');
+      if (span) span.parentNode.removeChild(span);
+    }
+  }
+}
+// If the notes window is open, refresh its history lists live (leaves the textareas
+// you're typing in untouched; keeps each list pinned to the bottom if it was there).
+function _refreshOpenNotesModal() {
+  var dm = document.getElementById('detail-modal');
+  if (!dm || !dm.classList.contains('open') || !_modalDsi) return;
+  var actHist = document.getElementById('nm-act-hist'), repHist = document.getElementById('nm-rep-hist');
+  if (!actHist && !repHist) return;   // a different modal is reusing detail-modal
+  var notes = (DATA.notes || {})[_modalDsi] || [];
+  var actNotes = notes.filter(function(n) { return (n.noteType || 'activation') === 'activation'; });
+  var repNotes = notes.filter(function(n) { return n.noteType === 'rep' || n.noteType === 'note'; });
+  if (actHist) {
+    var atBottomA = actHist.scrollHeight - actHist.scrollTop - actHist.clientHeight < 4;
+    actHist.innerHTML = actNotes.length ? actNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No activation notes yet.</div>';
+    if (atBottomA) actHist.scrollTop = actHist.scrollHeight;
+  }
+  if (repHist) {
+    var atBottomR = repHist.scrollHeight - repHist.scrollTop - repHist.clientHeight < 4;
+    repHist.innerHTML = repNotes.length ? repNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No rep notes yet.</div>';
+    if (atBottomR) repHist.scrollTop = repHist.scrollHeight;
+  }
 }
 
 function _bgRefreshLst() {
@@ -1754,10 +1896,30 @@ function _preloadArLines() {
     }
   }).catch(function() { _AR_LOADING = false; _AR_LINES = []; });
 }
+// Warm the People tab's roster-name lookup in the background (one cheap call).
+function _preloadPeople() {
+  if (PEOPLE_TABLEAU_NAMES !== null) return;
+  ensureTableauNames(function() {
+    if (CURRENT_TAB === 'people') { var c = document.getElementById('main-content'); if (c) { c.innerHTML = renderPeople(); bindFilters(); } }
+  });
+}
+// After login, quietly warm the slower secondary tabs so they open instantly.
+function _preloadTabs() {
+  try { _preloadPeople(); } catch (e) {}
+  try { _preloadAppointments(); } catch (e) {}
+  try { _preloadTraining(); } catch (e) {}
+}
 
 function _startBgRefresh() {
   clearInterval(_bgInterval);
   clearInterval(_luInterval);
+  clearInterval(_notesInterval);
+  // Notes poll — frequent + non-disruptive. Runs even while the notes window is open
+  // (so notes appear live there) and only when notes are on screen. Pauses when hidden.
+  _notesInterval = setInterval(function() {
+    if (document.getElementById('app').style.display === 'none') return;
+    _bgRefreshNotes();
+  }, _CACHE.NOTES_TTL);
   // Check every 15s — fires a refresh once the TTL (90s) has passed
   _bgInterval = setInterval(function() {
     if (document.getElementById('app').style.display === 'none') return;
@@ -2240,9 +2402,10 @@ function modalAddNote(noteType) {
   }
   var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
   if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
+  _noteAddFlight = true;
   apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, linesActivated:lines, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
-    .then(function() { input.disabled = false; })
-    .catch(function() { input.disabled = false; });
+    .then(function() { input.disabled = false; _noteAddFlight = false; })
+    .catch(function() { input.disabled = false; _noteAddFlight = false; });
 }
 
 // ── CALL TABLE ────────────────────────────────────────────────────────────
@@ -2575,7 +2738,7 @@ function callTableRows(orders, extraColFn) {
       _bookedCell(booked) +
       '<td>' + ratingPill(dsi, safeId) + '</td>' +
       '<td>' +
-        '<button class="notes-btn'+(noteCount>0?' has-notes':'')+'" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">NOTES' +
+        '<button class="notes-btn'+(noteCount>0?' has-notes':'')+'" data-dsi="'+esc(dsi)+'" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">NOTES' +
         (noteCount>0?'<span class="notes-count" id="nc-'+safeId+'">'+noteCount+'</span>':'') +
         '</button>' +
       '</td>' +
@@ -2631,16 +2794,35 @@ var _trFlight = false;
 
 function renderTrainingTab() {
   var c = document.getElementById('main-content');
-  c.innerHTML = skelLoader();
+  var have = _TRAINING_ORDERS !== null;
+  if (have) { _trPaint(); _trStartLive(); }   // instant paint from the in-memory cache
+  else c.innerHTML = skelLoader();
+  if (_trFlight) return;                       // a preload / live fetch is already running
+  _trFlight = true;
   api({ action:'readTrainingOrders' }).then(function(res) {
-    if (CURRENT_TAB !== 'training') return;
-    if (res.error) { c.innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>'; return; }
-    _TRAINING_ORDERS = res.orders || [];
-    _trPaint();
-    _trStartLive();
+    _trFlight = false;
+    if (res && !res.error) {
+      _TRAINING_ORDERS = res.orders || [];
+      if (CURRENT_TAB === 'training') { if (have) _trRenderRows(); else { _trPaint(); _trStartLive(); } }
+    } else if (!have && CURRENT_TAB === 'training' && res && res.error) {
+      c.innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>';
+    }
   }).catch(function() {
-    if (CURRENT_TAB === 'training') c.innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="renderTrainingTab()">Retry</a></div>';
+    _trFlight = false;
+    if (!have && CURRENT_TAB === 'training') c.innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="renderTrainingTab()">Retry</a></div>';
   });
+}
+// Warm the Training cache in the background after login (payroll roles only).
+function _preloadTraining() {
+  if (_TRAINING_ORDERS !== null || _trFlight) return;
+  if (ROLES_PAYROLL.indexOf(SESSION.role) === -1) return;
+  _trFlight = true;
+  api({ action:'readTrainingOrders' }).then(function(res) {
+    _trFlight = false;
+    if (!res || res.error) return;
+    _TRAINING_ORDERS = res.orders || [];
+    if (CURRENT_TAB === 'training') { _trPaint(); _trStartLive(); }
+  }).catch(function() { _trFlight = false; });
 }
 
 // Live page: silently re-pull every 30s while the tab is open and refresh rows
@@ -6022,25 +6204,46 @@ function _apptLegend(appts, acts, ws){
   return '<div class="appt-legend">'+items+'</div>';
 }
 
-function renderAppointmentsTab() {
-  var c = document.getElementById('main-content');
-  c.innerHTML = '<div class="empty">Loading appointments…</div>';
+// Shared fetch for the Appointments tab — one in-flight promise dedupes the on-open
+// render and the background preload. Refreshes activators + appointments + the block
+// state for the opening view. Office-guarded so a mid-flight office switch is discarded.
+var _apptFlight = null;
+function _apptFetchAll() {
+  if (_apptFlight) return _apptFlight;
+  var office = CFG.officeId;
   _APPT.loading = true;
-  _APPT.blocked = {}; _APPT.blockedLoaded = {};   // refetch block state on every full load
-  var actsP = _APPT.activators ? Promise.resolve({activators:_APPT.activators}) : _apptGet({action:'getActivators',officeId:CFG.officeId});
-  var apptP = _apptGet({action:'getAppointments',officeId:CFG.officeId,bookerEmail:SESSION.email,role:SESSION.role});
-  Promise.all([actsP, apptP]).then(function(res) {
+  var actsP = _APPT.activators ? Promise.resolve({activators:_APPT.activators}) : _apptGet({action:'getActivators',officeId:office});
+  var apptP = _apptGet({action:'getAppointments',officeId:office,bookerEmail:SESSION.email,role:SESSION.role});
+  _apptFlight = Promise.all([actsP, apptP]).then(function(res) {
+    if (office !== CFG.officeId) { _APPT.loading = false; _apptFlight = null; return false; }
     if (res[0].activators) _APPT.activators = res[0].activators;
     _APPT.appointments = res[1].appointments || [];
-    // Load cross-office / calendar block state for the opening view BEFORE the
-    // first paint, so other-office bookings are present immediately (no pop-in).
+    // Refresh cross-office / calendar block state for the opening view.
+    _APPT.blocked = {}; _APPT.blockedLoaded = {};
     return _apptFetchBlocks(_apptViewDates());
-  }).then(function() {
-    _APPT.loading = false;
-    if (CURRENT_TAB==='appointments') { c.innerHTML = _apptBuildView(); _apptBindEvents(); }
+  }).then(function(r) {
+    _APPT.loading = false; _apptFlight = null; return r;
   }).catch(function() {
-    _APPT.loading = false;
-    c.innerHTML = '<div class="empty">Failed to load. Check your connection and try refreshing.</div>';
+    _APPT.loading = false; _apptFlight = null; return false;
+  });
+  return _apptFlight;
+}
+function renderAppointmentsTab() {
+  var c = document.getElementById('main-content');
+  var have = _APPT.appointments !== null;
+  if (have) { c.innerHTML = _apptBuildView(); _apptBindEvents(); }   // instant from cache
+  else c.innerHTML = '<div class="empty">Loading appointments…</div>';
+  _apptFetchAll().then(function(ok) {
+    if (CURRENT_TAB !== 'appointments') return;
+    if (ok) { c.innerHTML = _apptBuildView(); _apptBindEvents(); }
+    else if (!have) c.innerHTML = '<div class="empty">Failed to load. Check your connection and try refreshing.</div>';
+  });
+}
+// Warm the Appointments cache in the background after login.
+function _preloadAppointments() {
+  if (_APPT.appointments !== null || _apptFlight) return;
+  _apptFetchAll().then(function(ok) {
+    if (ok && CURRENT_TAB === 'appointments') { var c = document.getElementById('main-content'); if (c) { c.innerHTML = _apptBuildView(); _apptBindEvents(); } }
   });
 }
 
