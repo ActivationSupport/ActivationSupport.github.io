@@ -62,6 +62,9 @@
   @keyframes sp{to{transform:rotate(360deg)}}
   .hidden{display:none!important}
   .foot{text-align:center;font-size:11px;color:var(--muted);margin-top:22px}
+  /* Vanguard dual-accent: red on heading + step badges; blue stays on the interactive bits (mirrors the staff portal) */
+  [data-office="vanguard"] .head h1{color:#E2483A}
+  [data-office="vanguard"] .step-num{background:#E2483A;color:#fff}
 </style>
 </head>
 <body>
@@ -139,7 +142,7 @@
     viridian: {accent:'#D9C87E',accent2:'#E8DBA6',dim:'#2b2a18',deep:'#A98F45',on:'#1b2814',glow:'#27301d',logo:'viridian-logo-full.png'},
     vanguard: {accent:'#2652D7',accent2:'#5277E6',dim:'#15203f',deep:'#1B3AAE',on:'#ffffff',glow:'#141b33',logo:'vanguard-logo-symbol-reverse.png'}
   };
-  function applyTheme(o){
+  function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t=THEMES[o]; if(!t) return;
     var r=document.documentElement.style;
     r.setProperty('--accent',t.accent); r.setProperty('--accent2',t.accent2);
