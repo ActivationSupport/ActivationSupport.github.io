@@ -966,6 +966,32 @@ tr:hover td{background:rgba(74,159,212,.07)}
 #appt-booking-modal .abm-divider{margin:22px 0}
 #appt-booking-modal .abm-seg{padding:5px}
 #appt-booking-modal .abm-seg-btn{padding:10px 14px}
+/* ── MOBILE (≤768px): full-screen modals + phone-friendly Appointments controls (slice 3) ── */
+@media(max-width:768px){
+  /* Every popup shares .modal — go edge-to-edge on phones so forms have room.
+     !important beats the inline width/max-width styles on the booking/sched/resched
+     modal divs AND the higher-specificity #appt-booking-modal .modal rule above. */
+  .modal{max-width:none!important;width:100%!important;height:100%!important;max-height:100%!important;
+    border-radius:0!important;border:none!important;box-shadow:none!important;
+    padding:18px 16px calc(22px + env(safe-area-inset-bottom))!important;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .modal h3{font-size:1.12rem}
+  .modal-close{font-size:1.5rem;padding:2px 8px;margin-top:-2px}
+  /* 16px inputs stop iOS zoom-on-tap (beats #appt-booking-modal .appt-form-input above) */
+  .modal input,.modal select,.modal textarea,.modal .appt-form-input,
+  #appt-booking-modal .appt-form-input,#appt-booking-modal select.appt-form-input{font-size:16px!important}
+  /* Appointments controls — stack cleanly, full-width Book, bigger toggle/nav */
+  .appt-controls{flex-direction:column;align-items:stretch;gap:12px}
+  .appt-nav{justify-content:space-between}
+  .appt-nav-btn{padding:9px 16px;font-size:1rem}
+  .appt-week-label{min-width:0;flex:1}
+  .appt-view-toggle{width:100%}
+  .appt-view-btn{flex:1;padding:11px 6px;font-size:12px;text-align:center}
+  .appt-filter-row{width:100%;flex-direction:column;align-items:stretch}
+  .appt-select{width:100%;font-size:16px;padding:11px 12px}
+  .appt-book-btn{width:100%;padding:14px 16px;font-size:1rem}
+  /* Week grid stays default — momentum side-scroll on iOS */
+  .appt-cal-outer{-webkit-overflow-scrolling:touch}
+}
 /* Phase 3: booking-availability toggle in Manage My Schedule */
 #appt-sched-modal .sc-bookable-box{padding:13px 15px;background:rgba(74,159,212,.08);border:1px solid rgba(74,159,212,.28);border-radius:10px;margin-bottom:18px}
 #appt-sched-modal .sc-bookable-box .appt-chk{font-size:.92rem;color:var(--text)}
