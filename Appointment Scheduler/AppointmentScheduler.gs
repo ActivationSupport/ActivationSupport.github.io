@@ -75,9 +75,13 @@ var BLOCKS_HEADERS = [
 // ── Core helpers ──────────────────────────────────────────────
 function _getApiKey()  { return PropertiesService.getScriptProperties().getProperty('API_KEY') || ''; }
 function _getSheetId() { return PropertiesService.getScriptProperties().getProperty('SHEET_ID') || ''; }
-// Base URL of the public Customer Booking web app. Used to build self-service
-// cancel/reschedule links in customer emails. Leave unset to omit those links.
+// Base URL of the public Customer Booking web app. (Legacy — kept for reference;
+// the self-service links below now point at the GitHub Pages cancel/reschedule
+// pages instead, to dodge the multi-Google-account "unable to open the file" glitch.)
 function _getCustomerAppUrl() { return PropertiesService.getScriptProperties().getProperty('CUSTOMER_APP_URL') || ''; }
+// Self-service cancel/reschedule pages now live on GitHub Pages (off Apps Script).
+// Booking step 2b: emails link to {base}cancel.html / {base}reschedule.html?office=&token=.
+var SELF_SERVICE_BASE = 'https://activationsupport.github.io/';
 
 // Fail CLOSED (Phase 2): if API_KEY is unset/blank, deny — never default to allow.
 // (API_KEY is confirmed set in production; this only guards against the property
@@ -1235,13 +1239,11 @@ function rescheduleAppointment(body) {
 // emails. Returns '' when the Customer Booking app URL isn't configured or the
 // appointment has no token (e.g. legacy rows booked before this feature).
 function _selfServiceBlock(office, token) {
-  var base = _getCustomerAppUrl();
-  if (!base || !token) return '';
-  var sep = base.indexOf('?') === -1 ? '?' : '&';
-  var q   = sep + 'office=' + encodeURIComponent(office || '') + '&token=' + encodeURIComponent(token);
+  if (!token) return '';
+  var q = '?office=' + encodeURIComponent(office || '') + '&token=' + encodeURIComponent(token);
   return '\nNeed to make a change?\n' +
-         'Reschedule: ' + base + q + '&action=reschedule\n' +
-         'Cancel:     ' + base + q + '&action=cancel\n';
+         'Reschedule: ' + SELF_SERVICE_BASE + 'reschedule.html' + q + '\n' +
+         'Cancel:     ' + SELF_SERVICE_BASE + 'cancel.html' + q + '\n';
 }
 
 // HTML-escape customer-supplied values before they enter an HTML email body.
@@ -1254,12 +1256,10 @@ function _htmlEsc(s) {
 // Styled Reschedule/Cancel buttons (HTML) for customer emails. Returns '' when
 // the Customer Booking app URL isn't configured or the row has no token.
 function _selfServiceButtonsHtml(office, token) {
-  var base = _getCustomerAppUrl();
-  if (!base || !token) return '';
-  var sep = base.indexOf('?') === -1 ? '?' : '&';
-  var q   = sep + 'office=' + encodeURIComponent(office || '') + '&token=' + encodeURIComponent(token);
-  var resch = base + q + '&action=reschedule';
-  var canc  = base + q + '&action=cancel';
+  if (!token) return '';
+  var q = '?office=' + encodeURIComponent(office || '') + '&token=' + encodeURIComponent(token);
+  var resch = SELF_SERVICE_BASE + 'reschedule.html' + q;
+  var canc  = SELF_SERVICE_BASE + 'cancel.html' + q;
   return '' +
     '<tr><td style="padding:4px 32px 26px;">' +
       '<p style="margin:0 0 12px;font:600 14px Arial,sans-serif;color:#16314f;">Need to make a change?</p>' +
