@@ -1180,11 +1180,11 @@ var APPT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDy8ZMiho7BL5U1-
 // "unable to open the file" glitch). Per-office link = this + ?office=<id>. (Booking step 2c.)
 var CUSTOMER_BOOKING_URL = 'https://activationsupport.github.io/book.html';
 var API_KEY = 'activation-dash-2026-secret';
-var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite' };
+var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite', vanguard:'Vanguard' };
 // Per-office accent (sampled from each office's logo; see memory
 // reference-office-branding). Viridian's accent is GOLD (its green is used as a
 // fill/band color via OFFICE_THEME); the others use their brand color.
-var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', ignite:'#C8102E' };
+var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', ignite:'#C8102E', vanguard:'#D81F1F' };
 // Richer per-office theme, used to recolor the whole UI at load (applyOfficeTheme):
 //  btn    = primary button fill (--blue)       accent = bright accent on dark (--blue2)
 //  dark   = subtle dark accent (--blue3)        hover  = button hover (--blueHover)
@@ -1194,7 +1194,11 @@ var OFFICE_THEME = {
   elevate:  { btn:'#0A1FFF', accent:'#3D5BFF', dark:'#14224a', hover:'#0816cc', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
   midspire: { btn:'#4FB0FF', accent:'#4FB0FF', dark:'#0f2f44', hover:'#2e97ec', glow:'#0f3f5e', band:'#0E7BD4', onBand:'#ffffff', sidebar:'#0c1d2e' },
   viridian: { btn:'#16382A', accent:'#D9C87E', dark:'#16281e', hover:'#0e2a1f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A' },
-  ignite:   { btn:'#F0431E', accent:'#F0431E', dark:'#2e1416', hover:'#d1340f', glow:'#4a1518', band:'#C8102E', onBand:'#ffffff', sidebar:'#211210' }
+  ignite:   { btn:'#F0431E', accent:'#F0431E', dark:'#2e1416', hover:'#d1340f', glow:'#4a1518', band:'#C8102E', onBand:'#ffffff', sidebar:'#211210' },
+  // Vanguard = charcoal structure (band/sidebar/buttons) + BLUE app accent
+  // (nav/links/highlights), with RED on the login + logo + office badge. Their
+  // tri-color logo (red/blue/black) carries both colors throughout.
+  vanguard: { btn:'#1C1C1C', accent:'#3D67E8', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' }
 };
 // Light-email Daily Report branding — MIRROR of Code.gs OFFICE_BRAND so the
 // "Copy for Email" export matches the automated 6pm email exactly. (Keep in sync.)
@@ -1203,7 +1207,8 @@ var OFFICE_REPORT_BRAND = {
   elevate:  { band:'#111827', headerText:'#ffffff', headerSub:'#aab8d6', accent:'#0A1FFF', accentText:'#0A1FFF', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
   midspire: { band:'#0c1d2e', headerText:'#ffffff', headerSub:'#a8c8e4', accent:'#4FB0FF', accentText:'#4FB0FF', logo:'midspire-logo-full.png',           logoH:38 },
   viridian: { band:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png',           logoH:54 },
-  ignite:   { band:'#211210', headerText:'#ffffff', headerSub:'#e3aaaa', accent:'#F0431E', accentText:'#F0431E', logo:'ignite-logo-full-reverse.png',     logoH:40 }
+  ignite:   { band:'#211210', headerText:'#ffffff', headerSub:'#e3aaaa', accent:'#F0431E', accentText:'#F0431E', logo:'ignite-logo-full-reverse.png',     logoH:40 },
+  vanguard: { band:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png',   logoH:40 }
 };
 function _drReportBrand(officeId) {
   return OFFICE_REPORT_BRAND[officeId] ||
@@ -1240,14 +1245,16 @@ var OFFICE_LOGOS  = {
   elevate:  { full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
   midspire: { full:'assets/midspire-logo-full.png',              emblem:'assets/midspire-logo-symbol.png' },
   viridian: { full:'assets/viridian-logo-full.png',              emblem:'assets/viridian-logo-full.png', sidebarH:68 },
-  ignite:   { full:'assets/ignite-logo-full-reverse.png',        emblem:'assets/ignite-logo-symbol.png',  sidebarH:44 }
+  ignite:   { full:'assets/ignite-logo-full-reverse.png',        emblem:'assets/ignite-logo-symbol.png',  sidebarH:44 },
+  vanguard: { full:'assets/vanguard-logo-full-reverse.png',      emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 }
 };
 // Discord webhook URLs per office — leave blank to disable notifications for that office
 var DISCORD_WEBHOOKS = {
   elevate:  '',
   midspire: '',
   viridian: '',
-  ignite:   ''
+  ignite:   '',
+  vanguard: ''
 };
 
 var CFG = {};
@@ -6055,8 +6062,8 @@ function _apptBlocked(email, ds, slot){ var m=_APPT.blocked[email+'|'+ds]; retur
 // Cross-office cell styling: each booking office's brand color + small logo
 // (Ignite = their red, Viridian = their green). Parsed from the "Booked — <Office>"
 // label; calendar/manual blocks have no office → generic red-hatch 🔒.
-var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', ignite:'#C8102E', viridian:'#2E7A4E' };
-var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', ignite:'ignite-logo-symbol.png', viridian:'viridian-logo-full.png' };
+var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', ignite:'#C8102E', viridian:'#2E7A4E', vanguard:'#2652D7' };
+var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', ignite:'ignite-logo-symbol.png', viridian:'viridian-logo-full.png', vanguard:'vanguard-logo-symbol.png' };
 function _apptBlockOffice(label){
   if(!label || label.indexOf('Booked')!==0) return '';
   var p=label.split('—'); if(p.length<2) return '';
