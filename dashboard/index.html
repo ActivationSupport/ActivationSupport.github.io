@@ -434,11 +434,22 @@ tr:hover td{background:rgba(74,159,212,.07)}
 /* ── ANIMATIONS ── */
 @keyframes cardFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @keyframes modalIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
-/* ── RESPONSIVE ── */
-@media(max-width:640px){
-  .sidebar{width:56px}
-  .sidebar-header,.sidebar-office,.sidebar-name,.sidebar-user,.nav-item span,.nav-group-label,.sidebar-footer{display:none}
-  .nav-item{justify-content:center;padding:12px}
+/* ── RESPONSIVE SHELL (hamburger drawer) ── */
+.hamburger{display:none;background:#2a2a2a;color:var(--blue2);border:1.5px solid #3a3a3a;border-radius:8px;width:40px;height:40px;font-size:1.25rem;line-height:1;cursor:pointer;flex-shrink:0;align-items:center;justify-content:center;padding:0;transition:border .15s}
+.hamburger:hover{border-color:var(--blue2)}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:600;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s}
+.scrim.show{opacity:1;visibility:visible}
+@media(max-width:768px){
+  .hamburger{display:inline-flex}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:264px;max-width:84vw;z-index:700;transform:translateX(-100%);transition:transform .24s ease;box-shadow:2px 0 28px rgba(0,0,0,.55)}
+  .sidebar.open{transform:translateX(0)}
+  .topbar{padding:12px 14px;gap:10px}
+  .topbar h2{font-size:.98rem}
+  .topbar-title{min-width:0}
+  .topbar-title h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar-actions{margin-left:auto;gap:6px}
+  .content{padding:14px}
+  #last-updated{display:none}
 }
 /* ── POST SALE ── */
 .ps-wrap{max-width:520px;margin:0 auto;padding:24px 16px}
@@ -1004,6 +1015,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 <!-- APP -->
 <div id="app">
   <div class="shell">
+    <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
     <div class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-office">Office</div>
@@ -1018,7 +1030,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
     </div>
     <div class="main">
       <div class="topbar">
-        <div>
+        <button class="hamburger" id="hamburger" onclick="toggleDrawer()" aria-label="Open menu">☰</button>
+        <div class="topbar-title">
           <h2 id="page-title">Dashboard</h2>
           <p id="page-subtitle" style="font-size:.72rem;color:var(--text2);margin-top:1px"></p>
         </div>
@@ -1419,6 +1432,11 @@ function _startInactivityWatcher() {
 function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  // On phones/tablets, land new sessions on Post Sale (reps log sales in the field).
+  // Only runs at session entry — Refresh and office-switch go through loadData (not
+  // showApp), so they keep whatever tab the user is on. loadData's role guard still
+  // redirects any role that can't access Post Sale to its first allowed tab.
+  if (window.innerWidth <= 768) CURRENT_TAB = 'postsale';
   _setSidebarOfficeLogo(CFG.officeId);
   buildOfficeSwitcher();
   buildNav();
@@ -1510,6 +1528,7 @@ var ROLES_REP  = ['master-admin','owner','admin','client-rep','leader','jd','man
 var ROLES_PAYROLL = ['master-admin','owner','admin'];
 var TABS = [
   { id: 'postsale',    icon: '➕', label: 'Post Sale',            roles: ROLES_REP,  group: 'Sales',       sub: 'Log a new sale' },
+  { id: 'appointments', icon: '📅', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
   { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES,  group: 'Call Logs',   sub: '120-day window' },
   { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
   { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
@@ -1524,7 +1543,6 @@ var TABS = [
   { id: 'training',    icon: '🎓', label: 'Training & Tracking',   roles: ROLES_PAYROLL, group: 'Payroll',  sub: 'Trainee, profit-transfer & Sunday payouts' },
   { id: 'people',       icon: '👥', label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
   { id: 'teams',        icon: '🤝', label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
-  { id: 'appointments', icon: '📅', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
 ];
 
 var _DEV_ROLE = null;
@@ -1556,6 +1574,20 @@ function _devSwitchRole(role) {
   switchTab(CURRENT_TAB);
 }
 
+// ── MOBILE NAV DRAWER ───────────────────────────────────────────────────
+function toggleDrawer() {
+  var sb = document.querySelector('.sidebar');
+  var open = sb.classList.toggle('open');
+  document.getElementById('scrim').classList.toggle('show', open);
+}
+function closeDrawer() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('scrim').classList.remove('show');
+}
+window.addEventListener('resize', function() {
+  if (window.innerWidth > 768) closeDrawer();
+});
+
 function buildNav() {
   var role = SESSION.role || 'client-rep';
   var nav = document.getElementById('sidebar-nav');
@@ -1581,6 +1613,7 @@ function buildNav() {
 
 function switchTab(id) {
   CURRENT_TAB = id;
+  closeDrawer();
   document.querySelectorAll('.nav-item').forEach(function(el) {
     el.classList.toggle('active', el.dataset.tab === id);
   });
