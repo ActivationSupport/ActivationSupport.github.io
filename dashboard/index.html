@@ -6885,9 +6885,11 @@ function submitApptBooking() {
   var phone=(document.getElementById('abm-phone')||{}).value||'';
   var email=(document.getElementById('abm-email')||{}).value||'';
   // Encode per-product quantities into the existing fields (no backend change):
-  // services becomes ["Wireless ×2","Air ×1"] (backend joins with ", "); deviceCount = total.
+  // services becomes ["Wireless x2","Air x1"] (backend joins with ", "); deviceCount = total.
+  // NB: plain ASCII "x" (not "×") — the × multiplication sign gets mangled in the
+  // booking POST's non-ASCII decode, so it would store/show as a broken character.
   var products=_ABM_PRODUCTS.filter(function(p){return _ABM_QTY[p]>0;}).map(function(p){return {name:p,qty:_ABM_QTY[p]};});
-  var svcs=products.map(function(p){return p.name+' ×'+p.qty;});
+  var svcs=products.map(function(p){return p.name+' x'+p.qty;});
   var devices=products.reduce(function(s,p){return s+p.qty;},0);
   var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
   var nextMode='balance';   // Next Available Agent always balances the load (backend only uses this for __next__)

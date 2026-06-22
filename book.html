@@ -314,7 +314,7 @@
     if(!validEmail(email)) return showErr("Please enter a valid email address.");
     if(!products.length) return showErr("Please select at least one product.");
 
-    var svcs = products.map(function(p){ return p.name + " ×" + p.qty; });
+    var svcs = products.map(function(p){ return p.name + " x" + p.qty; });
     var devices = products.reduce(function(s,p){ return s + p.qty; }, 0);
 
     var btn = $("submit"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Booking…';
@@ -327,7 +327,7 @@
         $("recap").innerHTML =
           '<div><span class="k">Date</span><span class="v">' + fmtDate(date) + '</span></div>' +
           '<div><span class="k">Time</span><span class="v">' + fmtTime(selectedSlot) + '</span></div>' +
-          '<div><span class="k">Activating</span><span class="v">' + products.map(function(p){ return p.name + " ×" + p.qty; }).join(", ") + '</span></div>' +
+          '<div><span class="k">Activating</span><span class="v">' + products.map(function(p){ return p.name + " x" + p.qty; }).join(", ") + '</span></div>' +
           '<div><span class="k">Total devices</span><span class="v">' + devices + '</span></div>';
         $("form").classList.add("hidden"); $("done").classList.remove("hidden");
         window.scrollTo(0,0);
