@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cancel Your AT&amp;T Activation</title>
+<style>
+  :root{--bg:#0c1116;--panel:#141b23;--panel2:#1b242e;--line:#26313d;--text:#e8eef4;--text2:#9fb0c0;
+    --muted:#6f8296;--accent:#27a8e0;--accent2:#4ab8ee;--accentdim:#16384a;--accent-deep:#1c7aa8;--on-accent:#fff;--glow:#16222e;--green:#3ecf8e;--greendim:#123226;--red:#ef6b6b;--radius:14px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,var(--glow) 0%,var(--bg) 55%);color:var(--text);
+    min-height:100vh;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wm{position:fixed;inset:0;z-index:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+  .wm img{width:min(72vw,520px);opacity:.06}
+  .wrap{max-width:480px;margin:0 auto;padding:30px 16px 60px;position:relative;z-index:1}
+  .head{display:flex;align-items:center;gap:13px;margin-bottom:20px}
+  .logo{width:46px;height:46px;border-radius:12px;overflow:hidden;background:var(--panel2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:var(--accent2)}
+  .logo img{width:36px;height:36px;object-fit:contain}
+  .head h1{font-size:17px;font-weight:750}
+  .head p{font-size:12.5px;color:var(--text2);margin-top:2px}
+  .card{background:linear-gradient(180deg,var(--panel),#10171e);border:1px solid var(--line);
+    border-radius:var(--radius);padding:22px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  h2{font-size:19px;margin-bottom:6px}
+  .sub{color:var(--text2);font-size:14px;margin-bottom:16px}
+  .recap{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:15px 17px;
+    margin:14px 0 18px;font-size:14px}
+  .recap div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .recap div:last-child{border-bottom:none}
+  .recap .k{color:var(--text2)} .recap .v{font-weight:650}
+  .btn{width:100%;border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:750;cursor:pointer;transition:.15s}
+  .btn-danger{background:linear-gradient(135deg,#d65555,#b03e3e);color:#fff;box-shadow:0 8px 22px rgba(214,85,85,.3)}
+  .btn-danger:hover{filter:brightness(1.07)}
+  .btn-danger:disabled{opacity:.5;cursor:not-allowed}
+  .center{text-align:center}
+  .ico{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    margin:4px auto 14px;font-size:28px}
+  .ico-q{background:rgba(239,107,107,.12);border:1px solid rgba(239,107,107,.45)}
+  .ico-ok{background:var(--greendim);border:1px solid rgba(62,207,142,.5)}
+  .msg{color:var(--text2);font-size:14px;margin-top:8px}
+  .err{background:rgba(239,107,107,.1);border:1px solid rgba(239,107,107,.4);color:#ffb4b4;
+    border-radius:10px;padding:11px 13px;font-size:13.5px;margin-top:14px;display:none}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.4);
+    border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .hidden{display:none!important}
+  .foot{text-align:center;font-size:11px;color:var(--muted);margin-top:22px}
+</style>
+</head>
+<body>
+<div class="wm"><img id="wm" src="" alt=""></div>
+<div class="wrap">
+  <div class="head">
+    <div class="logo" id="logo">A</div>
+    <div><h1>Activation Support</h1><p>Cancel your appointment</p></div>
+  </div>
+
+  <div class="card center" id="loading">
+    <div class="msg"><span class="spin"></span> Looking up your appointment…</div>
+  </div>
+
+  <div class="card center hidden" id="invalid">
+    <div class="ico ico-q">!</div>
+    <h2>Appointment not found</h2>
+    <div class="msg">This link may have expired or the appointment was already changed. Please contact your activation team.</div>
+  </div>
+
+  <div class="card hidden" id="confirm">
+    <h2>Cancel this appointment?</h2>
+    <div class="sub">If you cancel, you'll need to book again for a new time.</div>
+    <div class="recap" id="recap"></div>
+    <button class="btn btn-danger" id="cancelBtn">Yes, cancel my appointment</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card center hidden" id="done">
+    <div class="ico ico-ok">✓</div>
+    <h2>Appointment cancelled</h2>
+    <div class="msg">Your appointment has been cancelled. Need a new time? Just use your office's booking link.</div>
+  </div>
+
+  <div class="foot">Activation Support · AT&amp;T activation scheduling</div>
+</div>
+
+<script>
+  // Public cancel page hosted on GitHub Pages. Talks to the Customer Booking
+  // Apps Script app (JSON API) via fetch — the page itself never loads from
+  // script.google.com, so multi-account Google logins don't hit the "unable to
+  // open the file" error. The backend key stays server-side in that app.
+  var API="https://script.google.com/macros/s/AKfycbxXJfk5XAwiRY6LE3l_jLGLPItaiWqCYwySiHBXoMntR8ssSTcOk3B3SWtWFUA7MaTE/exec";
+  var PARAMS=new URLSearchParams(location.search);
+  var TOKEN=String(PARAMS.get("token")||"");
+  var OFFICE=String(PARAMS.get("office")||"").toLowerCase();
+  var appt=null;
+
+  function apiGet(action, params){
+    var qs="action="+encodeURIComponent(action);
+    params=params||{};
+    Object.keys(params).forEach(function(k){
+      if(params[k]!==null && params[k]!==undefined && params[k]!=="")
+        qs+="&"+encodeURIComponent(k)+"="+encodeURIComponent(params[k]);
+    });
+    return fetch(API+"?"+qs, { redirect:"follow" }).then(function(r){ return r.json(); });
+  }
+  function apiPost(body){
+    return fetch(API, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify(body), redirect:"follow" }).then(function(r){ return r.json(); });
+  }
+
+  var BASE_ASSET="https://activationsupport.github.io/dashboard/assets/";
+  var THEMES={
+    elevate:  {accent:'#3D5BFF',accent2:'#7088FF',dim:'#19224d',deep:'#1F2DAE',on:'#ffffff',glow:'#1b2552',logo:'elevate-logo-symbol-only-blue.png'},
+    midspire: {accent:'#4FB0FF',accent2:'#80C8FF',dim:'#123047',deep:'#1E78C4',on:'#06243b',glow:'#143650',logo:'midspire-logo-symbol.png'},
+    ignite:   {accent:'#F0431E',accent2:'#FF6E4D',dim:'#3a160e',deep:'#B02C12',on:'#ffffff',glow:'#3a190f',logo:'ignite-logo-symbol.png'},
+    viridian: {accent:'#D9C87E',accent2:'#E8DBA6',dim:'#2b2a18',deep:'#A98F45',on:'#1b2814',glow:'#27301d',logo:'viridian-logo-full.png'}
+  };
+  function applyTheme(o){
+    var t=THEMES[o]; if(!t) return;
+    var r=document.documentElement.style;
+    r.setProperty('--accent',t.accent); r.setProperty('--accent2',t.accent2);
+    r.setProperty('--accentdim',t.dim); r.setProperty('--accent-deep',t.deep);
+    r.setProperty('--on-accent',t.on); r.setProperty('--glow',t.glow);
+    var wm=document.getElementById('wm'); if(wm) wm.src=BASE_ASSET+t.logo;
+    var lg=document.getElementById('logo'); if(lg) lg.innerHTML='<img src="'+BASE_ASSET+t.logo+'" alt="">';
+  }
+  function $(id){return document.getElementById(id);}
+  function show(id){["loading","invalid","confirm","done"].forEach(function(x){$(x).classList.toggle("hidden",x!==id);});}
+  function showErr(m){var e=$("err");e.textContent=m;e.style.display="block";}
+  function clearErr(){$("err").style.display="none";}
+  function fmtTime(t){var p=String(t).split(":").map(Number),h=p[0],m=p[1];var ap=h>=12?"PM":"AM",hr=h>12?h-12:(h===0?12:h);return hr+":"+(m<10?"0"+m:m)+" "+ap;}
+  function fmtDate(d){var p=String(d).split("-").map(Number);var mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return mo[p[1]-1]+" "+p[2]+", "+p[0];}
+  function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):"";}
+
+  function init(){
+    applyTheme(OFFICE);
+    if(!TOKEN){ show("invalid"); return; }
+    apiGet("appt", { token:TOKEN }).then(function(res){
+      var a=res && res.appointment;
+      if(!a){ show("invalid"); return; }
+      appt=a; applyTheme(a.office);
+      if(String(a.status).toLowerCase()==="cancelled"){ show("done"); return; }
+      $("recap").innerHTML=
+        '<div><span class="k">Date</span><span class="v">'+fmtDate(a.date)+'</span></div>'+
+        '<div><span class="k">Time</span><span class="v">'+fmtTime(a.timeSlot)+'</span></div>'+
+        '<div><span class="k">Office</span><span class="v">'+cap(a.office)+'</span></div>'+
+        '<div><span class="k">Activating</span><span class="v">'+(a.services||"—")+'</span></div>';
+      show("confirm");
+    }).catch(function(){ show("invalid"); });
+    $("cancelBtn").addEventListener("click", doCancel);
+  }
+
+  function doCancel(){
+    clearErr();
+    var b=$("cancelBtn"); b.disabled=true; b.innerHTML='<span class="spin"></span> Cancelling…';
+    apiPost({ action:"cancel", appointmentId:appt.appointmentId, token:TOKEN }).then(function(res){
+      if(res && res.ok){ show("done"); window.scrollTo(0,0); }
+      else { b.disabled=false; b.textContent="Yes, cancel my appointment"; showErr("Couldn't cancel — please try again or contact your activation team."); }
+    }).catch(function(){
+      b.disabled=false; b.textContent="Yes, cancel my appointment"; showErr("Something went wrong. Please try again.");
+    });
+  }
+
+  init();
+</script>
+</body>
+</html>
