@@ -238,7 +238,7 @@
   function gatherProducts(){
     var out = []; PRODUCTS.forEach(function(p){ if(qty[p] > 0) out.push({ name:p, qty:qty[p] }); }); return out;
   }
-  function showErr(m){ var e = $("err"); e.textContent = m; e.style.display = "block"; }
+  function showErr(m){ var e = $("err"); e.textContent = m; e.style.display = "block"; try{ e.scrollIntoView({block:"center",behavior:"smooth"}); }catch(_){} }
   function clearErr(){ $("err").style.display = "none"; }
 
   function init(){
@@ -333,8 +333,11 @@
         window.scrollTo(0,0);
       } else {
         btn.disabled = false; btn.textContent = "Confirm appointment";
+        // Only refresh the time list when the slot itself was just taken — otherwise
+        // loadSlots() calls clearErr() and wipes the message before it can be read
+        // (the customer would just see the times "refresh" with no explanation).
+        if (res && res.error === "slot_unavailable") loadSlots();
         showErr(mapErr(res && res.error));
-        loadSlots();
       }
     }).catch(function(){
       btn.disabled = false; btn.textContent = "Confirm appointment";
