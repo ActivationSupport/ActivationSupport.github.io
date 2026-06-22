@@ -450,6 +450,19 @@ tr:hover td{background:rgba(74,159,212,.07)}
   .topbar-actions{margin-left:auto;gap:6px}
   .content{padding:14px}
   #last-updated{display:none}
+  /* Post Sale form — phone-friendly: 16px stops iOS zoom-on-tap, bigger tap targets */
+  .ps-wrap{padding:18px 14px}
+  .ps-input,.ps-textarea,.ps-select{font-size:16px;padding:14px}
+  .ps-toggle{font-size:15px;padding:0 12px;min-height:48px;display:flex;align-items:center;justify-content:center}
+  .ps-product-card{padding:18px}
+  .ps-product-icon{font-size:32px}
+  .ps-product-label{font-size:15px}
+  .ps-qty-row{flex-direction:column;gap:14px}
+  .ps-qty-input{font-size:18px}
+  .ps-step-btn{min-height:50px}
+  .ps-btn-row{gap:10px}
+  .ps-btn{flex:1;font-size:16px;padding:15px 20px;min-height:50px}
+  .ps-btn.secondary{margin-right:0}
 }
 /* ── POST SALE ── */
 .ps-wrap{max-width:520px;margin:0 auto;padding:24px 16px}
@@ -491,6 +504,11 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .ps-qty-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:15px;font-weight:600;padding:8px 10px;box-sizing:border-box;text-align:center;outline:none}
 .ps-qty-input:focus{border-color:var(--blue2)}
 .ps-total-lines{font-size:11px;color:var(--text2);margin-top:6px}
+.ps-stepper{display:flex;align-items:stretch;gap:8px}
+.ps-step-btn{width:44px;flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--blue2);font-size:20px;font-weight:700;line-height:1;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:center;padding:0;transition:border-color .15s,background .15s}
+.ps-step-btn:hover{border-color:var(--blue2)}
+.ps-step-btn:active{background:var(--blue2);color:var(--on-accent);border-color:var(--blue2)}
+.ps-step-input{flex:1;min-width:0;width:auto}
 .ps-select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;padding:9px 10px;box-sizing:border-box;outline:none;-webkit-appearance:auto}
 .ps-select:focus{border-color:var(--blue2)}
 .ps-review-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px}
@@ -4629,8 +4647,8 @@ function _psStep2Html() {
   var wDetail = '';
   if (d.products.wireless) {
     wDetail = '<div class="ps-product-detail"><div class="ps-qty-row">';
-    wDetail += '<div class="ps-qty-col"><div class="ps-qty-label">NEW PHONES</div><input class="ps-qty-input" type="number" min="0" value="' + (d.wirelessNew||0) + '" oninput="_psQty(\'wirelessNew\',this.value)"></div>';
-    wDetail += '<div class="ps-qty-col"><div class="ps-qty-label">BYODS</div><input class="ps-qty-input" type="number" min="0" value="' + (d.wirelessByod||0) + '" oninput="_psQty(\'wirelessByod\',this.value)"></div>';
+    wDetail += '<div class="ps-qty-col"><div class="ps-qty-label">NEW PHONES</div>' + _psQtyStepperHtml('wirelessNew') + '</div>';
+    wDetail += '<div class="ps-qty-col"><div class="ps-qty-label">BYODS</div>' + _psQtyStepperHtml('wirelessByod') + '</div>';
     wDetail += '</div><div class="ps-total-lines" id="ps-wl-total">Total lines: ' + ((d.wirelessNew||0)+(d.wirelessByod||0)) + '</div></div>';
   }
   h += _psProductCardHtml('wireless', '&#128241;', 'Wireless', d.products.wireless, wDetail);
@@ -4652,7 +4670,7 @@ function _psStep2Html() {
   var vDetail = '';
   if (d.products.voip) {
     vDetail = '<div class="ps-product-detail"><div class="ps-qty-label">QUANTITY OF LINES</div>';
-    vDetail += '<input class="ps-qty-input" type="number" min="0" style="width:100px" value="' + (d.voipQty||0) + '" oninput="_psQty(\'voipQty\',this.value)"></div>';
+    vDetail += _psQtyStepperHtml('voipQty') + '</div>';
   }
   h += _psProductCardHtml('voip', '&#127911;', 'VoIP', d.products.voip, vDetail);
   // DirecTV
@@ -4696,6 +4714,25 @@ function _psQty(field, val) {
     var t = document.getElementById('ps-wl-total');
     if (t) t.textContent = 'Total lines: ' + ((_PS_DATA.wirelessNew||0)+(_PS_DATA.wirelessByod||0));
   }
+}
+function _psStepQty(field, delta) {
+  var v = (parseInt(_PS_DATA[field])||0) + delta;
+  if (v < 0) v = 0;
+  _PS_DATA[field] = v;
+  var inp = document.getElementById('ps-q-' + field);
+  if (inp) inp.value = v;
+  if (field==='wirelessNew'||field==='wirelessByod') {
+    var t = document.getElementById('ps-wl-total');
+    if (t) t.textContent = 'Total lines: ' + ((_PS_DATA.wirelessNew||0)+(_PS_DATA.wirelessByod||0));
+  }
+}
+function _psQtyStepperHtml(field) {
+  var v = _PS_DATA[field]||0;
+  return '<div class="ps-stepper">' +
+    '<button type="button" class="ps-step-btn" aria-label="decrease" onclick="_psStepQty(\'' + field + '\',-1)">&minus;</button>' +
+    '<input class="ps-qty-input ps-step-input" id="ps-q-' + field + '" type="number" inputmode="numeric" min="0" value="' + v + '" oninput="_psQty(\'' + field + '\',this.value)">' +
+    '<button type="button" class="ps-step-btn" aria-label="increase" onclick="_psStepQty(\'' + field + '\',1)">+</button>' +
+    '</div>';
 }
 function _psNext2() {
   if (!Object.keys(_PS_DATA.products).some(function(k){return _PS_DATA.products[k];})) { alert('Please select at least one product.'); return; }
