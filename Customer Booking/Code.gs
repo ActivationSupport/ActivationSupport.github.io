@@ -13,7 +13,7 @@
 //    APPT_API_KEY  — that backend's API_KEY value
 // ============================================================
 
-var OFFICES = ['elevate', 'midspire', 'viridian', 'ignite'];
+var OFFICES = ['elevate', 'midspire', 'viridian', 'ignite', 'vanguard'];
 
 // ── Page routing ──────────────────────────────────────────────
 // ?office=<id>            → booking page (locked to that office)

@@ -21,13 +21,14 @@ var BOOKING_MAX_DAYS = 7;  // latest   = today + 7 (same weekday next week)
 // any/all of this via "Manage My Schedule".
 var DEFAULT_HOURS = { start: '10:00', end: '17:00', days: ['mon','tue','wed','thu','fri'] };
 
-var ALL_OFFICES = ['midspire', 'viridian', 'elevate', 'ignite'];
+var ALL_OFFICES = ['midspire', 'viridian', 'elevate', 'ignite', 'vanguard'];
 
 var OFFICE_TZ = {
   midspire: 'America/Chicago',
   viridian:  'America/Chicago',
   elevate:   'America/Los_Angeles',
-  ignite:    'America/Los_Angeles'
+  ignite:    'America/Los_Angeles',
+  vanguard:  'America/New_York'
 };
 
 // Optional per-office call-in fallback number shown in customer emails.
@@ -37,7 +38,8 @@ var OFFICE_CALLIN = {
   midspire: '(224) 524-8968',
   viridian: '(314) 789-1988',
   elevate:  '(858) 321-5699',
-  ignite:   '(949) 841-2241'
+  ignite:   '(949) 841-2241',
+  vanguard: '(813) 524-7081'
 };
 
 var APPT_HEADERS = [

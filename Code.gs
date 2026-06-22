@@ -14,7 +14,8 @@ var OFFICE_OWNER_MAP = {
   'midspire': 'atomic marketing, inc.',
   'viridian': 'viridian, inc.',
   'elevate': 'elevate marketing team, inc.',
-  'ignite': 'ignite solutions, inc.'
+  'ignite': 'ignite solutions, inc.',
+  'vanguard': 'tenacity solutions, inc'
 };
 var RATINGS_VALID = ['No Answer','1 Star','2 Stars','3 Stars','4 Stars','5 Stars'];
 var _SHEET_CACHE = {};
@@ -1656,7 +1657,8 @@ var OFFICE_BRAND = {
   elevate:  { band:'#111827', header:'#111827', headerText:'#ffffff', headerSub:'#aab8d6', accent:'#0A1FFF', accentText:'#0A1FFF', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
   midspire: { band:'#0c1d2e', header:'#0c1d2e', headerText:'#ffffff', headerSub:'#a8c8e4', accent:'#4FB0FF', accentText:'#4FB0FF', logo:'midspire-logo-full.png',           logoH:38 },
   viridian: { band:'#1B3A2D', header:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png',           logoH:54 },
-  ignite:   { band:'#211210', header:'#211210', headerText:'#ffffff', headerSub:'#e3aaaa', accent:'#F0431E', accentText:'#F0431E', logo:'ignite-logo-full-reverse.png',     logoH:40 }
+  ignite:   { band:'#211210', header:'#211210', headerText:'#ffffff', headerSub:'#e3aaaa', accent:'#F0431E', accentText:'#F0431E', logo:'ignite-logo-full-reverse.png',     logoH:40 },
+  vanguard: { band:'#1C1C1C', header:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png',   logoH:40 }
 };
 function _drBrand(officeId) {
   return OFFICE_BRAND[String(officeId||'').toLowerCase()] ||

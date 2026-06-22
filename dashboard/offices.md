@@ -10,6 +10,7 @@
 | Viridian | Stefan | `https://ActivationSupport.github.io/dashboard/index.html?office=viridian` |
 | Elevate | Jackie | `https://ActivationSupport.github.io/dashboard/index.html?office=elevate` |
 | Ignite | Jacob | `https://ActivationSupport.github.io/dashboard/index.html?office=ignite` |
+| Vanguard | Ellen Dent | `https://ActivationSupport.github.io/dashboard/index.html?office=vanguard` |
 
 Keep these URLs private — share only with the designated owner/admin for each office.
 
@@ -44,8 +45,9 @@ Set in the `permissions` column (column 10) of each roster tab.
 | `viridian` | Viridian only |
 | `elevate` | Elevate only |
 | `ignite` | Ignite only |
+| `vanguard` | Vanguard only |
 | `elevate,ignite` | Elevate + Ignite (switcher appears in sidebar) |
-| `midspire,viridian,elevate,ignite` | All offices |
+| `midspire,viridian,elevate,ignite,vanguard` | All offices |
 
 ---
 
