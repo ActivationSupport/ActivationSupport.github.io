@@ -10,6 +10,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --blue:#1F4E78;--blue2:#4A9FD4;--blue3:#1a3347;--blueHover:#2563a8;--blueText:#fff;
+  --accent2b:#4A9FD4;/* secondary "dual" accent — defaults to --blue2; per-office override (Vanguard = red) */
   --blue2-fade:rgba(96,165,250,.13);--blue2-faint:rgba(96,165,250,.05);
   --green:#27ae60;--green2:#1a4a2a;--green3:#c6efce;
   --yellow:#f0b429;--yellow2:#3a2c00;--yellow3:#fff2cc;
@@ -82,7 +83,7 @@ nav{flex:1;padding:10px 0}
 /* ── MAIN ── */
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
 .topbar{background:var(--surface);padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.topbar h2{font-size:1.05rem;font-weight:700;color:var(--blue2)}
+.topbar h2{font-size:1.05rem;font-weight:700;color:var(--accent2b)}
 .topbar-actions{display:flex;gap:8px;align-items:center}
 .refresh-btn{padding:6px 14px;background:#2a2a2a;color:var(--blue2);border:1px solid #3a3a3a;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
 .refresh-btn:hover{border-color:var(--blue2)}
@@ -96,8 +97,8 @@ nav{flex:1;padding:10px 0}
 
 /* ── STAT ROW ── */
 .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.stat{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--blue2);border-radius:10px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,.45);text-align:center}
-.stat-val{font-size:2rem;font-weight:700;color:var(--blue2);line-height:1}
+.stat{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--accent2b);border-radius:10px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,.45);text-align:center}
+.stat-val{font-size:2rem;font-weight:700;color:var(--accent2b);line-height:1}
 .stat-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-top:4px}
 
 /* ── TABLE ── */
@@ -1198,7 +1199,7 @@ var OFFICE_THEME = {
   // Vanguard = charcoal structure (band/sidebar/buttons) + BLUE app accent
   // (nav/links/highlights), with RED on the login + logo + office badge. Their
   // tri-color logo (red/blue/black) carries both colors throughout.
-  vanguard: { btn:'#1C1C1C', accent:'#3D67E8', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' }
+  vanguard: { btn:'#1C1C1C', accent:'#3D67E8', accent2b:'#D81F1F', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' }
 };
 // Light-email Daily Report branding — MIRROR of Code.gs OFFICE_BRAND so the
 // "Copy for Email" export matches the automated 6pm email exactly. (Keep in sync.)
@@ -1221,6 +1222,7 @@ function applyOfficeTheme(officeId) {
   var r = document.documentElement.style;
   r.setProperty('--blue', t.btn);
   r.setProperty('--blue2', t.accent);
+  r.setProperty('--accent2b', t.accent2b || t.accent);   // dual accent; non-vanguard offices fall back to their main accent (no change)
   r.setProperty('--blue3', t.dark);
   r.setProperty('--blueHover', t.hover);
   r.setProperty('--blueText', t.btnText || '#fff');
