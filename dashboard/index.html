@@ -2809,8 +2809,21 @@ function _sortHeaders(tblId) {
   }).join('') + '<th>Appointment</th><th>Rating</th><th>Notes</th>';
 }
 
+// Default call-list order: newest Order Date first; blank/unknown dates sink to the
+// bottom (so they don't masquerade as "newest"). Default only — clicking a column
+// header still overrides it. No Answer is intentionally excluded (it keeps its own
+// "never-called / most-overdue first" calling-priority sort).
+function _byOrderDateDesc(a, b) {
+  var da = /^\d{4}-\d{2}-\d{2}/.test(a.orderDate || '') ? a.orderDate : '';
+  var db = /^\d{4}-\d{2}-\d{2}/.test(b.orderDate || '') ? b.orderDate : '';
+  if (!da && !db) return 0;
+  if (!da) return 1;
+  if (!db) return -1;
+  return da < db ? 1 : da > db ? -1 : 0;
+}
 function renderCallTable(orders, title, emptyMsg) {
   if (!orders.length) return noData(emptyMsg);
+  orders = orders.slice().sort(_byOrderDateDesc);   // default: newest order first
   _tabOrders = orders.slice(); _sortTblId = 'ct-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '', risk: '' }; _extraColFn = null;
   _ctShowRiskFlags = true; _ISSUE_DSI = null;
   if (_BOOKED_MAP === null) _loadBookedAppts();   // lazy one-time appointment pull for booked badges
@@ -3111,6 +3124,7 @@ function renderEscalationsTable() {
     var o = lookup[dsi];
     return o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
   });
+  orders.sort(_byOrderDateDesc);   // default: newest order first
   _tabOrders = orders.slice(); _sortTblId = 'esc-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = null;
   _ctShowRiskFlags = false; _ISSUE_DSI = null;
   if (_BOOKED_MAP === null) _loadBookedAppts();
