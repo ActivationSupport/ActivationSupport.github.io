@@ -65,6 +65,7 @@ const TOL_HEADER_MAP = {
   "spe.name": "SPE", "spe name": "SPE", "spe": "SPE",
   "spe.account ban": "BAN", "account ban": "BAN", "ban": "BAN",
   "product type (broken out)": "PRODUCT_TYPE", "product type": "PRODUCT_TYPE",
+  "product type (broken out lvl 2)": "PRODUCT_TYPE", "product type (broken out lvl 3)": "PRODUCT_TYPE",
   "cru/iru": "CRU_IRU", "cru / iru": "CRU_IRU",
   "dtr status (enriched)": "DTR_STATUS", "dtr status": "DTR_STATUS",
   "disconnect reason (consolidated)": "DISCO_REASON",
@@ -92,7 +93,7 @@ const TOL_HEADER_MAP = {
 function buildTableauColumnMap(headerRow) {
   var col = {};
   for (var i = 0; i < headerRow.length; i++) {
-    var raw = String(headerRow[i] || '').trim().toLowerCase();
+    var raw = String(headerRow[i] || '').replace(/\s+/g, ' ').trim().toLowerCase();
     var key = TOL_HEADER_MAP[raw];
     if (key && !col.hasOwnProperty(key)) col[key] = i;
   }
