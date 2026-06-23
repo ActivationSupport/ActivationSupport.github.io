@@ -42,6 +42,32 @@ var OFFICE_CALLIN = {
   vanguard: '(813) 524-7081'
 };
 
+// Per-office colors for the customer booking emails (confirmation / moved /
+// reminder). Mirrors the Daily Report branding (portal OFFICE_BRAND) so a
+// customer's email matches the office that booked them.
+//   band     — dark header bar background (always dark → white text reads)
+//   sub      — muted subtitle text on the band
+//   accent   — primary fill: Reschedule button bg + info-box left border
+//   onAccent — text/label color ON TOP of an accent fill (dark for the light
+//              accents — gold / light-blue — so the button stays readable)
+//   ink      — readable-on-white accent variant: badge text, Cancel text/border
+//   soft     — light accent tint: badge pill bg (+ info-box bg unless boxBg set)
+//   boxBg    — (optional) override tint for the "phone appointment" info box,
+//              used by dual-color offices so the badge and the box can differ
+// Vanguard is a red+blue dual brand: charcoal header, BLUE primary (Reschedule
+// button + info-box border) and RED secondary (badge + Cancel outline).
+var OFFICE_EMAIL_BRAND = {
+  elevate:  { band:'#111827', sub:'#aab8d6', accent:'#0A1FFF', onAccent:'#ffffff', ink:'#0A1FFF', soft:'#e7eaff' },
+  midspire: { band:'#0c1d2e', sub:'#a8c8e4', accent:'#4FB0FF', onAccent:'#0c1d2e', ink:'#1573c4', soft:'#e6f4ff' },
+  viridian: { band:'#1B3A2D', sub:'#cfd9cf', accent:'#D9C87E', onAccent:'#1B3A2D', ink:'#7a6a2e', soft:'#f6f1de' },
+  ignite:   { band:'#211210', sub:'#e3aaaa', accent:'#F0431E', onAccent:'#ffffff', ink:'#c0341a', soft:'#fdeae6' },
+  vanguard: { band:'#1C1C1C', sub:'#c9b3b1', accent:'#2652D7', onAccent:'#ffffff', ink:'#c01a1a', soft:'#fbe7e7', boxBg:'#e9eefb' }
+};
+function _emailBrand(office) {
+  return OFFICE_EMAIL_BRAND[String(office || '').toLowerCase()] ||
+    { band:'#16314f', sub:'#9db8d6', accent:'#1d4ed8', onAccent:'#ffffff', ink:'#1d4ed8', soft:'#eef5ff' };
+}
+
 var APPT_HEADERS = [
   'appointmentId','activatorEmail','bookerEmail','customerName',
   'customerDSI','customerPhone','customerEmail','services',
@@ -1262,12 +1288,13 @@ function _selfServiceButtonsHtml(office, token) {
   var q = '?office=' + encodeURIComponent(office || '') + '&token=' + encodeURIComponent(token);
   var resch = SELF_SERVICE_BASE + 'reschedule.html' + q;
   var canc  = SELF_SERVICE_BASE + 'cancel.html' + q;
+  var BR    = _emailBrand(office);
   return '' +
     '<tr><td style="padding:4px 32px 26px;">' +
       '<p style="margin:0 0 12px;font:600 14px Arial,sans-serif;color:#16314f;">Need to make a change?</p>' +
       '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
-        '<td style="padding-right:10px;"><a href="' + resch + '" style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;font:600 14px Arial,sans-serif;padding:11px 22px;border-radius:6px;">Reschedule</a></td>' +
-        '<td><a href="' + canc + '" style="display:inline-block;background:#ffffff;color:#b42318;text-decoration:none;font:600 14px Arial,sans-serif;padding:10px 22px;border:1px solid #f1c4bf;border-radius:6px;">Cancel</a></td>' +
+        '<td style="padding-right:10px;"><a href="' + resch + '" style="display:inline-block;background:' + BR.accent + ';color:' + BR.onAccent + ';text-decoration:none;font:600 14px Arial,sans-serif;padding:11px 22px;border-radius:6px;">Reschedule</a></td>' +
+        '<td><a href="' + canc + '" style="display:inline-block;background:#ffffff;color:' + BR.ink + ';text-decoration:none;font:600 14px Arial,sans-serif;padding:10px 22px;border:1px solid ' + BR.ink + ';border-radius:6px;">Cancel</a></td>' +
       '</tr></table>' +
     '</td></tr>';
 }
@@ -1294,17 +1321,18 @@ function _apptEmailHtml(o) {
     : 'Your activation specialist will call you at the time above.';
   var callIn = OFFICE_CALLIN[String(o.office || '').toLowerCase()] || '';
   var callInLine = callIn ? '<br>If you need to reach us, call <b>' + _htmlEsc(callIn) + '</b>.' : '';
+  var BR = _emailBrand(o.office);
 
   return '' +
   '<!doctype html><html><body style="margin:0;padding:0;background:#f4f6f8;">' +
   '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 12px;"><tr><td align="center">' +
     '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e7ec;">' +
-      '<tr><td style="background:#16314f;padding:22px 32px;">' +
+      '<tr><td style="background:' + BR.band + ';padding:22px 32px;">' +
         '<div style="font:700 18px Arial,sans-serif;color:#ffffff;letter-spacing:.3px;">Activation Support</div>' +
-        '<div style="font:13px Arial,sans-serif;color:#9db8d6;margin-top:2px;">AT&amp;T Activation Scheduling</div>' +
+        '<div style="font:13px Arial,sans-serif;color:' + BR.sub + ';margin-top:2px;">AT&amp;T Activation Scheduling</div>' +
       '</td></tr>' +
       '<tr><td style="padding:26px 32px 2px;">' +
-        '<span style="display:inline-block;background:#e7f4ec;color:#1a7f43;font:600 12px Arial,sans-serif;padding:5px 12px;border-radius:20px;">' + _htmlEsc(o.badge || 'Confirmed') + '</span>' +
+        '<span style="display:inline-block;background:' + BR.soft + ';color:' + BR.ink + ';font:600 12px Arial,sans-serif;padding:5px 12px;border-radius:20px;">' + _htmlEsc(o.badge || 'Confirmed') + '</span>' +
         '<h1 style="margin:14px 0 6px;font:700 22px Arial,sans-serif;color:#16314f;">' + _htmlEsc(o.heading) + '</h1>' +
         '<p style="margin:0;font:15px/1.5 Arial,sans-serif;color:#475467;">Hi ' + _htmlEsc(o.name || 'there') + ', ' + _htmlEsc(o.intro) + '</p>' +
       '</td></tr>' +
@@ -1312,7 +1340,7 @@ function _apptEmailHtml(o) {
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #eef1f5;border-radius:10px;"><tr><td style="padding:4px 20px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + detailRows + '</table></td></tr></table>' +
       '</td></tr>' +
       '<tr><td style="padding:18px 32px 2px;">' +
-        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef5ff;border-left:4px solid #1d4ed8;border-radius:6px;"><tr><td style="padding:13px 16px;font:14px/1.5 Arial,sans-serif;color:#1e3a5f;">' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + (BR.boxBg || BR.soft) + ';border-left:4px solid ' + BR.accent + ';border-radius:6px;"><tr><td style="padding:13px 16px;font:14px/1.5 Arial,sans-serif;color:#1e3a5f;">' +
           '<b>This is a phone appointment</b> — there is nothing to attend in person.<br>' + phoneLine + callInLine +
         '</td></tr></table>' +
       '</td></tr>' +
