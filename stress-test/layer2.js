@@ -117,9 +117,10 @@ async function testPosting() {
   OFFICES.forEach(o => ['mgr','lead','jd','act1','act2','rep1','rep2','rep3','rep4','rep5']
     .forEach(r => reps.push(r + '-' + o + '@test.local')));   // 50 emails
 
+  const authTok = await login('mgr-elevate@test.local');   // any valid badge satisfies the write gate
   const stamp = Date.now();
   const mkBody = (email, i) => ({
-    action: 'postSale', officeId: officeOf(email), repEmail: email,
+    action: 'postSale', token: authTok, officeId: officeOf(email), repEmail: email,
     dateOfSale: today, dsi: 'LOADTEST' + stamp + '-' + i,     // >= 12 chars, unique
     accountType: 'Business', processedVia: 'Sara',
     airQty: 1, wirelessNew: 1, voipQty: 0, dtvQty: 0, notes: 'layer2-loadtest'
@@ -161,7 +162,10 @@ async function testBookingRace() {
   // Find a real open slot inside the booking window.
   const win = (await gget(SCHED, 'getBookingWindow', { token: probeTok, role: 'activator' })).window || {};
   let date = null, slot = null;
-  for (let d = win.min; d && d <= win.max && !slot; d = addDay(d)) {
+  // Start at TOMORROW (skip same-day): client-rep bookers can't book today, so a
+  // same-day slot would leave only the activator eligible = fake contention.
+  const tomorrow = addDay(today);
+  for (let d = (win.min && win.min > tomorrow ? win.min : tomorrow); d && d <= win.max && !slot; d = addDay(d)) {
     const slots = (await gget(SCHED, 'getAvailableSlots',
       { activatorEmail: activator, date: d, token: probeTok })).slots || [];
     if (slots.length) { date = d; slot = slots[0]; }
