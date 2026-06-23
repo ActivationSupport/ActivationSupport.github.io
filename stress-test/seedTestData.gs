@@ -81,11 +81,10 @@ function seedTestData() {
       ['TM-' + office, team, '', 'lead-' + office + '@test.local', 'star', today]
     ]);
 
-    // 4) Clear posted-sales so concurrent-post runs start empty
+    // 4) DELETE posted-sales so the concurrent-post run re-exercises the
+    //    cold-start sheet-creation race — the fix must recreate it safely.
     var ps = ss.getSheetByName('_PostedSales_' + office);
-    if (ps && ps.getLastRow() > 1) {
-      ps.getRange(2, 1, ps.getLastRow() - 1, ps.getLastColumn()).clearContent();
-    }
+    if (ps) ss.deleteSheet(ps);
 
     summary.offices[office] = {
       reps: reps.length,

@@ -114,10 +114,33 @@ function getSheet(params) {
   return SpreadsheetApp.getActiveSpreadsheet();
 }
 
+// Race-safe sheet creation: only the lock-winner that still finds the tab
+// missing creates it; everyone else reuses it. The common already-exists path
+// stays lock-free (no throughput cost). Fixes the cold-start race where many
+// first-time posts to a new office all try to insert _PostedSales_<office> at
+// once and the losers crash with "a sheet with that name already exists".
+function _getOrInsertSheet(ss, tabName) {
+  var existing = ss.getSheetByName(tabName);
+  if (existing) return { sheet: existing, created: false };
+  var lock = LockService.getScriptLock();
+  var haveLock = false;
+  try { lock.waitLock(20000); haveLock = true; } catch (e) {}
+  try {
+    var s = ss.getSheetByName(tabName);            // re-check inside the lock
+    if (s) return { sheet: s, created: false };
+    try {
+      return { sheet: ss.insertSheet(tabName), created: true };
+    } catch (e2) {                                 // lost the race anyway (lock timeout)
+      var after = ss.getSheetByName(tabName);
+      if (after) return { sheet: after, created: false };
+      throw e2;
+    }
+  } finally { if (haveLock) lock.releaseLock(); }
+}
 function getOrCreateSheet(ss, tabName, baseName) {
-  let sheet = ss.getSheetByName(tabName);
-  if (!sheet) {
-    sheet = ss.insertSheet(tabName);
+  var _r = _getOrInsertSheet(ss, tabName);
+  var sheet = _r.sheet;
+  if (_r.created) {
     switch (baseName) {
       case TAB.SALES:
         sheet.appendRow(['Timestamp','Email','Rep Name','Date of Sale','Campaign','DSI','Account Type','Client Name','Trainee','Trainee Name','Air','New Phones','BYODs','Cell','Fiber','Fiber Package','Install Date','VoIP Qty','DTV','DTV Package','Ooma Package','Account Notes','Activation Support','Team Emoji','Yeses','Units','Status','Notes','Paid Out','Tickets','Order Channel','Codes Used By','SPE Cache']); break;
@@ -3077,10 +3100,9 @@ function migrateFromExternal(body, ss) {
 // Separate from _Sales_<officeId> — these are rep self-reported sales for the
 // Live Sales Tracker leaderboard. Never touches existing _Sales_ tabs.
 function _getPostedSalesSheet(ss, officeId) {
-  var tabName = '_PostedSales_' + officeId;
-  var sheet = ss.getSheetByName(tabName);
-  if (!sheet) {
-    sheet = ss.insertSheet(tabName);
+  var _r = _getOrInsertSheet(ss, '_PostedSales_' + officeId);
+  var sheet = _r.sheet;
+  if (_r.created) {
     sheet.appendRow(['Timestamp','Rep Email','Rep Name','Rep Team','Date of Sale','DSI',
       'Account Type','Processed Via','Under Codes','Codes Used By','Trainee','Trainee Name',
       'Air Qty','Wireless New','Wireless BYOD','Fiber Package','Fiber Install Date',
