@@ -971,48 +971,66 @@ function bookAppointment(body) {
     if (!activatorEmail) return { error: 'slot_unavailable' };
   }
 
-  // Verify slot is still open
-  var available = getAvailableSlots(activatorEmail, date, '', allowSameDay);
-  if (available.indexOf(timeSlot) === -1) return { error: 'slot_unavailable' };
-
-  var appointmentId = 'APT' + Date.now();
-  var cancelToken   = Utilities.getUuid();   // powers self-service cancel/reschedule links
-  var services      = Array.isArray(body.services)
+  // ── Atomic check-then-write ────────────────────────────────────────────
+  // A script-wide lock closes the double-booking race: WITHOUT it, two reps
+  // grabbing the same activator+slot in the same instant both pass the
+  // availability check and both append a row. We hold the lock only around the
+  // re-check + write (NOT the slow calendar/email below) to keep throughput up.
+  // Shared with rescheduleAppointment so those two can't race each other either.
+  var services = Array.isArray(body.services)
     ? body.services.join(', ')
     : String(body.services || '');
+  var appointmentId, cancelToken, apptRowNum;
 
-  var row = [
-    appointmentId,
-    activatorEmail,
-    bookerEmail,
-    _sanitizeCell(String(body.customerName  || '').trim()),
-    _sanitizeCell(String(body.customerDSI   || '').trim()),
-    _sanitizeCell(String(body.customerPhone || '').trim()),
-    _sanitizeCell(String(body.customerEmail || '').trim()),
-    _sanitizeCell(services),
-    Number(body.deviceCount)  || 1,
-    date,
-    timeSlot,
-    office,
-    'confirmed',
-    new Date().toISOString(),
-    false,  // rem24hSent
-    '',     // outcome
-    '',     // outcomeNote
-    '',     // outcomeBy
-    '',     // outcomeAt
-    source,       // 'rep' | 'customer'
-    cancelToken   // self-service token
-  ];
+  var _lock = LockService.getScriptLock();
+  try { _lock.waitLock(20000); }
+  catch (e) { return { error: 'busy', message: 'Booking system is busy — please try again.' }; }
+  try {
+    // Re-verify the slot is still open, now race-safe inside the lock.
+    var available = getAvailableSlots(activatorEmail, date, '', allowSameDay);
+    if (available.indexOf(timeSlot) === -1) return { error: 'slot_unavailable' };
 
-  sheet.appendRow(row);
-  _bustCache(APPT_TAB);
+    appointmentId = 'APT' + Date.now();
+    cancelToken   = Utilities.getUuid();   // powers self-service cancel/reschedule links
+
+    var row = [
+      appointmentId,
+      activatorEmail,
+      bookerEmail,
+      _sanitizeCell(String(body.customerName  || '').trim()),
+      _sanitizeCell(String(body.customerDSI   || '').trim()),
+      _sanitizeCell(String(body.customerPhone || '').trim()),
+      _sanitizeCell(String(body.customerEmail || '').trim()),
+      _sanitizeCell(services),
+      Number(body.deviceCount)  || 1,
+      date,
+      timeSlot,
+      office,
+      'confirmed',
+      new Date().toISOString(),
+      false,  // rem24hSent
+      '',     // outcome
+      '',     // outcomeNote
+      '',     // outcomeBy
+      '',     // outcomeAt
+      source,       // 'rep' | 'customer'
+      cancelToken   // self-service token
+    ];
+
+    sheet.appendRow(row);
+    apptRowNum = sheet.getLastRow();   // capture under the lock for the calEventId write
+    _bustCache(APPT_TAB);
+  } finally {
+    _lock.releaseLock();
+  }
 
   // Two-way calendar: push this activation onto the activator's Google Calendar
   // (if linked) and remember the event id on the row so cancel/reschedule sync.
+  // Done OUTSIDE the lock, using the row number captured above (a fresh
+  // getLastRow() here would be unsafe once the lock is released).
   try {
     var calEventId = _createCalendarEvent(activatorEmail, date, timeSlot, office);
-    if (calEventId) sheet.getRange(sheet.getLastRow(), 22).setValue(calEventId);
+    if (calEventId) sheet.getRange(apptRowNum, 22).setValue(calEventId);
   } catch (err) { Logger.log('Calendar push error: ' + err); }
 
   try {
@@ -1207,6 +1225,15 @@ function rescheduleAppointment(body) {
 
   // Keep date/timeSlot columns as plain text (avoid Date coercion).
   sheet.getRange(1, 10, sheet.getMaxRows(), 2).setNumberFormat('@');
+
+  // Same script lock as bookAppointment — serializes the check-then-write so a
+  // reschedule can't land on a slot another booking/reschedule is simultaneously
+  // taking. Reschedules are rare, so holding it through the calendar/email sync
+  // (inside the loop below) is an acceptable, lower-risk minimal change.
+  var _lock = LockService.getScriptLock();
+  try { _lock.waitLock(20000); }
+  catch (e) { return { error: 'busy', message: 'Booking system is busy — please try again.' }; }
+  try {
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() !== id) continue;
@@ -1260,6 +1287,9 @@ function rescheduleAppointment(body) {
     return { ok: true, activatorEmail: activator };
   }
   return { error: 'appointment not found' };
+  } finally {
+    _lock.releaseLock();
+  }
 }
 
 // ── Emails ────────────────────────────────────────────────────

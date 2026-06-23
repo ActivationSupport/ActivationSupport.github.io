@@ -2030,9 +2030,11 @@ function _teamEmails(teamName) {
 function repFilter(orders) {
   var role = SESSION.role;
   if (role === 'client-rep') {
-    var tn = (SESSION.tableauName || '').trim();
+    var tn = (SESSION.tableauName || '').trim().toLowerCase();
     if (!tn) return [];
-    return orders.filter(function(o) { return o.rep === tn; });
+    // case-insensitive (matches leader/jd below) so a casing drift between the
+    // rep's tableauName and the order's rep field can't silently hide all orders
+    return orders.filter(function(o) { return (o.rep || '').trim().toLowerCase() === tn; });
   }
   if (role === 'leader' || role === 'jd') {
     var team = _myTeam();
@@ -2041,8 +2043,8 @@ function repFilter(orders) {
       if (!tns.length) return [];
       return orders.filter(function(o) { return tns.indexOf((o.rep || '').trim().toLowerCase()) !== -1; });
     }
-    var tn2 = (SESSION.tableauName || '').trim();
-    return tn2 ? orders.filter(function(o) { return o.rep === tn2; }) : [];
+    var tn2 = (SESSION.tableauName || '').trim().toLowerCase();
+    return tn2 ? orders.filter(function(o) { return (o.rep || '').trim().toLowerCase() === tn2; }) : [];
   }
   return orders;
 }

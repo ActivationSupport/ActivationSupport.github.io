@@ -246,6 +246,69 @@ function _validateSession(ss, token) {
   }
   return { valid:false };
 }
+
+//    Server-side order scoping (badge-derived; mirrors the client repFilter)   
+// Closes the data-layer leak: a client-rep/leader/jd must never RECEIVE another
+// rep's orders, not merely have them hidden in the browser. Identity (email +
+// rank) comes from the SERVER-ISSUED badge (gs), never from client input. With
+// no valid badge (STRICT_AUTH grace period) orders pass through unchanged.
+function _scopeOrders(orders, gs, roster, teams) {
+  if (!gs || !gs.valid) return orders;
+  var rank  = String(gs.rank  || '').trim();
+  var email = String(gs.email || '').trim().toLowerCase();
+  roster = roster || {}; teams = teams || {};
+  if (rank === 'client-rep') {
+    var me = roster[email] || {};
+    var tn = String(me.tableauName || '').trim().toLowerCase();
+    if (!tn) return [];
+    return orders.filter(function(o){ return String(o.rep || '').trim().toLowerCase() === tn; });
+  }
+  if (rank === 'leader' || rank === 'jd') {
+    var team = _serverMyTeam(rank, email, roster, teams);
+    if (team) {
+      var tns = _serverTeamTableauNames(team.name, roster);
+      if (!tns.length) return [];
+      return orders.filter(function(o){ return tns.indexOf(String(o.rep || '').trim().toLowerCase()) !== -1; });
+    }
+    var me2 = roster[email] || {};
+    var tn2 = String(me2.tableauName || '').trim().toLowerCase();
+    return tn2 ? orders.filter(function(o){ return String(o.rep || '').trim().toLowerCase() === tn2; }) : [];
+  }
+  return orders;  // master-admin / owner / admin / activator / manager => office-wide
+}
+function _serverMyTeam(rank, email, roster, teams) {
+  if (rank === 'leader') {
+    var found = null;
+    Object.keys(teams).forEach(function(tid){ if (String(teams[tid].leaderId || '').toLowerCase() === email) found = teams[tid]; });
+    return found;
+  }
+  if (rank === 'jd') {
+    var me = roster[email] || {};
+    var teamName = me.team || '';
+    if (!teamName) return null;
+    var found2 = null;
+    Object.keys(teams).forEach(function(tid){ if (teams[tid].name === teamName) found2 = teams[tid]; });
+    return found2;
+  }
+  return null;
+}
+function _serverTeamTableauNames(teamName, roster) {
+  if (!teamName) return [];
+  var tns = [];
+  Object.keys(roster).forEach(function(em){
+    var p = roster[em];
+    if ((p.team || '') === teamName && p.tableauName) tns.push(String(p.tableauName || '').trim().toLowerCase());
+  });
+  return tns;
+}
+// Individual order-read actions: skip the roster/teams read for office-wide
+// roles; load them only when scoping is actually needed.
+function _scopeOrdersAuthed(ss, officeId, orders, gs) {
+  if (!gs || !gs.valid) return orders;
+  var rank = String(gs.rank || '').trim();
+  if (rank !== 'client-rep' && rank !== 'leader' && rank !== 'jd') return orders;
+  return _scopeOrders(orders, gs, readRoster(ss, officeId), readTeams(ss, officeId));
+}
 // Revoke a badge (logout). Safe to call with an unknown/empty token.
 function _revokeSession(ss, token) {
   if (!token) return { ok:true };
@@ -750,7 +813,7 @@ function doGet(e) {
     }
     if (action === 'readOrders') {
       const filterEmail = (e.parameter && e.parameter.email) || '';
-      return jsonResponse({ orders: readOrders(ss, officeId, filterEmail || null) });
+      return jsonResponse({ orders: _scopeOrdersAuthed(ss, officeId, readOrders(ss, officeId, filterEmail || null), _gs) });
     }
     if (action === 'readPayrollOrders') {
       var payrollMode = (e.parameter && e.parameter.payrollMode) || 'commission-split';
@@ -758,10 +821,10 @@ function doGet(e) {
     }
     if (action === 'readTrainingOrders') return jsonResponse({ orders: readTrainingOrders(ss, officeId) });
     if (action === 'readTableauSummary') return jsonResponse(getTableauSummaryWithCache(ss, officeId));
-    if (action === 'readDayAfter') return jsonResponse({ orders: readDayAfterOrders(ss, officeId) });
-    if (action === 'readDelivered') return jsonResponse({ orders: readDeliveredNotActive(ss, officeId) });
-    if (action === 'readIssues') return jsonResponse({ orders: readOrderIssues(ss, officeId) });
-    if (action === 'readCompleted') return jsonResponse({ orders: readCompletedOrders(ss, officeId) });
+    if (action === 'readDayAfter') return jsonResponse({ orders: _scopeOrdersAuthed(ss, officeId, readDayAfterOrders(ss, officeId), _gs) });
+    if (action === 'readDelivered') return jsonResponse({ orders: _scopeOrdersAuthed(ss, officeId, readDeliveredNotActive(ss, officeId), _gs) });
+    if (action === 'readIssues') return jsonResponse({ orders: _scopeOrdersAuthed(ss, officeId, readOrderIssues(ss, officeId), _gs) });
+    if (action === 'readCompleted') return jsonResponse({ orders: _scopeOrdersAuthed(ss, officeId, readCompletedOrders(ss, officeId), _gs) });
     if (action === 'readActRateLines') return jsonResponse({ actRateLines: readActRateLines(ss, officeId), _v: 13 });
     if (action === 'readNotes') return jsonResponse({ notes: readNotes(ss, officeId) });
     if (action === 'readRatings') return jsonResponse({ ratings: readRatings(ss, officeId) });
@@ -815,22 +878,23 @@ function doGet(e) {
     const peopleResult = readPeople(ss, officeId, roster, teamMaps.nameMap);
     const tableauSummary = getTableauSummaryWithCache(ss, officeId);
     roster = autoAssignTableauNames(ss, officeId, roster, tableauSummary.possibleTableauNames);
+    const _teamsObj = readTeams(ss, officeId);
     const data = {
       people: peopleResult.people || peopleResult,
       roster: roster,
       teamMap: teamMaps.emojiMap,
-      teams: readTeams(ss, officeId),
+      teams: _teamsObj,
       orderOverrides: readOrderOverrides(ss, officeId),
       teamCustomizations: readTeamCustomizations(ss, officeId),
       unlockRequests: readUnlockRequests(ss, officeId),
       settings: readSettings(ss, officeId),
       churnReport: readChurnReport(ss, officeId),
       aorData: readAOR(ss),
-      dayAfterOrders: readDayAfterOrders(ss, officeId),
-      deliveredOrders: readDeliveredNotActive(ss, officeId),
-      orderIssues: readOrderIssues(ss, officeId),
-      masterTracker: readMasterTracker(ss, officeId),
-      completedOrders: readCompletedOrders(ss, officeId),
+      dayAfterOrders: _scopeOrders(readDayAfterOrders(ss, officeId), _gs, roster, _teamsObj),
+      deliveredOrders: _scopeOrders(readDeliveredNotActive(ss, officeId), _gs, roster, _teamsObj),
+      orderIssues: _scopeOrders(readOrderIssues(ss, officeId), _gs, roster, _teamsObj),
+      masterTracker: _scopeOrders(readMasterTracker(ss, officeId), _gs, roster, _teamsObj),
+      completedOrders: _scopeOrders(readCompletedOrders(ss, officeId), _gs, roster, _teamsObj),
       notes: readNotes(ss, officeId),
       ratings: readRatings(ss, officeId),
       guestRoster: readCrossOfficeMembers(ss, officeId)
