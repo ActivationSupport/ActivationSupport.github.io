@@ -247,7 +247,7 @@ function _validateSession(ss, token) {
   return { valid:false };
 }
 
-//    Server-side order scoping (badge-derived; mirrors the client repFilter)   
+// -- Server-side order scoping (badge-derived; mirrors the client repFilter) --
 // Closes the data-layer leak: a client-rep/leader/jd must never RECEIVE another
 // rep's orders, not merely have them hidden in the browser. Identity (email +
 // rank) comes from the SERVER-ISSUED badge (gs), never from client input. With
