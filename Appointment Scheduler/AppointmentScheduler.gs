@@ -614,10 +614,16 @@ function getAvailableSlots(activatorEmail, dateStr, excludeAppointmentId, allowS
 // Available Agent" bookings. Returns a sorted, de-duplicated slot list.
 function getNextAvailableSlots(officeId, dateStr, allowSameDay) {
   if (!dateStr) return [];
+  var officeTz = _officeTzOf(officeId);
   var acts = getActivators(officeId || '');
   var set  = {};
   acts.forEach(function(a) {
-    getAvailableSlots(a.email, dateStr, '', allowSameDay).forEach(function(s) { set[s] = true; });
+    var actTz = _activatorTz(a.email);
+    // Each activator's open slots are in THEIR tz; the union is presented in the
+    // office tz so a cross-zone activator's times read correctly for the office.
+    getAvailableSlots(a.email, dateStr, '', allowSameDay).forEach(function(s) {
+      set[_convertClockTz(dateStr, s, actTz, officeTz)] = true;
+    });
   });
   return Object.keys(set).sort();
 }
@@ -679,9 +685,13 @@ function getOfficeBlocks(officeId, datesCsv, role) {
 // fewest appointments that day; roster order breaks ties. Returns '' if nobody
 // is free.
 function _resolveNextActivator(officeId, dateStr, timeSlot, mode, allowSameDay) {
+  // timeSlot arrives in OFFICE tz (that's what getNextAvailableSlots returned);
+  // match it against each activator's own-tz availability.
+  var officeTz = _officeTzOf(officeId);
   var acts = getActivators(officeId || '');
   var free = acts.filter(function(a) {
-    return getAvailableSlots(a.email, dateStr, '', allowSameDay).indexOf(timeSlot) !== -1;
+    var actSlot = _convertClockTz(dateStr, timeSlot, officeTz, _activatorTz(a.email));
+    return getAvailableSlots(a.email, dateStr, '', allowSameDay).indexOf(actSlot) !== -1;
   });
   if (!free.length) return '';
   if (mode === 'balance') {
@@ -801,6 +811,16 @@ function _localDateTime(dateStr, minutes, tz) {
   var delta = new Date(dateStr + 'T' + hhmm + ':00').getTime() - new Date(shown).getTime();
   return new Date(guess.getTime() + delta);
 }
+
+// Convert an "HH:mm" wall-clock on dateStr from fromTz to toTz (display only;
+// stored slots stay in the activator's tz). No-op when the zones match — so
+// same-zone offices/activators behave exactly as before. DST-safe via
+// _localDateTime (the instant lands the same day for business-hour slots).
+function _convertClockTz(dateStr, hhmm, fromTz, toTz) {
+  if (!fromTz || !toTz || fromTz === toTz || !dateStr || !hhmm) return hhmm;
+  return Utilities.formatDate(_localDateTime(dateStr, _hmToMin(hhmm), fromTz), toTz, 'HH:mm');
+}
+function _officeTzOf(officeId) { return OFFICE_TZ[officeId] || Session.getScriptTimeZone(); }
 
 function _bustCalCache(email, dateStr) {
   try { CacheService.getScriptCache().remove('calblk_' + String(email).trim().toLowerCase() + '_' + dateStr); }
@@ -969,6 +989,9 @@ function bookAppointment(body) {
   if (activatorEmail === '__next__') {
     activatorEmail = _resolveNextActivator(office, date, timeSlot, body.nextMode || 'soonest', allowSameDay);
     if (!activatorEmail) return { error: 'slot_unavailable' };
+    // For Next-Available, timeSlot came in office-tz; store/check it in the
+    // resolved activator's tz (specific-activator bookings already send act-tz).
+    timeSlot = _convertClockTz(date, timeSlot, _officeTzOf(office), _activatorTz(activatorEmail));
   }
 
   // ── Atomic check-then-write ────────────────────────────────────────────
@@ -1251,6 +1274,8 @@ function rescheduleAppointment(body) {
     if (activator === '__next__') {
       activator = _resolveNextActivator(String(r[11]).trim(), newDate, newSlot, body.nextMode || 'soonest', allowSameDay);
       if (!activator) return { error: 'slot_unavailable' };
+      // newSlot arrived office-tz (Next-Available); store/check in the activator's tz.
+      newSlot = _convertClockTz(newDate, newSlot, _officeTzOf(String(r[11]).trim()), _activatorTz(activator));
     }
     // Slot must be free for the target activator (excluding this appointment).
     if (getAvailableSlots(activator, newDate, id, allowSameDay).indexOf(newSlot) === -1)
