@@ -3163,6 +3163,14 @@ function writePostSale(body, ss, officeId) {
     airQty, wirelessNew, wirelessByod, fiberPkg, fiberDate,
     voipQty, dtvQty, dtvPkg, String(body.notes||'').trim(), units
   ]);
+  // Cross-post the rep's additional note into the call-log Rep Notes (keyed by
+  // DSI) so notes typed on the Post Sale form show on that order in the call lists.
+  var _psNote = String(body.notes||'').trim();
+  if (_psNote) {
+    try {
+      writeNoteEntry({ dsi: dsi, noteText: _psNote, authorEmail: email, authorName: repName, noteType: 'rep' }, ss, officeId);
+    } catch (e) {}
+  }
   return { ok: true, units: units };
 }
 
