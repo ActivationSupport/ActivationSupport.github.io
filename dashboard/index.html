@@ -5471,9 +5471,8 @@ var _LST_RNKL = {
   'jd':'JD','l1':'Team Leader','leader':'Team Leader'
 };
 // Office-leaderboard "Leaders" group = Team Leader, JD, Manager, Owner (low→high rank).
-// Team Leader is NOT in _LST_SKIP_UNLESS_SOLD, so leaders always show; owner/jd/manager
-// only show if they posted a sale. master-admin/admin/activator are intentionally excluded
-// (they appear among reps only if they personally sell).
+// All four always show on the board (none are in _LST_SKIP_UNLESS_SOLD).
+// master-admin/admin/activator are excluded — they appear among reps only if they sell.
 var _LST_LDR_RANKS = ['owner','manager','jd','leader'];
 
 function renderLiveSalesTracker() {
@@ -5511,7 +5510,9 @@ function _lstUCls(n) {
   return n === 0 ? 'lst-u-red' : n <= 2 ? 'lst-u-orange' : n <= 5 ? 'lst-u-yellow' : 'lst-u-green';
 }
 
-var _LST_SKIP_UNLESS_SOLD = ['master-admin','owner','admin','activator','manager','jd'];
+// Hidden from the tracker unless they personally post a sale. The four leader
+// ranks (owner/manager/jd/leader) are intentionally NOT here — they always show.
+var _LST_SKIP_UNLESS_SOLD = ['master-admin','admin','activator'];
 
 function _lstAgg(sales, roster) {
   var ws = _lstWeekStart(), DAY = 86400000, agg = {};
