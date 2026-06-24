@@ -1957,20 +1957,36 @@ function _bgRefreshMain() {
     var me = (DATA.roster || {})[SESSION.email];
     if (me) SESSION.tableauName = me.tableauName || SESSION.tableauName;
     _updateLastUpdated();
-    // Re-render current tab (skip tabs that manage their own full state)
-    var skipRender = { postsale:1, dailyreport:1, training:1 };
+    // Tabs that manage their own state/refresh, or run off their own cache so a
+    // main-tick rebuild brings no new data and only risks disrupting the view.
+    // (postsale form, dailyreport, training live-refresh, postedsales + actrates
+    // caches, livesales handled by _bgRefreshLst.)
+    var skipRender = { postsale:1, dailyreport:1, training:1, postedsales:1, actrates:1, livesales:1 };
     if (skipRender[CURRENT_TAB]) return;
-    // In-place soft refresh for verified tabs — updates rows only, so search,
-    // sort, filters, scroll and open menus are all kept (no flash, no reset).
+    // In-place soft refresh for the call-log/order list tabs — updates rows only,
+    // so search, sort, filters, scroll and open menus are all kept (no flash, no reset).
     if (_SOFT_REFRESH_TABS[CURRENT_TAB] && _softRefreshTab(CURRENT_TAB)) return;
-    // Non-disruptive: if the user is actively typing/focused in a field, don't yank
-    // the view out from under them — the data is already fresh in DATA, and the
-    // notes poll keeps note counts live; the full view re-renders on their next action.
+    // If the user is actively typing/focused in a field, don't yank the view — the
+    // data is already fresh in DATA; the view re-renders on their next action.
     var ae = document.activeElement, mc = document.getElementById('main-content');
     if (ae && mc && mc.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
-    // Otherwise rebuild, but keep their scroll position so it doesn't jump.
+    // Otherwise rebuild (appointments/teams keep their state in module vars), keeping
+    // scroll position and re-applying any DOM-only filter field the tab relies on.
     var snap = _snapScroll();
-    TAB_CACHE = {}; renderTab(CURRENT_TAB);
+    var _fields = _SOFT_FIELDS[CURRENT_TAB] || [], _saved = {};
+    _fields.forEach(function(id) { var el = document.getElementById(id); if (el) _saved[id] = el.value; });
+    TAB_CACHE = {};
+    if (CURRENT_TAB === 'people' && PEOPLE_TABLEAU_NAMES !== null) {
+      document.getElementById('main-content').innerHTML = renderPeople(); bindFilters();   // skip the loading-skeleton flash
+    } else {
+      renderTab(CURRENT_TAB);
+    }
+    _fields.forEach(function(id) {
+      if (_saved[id] === undefined || _saved[id] === '') return;
+      var el = document.getElementById(id); if (!el) return;
+      el.value = _saved[id];
+      try { el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); } catch (e) {}
+    });
     _restoreScroll(snap);
   }).catch(function() { _CACHE.mainFlight = false; });
 }
@@ -1993,6 +2009,9 @@ function _restoreScroll(s) {
 // the user's search, sort, filters, scroll and open menus — instead of a full
 // rebuild (no flash, nothing resets). Rolled out one tab at a time as verified.
 var _SOFT_REFRESH_TABS = { master:1, myorders:1, myteam:1, dayafter:1, delivered:1, issues:1, completed:1, noanswer:1, escalations:1 };
+// Tabs that DO get fresh data from the main refresh but hold a DOM-only filter
+// field — preserve + re-apply it across the rebuild so the view doesn't reset.
+var _SOFT_FIELDS = { people: ['f-people'], churn: ['churn-rep-sel'] };
 
 // The base (role-scoped) order list a call-table tab is built from — mirrors the
 // renderTab() switch exactly, so a soft refresh reuses the same source.
