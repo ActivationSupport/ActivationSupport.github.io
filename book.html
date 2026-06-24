@@ -128,6 +128,7 @@
 
     <div class="step">
       <div class="step-label"><span class="step-num">3</span> Pick a time</div>
+      <div class="note" id="tznote" style="margin:0 0 8px"></div>
       <div class="slots" id="slots"><div class="slots-msg">Select a date to see open times.</div></div>
     </div>
 
@@ -249,6 +250,9 @@
     if(!OFFICE || !OFFICE_NAMES[OFFICE]){ $("form").classList.add("hidden"); $("bad").classList.remove("hidden"); return; }
     applyTheme(OFFICE);
     $("subhead").textContent = OFFICE_NAMES[OFFICE] + " · Schedule your AT&T activation call";
+    var OFFICE_TZ_ABBR = { elevate:"PT", ignite:"PT", midspire:"CT", viridian:"CT", vanguard:"ET" };
+    var _tza = OFFICE_TZ_ABBR[OFFICE];
+    if (_tza) $("tznote").textContent = "🕓 Times shown in " + OFFICE_NAMES[OFFICE] + " time (" + _tza + ").";
 
     apiGet("activators", { office:OFFICE }).then(function(res){
       var sel = $("activator");
