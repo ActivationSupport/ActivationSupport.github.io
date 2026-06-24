@@ -1424,6 +1424,10 @@ function generateDailyReport(ss, officeId, targetDateStr) {
   }
   activatedToday.orders=Object.keys(_actOrderSet).length;
   activatedToday.list.sort(function(a,b){return String(a.ts).localeCompare(String(b.ts));});
+  // Orders SUBMITTED on the Post Sale form for refDate (excludes voided). Separate
+  // KPI from the Tableau-based metrics -- counts rep form posts, not synced orders.
+  var ordersSubmitted=0;
+  try { readPostedSales(ss, officeId).forEach(function(_ps){ if (_ps.dateOfSale===todayStr) ordersSubmitted++; }); } catch(_e) {}
 
   // ── RATINGS: entries updated on refDate ──
   var noAnswerDsis=[], escalationRatings=[];
@@ -1675,6 +1679,7 @@ function generateDailyReport(ss, officeId, targetDateStr) {
     noAnswers:noAnswersOut,
     escalations:escalationsOut,
     activatedToday:activatedToday,
+    ordersSubmitted:ordersSubmitted,
     appointments:_drAppointments(ss,officeId,todayStr)
   };
 
@@ -1944,6 +1949,7 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
   function eTile(value,label,accent,sub){ return '<div style="display:inline-block;vertical-align:top;background:#f8fafc;border:1px solid #e2e8f0;border-top:3px solid '+accent+';border-radius:8px;padding:9px 13px;margin:0 6px 6px 0;min-width:92px">'+'<div style="font-size:20px;font-weight:800;color:#0f172a;line-height:1">'+value+'</div>'+'<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:3px">'+label+'</div>'+(sub?'<div style="font-size:10px;color:#94a3b8;margin-top:1px">'+sub+'</div>':'')+'</div>'; }
   var eActOrders=eAct.orders||0;
   var statBar=eTile(eAct.lines||0,'Activated Today','#16a34a',eActOrders+' order'+(eActOrders===1?'':'s'))+
+    eTile(rpt.ordersSubmitted||0,'Orders Submitted','#4A9FD4','Post Sale form')+
     eTile(covPct===null?'—':covPct+'%','Day-After Coverage',covColor,daW+'/'+daT+' worked')+
     eTile(cats.deliveredWorked||0,'Delivered','#2563eb')+
     eTile(cats.issuesWorked||0,'Issues','#7c3aed')+
