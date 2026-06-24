@@ -529,13 +529,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .ps-success-units{font-size:15px;color:var(--text2);margin-bottom:28px}
 .ps-success-units span{color:var(--blue2);font-weight:700;font-size:20px}
 /* ── POSTED SALES (view + correct) ── */
-.psv-wrap{padding:4px 0 40px}
-.psv-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.psv-sub{font-size:12px;color:var(--text2);margin-top:4px}
-.psv-head-actions{display:flex;align-items:center;gap:14px}
-.psv-show-voided{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
-.psv-refresh{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:12px;font-weight:600;padding:7px 12px;cursor:pointer}
-.psv-refresh:hover{border-color:var(--blue2);color:var(--text)}
+.psv-show-voided{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;white-space:nowrap}
 .psv-actions{white-space:nowrap;text-align:right}
 .psv-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer;margin-left:6px}
 .psv-btn:hover{border-color:var(--blue2)}
@@ -5141,22 +5135,27 @@ var _PSV_SHOW_VOIDED = false;
 var _PSV_FLIGHT = false;
 var _PSE = null;              // edit-modal working state
 
+function _psvPaint() {
+  var c = document.getElementById('main-content'); if (!c) return;
+  c.innerHTML = _psvBuild();
+  bindFilters();   // wire the f-psv search box (same convention as the call tables)
+}
 function renderPostedSalesTab() {
   var c = document.getElementById('main-content');
-  if (_PSV_SALES !== null) { c.innerHTML = _psvBuild(); return; }
+  if (_PSV_SALES !== null) { _psvPaint(); return; }
   if (!_PSV_FLIGHT) {
     _PSV_FLIGHT = true;
     api({ action:'readMyPostedSales', officeId:CFG.officeId }).then(function(res) {
       _PSV_FLIGHT = false;
       _PSV_SALES = (res && res.sales) ? res.sales : [];
-      if (CURRENT_TAB === 'postedsales') document.getElementById('main-content').innerHTML = _psvBuild();
+      if (CURRENT_TAB === 'postedsales') _psvPaint();
     }).catch(function() {
       _PSV_FLIGHT = false;
       if (CURRENT_TAB === 'postedsales') document.getElementById('main-content').innerHTML =
-        '<div class="empty">Connection error. <a href="#" onclick="renderPostedSalesTab()">Retry</a></div>';
+        '<div class="card"><div class="card-body"><div class="empty">Connection error. <a href="#" onclick="renderPostedSalesTab()">Retry</a></div></div></div>';
     });
   }
-  c.innerHTML = '<div class="empty">Loading posted sales…</div>';
+  c.innerHTML = '<div class="card"><div class="card-body"><div class="empty">Loading posted sales…</div></div></div>';
 }
 function _psvCanEditAll() {
   var r = (SESSION.role || '').toLowerCase();
@@ -5180,17 +5179,17 @@ function _psvBuild() {
       return (b.dateOfSale || '').localeCompare(a.dateOfSale || '') ||
              (b.timestamp || '').localeCompare(a.timestamp || '');
     });
-  var scope = _psvCanEditAll() ? 'All posted sales for this office' : 'Your posted sales';
-  var h = '<div class="psv-wrap">';
-  h += '<div class="psv-head"><div><h2 style="margin:0">Posted Sales</h2>';
-  h += '<div class="psv-sub">' + scope + ' &middot; ' + list.length + ' shown</div></div>';
-  h += '<div class="psv-head-actions">';
+  var scope = _psvCanEditAll() ? 'All posted sales' : 'Your posted sales';
+  var h = '<div class="card"><div class="card-header dark">Posted Sales &nbsp;' +
+    '<span style="font-weight:400;font-size:.82rem;opacity:.8">' + list.length + (list.length === 1 ? ' sale' : ' sales') + '</span>' +
+    '</div><div class="card-body">';
+  h += '<div class="filter-row"><input id="f-psv" placeholder="Search DSI, account, products…">';
   if (voidedCount) h += '<label class="psv-show-voided"><input type="checkbox" ' + (_PSV_SHOW_VOIDED ? 'checked' : '') +
     ' onchange="_psvToggleVoided(this.checked)"> Show voided (' + voidedCount + ')</label>';
-  h += '<button class="psv-refresh" onclick="_psvRefresh()">↻ Refresh</button>';
-  h += '</div></div>';
-  if (!list.length) { h += '<div class="empty">No posted sales yet.</div></div>'; return h; }
-  h += '<div class="call-table-wrap"><table class="call-table"><thead><tr>' +
+  h += '<button class="clear-filters-btn" onclick="_psvRefresh()">&#x21BB; Refresh</button></div>';
+  h += '<div class="tbl-count">' + esc(scope) + ' &middot; showing ' + list.length + '</div>';
+  if (!list.length) return noData('No posted sales yet.');
+  h += '<div class="call-table-wrap"><table class="call-table" id="psv-table"><thead><tr>' +
        '<th>Date</th><th>DSI</th><th>Account</th><th>Products</th><th>Units</th>' +
        '<th>Trainee</th><th>Notes</th><th></th></tr></thead><tbody>';
   list.forEach(function(s) {
@@ -5211,10 +5210,10 @@ function _psvBuild() {
     else          h += '<button class="psv-btn psv-void" onclick="_psvVoid(' + idx + ',true)">Void</button>';
     h += '</td></tr>';
   });
-  h += '</tbody></table></div></div>';
+  h += '</tbody></table></div></div></div>';
   return h;
 }
-function _psvToggleVoided(v) { _PSV_SHOW_VOIDED = v; document.getElementById('main-content').innerHTML = _psvBuild(); }
+function _psvToggleVoided(v) { _PSV_SHOW_VOIDED = v; _psvPaint(); }
 function _psvRefresh() { _PSV_SALES = null; renderPostedSalesTab(); }
 
 function _psvVoid(idx, makeVoid) {
