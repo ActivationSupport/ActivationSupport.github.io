@@ -4782,7 +4782,7 @@ function _psInit() {
   _PS_DATA = {
     dateOfSale: new Date().toISOString().split('T')[0],
     dsi: '', accountType: 'Consumer', processedVia: 'Sara',
-    underSomeoneCodes: 'No', codesUsedBy: '', trainee: 'No', traineeName: '', notes: '',
+    underSomeoneCodes: 'No', codesUsedBy: '', trainee: '', traineeName: '', notes: '',
     products: { air: false, wireless: false, fiber: false, voip: false, dtv: false },
     airQty: 1, wirelessNew: 0, wirelessByod: 0,
     fiberPackage: '', fiberInstallDate: '', voipQty: 0, dtvQty: 0, dtvPackage: ''
@@ -4881,6 +4881,8 @@ function _psNext1() {
   if (dateEl) _PS_DATA.dateOfSale = dateEl.value.trim();
   if (!_PS_DATA.dateOfSale) { alert('Please enter a date of sale.'); return; }
   if (_PS_DATA.dsi.length < 12) { alert('DSI must be at least 12 characters.'); return; }
+  if (_PS_DATA.trainee !== 'Yes' && _PS_DATA.trainee !== 'No') { alert('Please answer: did you have a trainee?'); return; }
+  if (_PS_DATA.trainee === 'Yes' && !(_PS_DATA.traineeName || '').trim()) { alert("Please enter the trainee's name."); return; }
   _PS_STEP = 2;
   document.getElementById('main-content').innerHTML = renderPostSale();
 }
@@ -4984,15 +4986,20 @@ function _psQtyStepperHtml(field) {
 function _psNext2() {
   if (!Object.keys(_PS_DATA.products).some(function(k){return _PS_DATA.products[k];})) { alert('Please select at least one product.'); return; }
   if (_PS_DATA.products.fiber && !_PS_DATA.fiberPackage) { alert('Please select a Fiber package.'); return; }
+  if (_PS_DATA.products.fiber && !_PS_DATA.fiberInstallDate) { alert('Please enter the Fiber install date.'); return; }
   _PS_STEP = 3;
   document.getElementById('main-content').innerHTML = renderPostSale();
 }
 function _psGoStep(n) { _PS_STEP = n; document.getElementById('main-content').innerHTML = renderPostSale(); }
-function _psStep3Html() {
+// Shared sale recap (SALE INFO + PRODUCTS). showEdit=true on the review step
+// (with EDIT links); false on the success screen (read-only confirmation).
+function _psRecapHtml(showEdit) {
   var d = _PS_DATA;
+  var e1 = showEdit ? '<div class="ps-edit-btn" onclick="_psGoStep(1)">EDIT</div>' : '';
+  var e2 = showEdit ? '<div class="ps-edit-btn" onclick="_psGoStep(2)">EDIT</div>' : '';
   var h = '';
   h += '<div class="ps-review-section">';
-  h += '<div class="ps-review-header"><div class="ps-review-title">SALE INFO</div><div class="ps-edit-btn" onclick="_psGoStep(1)">EDIT</div></div>';
+  h += '<div class="ps-review-header"><div class="ps-review-title">SALE INFO</div>'+e1+'</div>';
   h += _psRRow('Rep', SESSION.name||SESSION.email);
   h += _psRRow('Date', d.dateOfSale);
   h += _psRRow('DSI', d.dsi);
@@ -5003,13 +5010,17 @@ function _psStep3Html() {
   if (d.notes) h+=_psRRow('Notes',d.notes);
   h += '</div>';
   h += '<div class="ps-review-section">';
-  h += '<div class="ps-review-header"><div class="ps-review-title">PRODUCTS</div><div class="ps-edit-btn" onclick="_psGoStep(2)">EDIT</div></div>';
+  h += '<div class="ps-review-header"><div class="ps-review-title">PRODUCTS</div>'+e2+'</div>';
   if (d.products.air) h+='<div class="ps-product-line">Internet Air ×1</div>';
   if (d.products.wireless) { var wl=(d.wirelessNew||0)+(d.wirelessByod||0); h+='<div class="ps-product-line">Wireless ×'+wl+(d.wirelessNew?' ('+d.wirelessNew+' New)':'')+(d.wirelessByod?' ('+d.wirelessByod+' BYOD)':'')+'</div>'; }
   if (d.products.fiber) h+='<div class="ps-product-line">Fiber — '+esc(d.fiberPackage)+(d.fiberInstallDate?' | Install: '+d.fiberInstallDate:'')+'</div>';
   if (d.products.voip) h+='<div class="ps-product-line">VoIP ×'+(d.voipQty||0)+'</div>';
   if (d.products.dtv) h+='<div class="ps-product-line">DirecTV'+(d.dtvPackage?' — '+esc(d.dtvPackage):'')+'</div>';
   h += '</div>';
+  return h;
+}
+function _psStep3Html() {
+  var h = _psRecapHtml(true);
   h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="_psGoStep(2)">BACK</button>';
   h += '<button class="ps-btn" id="ps-submit-btn" onclick="_psSubmit(this)">SUBMIT</button></div>';
   return h;
@@ -5024,10 +5035,13 @@ function _psCalcUnits() {
 }
 function _psStep4Html() {
   var units = _psCalcUnits();
-  return '<div class="ps-success"><div class="ps-success-icon">&#127881;</div>' +
+  var h = '<div class="ps-success"><div class="ps-success-icon">&#10003;</div>' +
     '<div class="ps-success-title">Sale Posted!</div>' +
-    '<div class="ps-success-units"><span>' + units + '</span> unit' + (units!==1?'s':'') + ' logged</div>' +
-    '<button class="ps-btn" onclick="resetPostSaleForm()">Post Another Sale</button></div>';
+    '<div class="ps-success-sub">Saved successfully &mdash; here\'s what was logged:</div>' +
+    '<div class="ps-success-units"><span>' + units + '</span> unit' + (units!==1?'s':'') + ' logged</div></div>';
+  h += _psRecapHtml(false);   // read-only recap of exactly what was submitted
+  h += '<div class="ps-btn-row"><button class="ps-btn" onclick="resetPostSaleForm()">Post Another Sale</button></div>';
+  return h;
 }
 function _psNotifyDiscord(payload, units) {
   var url = DISCORD_WEBHOOKS[CFG.officeId || ''];
