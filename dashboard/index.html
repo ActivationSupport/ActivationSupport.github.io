@@ -7188,8 +7188,12 @@ function _abmFindSoonest() {
     if(_ABM.when!=='soonest') return;   // user switched modes mid-flight
     for(var i=0;i<results.length;i++){
       if(results[i].slots.length){
-        _ABM.soonest={date:results[i].date, slot:results[i].slots.slice().sort()[0]};
-        chip.innerHTML='<span class="abm-chip-ok">Earliest opening: <b>'+esc(_abmNiceDate(_ABM.soonest.date))+' · '+esc(_apptFmt12(_ABM.soonest.slot))+'</b></span>';
+        var _ss=results[i].slots.slice().sort()[0];
+        _ABM.soonest={date:results[i].date, slot:_ss};
+        // Submit value stays canonical (act-tz for a specific activator, office-tz for __next__);
+        // only the displayed label converts to office tz for a specific cross-zone activator.
+        var _lbl=(act && act!=='__next__') ? _apptFmt12(_tzConvertClock(results[i].date,_ss,_apptActTz(act),_apptOfficeTzId())) : _apptFmt12(_ss);
+        chip.innerHTML='<span class="abm-chip-ok">Earliest opening: <b>'+esc(_abmNiceDate(_ABM.soonest.date))+' · '+esc(_lbl)+'</b></span>';
         return;
       }
     }
