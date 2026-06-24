@@ -746,6 +746,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 /* ── APPOINTMENTS ── */
 .appt-wrap{}
 .appt-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.appt-tz-note{font-size:.78rem;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:16px}
+.appt-tz-note strong{color:var(--text)}
 .appt-nav{display:flex;align-items:center;gap:10px}
 .appt-nav-btn{padding:6px 12px;background:#2a2a2a;color:var(--blue2);border:1px solid #3a3a3a;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .15s}
 .appt-nav-btn:hover{border-color:var(--blue2)}
@@ -6422,6 +6424,17 @@ function _apptActName(email) {
   var a=(_APPT.activators||[]).find(function(x){return x.email===email;});
   return a?a.name:email;
 }
+// Per-office timezone — mirrors the backend AppointmentScheduler.gs OFFICE_TZ.
+// Used to label appointment times so reps/customers know which zone they're in.
+var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', ignite:'America/Los_Angeles', vanguard:'America/New_York' };
+var _TZ_ABBR = { 'America/Chicago':'CT', 'America/Los_Angeles':'PT', 'America/New_York':'ET', 'America/Denver':'MT', 'America/Anchorage':'AKT', 'Pacific/Honolulu':'HT' };
+function _tzAbbr(tz){ return _TZ_ABBR[tz] || ''; }
+// "Elevate time (PT)" — for the current office (or a given one).
+function _officeTzLabel(officeId){
+  var tz = APPT_OFFICE_TZ[officeId]; if (!tz) return '';
+  var ab = _tzAbbr(tz), name = (typeof OFFICE_NAMES!=='undefined' && OFFICE_NAMES[officeId]) ? OFFICE_NAMES[officeId] : officeId;
+  return name + ' time' + (ab ? ' (' + ab + ')' : '');
+}
 // Default booking hours — mirrors the backend AppointmentScheduler.gs DEFAULT_HOURS
 // (Mon–Fri 10:00–17:00 in the office/activator home TZ; weekends closed unless set).
 var _APPT_DEFAULT_HOURS = { start:'10:00', end:'17:00', days:['mon','tue','wed','thu','fri'] };
@@ -6635,6 +6648,7 @@ function _apptBuildView() {
         '<button class="appt-book-btn" onclick="openApptBookingModal(\'\',\'\',\'\')">+ Book Appointment</button>'+
       '</div>'+
     '</div>'+
+    (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note">&#128339; Times shown in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>. Each activator works the hours &amp; timezone set in their own schedule.</div>' : '')+
     _apptUtilStrip(appts, acts, mode, ws, dStr)+
     body+
     _apptUpcomingTable(appts)+(
@@ -7089,7 +7103,8 @@ function _abmSetWhen(mode) {
     body.innerHTML='<div class="appt-form-grid">'+
       '<div class="field"><label>Date</label><input type="date" class="appt-form-input" id="abm-date" min="'+win.min+'" max="'+win.max+'" onchange="_abmLoadSlots()"></div>'+
       '<div class="field"><label>Time Slot</label><select class="appt-form-input" id="abm-slot"><option value="">Select a date first…</option></select></div>'+
-    '</div>';
+    '</div>'+
+    (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note" style="margin:10px 0 0">&#128339; Times are in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>.</div>' : '');
   }
 }
 
@@ -7290,6 +7305,7 @@ function rescheduleApptUI(id) {
       '<div class="field"><label>Activator</label><select class="appt-form-input" id="rsd-act" onchange="_reschedLoadSlots()">'+actOpts+'</select></div>'+
       '<div class="field" style="grid-column:1/-1"><label>New Time Slot</label><select class="appt-form-input" id="rsd-slot"><option value="">Pick a date first…</option></select></div>'+
     '</div>'+
+    (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note" style="margin:10px 0 0">&#128339; Times are in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>.</div>' : '')+
     '<div id="rsd-error" style="color:var(--red);font-size:.82rem;margin-top:10px;display:none"></div>'+
     '<input type="hidden" id="rsd-id" value="'+esc(id)+'">'+
     '<input type="hidden" id="rsd-curact" value="'+esc(a.activatorEmail)+'">'+
@@ -7386,7 +7402,8 @@ function _renderSchedModal(sched) {
       '<div class="sc-bookable-hint">When on, you appear in the booking pool + Next Available Agent. '+(SESSION.role==='master-admin'?'Master-admins are off by default — turn this on only if you take appointments.':'Turn off if you temporarily aren’t taking appointments.')+'</div>'+
     '</div>'+
     '<div class="field" style="margin-bottom:16px"><label>My Timezone</label>'+
-      '<select class="appt-form-input" id="sc-tz">'+tzOpts+'</select></div>'+
+      '<select class="appt-form-input" id="sc-tz">'+tzOpts+'</select>'+
+      '<div class="sc-bookable-hint" style="margin-top:6px">Your working hours below are in <strong>your</strong> timezone. Reps and customers booking you see those times converted to the office’s timezone.</div></div>'+
     '<div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:10px">Working Hours</div>'+
     schedHtml+
     '<div style="margin-top:18px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px">Booking Guardrails (optional)</div>'+
