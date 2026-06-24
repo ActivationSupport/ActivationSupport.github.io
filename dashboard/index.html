@@ -2954,8 +2954,19 @@ function _byOrderDateDesc(a, b) {
   if (!db) return -1;
   return da < db ? 1 : da > db ? -1 : 0;
 }
+// Safety-net banner: shown when the backend reports no Tableau rows matched this
+// office (OFFICE_OWNER_MAP drift) — otherwise the call-log tabs would just look empty.
+function _tableauWarnBanner() {
+  var w = DATA && DATA.tableauWarning;
+  if (!w) return '';
+  return '<div style="background:#3d1a0a;border:1px solid #7a3b10;color:#ffcda0;' +
+    'padding:12px 16px;border-radius:8px;margin-bottom:14px;font-size:.88rem;font-weight:600">' +
+    '⚠️ ' + esc(w) + '</div>';
+}
+
 function renderCallTable(orders, title, emptyMsg) {
-  if (!orders.length) return noData(emptyMsg);
+  var _warn = _tableauWarnBanner();
+  if (!orders.length) return _warn + noData(emptyMsg);
   orders = orders.slice().sort(_byOrderDateDesc);   // default: newest order first
   _tabOrders = orders.slice(); _sortTblId = 'ct-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '', risk: '' }; _extraColFn = null;
   _ctShowRiskFlags = true; _ISSUE_DSI = null;
@@ -2966,7 +2977,7 @@ function renderCallTable(orders, title, emptyMsg) {
     '<option value="rotting">&#x23F3; Rotting only</option>' +
     '<option value="booked">&#x1F4C5; Booked only</option>' +
     '</select>';
-  return '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
+  return _warn + '<div class="card"><div class="card-header dark">'+esc(title)+' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-ct') +
     '<div class="ct-active-filters" id="ct-active-filters"></div>' +
     '<div class="ct-chips" id="ct-chips">'+_ctChipsInner(orders)+'</div>' +
@@ -3239,7 +3250,7 @@ function renderNoAnswerTable() {
     '<option value="overdue">&#x1F534; Overdue (8+d)</option>' +
     '<option value="never">&#x26AA; Never Called</option>' +
     '</select>';
-  return '<div class="card"><div class="card-header dark">No Answer &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
+  return _tableauWarnBanner() + '<div class="card"><div class="card-header dark">No Answer &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-na') +
     '<div class="ct-active-filters" id="ct-active-filters"></div>' +
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' + lcFilter + '</div>' +
@@ -3262,7 +3273,7 @@ function renderEscalationsTable() {
   _tabOrders = orders.slice(); _sortTblId = 'esc-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = null;
   _ctShowRiskFlags = false; _ISSUE_DSI = null;
   if (_BOOKED_MAP === null) _loadBookedAppts();
-  return '<div class="card"><div class="card-header dark">Escalations &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
+  return _tableauWarnBanner() + '<div class="card"><div class="card-header dark">Escalations &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+orders.length+' orders</span></div><div class="card-body">' +
     _buildFilterRow('f-esc') +
     '<div class="ct-active-filters" id="ct-active-filters"></div>' +
     '<div class="call-table-wrap"><table class="call-table" id="esc-table"><thead><tr>' +
