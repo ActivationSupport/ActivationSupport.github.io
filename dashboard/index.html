@@ -3420,7 +3420,7 @@ function _drBuildHtml() {
   var _drDup = _drNotesShownSet(rpt);
   return '<div class="card">'+header+'<div class="card-body dr-body">'+
     _drAtAGlance(rpt)+
-    _drStatBar(rpt.callCategories||{}, rpt.appointments, rpt.activatedToday)+
+    _drStatBar(rpt.callCategories||{}, rpt.appointments, rpt.activatedToday, rpt.ordersSubmitted)+
     _drSectionEscalations(rpt.escalations||[])+
     _drSectionNoAnswers(rpt.noAnswers||[])+
     _drSectionCallsWorked(rpt.callsWorked||{}, _drDup)+
@@ -3454,7 +3454,7 @@ function _drFmtDate(iso) {
 }
 
 // ── KPI SUMMARY ROW ───────────────────────────────────────────────────────
-function _drStatBar(cats, ap, act) {
+function _drStatBar(cats, ap, act, ordersSubmitted) {
   ap = ap || {};
   act = act || { lines:0, orders:0 };
   var bk = ap.booked || { total: (ap.bookedToday||0) };
@@ -3472,6 +3472,7 @@ function _drStatBar(cats, ap, act) {
   var actOrders=act.orders||0;
   return '<div class="dr-kpi-row">'+
     tile(act.lines||0,'Activated Today','#52c785',actOrders+' order'+(actOrders===1?'':'s'))+
+    tile(ordersSubmitted||0,'Orders Submitted','#4A9FD4','Post Sale form')+
     tile(covPct===null?'—':covPct+'%','Day-After Coverage',covAccent,daW+' / '+daT+' worked')+
     tile(cats.deliveredWorked||0,'Delivered Worked','#60a5fa')+
     tile(cats.issuesWorked||0,'Issues Worked','#a78bfa')+
@@ -3991,6 +3992,7 @@ function _drBuildEmailHtml() {
   }
   var eActOrders=eAct.orders||0;
   var statBar=eTile(eAct.lines||0,'Activated Today','#16a34a',eActOrders+' order'+(eActOrders===1?'':'s'))+
+    eTile(rpt.ordersSubmitted||0,'Orders Submitted','#4A9FD4','Post Sale form')+
     eTile(covPct===null?'—':covPct+'%','Day-After Coverage',covColor,daW+'/'+daT+' worked')+
     eTile(cats.deliveredWorked||0,'Delivered','#2563eb')+
     eTile(cats.issuesWorked||0,'Issues','#7c3aed')+
@@ -5244,6 +5246,12 @@ function _psvBuild() {
 }
 function _psvToggleVoided(v) { _PSV_SHOW_VOIDED = v; _psvPaint(); }
 function _psvRefresh() { _PSV_SALES = null; renderPostedSalesTab(); }
+// A posted-sale edit/void changes downstream tallies — drop those caches so the
+// Live Sales Tracker, Teams, and Training & Tracking re-fetch the new numbers.
+function _psInvalidateDownstream() {
+  _LST_SALES = null;        // Live Sales Tracker + Teams
+  _TRAINING_ORDERS = null;  // Training & Tracking
+}
 
 function _psvVoid(idx, makeVoid) {
   var s = (_PSV_SALES || [])[idx]; if (!s) return;
@@ -5253,7 +5261,7 @@ function _psvVoid(idx, makeVoid) {
   if (!confirm(msg)) return;
   apiPost({ action:'voidPostedSale', key:API_KEY, officeId:CFG.officeId, rowIndex:s.rowIndex, voided:makeVoid })
     .then(function(res) {
-      if (res && res.ok) { _PSV_SALES = null; renderPostedSalesTab(); }
+      if (res && res.ok) { _PSV_SALES = null; _psInvalidateDownstream(); renderPostedSalesTab(); }
       else alert('Error: ' + (res && res.error ? res.error : 'Unknown error'));
     }).catch(function() { alert('Action failed. Please try again.'); });
 }
@@ -5370,7 +5378,7 @@ function _pseSave(btn) {
     dtvQty:d.dtv ? 1 : 0, dtvPackage:d.dtv ? d.dtvPackage : ''
   };
   apiPost(payload).then(function(res) {
-    if (res && res.ok) { _PSV_SALES = null; closeModal(); renderPostedSalesTab(); }
+    if (res && res.ok) { _PSV_SALES = null; _psInvalidateDownstream(); closeModal(); renderPostedSalesTab(); }
     else { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert('Error: ' + (res && res.error ? res.error : 'Unknown error')); }
   }).catch(function() { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert('Save failed. Please try again.'); });
 }
