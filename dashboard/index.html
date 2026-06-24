@@ -528,6 +528,34 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .ps-success-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px}
 .ps-success-units{font-size:15px;color:var(--text2);margin-bottom:28px}
 .ps-success-units span{color:var(--blue2);font-weight:700;font-size:20px}
+/* ── POSTED SALES (view + correct) ── */
+.psv-wrap{padding:4px 0 40px}
+.psv-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.psv-sub{font-size:12px;color:var(--text2);margin-top:4px}
+.psv-head-actions{display:flex;align-items:center;gap:14px}
+.psv-show-voided{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+.psv-refresh{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:12px;font-weight:600;padding:7px 12px;cursor:pointer}
+.psv-refresh:hover{border-color:var(--blue2);color:var(--text)}
+.psv-actions{white-space:nowrap;text-align:right}
+.psv-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer;margin-left:6px}
+.psv-btn:hover{border-color:var(--blue2)}
+.psv-void:hover{border-color:#e0564f;color:#e0564f}
+.psv-unvoid:hover{border-color:#4caf7d;color:#4caf7d}
+.psv-voided td{opacity:.5}
+.psv-badge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.06em;color:#e0564f;border:1px solid #e0564f;border-radius:4px;padding:1px 5px;vertical-align:middle;margin-left:4px}
+.psv-note{cursor:help}
+/* Posted Sales — edit modal */
+.pse-form .ps-label:first-child{margin-top:0}
+.pse-prods{display:flex;flex-direction:column;gap:8px}
+.pse-pc{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.pse-pc.selected{border-color:var(--blue2);background:rgba(74,159,212,.06)}
+.pse-pc-row{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);user-select:none}
+.pse-pc-check{width:18px;height:18px;border-radius:4px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--on-accent);flex-shrink:0}
+.pse-pc.selected .pse-pc-check{background:var(--blue2);border-color:var(--blue2)}
+.pse-detail{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.pse-notes-ro{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);white-space:pre-wrap;word-break:break-word;min-height:20px}
+.pse-btn-row{display:flex;gap:10px;margin-top:20px}
+.pse-btn-row .ps-btn{flex:1}
 /* ── LIVE SALES TRACKER ── */
 .lst-wrap{padding:0 0 48px}
 .lst-week-bar{display:flex;align-items:stretch;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:28px;overflow:hidden}
@@ -1593,6 +1621,7 @@ function switchOffice(newOfficeId) {
   _APPT.appointments = null; _APPT.activators = null; _APPT.blocked = {}; _APPT.blockedLoaded = {}; _APPT.filterEmail = ''; _apptFlight = null;
   if (_trTimer) { clearInterval(_trTimer); _trTimer = null; }
   _TRAINING_ORDERS = null;
+  _PSV_SALES = null;
   PEOPLE_TABLEAU_NAMES = null;
   loadData();
 }
@@ -1607,6 +1636,7 @@ var ROLES_REP  = ['master-admin','owner','admin','client-rep','leader','jd','man
 var ROLES_PAYROLL = ['master-admin','owner','admin'];
 var TABS = [
   { id: 'postsale',    icon: '➕', label: 'Post Sale',            roles: ROLES_REP,  group: 'Sales',       sub: 'Log a new sale' },
+  { id: 'postedsales', icon: '🧾', label: 'Posted Sales',         roles: ALL_ROLES,  group: 'Sales',       sub: 'View & correct posted sales' },
   { id: 'appointments', icon: '📅', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
   { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES,  group: 'Call Logs',   sub: '120-day window' },
   { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
@@ -1796,7 +1826,7 @@ function loadData(forceFresh) {
     } else {
       // Already showed cached data — refresh the current tab in place (skip tabs that
       // manage their own state, same as the background refresher).
-      var skipRender = { postsale:1, dailyreport:1, training:1 };
+      var skipRender = { postsale:1, postedsales:1, dailyreport:1, training:1 };
       if (!skipRender[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
     }
     _preloadTabs();
@@ -1810,7 +1840,7 @@ function refreshData() {
   TAB_CACHE = {};
   _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
   _LST_SALES = null; _AR_LINES = null; _AR_LOADING = false;
-  _TRAINING_ORDERS = null; _APPT.appointments = null;   // re-warm the secondary tabs too
+  _TRAINING_ORDERS = null; _PSV_SALES = null; _APPT.appointments = null;   // re-warm the secondary tabs too
   loadData(true);   // manual refresh: skip the instant-cache paint, fetch fresh
 }
 
@@ -2090,6 +2120,7 @@ function renderTab(id) {
     case 'churn':       c.innerHTML = renderChurn();       break;
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
     case 'postsale':    c.innerHTML = renderPostSale();    break;
+    case 'postedsales': renderPostedSalesTab();           break;
     case 'livesales':   renderLiveSalesTracker();          break;
     case 'teams':        renderTeamsTab();          break;
     case 'appointments': renderAppointmentsTab();  break;
@@ -5102,6 +5133,218 @@ function _psSubmit(btn) {
     }
     else { btn.disabled=false; btn.textContent='SUBMIT'; alert('Error: '+(res&&res.error?res.error:'Unknown error')); }
   }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert('Submission failed. Please try again.'); });
+}
+
+// ── POSTED SALES (view + self-correct + void) ─────────────────────────────
+var _PSV_SALES = null;        // cached scoped list (own-only roles see only theirs)
+var _PSV_SHOW_VOIDED = false;
+var _PSV_FLIGHT = false;
+var _PSE = null;              // edit-modal working state
+
+function renderPostedSalesTab() {
+  var c = document.getElementById('main-content');
+  if (_PSV_SALES !== null) { c.innerHTML = _psvBuild(); return; }
+  if (!_PSV_FLIGHT) {
+    _PSV_FLIGHT = true;
+    api({ action:'readMyPostedSales', officeId:CFG.officeId }).then(function(res) {
+      _PSV_FLIGHT = false;
+      _PSV_SALES = (res && res.sales) ? res.sales : [];
+      if (CURRENT_TAB === 'postedsales') document.getElementById('main-content').innerHTML = _psvBuild();
+    }).catch(function() {
+      _PSV_FLIGHT = false;
+      if (CURRENT_TAB === 'postedsales') document.getElementById('main-content').innerHTML =
+        '<div class="empty">Connection error. <a href="#" onclick="renderPostedSalesTab()">Retry</a></div>';
+    });
+  }
+  c.innerHTML = '<div class="empty">Loading posted sales…</div>';
+}
+function _psvCanEditAll() {
+  var r = (SESSION.role || '').toLowerCase();
+  return r === 'owner' || r === 'admin' || r === 'master-admin' || r === 'activator' || SESSION.isMaster;
+}
+function _psvProductSummary(s) {
+  var p = [];
+  if (s.airQty > 0) p.push('Air x1');
+  var wl = (s.wirelessNew || 0) + (s.wirelessByod || 0);
+  if (wl > 0) p.push('Wireless x' + wl);
+  if (s.fiberPackage) p.push('Fiber (' + s.fiberPackage + ')');
+  if (s.voipQty > 0) p.push('VoIP x' + s.voipQty);
+  if (s.dtvQty > 0) p.push('DirecTV' + (s.dtvPackage ? ' (' + s.dtvPackage + ')' : ''));
+  return p.length ? p.join(', ') : '—';
+}
+function _psvBuild() {
+  var all = _PSV_SALES || [];
+  var voidedCount = all.filter(function(s) { return s.voided; }).length;
+  var list = all.filter(function(s) { return _PSV_SHOW_VOIDED || !s.voided; })
+    .slice().sort(function(a, b) {
+      return (b.dateOfSale || '').localeCompare(a.dateOfSale || '') ||
+             (b.timestamp || '').localeCompare(a.timestamp || '');
+    });
+  var scope = _psvCanEditAll() ? 'All posted sales for this office' : 'Your posted sales';
+  var h = '<div class="psv-wrap">';
+  h += '<div class="psv-head"><div><h2 style="margin:0">Posted Sales</h2>';
+  h += '<div class="psv-sub">' + scope + ' &middot; ' + list.length + ' shown</div></div>';
+  h += '<div class="psv-head-actions">';
+  if (voidedCount) h += '<label class="psv-show-voided"><input type="checkbox" ' + (_PSV_SHOW_VOIDED ? 'checked' : '') +
+    ' onchange="_psvToggleVoided(this.checked)"> Show voided (' + voidedCount + ')</label>';
+  h += '<button class="psv-refresh" onclick="_psvRefresh()">↻ Refresh</button>';
+  h += '</div></div>';
+  if (!list.length) { h += '<div class="empty">No posted sales yet.</div></div>'; return h; }
+  h += '<div class="call-table-wrap"><table class="call-table"><thead><tr>' +
+       '<th>Date</th><th>DSI</th><th>Account</th><th>Products</th><th>Units</th>' +
+       '<th>Trainee</th><th>Notes</th><th></th></tr></thead><tbody>';
+  list.forEach(function(s) {
+    var idx = _PSV_SALES.indexOf(s);
+    var note = s.notes || '';
+    h += '<tr' + (s.voided ? ' class="psv-voided"' : '') + '>';
+    h += '<td>' + esc(s.dateOfSale || '—') + (s.voided ? ' <span class="psv-badge">VOID</span>' : '') + '</td>';
+    h += '<td>' + esc(s.dsi || '—') + '</td>';
+    h += '<td>' + esc(s.accountType || '—') + '</td>';
+    h += '<td>' + esc(_psvProductSummary(s)) + '</td>';
+    h += '<td>' + (s.units || 0) + '</td>';
+    h += '<td>' + (s.trainee === 'Yes' ? esc(s.traineeName || 'Yes') : '—') + '</td>';
+    h += '<td>' + (note ? '<span class="psv-note" title="' + esc(note) + '">' +
+         esc(note.length > 40 ? note.slice(0, 40) + '…' : note) + '</span>' : '—') + '</td>';
+    h += '<td class="psv-actions">';
+    h += '<button class="psv-btn" onclick="_psvEdit(' + idx + ')">Edit</button>';
+    if (s.voided) h += '<button class="psv-btn psv-unvoid" onclick="_psvVoid(' + idx + ',false)">Unvoid</button>';
+    else          h += '<button class="psv-btn psv-void" onclick="_psvVoid(' + idx + ',true)">Void</button>';
+    h += '</td></tr>';
+  });
+  h += '</tbody></table></div></div>';
+  return h;
+}
+function _psvToggleVoided(v) { _PSV_SHOW_VOIDED = v; document.getElementById('main-content').innerHTML = _psvBuild(); }
+function _psvRefresh() { _PSV_SALES = null; renderPostedSalesTab(); }
+
+function _psvVoid(idx, makeVoid) {
+  var s = (_PSV_SALES || [])[idx]; if (!s) return;
+  var msg = (makeVoid ? 'Void' : 'Restore') + ' this sale?\n\n' + (s.dateOfSale || '') + '  ·  DSI ' + (s.dsi || '') +
+    '\n\n' + (makeVoid ? 'It will stop counting in the Live Sales Tracker, Teams, and Training & Tracking.'
+                       : 'It will count again everywhere.');
+  if (!confirm(msg)) return;
+  apiPost({ action:'voidPostedSale', key:API_KEY, officeId:CFG.officeId, rowIndex:s.rowIndex, voided:makeVoid })
+    .then(function(res) {
+      if (res && res.ok) { _PSV_SALES = null; renderPostedSalesTab(); }
+      else alert('Error: ' + (res && res.error ? res.error : 'Unknown error'));
+    }).catch(function() { alert('Action failed. Please try again.'); });
+}
+
+// ── Posted Sales — edit modal (reuses #detail-modal; notes are read-only) ──
+function _psvEdit(idx) {
+  var s = (_PSV_SALES || [])[idx]; if (!s) return;
+  _PSE = {
+    rowIndex: s.rowIndex,
+    dateOfSale: s.dateOfSale || '', dsi: s.dsi || '',
+    accountType: s.accountType || 'Consumer', processedVia: s.processedVia || 'Sara',
+    underSomeoneCodes: s.underSomeoneCodes || 'No', codesUsedBy: s.codesUsedBy || '',
+    trainee: s.trainee || 'No', traineeName: s.traineeName || '',
+    air: (s.airQty > 0),
+    wireless: ((s.wirelessNew || 0) + (s.wirelessByod || 0)) > 0,
+    wirelessNew: s.wirelessNew || 0, wirelessByod: s.wirelessByod || 0,
+    fiber: !!s.fiberPackage, fiberPackage: s.fiberPackage || '', fiberInstallDate: s.fiberInstallDate || '',
+    voip: (s.voipQty > 0), voipQty: s.voipQty || 0,
+    dtv: (s.dtvQty > 0), dtvPackage: s.dtvPackage || '',
+    notes: s.notes || ''
+  };
+  document.getElementById('modal-title').textContent = 'Edit Posted Sale';
+  document.getElementById('modal-body').innerHTML = _pseFormHtml();
+  document.getElementById('detail-modal').classList.add('open');
+}
+function _pseFormHtml() {
+  var d = _PSE;
+  function tog(field, val, label) {
+    return '<div class="ps-toggle' + (d[field] === val ? ' active' : '') +
+      '" onclick="_pseSetR(\'' + field + '\',\'' + val + '\')">' + label + '</div>';
+  }
+  var h = '<div class="pse-form">';
+  h += '<div class="ps-label">DATE OF SALE</div>';
+  h += '<input class="ps-input" type="date" value="' + esc(d.dateOfSale) + '" onchange="_pseSet(\'dateOfSale\',this.value)">';
+  h += '<div class="ps-label">DSI NUMBER</div>';
+  h += '<input class="ps-input" type="text" maxlength="30" value="' + esc(d.dsi) + '" oninput="_pseSet(\'dsi\',this.value)">';
+  h += '<div class="ps-label">TYPE OF ACCOUNT</div><div class="ps-toggle-row">' + tog('accountType','Consumer','Consumer') + tog('accountType','Business','Business') + '</div>';
+  h += '<div class="ps-label">HOW WAS THIS ORDER PROCESSED?</div><div class="ps-toggle-row">' + tog('processedVia','Sara','Sara') + tog('processedVia','Tower','Tower') + '</div>';
+  h += '<div class="ps-label">TRAINEE?</div><div class="ps-toggle-row">' + tog('trainee','Yes','Yes') + tog('trainee','No','No') + '</div>';
+  if (d.trainee === 'Yes') h += '<div class="ps-sub-field"><div class="ps-label">WHO?</div><input class="ps-input" type="text" value="' + esc(d.traineeName) + '" oninput="_pseSet(\'traineeName\',this.value)"></div>';
+  h += '<div class="ps-label">UNDER SOMEONE ELSE\'S CODES?</div><div class="ps-toggle-row">' + tog('underSomeoneCodes','Yes','Yes') + tog('underSomeoneCodes','No','No') + '</div>';
+  if (d.underSomeoneCodes === 'Yes') h += '<div class="ps-sub-field"><div class="ps-label">WHOSE CODES?</div><input class="ps-input" type="text" value="' + esc(d.codesUsedBy) + '" oninput="_pseSet(\'codesUsedBy\',this.value)"></div>';
+  h += '<div class="ps-label" style="margin-top:14px">PRODUCTS SOLD</div><div class="pse-prods">';
+  h += _psePc('air', 'Internet Air', '');
+  var wd = '';
+  if (d.wireless) wd = '<div class="pse-detail"><div class="ps-qty-label">NEW PHONES</div><input class="ps-qty-input" type="number" min="0" inputmode="numeric" value="' + (d.wirelessNew || 0) + '" oninput="_pseSet(\'wirelessNew\',this.value)"><div class="ps-qty-label" style="margin-top:6px">BYODS</div><input class="ps-qty-input" type="number" min="0" inputmode="numeric" value="' + (d.wirelessByod || 0) + '" oninput="_pseSet(\'wirelessByod\',this.value)"></div>';
+  h += _psePc('wireless', 'Wireless', wd);
+  var fd = '';
+  if (d.fiber) {
+    var fOpts = ['Fiber 300','Fiber 500','Fiber 1 Gig','Fiber 2 Gig','Fiber 5 Gig'].map(function(p) {
+      return '<option value="' + p + '"' + (d.fiberPackage === p ? ' selected' : '') + '>' + p + '</option>'; }).join('');
+    fd = '<div class="pse-detail"><div class="ps-qty-label">PACKAGE</div><select class="ps-select" onchange="_pseSet(\'fiberPackage\',this.value)"><option value="">Select…</option>' + fOpts + '</select><div class="ps-qty-label" style="margin-top:6px">INSTALL DATE</div><input class="ps-input" type="date" value="' + esc(d.fiberInstallDate) + '" onchange="_pseSet(\'fiberInstallDate\',this.value)"></div>';
+  }
+  h += _psePc('fiber', 'Fiber', fd);
+  var vd = '';
+  if (d.voip) vd = '<div class="pse-detail"><div class="ps-qty-label">LINES</div><input class="ps-qty-input" type="number" min="0" inputmode="numeric" value="' + (d.voipQty || 0) + '" oninput="_pseSet(\'voipQty\',this.value)"></div>';
+  h += _psePc('voip', 'VoIP', vd);
+  var td = '';
+  if (d.dtv) {
+    var dOpts = ['Entertainment','Choice','Ultimate','Premier'].map(function(p) {
+      return '<option value="' + p + '"' + (d.dtvPackage === p ? ' selected' : '') + '>' + p + '</option>'; }).join('');
+    td = '<div class="pse-detail"><div class="ps-qty-label">PACKAGE</div><select class="ps-select" onchange="_pseSet(\'dtvPackage\',this.value)"><option value="">Select…</option>' + dOpts + '</select></div>';
+  }
+  h += _psePc('dtv', 'DirecTV', td);
+  h += '</div>';
+  h += '<div class="ps-label" style="margin-top:14px">NOTES <span style="font-weight:400;text-transform:none;color:var(--text2);letter-spacing:0">(not editable)</span></div>';
+  h += '<div class="pse-notes-ro">' + (d.notes ? esc(d.notes) : '<span style="color:var(--text2)">No notes</span>') + '</div>';
+  h += '<div class="pse-btn-row"><button class="ps-btn secondary" onclick="closeModal()">CANCEL</button>';
+  h += '<button class="ps-btn" id="pse-save" onclick="_pseSave(this)">SAVE CHANGES</button></div>';
+  h += '</div>';
+  return h;
+}
+function _psePc(key, label, detail) {
+  var sel = _PSE[key];
+  return '<div class="pse-pc' + (sel ? ' selected' : '') + '">' +
+    '<div class="pse-pc-row" onclick="_pseToggleProd(\'' + key + '\')"><span class="pse-pc-check">' + (sel ? '✓' : '') + '</span><span>' + label + '</span></div>' +
+    (detail ? '<div onclick="event.stopPropagation()">' + detail + '</div>' : '') + '</div>';
+}
+function _pseSet(field, val) {
+  if (field === 'wirelessNew' || field === 'wirelessByod' || field === 'voipQty') _PSE[field] = parseInt(val) || 0;
+  else _PSE[field] = val;
+}
+function _pseSetR(field, val) { _PSE[field] = val; _pseRerender(); }
+function _pseToggleProd(key) {
+  _PSE[key] = !_PSE[key];
+  if (!_PSE[key]) {
+    if (key === 'wireless') { _PSE.wirelessNew = 0; _PSE.wirelessByod = 0; }
+    if (key === 'fiber') { _PSE.fiberPackage = ''; _PSE.fiberInstallDate = ''; }
+    if (key === 'voip') _PSE.voipQty = 0;
+    if (key === 'dtv') _PSE.dtvPackage = '';
+  }
+  _pseRerender();
+}
+function _pseRerender() { document.getElementById('modal-body').innerHTML = _pseFormHtml(); }
+function _pseSave(btn) {
+  var d = _PSE;
+  if (!d.dateOfSale) { alert('Please enter a date of sale.'); return; }
+  if ((d.dsi || '').trim().length < 12) { alert('DSI must be at least 12 characters.'); return; }
+  if (d.trainee === 'Yes' && !(d.traineeName || '').trim()) { alert("Please enter the trainee's name."); return; }
+  if (!(d.air || d.wireless || d.fiber || d.voip || d.dtv)) { alert('Please select at least one product.'); return; }
+  if (d.fiber && !d.fiberPackage) { alert('Please select a Fiber package.'); return; }
+  if (d.fiber && !d.fiberInstallDate) { alert('Please enter the Fiber install date.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  var payload = {
+    action:'updatePostedSale', key:API_KEY, officeId:CFG.officeId, rowIndex:d.rowIndex,
+    dateOfSale:d.dateOfSale, dsi:(d.dsi || '').trim(),
+    accountType:d.accountType, processedVia:d.processedVia,
+    underSomeoneCodes:d.underSomeoneCodes, codesUsedBy:(d.underSomeoneCodes === 'Yes') ? d.codesUsedBy : '',
+    trainee:d.trainee, traineeName:(d.trainee === 'Yes') ? (d.traineeName || '').trim() : '',
+    airQty:d.air ? 1 : 0,
+    wirelessNew:d.wireless ? (d.wirelessNew || 0) : 0, wirelessByod:d.wireless ? (d.wirelessByod || 0) : 0,
+    fiberPackage:d.fiber ? d.fiberPackage : '', fiberInstallDate:d.fiber ? d.fiberInstallDate : '',
+    voipQty:d.voip ? (d.voipQty || 0) : 0,
+    dtvQty:d.dtv ? 1 : 0, dtvPackage:d.dtv ? d.dtvPackage : ''
+  };
+  apiPost(payload).then(function(res) {
+    if (res && res.ok) { _PSV_SALES = null; closeModal(); renderPostedSalesTab(); }
+    else { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert('Error: ' + (res && res.error ? res.error : 'Unknown error')); }
+  }).catch(function() { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert('Save failed. Please try again.'); });
 }
 
 // ── LIVE SALES TRACKER ────────────────────────────────────────────────────
