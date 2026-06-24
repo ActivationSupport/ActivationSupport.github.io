@@ -1618,6 +1618,23 @@ function showApp() {
   loadData();
   _startInactivityWatcher();
   _startBgRefresh();
+  _maybeAddRefreshTestBtn();
+}
+
+// Hidden verification helper: only appears with ?refreshtest=1 in the URL. Clicking
+// it fires a real background refresh on demand, so you can confirm a soft-refresh
+// keeps your search/sort/filters/scroll without waiting for the ~90s auto cycle.
+function _maybeAddRefreshTestBtn() {
+  try {
+    if (new URLSearchParams(location.search).get('refreshtest') !== '1') return;
+    if (document.getElementById('refresh-test-btn')) return;
+    var b = document.createElement('button');
+    b.id = 'refresh-test-btn';
+    b.textContent = '🔄 Test background refresh';
+    b.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9999;padding:10px 16px;border:none;border-radius:8px;background:#1F4E78;color:#fff;font-weight:700;font-size:.85rem;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)';
+    b.onclick = function() { b.textContent = '🔄 Refreshing…'; _bgRefreshMain(); setTimeout(function(){ b.textContent = '🔄 Test background refresh'; }, 1200); };
+    document.body.appendChild(b);
+  } catch (e) {}
 }
 
 function _setSidebarOfficeLogo(officeId) {
@@ -1943,6 +1960,9 @@ function _bgRefreshMain() {
     // Re-render current tab (skip tabs that manage their own full state)
     var skipRender = { postsale:1, dailyreport:1, training:1 };
     if (skipRender[CURRENT_TAB]) return;
+    // In-place soft refresh for verified tabs — updates rows only, so search,
+    // sort, filters, scroll and open menus are all kept (no flash, no reset).
+    if (_SOFT_REFRESH_TABS[CURRENT_TAB] && _softRefreshTab(CURRENT_TAB)) return;
     // Non-disruptive: if the user is actively typing/focused in a field, don't yank
     // the view out from under them — the data is already fresh in DATA, and the
     // notes poll keeps note counts live; the full view re-renders on their next action.
@@ -1966,6 +1986,41 @@ function _restoreScroll(s) {
   if (main) main.scrollTop = s.main;
   var wrap = document.querySelector('#main-content .call-table-wrap, #main-content .tbl-wrap, #main-content .tr-wrap');
   if (wrap) { wrap.scrollTop = s.top; wrap.scrollLeft = s.left; }
+}
+
+// ── BACKGROUND SOFT-REFRESH (in-place, non-disruptive) ────────────────────
+// Tabs listed here update their ROWS in place on a background refresh — keeping
+// the user's search, sort, filters, scroll and open menus — instead of a full
+// rebuild (no flash, nothing resets). Rolled out one tab at a time as verified.
+var _SOFT_REFRESH_TABS = { master: 1 };
+
+// The base (role-scoped) order list a call-table tab is built from — mirrors the
+// renderTab() switch exactly, so a soft refresh reuses the same source.
+function _tabOrderSource(tab) {
+  switch (tab) {
+    case 'master':    return repFilter(DATA.masterTracker || []);
+    case 'myorders':  return _myOrdersFilter(DATA.masterTracker || []);
+    case 'myteam':    return _myTeamFilter(DATA.masterTracker || []);
+    case 'dayafter':  return repFilter(DATA.dayAfterOrders || []);
+    case 'delivered': return repFilter(within29Days(DATA.deliveredOrders || []));
+    case 'issues':    return repFilter(issueFilter(DATA.orderIssues || []));
+    case 'completed': return repFilter(DATA.completedOrders || []);
+    default:          return null;
+  }
+}
+
+// Refresh just the rows of a call-table tab from fresh DATA, preserving all UI
+// state. Returns true if handled; false to fall back to a full render (e.g. the
+// table isn't on screen because the tab was showing its empty state).
+function _softRefreshTab(tab) {
+  var src = _tabOrderSource(tab);
+  if (src === null) return false;
+  if (!document.getElementById('ct-table')) return false;   // empty-state -> needs a full build
+  var snap = _snapScroll();
+  _tabOrders = src.slice().sort(_byOrderDateDesc);
+  _applyView();                                             // re-applies filters/sort/search in place
+  _restoreScroll(snap);
+  return true;
 }
 
 // ── NOTES POLL (frequent + non-disruptive) ────────────────────────────────
