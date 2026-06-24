@@ -1624,7 +1624,9 @@ function switchOffice(newOfficeId) {
 
 // All 8 portal roles
 var ALL_ROLES  = ['master-admin','owner','admin','activator','client-rep','leader','jd','manager'];
-// Call-log tabs: not visible to client-rep or leader
+// Call-log tabs + Master Tracker: not visible to client-rep or leader (who get
+// the My Orders / My Team's Orders tabs instead). jd is included — jd has the
+// same office-wide visibility as a manager.
 var ROLES_CALL = ['master-admin','owner','admin','activator','jd','manager'];
 // Rep-side tabs: not visible to activator
 var ROLES_REP  = ['master-admin','owner','admin','client-rep','leader','jd','manager'];
@@ -1634,7 +1636,9 @@ var TABS = [
   { id: 'postsale',    icon: '➕', label: 'Post Sale',            roles: ROLES_REP,  group: 'Sales',       sub: 'Log a new sale' },
   { id: 'postedsales', icon: '🧾', label: 'Posted Sales',         roles: ALL_ROLES,  group: 'Sales',       sub: 'View & correct posted sales' },
   { id: 'appointments', icon: '📅', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
-  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ALL_ROLES,  group: 'Call Logs',   sub: '120-day window' },
+  { id: 'myorders',    icon: '🗂️',  label: 'My Orders',           roles: ['client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
+  { id: 'myteam',      icon: '👪', label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 120-day window" },
+  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ROLES_CALL, group: 'Call Logs',   sub: '120-day window' },
   { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
   { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
   { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ROLES_CALL, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
@@ -1892,7 +1896,7 @@ function _restoreScroll(s) {
 // readNotes endpoint every ~25s ONLY where notes are shown, and update the note
 // counts + an open notes window IN PLACE — no table rebuild, so nothing is disrupted.
 function _notesTabActive() {
-  var t = { master:1, dayafter:1, delivered:1, issues:1, escalations:1, noanswer:1, completed:1 };
+  var t = { master:1, myorders:1, myteam:1, dayafter:1, delivered:1, issues:1, escalations:1, noanswer:1, completed:1 };
   if (t[CURRENT_TAB]) return true;
   var dm = document.getElementById('detail-modal');
   return !!(dm && dm.classList.contains('open') && document.getElementById('nm-act-hist'));
@@ -2062,7 +2066,7 @@ function repFilter(orders) {
     // rep's tableauName and the order's rep field can't silently hide all orders
     return orders.filter(function(o) { return (o.rep || '').trim().toLowerCase() === tn; });
   }
-  if (role === 'leader' || role === 'jd') {
+  if (role === 'leader') {   // jd is office-wide (manager-equivalent); only leader is team-scoped
     var team = _myTeam();
     if (team) {
       var tns = _teamTableauNames(team.name);
@@ -2073,6 +2077,27 @@ function repFilter(orders) {
     return tn2 ? orders.filter(function(o) { return (o.rep || '').trim().toLowerCase() === tn2; }) : [];
   }
   return orders;
+}
+// ── My Orders / My Team's Orders scoping (role-based tracker tabs) ──────────
+// Each role already receives a server-scoped masterTracker (own / team / office);
+// these filter that payload down to the specific view.
+function _myTeamName() {
+  var teams = DATA.teams || {}, myEmail = (SESSION.email || '').toLowerCase();
+  var led = null;
+  Object.keys(teams).forEach(function(tid){ if ((teams[tid].leaderId || '').toLowerCase() === myEmail) led = teams[tid]; });
+  if (led) return led.name;                          // a team they LEAD
+  var me = (DATA.roster || {})[SESSION.email] || {};
+  return me.team || '';                              // else the team they're ON
+}
+function _myOrdersFilter(orders) {
+  var tn = (SESSION.tableauName || '').trim().toLowerCase();
+  if (!tn) return [];
+  return orders.filter(function(o) { return (o.rep || '').trim().toLowerCase() === tn; });
+}
+function _myTeamFilter(orders) {
+  var tns = _teamTableauNames(_myTeamName());
+  if (!tns.length) return [];
+  return orders.filter(function(o) { return tns.indexOf((o.rep || '').trim().toLowerCase()) !== -1; });
 }
 function isIssueStatus(s) {
   var sl = String(s||'').toLowerCase().trim();
@@ -2106,6 +2131,8 @@ function renderTab(id) {
   }
   switch(id) {
     case 'actrates':    c.innerHTML = renderActRates();    break;
+    case 'myorders':    c.innerHTML = renderCallTable(_myOrdersFilter(DATA.masterTracker||[]), 'My Orders', 'No orders found.'); break;
+    case 'myteam':      c.innerHTML = renderCallTable(_myTeamFilter(DATA.masterTracker||[]), "My Team's Orders", 'No orders found.'); break;
     case 'master':      c.innerHTML = renderCallTable(repFilter(DATA.masterTracker||[]), 'Master Tracker', 'No orders found.'); break;
     case 'dayafter':    c.innerHTML = renderCallTable(repFilter(DATA.dayAfterOrders||[]), 'Day-After Calls', 'No day-after orders found.'); break;
     case 'delivered':   c.innerHTML = renderCallTable(repFilter(within29Days(DATA.deliveredOrders||[])), 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
@@ -2163,7 +2190,7 @@ function _renderActRatesWithData() {
 
   var role = SESSION.role || 'client-rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
-  var isTeamScoped = role === 'leader' || role === 'jd';
+  var isTeamScoped = role === 'leader';   // jd is office-wide (manager-equivalent)
   var isRep = role === 'client-rep' || isTeamScoped;
 
   var repSet = {};
@@ -2191,7 +2218,7 @@ function _buildArTable(repFilter) {
   var role = SESSION.role || 'client-rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
   var isClientRep = role === 'client-rep';
-  var isTeamRole = role === 'leader' || role === 'jd';
+  var isTeamRole = role === 'leader';   // jd is office-wide (manager-equivalent)
 
   var BKT_MAP = { '0-7 Days':'b0_7', '8-14 Days':'b8_14', '15-30 Days':'b15_30', '31-60 Days':'b31_60' };
 
@@ -3229,7 +3256,7 @@ function renderChurn() {
   var rows = DATA.churnReport || [];
   if (!rows.length) return noData('No churn data yet. Tableau sync runs nightly.');
   var role = SESSION.role || 'client-rep';
-  var isTeamRole = role === 'leader' || role === 'jd';
+  var isTeamRole = role === 'leader';   // jd is office-wide (manager-equivalent)
   if (isTeamRole) {
     var churnTeam = _myTeam();
     if (churnTeam) {
@@ -4210,8 +4237,8 @@ function renderPeople() {
   var roster = DATA.roster || {};
   var guestRoster = DATA.guestRoster || {};
   var role = SESSION.role;
-  var isAdmin   = role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager';
-  var isMgr     = role === 'jd';
+  var isAdmin   = role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd';
+  var isMgr     = false;   // jd is now a full admin here (manager-equivalent)
   var myEmail   = (SESSION.email || '').toLowerCase();
   var homeRows = Object.keys(roster).map(function(email) {
     return Object.assign({ email: email, isGuest: false }, roster[email]);
@@ -4260,7 +4287,7 @@ function buildPersonForm(email, person) {
   if (role === 'master-admin') editLevel = 'full';
   else if (role === 'owner')   editLevel = 'owner';
   else if (role === 'admin')   editLevel = 'admin';
-  else if (role === 'jd') editLevel = 'limited';
+  else if (role === 'jd') editLevel = 'admin';   // jd = manager-equivalent
   else if (role === 'manager') editLevel = 'admin';
   else editLevel = 'selfphone';
   var canRole   = editLevel === 'full' || editLevel === 'owner';
@@ -4314,7 +4341,7 @@ function savePerson(existingEmail) {
   if (role === 'master-admin') editLevel = 'full';
   else if (role === 'owner')   editLevel = 'owner';
   else if (role === 'admin')   editLevel = 'admin';
-  else if (role === 'jd') editLevel = 'limited';
+  else if (role === 'jd') editLevel = 'admin';   // jd = manager-equivalent
   else if (role === 'manager') editLevel = 'admin';
   else editLevel = 'selfphone';
   var canRole   = editLevel === 'full' || editLevel === 'owner';
@@ -5515,7 +5542,7 @@ function _lstBuild() {
   var todayIdx = _lstTodayIdx();
 
   var role = SESSION.role;
-  var isTeamScoped = role === 'leader' || role === 'jd';
+  var isTeamScoped = role === 'leader';   // jd is office-wide (manager-equivalent)
   var lstTeamName = '';
   var kpiTeamSet = null;
   if (isTeamScoped) {

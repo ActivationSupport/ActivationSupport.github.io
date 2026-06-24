@@ -295,7 +295,7 @@ function _scopeOrders(orders, gs, roster, teams) {
     if (!tn) return [];
     return orders.filter(function(o){ return String(o.rep || '').trim().toLowerCase() === tn; });
   }
-  if (rank === 'leader' || rank === 'jd') {
+  if (rank === 'leader') {   // jd is office-wide (manager-equivalent)
     var team = _serverMyTeam(rank, email, roster, teams);
     if (team) {
       var tns = _serverTeamTableauNames(team.name, roster);
@@ -338,7 +338,7 @@ function _serverTeamTableauNames(teamName, roster) {
 function _scopeOrdersAuthed(ss, officeId, orders, gs) {
   if (!gs || !gs.valid) return orders;
   var rank = String(gs.rank || '').trim();
-  if (rank !== 'client-rep' && rank !== 'leader' && rank !== 'jd') return orders;
+  if (rank !== 'client-rep' && rank !== 'leader') return orders;   // jd office-wide
   return _scopeOrders(orders, gs, readRoster(ss, officeId), readTeams(ss, officeId));
 }
 // Revoke a badge (logout). Safe to call with an unknown/empty token.
@@ -379,7 +379,7 @@ function _authz(ss, body, allowedRoles) {
   if (allowedRoles && allowedRoles.indexOf(c.role) === -1) return { error:'forbidden' };
   return null;
 }
-var _ADMIN_ROLES = ['master-admin','owner','admin','manager'];
+var _ADMIN_ROLES = ['master-admin','owner','admin','manager','jd'];   // jd = manager-equivalent (can add/edit people + teams)
 // Login/utility actions need no badge (you don't have one yet at login).
 var _PREAUTH_ACTIONS = { checkEmail:1, validatePin:1, setPin:1, changePin:1, checkAdminEmail:1, validateAdminAccess:1, validateSession:1, logout:1 };
 // Actions restricted to specific roles. Anything not listed = any authenticated user.
