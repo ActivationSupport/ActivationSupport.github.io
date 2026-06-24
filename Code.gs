@@ -1199,11 +1199,22 @@ function readTrainingOrders(ss, officeId) {
       payTypes: payTypes, paidOut: paidOut, speList: []
     });
   }
-  // Attach SPE numbers from the Tableau sync, matched by DSI (same source as the call tabs).
+  // Attach SPE numbers from the raw _TableauOrderLog tab, matched by DSI.
+  // Normalized match (uppercase, strip non-alphanumerics, drop optional "DSI"
+  // prefix) so a DSI typed into Post Sale matches the raw "DSI#########" format
+  // regardless of casing/spacing/prefix.
   try {
     var summary = getTableauSummaryWithCache(ss, officeId);
     var dsiSummary = (summary && summary.dsiSummary) || {};
-    orders.forEach(function(o) { var ts = dsiSummary[o.dsi]; if (ts && ts.speList && ts.speList.length) o.speList = ts.speList; });
+    var _normDsi = function(d) { return String(d||'').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^DSI/,''); };
+    var speByDsi = {};
+    Object.keys(dsiSummary).forEach(function(k) {
+      var n = _normDsi(k); var sl = dsiSummary[k] && dsiSummary[k].speList;
+      if (!n || !sl || !sl.length) return;
+      var bucket = speByDsi[n] || (speByDsi[n] = []);
+      sl.forEach(function(spe) { if (bucket.indexOf(spe) === -1) bucket.push(spe); });
+    });
+    orders.forEach(function(o) { var sl = speByDsi[_normDsi(o.dsi)]; if (sl && sl.length) o.speList = sl; });
   } catch(e) {}
   orders.sort(function(a,b) { return b.dateOfSale.localeCompare(a.dateOfSale); });
   return orders;
