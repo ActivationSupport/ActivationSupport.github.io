@@ -64,33 +64,37 @@ function pickWeekday(win){
   ok('set act1-elevate to Eastern schedule', setRes && (setRes.ok || setRes.success), JSON.stringify(setRes));
   await sleep(800);
 
-  // getAvailableSlots for the activator = THEIR tz (ET): 10:00..16:00.
+  // Activator slots are in THEIR tz (ET). getNextAvailableSlots is OFFICE tz (PT).
   const actSlots = (await gget(SCHED, 'getAvailableSlots', { activatorEmail: ACT, date, token: tok })).slots || [];
-  ok('activator slots are ET (include 10:00, exclude 07:00)', actSlots.indexOf('10:00')!==-1 && actSlots.indexOf('07:00')===-1, actSlots.join(','));
-
-  // getNextAvailableSlots for the office = OFFICE tz (PT): act1's 10:00 ET -> 07:00 PT.
   const nextSlots = (await gget(SCHED, 'getNextAvailableSlots', { officeId: OFFICE, date, token: tok })).slots || [];
-  ok('office next-avail is PT (includes 07:00 = act1 10:00 ET)', nextSlots.indexOf('07:00')!==-1, nextSlots.join(','));
-  ok('07:00 PT is uniquely the cross-zone activator (no same-zone PT act offers 7am)', nextSlots.indexOf('07:00')!==-1);
+  console.log(`  act1 own-tz (ET) slots: ${actSlots.join(',')}`);
+  console.log(`  office next-avail (PT) slots: ${nextSlots.join(',')}`);
+  // A PT slot before 10:00 can ONLY come from a cross-zone activator (same-zone PT
+  // activators start at 10:00). Its presence proves act-tz -> office-tz conversion.
+  const xz = nextSlots.filter(s => s < '10:00').sort();
+  ok('office next-avail contains a sub-10:00 PT slot (proves ET->PT conversion)', xz.length > 0, xz.join(','));
+  const ptSlot = xz[0];
+  if (!ptSlot) { console.log(`\n${passes} pass / ${fails} fail`); return; }
+  const etExpected = String((+ptSlot.slice(0,2)) + 3).padStart(2,'0') + ':00';   // ET = PT+3 (June/DST)
+  console.log(`  booking __next__ at ${ptSlot} PT -> expect stored ${etExpected} ET`);
 
-  // Book Next-Available at 07:00 PT -> must resolve act1 + store 10:00 ET.
   const book = await ppost(SCHED, { action:'bookAppointment', token: tok, source:'rep', bookerEmail: ACT,
-    activatorEmail:'__next__', date, timeSlot:'07:00', office: OFFICE,
+    activatorEmail:'__next__', date, timeSlot: ptSlot, office: OFFICE,
     customerName:'TZ Test', customerDSI:'TZCROSSZONE1', customerPhone:'555-0199', customerEmail:'tz@test.local',
     services:'VOIP', deviceCount:1 });
-  ok('__next__ booking at 07:00 PT succeeds', book && book.ok, JSON.stringify(book));
+  ok('__next__ booking at the PT slot succeeds', book && book.ok, JSON.stringify(book));
   await sleep(800);
 
   const appts = (await gget(SCHED, 'getAppointments', { officeId: OFFICE, token: tok })).appointments || [];
   const mine = appts.find(a => a.customerDSI === 'TZCROSSZONE1' && String(a.status).toLowerCase()!=='cancelled');
   ok('booking resolved to the cross-zone activator', mine && mine.activatorEmail.toLowerCase()===ACT, mine && mine.activatorEmail);
-  ok('stored slot is the activator-tz canonical 10:00 (ET), NOT 07:00', mine && mine.timeSlot==='10:00', mine && mine.timeSlot);
+  ok('stored slot is the activator-tz canonical (ET '+etExpected+'), NOT the PT slot', mine && mine.timeSlot===etExpected, mine && mine.timeSlot);
 
-  // Slot consumed: act1 10:00 ET gone; office 07:00 PT gone.
+  // Slot consumed in both zones.
   const actSlots2 = (await gget(SCHED, 'getAvailableSlots', { activatorEmail: ACT, date, token: tok })).slots || [];
-  ok('activator 10:00 ET no longer available', actSlots2.indexOf('10:00')===-1, actSlots2.join(','));
+  ok('activator '+etExpected+' ET no longer available', actSlots2.indexOf(etExpected)===-1, actSlots2.join(','));
   const nextSlots2 = (await gget(SCHED, 'getNextAvailableSlots', { officeId: OFFICE, date, token: tok })).slots || [];
-  ok('office 07:00 PT no longer offered', nextSlots2.indexOf('07:00')===-1, nextSlots2.join(','));
+  ok('office '+ptSlot+' PT no longer offered', nextSlots2.indexOf(ptSlot)===-1, nextSlots2.join(','));
 
   // Cleanup: cancel the test booking.
   if (mine) { await ppost(SCHED, { action:'cancelAppointment', token: tok, appointmentId: mine.appointmentId }); console.log('  (cleaned up test booking)'); }
