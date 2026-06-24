@@ -25,7 +25,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 
 /* ── LOGIN ── */
 #login-screen{position:fixed;inset:0;background:radial-gradient(ellipse at center,#1a3a5c 0%,#111 65%);display:flex;align-items:center;justify-content:center;z-index:100}
-.login-card{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--login-accent);border-radius:10px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.login-card{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--login-accent);border-radius:10px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.6);text-align:center}
+.login-card .field input{text-align:left}
 .login-card h1{font-size:1.7rem;color:var(--login-accent);margin-bottom:24px}
 .login-card p{font-size:.85rem;color:var(--text2);margin-bottom:28px}
 #login-office-name{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:6px}
@@ -1389,6 +1390,14 @@ function loginShowStep(step) {
   document.getElementById('ls-pin-step').style.display     = step === 'pin'    ? '' : 'none';
   document.getElementById('ls-set-pin-step').style.display = step === 'setpin' ? '' : 'none';
   document.getElementById('login-error').style.display = 'none';
+  // Reset action buttons to their default enabled state every time a step is
+  // shown. Fixes the "Sign In" button stuck on "Signing in…" — doLogin sets that
+  // loading state and on SUCCESS navigates away without resetting it, so it would
+  // carry over to the next sign-in until a hard refresh rebuilt the DOM.
+  var _rb = function(id, txt){ var b = document.getElementById(id); if (b) { b.disabled = false; b.textContent = txt; } };
+  _rb('login-continue-btn', 'Continue');
+  _rb('login-btn', 'Sign In');
+  _rb('login-set-pin-btn', 'Set PIN & Sign In');
 }
 
 function loginBack() {
