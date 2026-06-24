@@ -6435,6 +6435,43 @@ function _officeTzLabel(officeId){
   var ab = _tzAbbr(tz), name = (typeof OFFICE_NAMES!=='undefined' && OFFICE_NAMES[officeId]) ? OFFICE_NAMES[officeId] : officeId;
   return name + ' time' + (ab ? ' (' + ab + ')' : '');
 }
+// ── Slice 2: activator-TZ <-> office-TZ display conversion ──────────────────
+// Stored appointment slots are in the activator's local clock (their schedule
+// timezone). The office's SHARED calendar + rep/customer views DISPLAY them in
+// the office timezone; storage is never changed. Critical safety property: when
+// the activator's zone == the office zone (the normal case) every convert below
+// is a guaranteed no-op, so same-zone behavior stays byte-identical.
+function _partsInTz(utcMs, tz){
+  var dtf = new Intl.DateTimeFormat('en-US', { timeZone:tz, hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  var o = {}; dtf.formatToParts(new Date(utcMs)).forEach(function(p){ if (p.type!=='literal') o[p.type]=p.value; });
+  var h = +o.hour; if (h===24) h=0;   // some engines emit '24' for midnight
+  return { y:+o.year, mo:+o.month, d:+o.day, h:h, mi:+o.minute };
+}
+// The UTC instant whose wall-clock in `tz` reads dateStr + hhmm.
+function _wallToUtc(dateStr, hhmm, tz){
+  var y=+dateStr.slice(0,4), mo=+dateStr.slice(5,7), d=+dateStr.slice(8,10);
+  var h=+hhmm.slice(0,2), mi=+hhmm.slice(3,5);
+  var guess = Date.UTC(y, mo-1, d, h, mi);
+  var p = _partsInTz(guess, tz);
+  var shown = Date.UTC(p.y, p.mo-1, p.d, p.h, p.mi);
+  var want  = Date.UTC(y, mo-1, d, h, mi);
+  return guess + (want - shown);
+}
+// Convert "HH:MM" wall-clock on dateStr from fromTz to toTz. Returns "HH:MM".
+function _tzConvertClock(dateStr, hhmm, fromTz, toTz){
+  if (!fromTz || !toTz || fromTz===toTz || !dateStr || !hhmm) return hhmm;
+  var p = _partsInTz(_wallToUtc(dateStr, hhmm, fromTz), toTz);
+  return String(p.h).padStart(2,'0') + ':' + String(p.mi).padStart(2,'0');
+}
+function _apptOfficeTzId(){ return APPT_OFFICE_TZ[CFG.officeId] || ''; }
+function _apptActTz(email){
+  var a = (_APPT.activators||[]).find(function(x){ return x.email===email; });
+  return (a && a.timezone) ? a.timezone : _apptOfficeTzId();   // unset => office tz => no-op
+}
+// activator-stored slot -> office-TZ slot (place/display on the office grid)
+function _apptToOffice(dateStr, slot, email){ return _tzConvertClock(dateStr, slot, _apptActTz(email), _apptOfficeTzId()); }
+// office-TZ slot -> activator-stored slot (check an activator's schedule/blocks at an office slot)
+function _apptToAct(dateStr, slot, email){ return _tzConvertClock(dateStr, slot, _apptOfficeTzId(), _apptActTz(email)); }
 // Default booking hours — mirrors the backend AppointmentScheduler.gs DEFAULT_HOURS
 // (Mon–Fri 10:00–17:00 in the office/activator home TZ; weekends closed unless set).
 var _APPT_DEFAULT_HOURS = { start:'10:00', end:'17:00', days:['mon','tue','wed','thu','fri'] };
@@ -6667,7 +6704,8 @@ function _apptCalGrid(appts, acts, ws) {
   var fe = _APPT.filterEmail;
   var aMap = {}; appts.forEach(function(a){
     if(!a.date||!a.timeSlot||a.status==='cancelled') return;
-    var k=a.date+'|'+a.timeSlot; if(!aMap[k]) aMap[k]=[]; aMap[k].push(a);
+    // Place each booking on the office-TZ grid (no-op when activator tz == office tz).
+    var k=a.date+'|'+_apptToOffice(a.date,a.timeSlot,a.activatorEmail); if(!aMap[k]) aMap[k]=[]; aMap[k].push(a);
   });
   var sMap = {}; acts.forEach(function(a){ sMap[a.email]=a.schedule||{}; });
 
@@ -6678,12 +6716,12 @@ function _apptCalGrid(appts, acts, ws) {
     var dk=dayKeys[new Date(ds+'T12:00:00').getDay()];
     var slotAppts=aMap[ds+'|'+slot]||[];
     if (fe){
-      var sc=_apptDaySched(sMap[fe],dk);
-      if(!sc||!_apptSlotInSched(slot,sc.start,sc.end)) return false;
-      return !slotAppts.some(function(a){return a.activatorEmail===fe;}) && !_apptBlocked(fe,ds,slot);
+      var sc=_apptDaySched(sMap[fe],dk), asl=_apptToAct(ds,slot,fe);
+      if(!sc||!_apptSlotInSched(asl,sc.start,sc.end)) return false;
+      return !slotAppts.some(function(a){return a.activatorEmail===fe;}) && !_apptBlocked(fe,ds,asl);
     }
     if (slotAppts.length>0) return false;
-    return Object.keys(sMap).some(function(em){var s=_apptDaySched(sMap[em],dk);return s&&_apptSlotInSched(slot,s.start,s.end)&&!_apptBlocked(em,ds,slot);});
+    return Object.keys(sMap).some(function(em){var s=_apptDaySched(sMap[em],dk),asl=_apptToAct(ds,slot,em);return s&&_apptSlotInSched(asl,s.start,s.end)&&!_apptBlocked(em,ds,asl);});
   }
   // How many activators are free at (ds,slot) — in-schedule, in-window, not blocked.
   // Drives the per-cell count on the default (no-filter) week view.
@@ -6691,8 +6729,8 @@ function _apptCalGrid(appts, acts, ws) {
     if (ds<win.min || ds>win.max) return 0;
     var dk=dayKeys[new Date(ds+'T12:00:00').getDay()], n=0;
     Object.keys(sMap).forEach(function(em){
-      var s=_apptDaySched(sMap[em],dk);
-      if(s && _apptSlotInSched(slot,s.start,s.end) && !_apptBlocked(em,ds,slot)) n++;
+      var s=_apptDaySched(sMap[em],dk), asl=_apptToAct(ds,slot,em);
+      if(s && _apptSlotInSched(asl,s.start,s.end) && !_apptBlocked(em,ds,asl)) n++;
     });
     return n;
   }
@@ -6725,12 +6763,12 @@ function _apptCalGrid(appts, acts, ws) {
             '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(mine.services)+'<span class="appt-dev-badge">×'+(mine.deviceCount||1)+'</span></div></div>';
         } else if(offWin){
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
-        } else if(_apptBlocked(fe,ds,slot)){
-          var _bl=_apptBlocked(fe,ds,slot), _oid=_apptBlockOffice(_bl);
+        } else if(_apptBlocked(fe,ds,_apptToAct(ds,slot,fe))){
+          var _bl=_apptBlocked(fe,ds,_apptToAct(ds,slot,fe)), _oid=_apptBlockOffice(_bl);
           html+= _oid ? _apptXofficeCell(_bl,_oid)
                       : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">🔒</div>';
         } else if(availAt(ds,slot)){
-          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+slot+'\')">'+
+          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+_apptToAct(ds,slot,fe)+'\')">'+
             '<span class="appt-avail-plus">+</span> Book</div>';
         } else {
           html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
@@ -6814,7 +6852,7 @@ function _apptUpcomingTable(appts) {
       ? '<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>'
       : (ok?'—':'••••');
     h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
-      '<td>'+esc(_apptFmtDate(a.date))+'</td><td>'+esc(_apptFmt12(a.timeSlot))+'</td>'+
+      '<td>'+esc(_apptFmtDate(a.date))+'</td><td>'+esc(_apptFmt12(_apptToOffice(a.date,a.timeSlot,a.activatorEmail)))+'</td>'+
       '<td>'+esc(_apptActName(a.activatorEmail))+'</td>'+
       '<td>'+(ok?esc(a.customerName):'••••••')+_apptSrcBadge(a)+'</td>'+
       '<td>'+dsiCell+'</td>'+
@@ -6849,22 +6887,22 @@ function _apptAllActGrid(appts, acts, dStr){
   var offWin = dStr<win.min || dStr>win.max;
   var aMap = {}; appts.forEach(function(a){
     if(a.date!==dStr||!a.timeSlot||a.status==='cancelled') return;
-    aMap[a.activatorEmail+'|'+a.timeSlot]=a;
+    aMap[a.activatorEmail+'|'+_apptToOffice(dStr,a.timeSlot,a.activatorEmail)]=a;   // office-TZ key
   });
   var sorted = acts.slice().sort(function(a,b){return a.email<b.email?-1:1;});
   var html = '<div class="appt-cal-outer"><div class="appt-allact-grid" style="grid-template-columns:72px repeat('+sorted.length+',minmax(116px,1fr))">';
   html += '<div class="appt-cal-time-hdr"></div>';
   sorted.forEach(function(a){
     var c=_apptActColor(a.email), cap=0, bk=0, sc=_apptDaySched(a.schedule,dk);
-    if(sc && !offWin) slots.forEach(function(slot){ if(_apptSlotInSched(slot,sc.start,sc.end)){ cap++; if(aMap[a.email+'|'+slot]) bk++; } });
+    if(sc && !offWin) slots.forEach(function(slot){ if(_apptSlotInSched(_apptToAct(dStr,slot,a.email),sc.start,sc.end)){ cap++; if(aMap[a.email+'|'+slot]) bk++; } });
     html += '<div class="appt-cal-th"><div class="appt-allact-name" style="color:'+c+'" title="'+esc(a.name)+'">'+esc(a.name.split(' ')[0])+'</div>'+
       '<div class="appt-allact-load" title="Booked / capacity this day">'+bk+'/'+cap+'</div></div>';
   });
   slots.forEach(function(slot){
     html += '<div class="appt-cal-time">'+_apptFmt12(slot)+'</div>';
     sorted.forEach(function(a){
-      var ap=aMap[a.email+'|'+slot], sc=_apptDaySched(a.schedule,dk);
-      var inSched=sc&&_apptSlotInSched(slot,sc.start,sc.end);
+      var ap=aMap[a.email+'|'+slot], sc=_apptDaySched(a.schedule,dk), asl=_apptToAct(dStr,slot,a.email);
+      var inSched=sc&&_apptSlotInSched(asl,sc.start,sc.end);
       if(ap){
         var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||ap.bookerEmail===SESSION.email;
         var col=_apptActColor(a.email);
@@ -6873,12 +6911,12 @@ function _apptAllActGrid(appts, acts, dStr){
           '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(ap.services)+'<span class="appt-dev-badge">×'+(ap.deviceCount||1)+'</span></div></div>';
       } else if(offWin){
         html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
-      } else if(inSched && _apptBlocked(a.email,dStr,slot)){
-        var _bl=_apptBlocked(a.email,dStr,slot), _oid=_apptBlockOffice(_bl);
+      } else if(inSched && _apptBlocked(a.email,dStr,asl)){
+        var _bl=_apptBlocked(a.email,dStr,asl), _oid=_apptBlockOffice(_bl);
         html+= _oid ? _apptXofficeCell(_bl,_oid)
                     : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">🔒</div>';
       } else if(inSched){
-        html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+dStr+'\',\''+esc(a.email)+'\',\''+slot+'\')"><span class="appt-avail-plus">+</span> Book</div>';
+        html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+dStr+'\',\''+esc(a.email)+'\',\''+asl+'\')"><span class="appt-avail-plus">+</span> Book</div>';
       } else {
         html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
       }
@@ -6899,7 +6937,7 @@ function _apptDayAgenda(appts, acts, dStr){
     var ok=canAll||a.bookerEmail===SESSION.email, col=_apptActColor(a.activatorEmail);
     var dsi = ok && a.customerDSI ? ' <span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>' : '';
     h+='<div class="appt-agenda-row" style="border-left:3px solid '+col+'">'+
-      '<div class="appt-agenda-time">'+esc(_apptFmt12(a.timeSlot))+'</div>'+
+      '<div class="appt-agenda-time">'+esc(_apptFmt12(_apptToOffice(a.date,a.timeSlot,a.activatorEmail)))+'</div>'+
       '<div class="appt-agenda-main">'+
         '<div class="appt-agenda-cust">'+(ok?esc(a.customerName):'••••••')+_apptSrcBadge(a)+dsi+'</div>'+
         '<div class="appt-agenda-sub"><span style="color:'+col+';font-weight:700">'+esc(_apptActName(a.activatorEmail))+'</span> · '+_apptSvcGlyphs(a.services)+'<span class="appt-dev-badge">×'+(a.deviceCount||1)+'</span></div>'+
@@ -7173,8 +7211,11 @@ function _abmLoadSlots(preselect) {
   _apptGet(req).then(function(res){
     var slots=res.slots||[];
     if(!slots.length){sel.innerHTML='<option value="">No available slots for this date</option>';return;}
+    // Specific activator: stored slots are activator-TZ; show office-TZ labels (value stays canonical).
+    var _conv = (email && email!=='__next__');
     sel.innerHTML='<option value="">Select a time…</option>'+slots.map(function(s){
-      return '<option value="'+esc(s)+'"'+(s===preselect?' selected':'')+'>'+_apptFmt12(s)+'</option>';
+      var lbl=_conv ? _apptFmt12(_tzConvertClock(date,s,_apptActTz(email),_apptOfficeTzId())) : _apptFmt12(s);
+      return '<option value="'+esc(s)+'"'+(s===preselect?' selected':'')+'>'+lbl+'</option>';
     }).join('');
   }).catch(function(){if(sel)sel.innerHTML='<option value="">Error loading slots</option>';});
 }
@@ -7299,7 +7340,7 @@ function rescheduleApptUI(id) {
   document.getElementById('appt-resched-body').innerHTML=
     '<div style="font-size:.82rem;color:var(--text2);margin-bottom:12px">'+
       '<strong style="color:var(--text)">'+esc(a.customerName||'Customer')+'</strong> — currently '+
-      esc(_apptFmtDate(a.date))+' at '+esc(_apptFmt12(a.timeSlot))+'</div>'+
+      esc(_apptFmtDate(a.date))+' at '+esc(_apptFmt12(_apptToOffice(a.date,a.timeSlot,a.activatorEmail)))+'</div>'+
     '<div class="appt-form-grid">'+
       '<div class="field"><label>New Date</label><input type="date" class="appt-form-input" id="rsd-date" min="'+win.min+'" max="'+win.max+'" onchange="_reschedLoadSlots()"></div>'+
       '<div class="field"><label>Activator</label><select class="appt-form-input" id="rsd-act" onchange="_reschedLoadSlots()">'+actOpts+'</select></div>'+
@@ -7333,8 +7374,10 @@ function _reschedLoadSlots() {
   _apptGet(req).then(function(res){
     var slots=res.slots||[];
     if(!slots.length){sel.innerHTML='<option value="">No open slots for this date</option>';return;}
+    var _conv = (act && act!=='__next__');
     sel.innerHTML='<option value="">Select a time…</option>'+slots.map(function(s){
-      return '<option value="'+esc(s)+'">'+_apptFmt12(s)+'</option>';
+      var lbl=_conv ? _apptFmt12(_tzConvertClock(date,s,_apptActTz(act),APPT_OFFICE_TZ[office]||_apptOfficeTzId())) : _apptFmt12(s);
+      return '<option value="'+esc(s)+'">'+lbl+'</option>';
     }).join('');
   }).catch(function(){if(sel)sel.innerHTML='<option value="">Error loading slots</option>';});
 }
