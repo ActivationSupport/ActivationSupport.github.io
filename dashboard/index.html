@@ -1579,14 +1579,13 @@ function _startInactivityWatcher() {
 // Master-admin + activator always stay on the dark theme. Everyone else can
 // toggle; the choice persists per browser (localStorage 'as_theme').
 function _themeAllowed() {
-  var r = (SESSION.role || '').toLowerCase();
-  return r !== 'master-admin' && r !== 'activator';
+  return true;   // every role can see + use the toggle (defaults still differ: owner = light, others = dark)
 }
 function _applyTheme() {
   var allowed = _themeAllowed(), pref = '';
   try { pref = localStorage.getItem('as_theme') || ''; } catch (e) {}
   var theme;
-  if (!allowed) theme = 'dark';                                 // master-admin + activator: always dark
+  if (!allowed) theme = 'dark';                                 // (reserved) force dark if a role is ever disallowed
   else if (pref === 'light' || pref === 'dark') theme = pref;   // an explicit toggle choice wins
   else theme = ((SESSION.role || '').toLowerCase() === 'owner') ? 'light' : 'dark';  // default: owner = light, everyone else dark
   document.documentElement.setAttribute('data-theme', theme);
