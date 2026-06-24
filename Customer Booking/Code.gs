@@ -15,6 +15,26 @@
 
 var OFFICES = ['elevate', 'midspire', 'viridian', 'ignite', 'vanguard'];
 
+// Per-office timezone (mirrors the Appointment Scheduler OFFICE_TZ). Customer
+// pages show open times in the OFFICE's timezone; a cross-zone activator's
+// stored slots (their tz) are converted to/from office tz at this proxy so the
+// scheduler's specific-activator contract (act-tz values) stays unchanged.
+var OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', ignite:'America/Los_Angeles', vanguard:'America/New_York' };
+function _cbHmToMin(t){ var p=String(t).split(':'); return (+p[0])*60 + (+p[1]); }
+function _cbMinToHm(m){ var h=Math.floor(m/60), mi=m%60; return ('0'+h).slice(-2)+':'+('0'+mi).slice(-2); }
+function _cbLocalDateTime(dateStr, minutes, tz){
+  var hhmm = _cbMinToHm(minutes);
+  var guess = new Date(dateStr + 'T' + hhmm + ':00Z');
+  var shown = Utilities.formatDate(guess, tz, "yyyy-MM-dd'T'HH:mm:ss");
+  var delta = new Date(dateStr + 'T' + hhmm + ':00').getTime() - new Date(shown).getTime();
+  return new Date(guess.getTime() + delta);
+}
+// Convert "HH:mm" on dateStr from fromTz to toTz. No-op when zones match.
+function _convertClockTz(dateStr, hhmm, fromTz, toTz){
+  if (!fromTz || !toTz || fromTz === toTz || !dateStr || !hhmm) return hhmm;
+  return Utilities.formatDate(_cbLocalDateTime(dateStr, _cbHmToMin(hhmm), fromTz), toTz, 'HH:mm');
+}
+
 // ── Page routing ──────────────────────────────────────────────
 // ?office=<id>            → booking page (locked to that office)
 // ?action=cancel&token=…  → cancel page
@@ -128,6 +148,18 @@ function _resolveActivatorId(office, id) {
   }
   return '';
 }
+// Like _resolveActivatorId but also returns the activator's timezone (for the
+// office-tz <-> activator-tz slot conversion). Returns null if not found.
+function _resolveActivatorFull(office, id) {
+  if (id === '__next__') return { email: '__next__', timezone: '' };
+  if (OFFICES.indexOf(office) === -1) return null;
+  var acts = _apiGet('getActivators', { officeId: office }).activators || [];
+  for (var i = 0; i < acts.length; i++) {
+    if (_activatorId(acts[i].email) === id)
+      return { email: String(acts[i].email || '').trim().toLowerCase(), timezone: acts[i].timezone || '' };
+  }
+  return null;
+}
 
 function getActivatorsPublic(office) {
   if (OFFICES.indexOf(office) === -1) return [];
@@ -142,9 +174,14 @@ function getWindowPublic() {
 
 function getSlotsPublic(activatorId, date, office) {
   if (activatorId === '__next__') return [];   // use getNextSlotsPublic instead
-  var email = _resolveActivatorId(office, activatorId);
-  if (!email) return [];
-  return _apiGet('getAvailableSlots', { activatorEmail: email, date: date, role: 'customer' }).slots || [];
+  var act = _resolveActivatorFull(office, activatorId);
+  if (!act || !act.email) return [];
+  var slots = _apiGet('getAvailableSlots', { activatorEmail: act.email, date: date, role: 'customer' }).slots || [];
+  // Present in OFFICE tz (no-op when the activator is in the office's tz).
+  var officeTz = OFFICE_TZ[office] || 'America/Los_Angeles';
+  var actTz = act.timezone || officeTz;
+  if (actTz === officeTz) return slots;
+  return slots.map(function (s) { return _convertClockTz(date, s, actTz, officeTz); });
 }
 
 function getNextSlotsPublic(office, date) {
@@ -161,8 +198,19 @@ function bookPublic(payload) {
   if (String(payload.hp || '').trim() !== '') return { ok: true };
   // Resolve the opaque activator id back to a real email server-side (the email
   // never travels through the browser). '__next__' passes through.
-  var activatorEmail = _resolveActivatorId(payload.office, payload.activatorId);
-  if (!activatorEmail) return { error: 'invalid activator' };
+  var act = _resolveActivatorFull(payload.office, payload.activatorId);
+  if (!act || !act.email) return { error: 'invalid activator' };
+  var activatorEmail = act.email;
+  // book.html sent the slot in OFFICE tz. For a SPECIFIC cross-zone activator,
+  // convert back to their tz (the scheduler stores specific-activator slots
+  // as-is). '__next__' passes office-tz through — the scheduler converts it
+  // after resolving the activator. No-op when zones match.
+  var timeSlot = payload.timeSlot;
+  if (activatorEmail !== '__next__') {
+    var officeTz = OFFICE_TZ[payload.office] || 'America/Los_Angeles';
+    var actTz = act.timezone || officeTz;
+    if (actTz !== officeTz) timeSlot = _convertClockTz(payload.date, payload.timeSlot, officeTz, actTz);
+  }
   // Build the backend request from an explicit allowlist so a caller can't
   // smuggle extra fields (role/booker/status/etc.) through the public app.
   var clean = {
@@ -172,7 +220,7 @@ function bookPublic(payload) {
     office:         payload.office,
     activatorEmail: activatorEmail,
     date:           payload.date,
-    timeSlot:       payload.timeSlot,
+    timeSlot:       timeSlot,
     customerName:   payload.customerName,
     customerPhone:  payload.customerPhone,
     customerEmail:  payload.customerEmail,
