@@ -147,7 +147,9 @@ async function testPosting() {
   if (errs.length) note(`${errs.length} non-ok (possible concurrency ceiling): ` +
      JSON.stringify(errs.slice(0, 3).map(e => (e && (e.error || e._raw || e._status)) || e)));
 
-  // Verify none LOST: read back posted-sales count per office, compare to ok posts
+  // Verify none LOST: read back posted-sales count per office, compare to ok posts.
+  // Sheets reads lag writes slightly, so let it settle before counting.
+  await sleep(6000);
   let landed = 0;
   for (const o of OFFICES) {
     let tok; try { tok = await login('mgr-' + o + '@test.local'); } catch { continue; }
