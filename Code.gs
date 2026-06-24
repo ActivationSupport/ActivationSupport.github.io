@@ -901,6 +901,7 @@ function doGet(e) {
       return jsonResponse({ report: readDailyReport(ss, officeId, rdrDate) });
     }
     if (action === 'readPostedSales') return jsonResponse({ sales: readPostedSales(ss, officeId) });
+    if (action === 'readMyPostedSales') return jsonResponse({ sales: _scopePostedSales(readPostedSales(ss, officeId, true), _gs) });
     if (action === 'readRepLineStats') {
       var rls_email = (e.parameter && e.parameter.repEmail) || '';
       return jsonResponse(readRepLineStats(ss, officeId, rls_email));
@@ -1163,11 +1164,13 @@ function _ensurePostedPaidOutCol(sheet) {
 function readTrainingOrders(ss, officeId) {
   var sheet = ss.getSheetByName('_PostedSales_' + officeId); if (!sheet) return [];
   var paidCol = _ensurePostedPaidOutCol(sheet); var paidIdx = paidCol - 1;
+  var voidedCol = _ensurePostedVoidedCol(sheet); var voidedIdx = voidedCol - 1;
   var data = sheet.getDataRange().getValues(); if (data.length < 2) return [];
   var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-60); cutoff.setHours(0,0,0,0);
   var orders = [];
   for (var i=1;i<data.length;i++) {
     var row = data[i];
+    if (String(row[voidedIdx]||'').trim().toLowerCase() === 'true') continue;
     var dsi = String(row[POSTED.DSI]||'').trim();
     var trainee = String(row[POSTED.TRAINEE]||'').trim().toLowerCase();
     var codesUsedBy = String(row[POSTED.CODES_USED_BY]||'').trim().toLowerCase();
@@ -2433,6 +2436,8 @@ function doPost(e) {
       case 'calculateBlood':      result=writeCalculateBlood(body,ss,officeId); break;
       case 'generateDailyReport': result=generateDailyReport(ss,officeId,body.date||null); break;
       case 'postSale':            result=writePostSale(body,ss,officeId); break;
+      case 'updatePostedSale':    result=updatePostedSale(body,ss,officeId); break;
+      case 'voidPostedSale':      result=voidPostedSale(body,ss,officeId); break;
       case 'createOfficeTabs':    result=createOfficeTabs(body,ss); break;
       case 'migrateFromLegacy':   result=migrateFromLegacy(ss,officeId); break;
       case 'migrateFromExternal': result=migrateFromExternal(body,ss); break;
@@ -3174,20 +3179,93 @@ function writePostSale(body, ss, officeId) {
   return { ok: true, units: units };
 }
 
-function readPostedSales(ss, officeId) {
+// ---- Posted Sales editing (rep self-correction + void) ----
+function _ensurePostedVoidedCol(sheet) {
+  var lastCol = sheet.getLastColumn();
+  var header = sheet.getRange(1,1,1,lastCol).getValues()[0];
+  for (var c=0;c<header.length;c++) { if (String(header[c]||'').trim()==='Voided') return c+1; }
+  var col = lastCol + 1;
+  sheet.getRange(1,col).setValue('Voided').setFontWeight('bold');
+  return col;
+}
+// Posted Sales tab scoping: client-rep + leader/jd/manager see only their own
+// posted orders; owner/admin/master-admin/activator see the whole office.
+// Identity is badge-derived (gs); no valid badge (strict grace) => passthrough.
+var _POSTED_OWN_ONLY = { 'client-rep':1, 'leader':1, 'jd':1, 'manager':1 };
+var _POSTED_EDIT_ALL = { 'owner':1, 'admin':1, 'master-admin':1, 'activator':1 };
+function _scopePostedSales(sales, gs) {
+  if (!gs || !gs.valid) return sales;
+  var rank = String(gs.rank||'').trim().toLowerCase();
+  if (!_POSTED_OWN_ONLY[rank]) return sales;
+  var email = String(gs.email||'').trim().toLowerCase();
+  return sales.filter(function(s){ return String(s.repEmail||'').trim().toLowerCase() === email; });
+}
+// May this badge edit/void this posted-sale row? Own row, or a see-everything role.
+function _authorizePostedEdit(sheet, rowIndex, gs) {
+  if (!_strictAuth()) return { ok:true };
+  if (!gs || !gs.valid) return { error:'auth_required' };
+  var rank = String(gs.rank||'').trim().toLowerCase();
+  if (_POSTED_EDIT_ALL[rank]) return { ok:true };
+  var rowEmail = String(sheet.getRange(rowIndex, 2).getValue()||'').trim().toLowerCase();
+  if (rowEmail && rowEmail === String(gs.email||'').trim().toLowerCase()) return { ok:true };
+  return { error:'forbidden' };
+}
+// Edit a posted sale in place (self-correction). Notes (col 21) and identity
+// columns (timestamp/email/repName/repTeam) are never changed here.
+function updatePostedSale(body, ss, officeId) {
+  var sheet = ss.getSheetByName('_PostedSales_' + officeId); if (!sheet) return { error:'Post Sale sheet not found' };
+  var rowIndex = Number(body.rowIndex); if (!rowIndex || rowIndex < 2) return { error:'Invalid row' };
+  if (rowIndex > sheet.getLastRow()) return { error:'Row not found' };
+  var gs = _validateSession(ss, body.token);
+  var auth = _authorizePostedEdit(sheet, rowIndex, gs); if (auth.error) return auth;
+  var dateOfSale = String(body.dateOfSale||'').trim(); if (!dateOfSale) return { error:'Missing dateOfSale' };
+  var dsi = String(body.dsi||'').trim(); if (dsi.length < 12) return { error:'DSI must be at least 12 characters' };
+  var airQty = Number(body.airQty)||0, wn = Number(body.wirelessNew)||0, wb = Number(body.wirelessByod)||0;
+  var fiberPkg = String(body.fiberPackage||'').trim();
+  var voipQty = Number(body.voipQty)||0, dtvQty = Number(body.dtvQty)||0;
+  var units = airQty + wn + wb + (fiberPkg ? 1 : 0) + voipQty + dtvQty;
+  sheet.getRange(rowIndex, 5, 1, 16).setValues([[
+    new Date(dateOfSale + 'T12:00:00'), dsi,
+    String(body.accountType||'').trim(), String(body.processedVia||'Sara').trim(),
+    String(body.underSomeoneCodes||'No').trim(), String(body.codesUsedBy||'').trim().toLowerCase(),
+    String(body.trainee||'No').trim(), String(body.traineeName||'').trim(),
+    airQty, wn, wb, fiberPkg, String(body.fiberInstallDate||'').trim(),
+    voipQty, dtvQty, String(body.dtvPackage||'').trim()
+  ]]);
+  sheet.getRange(rowIndex, 22).setValue(units);
+  return { ok:true, units:units };
+}
+// Soft-void / un-void a posted sale. Voided rows are skipped by the Live Sales
+// Tracker, Teams, and Training & Tracking (still visible on the Posted Sales tab).
+function voidPostedSale(body, ss, officeId) {
+  var sheet = ss.getSheetByName('_PostedSales_' + officeId); if (!sheet) return { error:'Post Sale sheet not found' };
+  var rowIndex = Number(body.rowIndex); if (!rowIndex || rowIndex < 2) return { error:'Invalid row' };
+  if (rowIndex > sheet.getLastRow()) return { error:'Row not found' };
+  var gs = _validateSession(ss, body.token);
+  var auth = _authorizePostedEdit(sheet, rowIndex, gs); if (auth.error) return auth;
+  var col = _ensurePostedVoidedCol(sheet);
+  sheet.getRange(rowIndex, col).setValue(body.voided ? 'true' : '');
+  return { ok:true, voided: !!body.voided };
+}
+function readPostedSales(ss, officeId, includeVoided) {
   var sheet = ss.getSheetByName('_PostedSales_' + officeId);
   if (!sheet) return [];
+  var voidedCol = _ensurePostedVoidedCol(sheet); var voidedIdx = voidedCol - 1;
   var data = sheet.getDataRange().getValues();
   if (data.length < 2) return [];
   var sales = [];
   for (var i = 1; i < data.length; i++) {
     var row = data[i];
+    var _vd = String(row[voidedIdx]||'').trim().toLowerCase() === 'true';
+    if (_vd && !includeVoided) continue;
     var ts       = row[0] instanceof Date ? row[0].toISOString() : String(row[0]||'');
     var saleDateRaw = row[4];
     var saleDate = saleDateRaw instanceof Date ? saleDateRaw.toISOString().split('T')[0] : String(saleDateRaw||'').trim();
     var fiRaw    = row[16];
     var fiDate   = fiRaw instanceof Date ? fiRaw.toISOString().split('T')[0] : String(fiRaw||'').trim();
     sales.push({
+      rowIndex:          i + 1,
+      voided:            _vd,
       timestamp:         ts,
       repEmail:          String(row[1]||'').trim(),
       repName:           String(row[2]||'').trim(),
