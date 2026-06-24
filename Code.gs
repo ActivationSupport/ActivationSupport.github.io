@@ -417,6 +417,26 @@ function _filterByOffice(rows, col, officeId) {
   });
 }
 
+// Safety net: detect OFFICE_OWNER_MAP drift. If the shared Tableau tab has rows
+// but NONE match this office, the call-log tabs would silently go empty -- surface
+// it instead. Unknown/blank mapping returns all rows (matched==raw) so it never
+// false-positives on a genuinely empty office.
+function _tableauMatchHealth(ss, officeId) {
+  try {
+    var data = _getSheetData(ss, TABLEAU_TAB);
+    if (!data || data.length < 2) return { rawRows: 0, matchedRows: 0 };
+    var raw = data.length - 1;
+    var match = _officeMatch(officeId);
+    if (!match) return { rawRows: raw, matchedRows: raw };
+    var col = buildTableauColumnMap(data[0]);
+    var matched = 0;
+    for (var i = 1; i < data.length; i++) {
+      if (String(tCol(data[i], col, 'OWNER_OFFICE') || '').toLowerCase().indexOf(match) !== -1) matched++;
+    }
+    return { rawRows: raw, matchedRows: matched };
+  } catch (e) { return { rawRows: 0, matchedRows: 0 }; }
+}
+
 function _buildTolRow(row, col, allRows) {
   var rawDate = tCol(row,col,'ORDER_DATE');
   var d = rawDate instanceof Date ? rawDate : (rawDate ? new Date(rawDate) : null);
@@ -912,6 +932,11 @@ function doGet(e) {
     const tableauSummary = getTableauSummaryWithCache(ss, officeId);
     roster = autoAssignTableauNames(ss, officeId, roster, tableauSummary.possibleTableauNames);
     const _teamsObj = readTeams(ss, officeId);
+    const _tHealth = _tableauMatchHealth(ss, officeId);
+    const tableauWarning = (_tHealth.rawRows > 0 && _tHealth.matchedRows === 0)
+      ? 'No order data matched this office, so the call-log tabs may appear empty. This usually means the company-name mapping changed in the Tableau export - please let an admin know.'
+      : '';
+    if (tableauWarning) { try { console.warn('Tableau office-match returned 0 rows for ' + officeId + ' (raw rows ' + _tHealth.rawRows + ') - OFFICE_OWNER_MAP likely drifted.'); } catch (e) {} }
     const data = {
       people: peopleResult.people || peopleResult,
       roster: roster,
@@ -930,7 +955,8 @@ function doGet(e) {
       completedOrders: _scopeOrders(readCompletedOrders(ss, officeId), _gs, roster, _teamsObj),
       notes: readNotes(ss, officeId),
       ratings: readRatings(ss, officeId),
-      guestRoster: readCrossOfficeMembers(ss, officeId)
+      guestRoster: readCrossOfficeMembers(ss, officeId),
+      tableauWarning: tableauWarning
     };
     return jsonResponse(data);
   } catch (err) { return jsonResponse({ error: err.message }); }
