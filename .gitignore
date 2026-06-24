@@ -2,3 +2,7 @@
 _vgtmp/
 dashboard/_pstest.html
 dashboard/_themetest.html
+
+_preview_training.html
+_patch_*.js
+_check_*.js

@@ -1148,7 +1148,7 @@ function readPayrollOrders(ss, officeId, payrollMode) {
 // as reps post them. Filters to the 3 payout types (trainee Split, codes-swap
 // Profit Transfer, Sunday Order) over a 60-day window, attaches SPE numbers from
 // the Tableau sync by DSI, and reads/writes a self-contained 'Paid Out' column.
-var POSTED = { REP_NAME:2, DATE:4, DSI:5, CODES_USED_BY:9, TRAINEE:10, TRAINEE_NAME:11,
+var POSTED = { REP_NAME:2, DATE:4, DSI:5, ACCOUNT_TYPE:6, CODES_USED_BY:9, TRAINEE:10, TRAINEE_NAME:11,
                AIR:12, WIRELESS_NEW:13, WIRELESS_BYOD:14, FIBER_PKG:15, VOIP:17, NOTES:20 };
 
 // Ensure the Post Sale sheet has a 'Paid Out' column; return its 1-based index.
@@ -1179,7 +1179,7 @@ function readTrainingOrders(ss, officeId) {
     var saleDate = new Date(rawDate); if (isNaN(saleDate.getTime())) continue;
     saleDate.setHours(0,0,0,0); if (saleDate < cutoff) continue;
     var isSunday = (saleDate.getDay()===0);
-    if (!isTraineeOrder && !isCodesSwap && !isSunday) continue;
+    // (no payout-type filter -- Training & Tracking lists every posted order)
     // Every applicable type stacks (display order Sunday > Profit Transfer > Split).
     var payTypes = [];
     if (isSunday) payTypes.push('sunday');
@@ -1189,6 +1189,7 @@ function readTrainingOrders(ss, officeId) {
     orders.push({
       rowIndex: i+1, repName: String(row[POSTED.REP_NAME]||'').trim(),
       traineeName: String(row[POSTED.TRAINEE_NAME]||'').trim(), dsi: dsi,
+      accountType: String(row[POSTED.ACCOUNT_TYPE]||'').trim(),
       dateOfSale: _drNormDate(saleDate),
       air: Number(row[POSTED.AIR])||0,
       cell: (Number(row[POSTED.WIRELESS_NEW])||0) + (Number(row[POSTED.WIRELESS_BYOD])||0),
