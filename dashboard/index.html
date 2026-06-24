@@ -5470,7 +5470,11 @@ var _LST_RNKL = {
   'activator':'Activator','client-rep':'Client Rep','manager':'Manager',
   'jd':'JD','l1':'Team Leader','leader':'Team Leader'
 };
-var _LST_LDR_RANKS = ['master-admin','owner','admin','activator','manager','jd'];
+// Office-leaderboard "Leaders" group = Team Leader, JD, Manager, Owner (low→high rank).
+// Team Leader is NOT in _LST_SKIP_UNLESS_SOLD, so leaders always show; owner/jd/manager
+// only show if they posted a sale. master-admin/admin/activator are intentionally excluded
+// (they appear among reps only if they personally sell).
+var _LST_LDR_RANKS = ['owner','manager','jd','leader'];
 
 function renderLiveSalesTracker() {
   var c = document.getElementById('main-content');
