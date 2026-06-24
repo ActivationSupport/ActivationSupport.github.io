@@ -137,6 +137,15 @@ function _getOrInsertSheet(ss, tabName) {
     }
   } finally { if (haveLock) lock.releaseLock(); }
 }
+// appendRow is NOT safe across simultaneous Apps Script executions -- concurrent
+// appends to the same sheet clobber each other (load test: 25 concurrent posts
+// landed only 8 rows). Serialize every hot-path append behind the script lock so
+// no write is silently lost under a burst of reps.
+function _safeAppend(sheet, row) {
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(25000); } catch (e) { throw new Error('busy - please retry'); }
+  try { sheet.appendRow(row); } finally { lock.releaseLock(); }
+}
 function getOrCreateSheet(ss, tabName, baseName) {
   var _r = _getOrInsertSheet(ss, tabName);
   var sheet = _r.sheet;
@@ -780,7 +789,7 @@ function writeNoteEntry(body, ss, officeId) {
   var tabName='_Notes_'+officeId;
   var sheet=ss.getSheetByName(tabName);
   if (!sheet) { sheet=ss.insertSheet(tabName); sheet.appendRow(['dsi','timestamp','authorEmail','authorName','noteText','noteType','linesActivated']); sheet.getRange(1,1,1,7).setFontWeight('bold'); sheet.setFrozenRows(1); }
-  sheet.appendRow([dsi, new Date(), authorEmail, authorName, noteText, noteType, linesActivated]);
+  _safeAppend(sheet, [dsi, new Date(), authorEmail, authorName, noteText, noteType, linesActivated]);
   return { ok:true, ts:new Date().toISOString() };
 }
 
@@ -794,7 +803,7 @@ function writeRatingEntry(body, ss, officeId) {
   if (!sheet) { sheet=ss.insertSheet(tabName); sheet.appendRow(['dsi','rating','lastUpdated','updatedBy']); sheet.getRange(1,1,1,4).setFontWeight('bold'); sheet.setFrozenRows(1); }
   var data=sheet.getDataRange().getValues();
   for (var i=1;i<data.length;i++) { if (String(data[i][0]||'').trim()===dsi) { sheet.getRange(i+1,2,1,3).setValues([[rating,new Date(),updatedBy]]); return { ok:true }; } }
-  sheet.appendRow([dsi, rating, new Date(), updatedBy]);
+  _safeAppend(sheet, [dsi, rating, new Date(), updatedBy]);
   return { ok:true };
 }
 
@@ -3145,7 +3154,7 @@ function writePostSale(body, ss, officeId) {
   var dtvPkg      = String(body.dtvPackage||'').trim();
   var units = airQty + wirelessNew + wirelessByod + (fiberPkg ? 1 : 0) + voipQty + dtvQty;
   var sheet = _getPostedSalesSheet(ss, officeId);
-  sheet.appendRow([
+  _safeAppend(sheet, [
     new Date(), email, repName, repTeam,
     new Date(dateOfSale + 'T12:00:00'), dsi,
     String(body.accountType||'').trim(), String(body.processedVia||'Sara').trim(),

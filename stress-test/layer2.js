@@ -33,27 +33,37 @@ const note = (m) => console.log('  ·  ' + m);
 const hr = (t) => console.log('\n' + '='.repeat(74) + `\n${t}\n` + '='.repeat(74));
 
 // ── HTTP helpers (Node fetch follows Apps Script's 302 → googleusercontent) ──
-async function gget(base, action, params = {}) {
-  const u = new URL(base);
-  u.searchParams.set('key', KEY);
-  if (action) u.searchParams.set('action', action);
-  for (const k in params) if (params[k] != null) u.searchParams.set(k, params[k]);
-  const r = await fetch(u, { redirect: 'follow' });
+// Apps Script intermittently returns a transient HTML error page or a spurious
+// {error:unauthorized} under rapid calls — retry a few times before believing it.
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+async function _once(method, base, action, params, obj) {
+  let r;
+  if (method === 'GET') {
+    const u = new URL(base); u.searchParams.set('key', KEY);
+    if (action) u.searchParams.set('action', action);
+    for (const k in (params || {})) if (params[k] != null) u.searchParams.set(k, params[k]);
+    r = await fetch(u, { redirect: 'follow' });
+  } else {
+    r = await fetch(base, { method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ key: KEY, ...obj }) });
+  }
   const t = await r.text();
-  try { return JSON.parse(t); } catch { return { _raw: t.slice(0, 200), _status: r.status }; }
+  try { return JSON.parse(t); } catch { return { _raw: t.slice(0, 120), _status: r.status }; }
+}
+const _transient = (res) => !res || res._raw || res.error === 'unauthorized';
+async function gget(base, action, params = {}) {
+  let res; for (let i = 0; i < 5; i++) { res = await _once('GET', base, action, params); if (!_transient(res)) return res; await sleep(600 * (i + 1)); }
+  return res;
 }
 async function ppost(base, obj) {
-  const r = await fetch(base, { method: 'POST', redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ key: KEY, ...obj }) });
-  const t = await r.text();
-  try { return JSON.parse(t); } catch { return { _raw: t.slice(0, 200), _status: r.status }; }
+  let res; for (let i = 0; i < 5; i++) { res = await _once('POST', base, null, null, obj); if (!_transient(res)) return res; await sleep(600 * (i + 1)); }
+  return res;
 }
 const officeOf = (email) => email.split('@')[0].split('-').slice(1).join('-');
 async function login(email) {
-  const res = await ppost(PORTAL, { action: 'validatePin', officeId: officeOf(email), email, pin: PIN });
-  if (!res || !res.token) throw new Error('login failed for ' + email + ': ' + JSON.stringify(res));
-  return res.token;
+  let res; for (let i = 0; i < 4; i++) { res = await ppost(PORTAL, { action: 'validatePin', officeId: officeOf(email), email, pin: PIN }); if (res && res.token) return res.token; await sleep(700 * (i + 1)); }
+  throw new Error('login failed for ' + email + ': ' + JSON.stringify(res));
 }
 const bundle = (office, token) => gget(PORTAL, '', { officeId: office, token });
 const lc = (x) => String(x || '').trim().toLowerCase();
@@ -99,9 +109,10 @@ async function testScoping() {
     const lm = (await bundle(office, leadTok)).masterTracker || [];
     const outOfTeam = lm.filter(o => teamTns.indexOf(lc(o.rep)) === -1);
     const leaksRep3 = tn3 && tn3 !== '' && teamTns.indexOf(tn3) === -1 && lm.some(o => lc(o.rep) === tn3);
-    ok(`[${office}] leader payload scoped to team, excludes off-team rep`,
-       outOfTeam.length === 0 && !leaksRep3,
-       `${lm.length} rows, all within team [${teamTns.join(', ')}]`);
+    const expectedTeam = master.filter(o => teamTns.indexOf(lc(o.rep)) !== -1).length;
+    ok(`[${office}] leader payload == team rows (expected ${expectedTeam}), excludes off-team rep`,
+       lm.length === expectedTeam && expectedTeam > 0 && outOfTeam.length === 0 && !leaksRep3,
+       `leader ${lm.length} rows vs expected ${expectedTeam}; team [${teamTns.join(', ')}]`);
     break;
   }
   if (!used) note('No test office had order data in _TableauOrderLog — scoping logic already proven in Layer 1; deploy-level check skipped.');
@@ -205,11 +216,9 @@ function addDay(d) { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() 
   console.log('ACTIVATION SUPPORT — STRESS TEST LAYER 2 (TEST cloud only)');
   console.log('Portal:    ' + PORTAL.slice(0, 60) + '…');
   console.log('Scheduler: ' + SCHED.slice(0, 60) + '…');
-  try {
-    await testScoping();
-    await testPosting();
-    await testBookingRace();
-  } catch (e) { console.error('\nHARNESS ERROR: ' + e.message); fails++; }
+  for (const [n, fn] of [['A scoping', testScoping], ['B posting', testPosting], ['C booking', testBookingRace]]) {
+    try { await fn(); } catch (e) { console.error(`\n${n} ERROR: ${e.message}`); fails++; }
+  }
   hr('SUMMARY');
   console.log(`  ${passes} passed, ${fails} failed.`);
 })();
