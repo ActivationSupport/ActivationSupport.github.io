@@ -21,6 +21,43 @@
   --text:#e2e2e2;--text2:#b3b3b3;
   --sidebar:240px;
 }
+/* ── LIGHT THEME (toggle; master-admin + activator always stay dark) ── */
+/* First pass: flips the core surfaces + the common hardcoded dark elements.
+   Sidebar intentionally stays dark navy (white content + dark rail). */
+html[data-theme="light"]{
+  --bg:#eef1f5; --surface:#ffffff; --surface2:#f3f5f8;
+  --border:rgba(15,23,42,.12);
+  --text:#1b2433; --text2:#5b6675;
+}
+html[data-theme="light"] .field input,
+html[data-theme="light"] .ar-select,
+html[data-theme="light"] .nm-textarea, html[data-theme="light"] .nm-history,
+html[data-theme="light"] .nm-lines-btn, html[data-theme="light"] .nm-lines-input,
+html[data-theme="light"] .dr-date-sel,
+html[data-theme="light"] .appt-select, html[data-theme="light"] .appt-outcome-sel,
+html[data-theme="light"] .appt-form-input, html[data-theme="light"] .appt-time-inp,
+html[data-theme="light"] .ps-input, html[data-theme="light"] .ps-textarea,
+html[data-theme="light"] .ps-select, html[data-theme="light"] .ps-qty-input,
+html[data-theme="light"] .pse-notes-ro{
+  background:#ffffff; border-color:#cfd6e0; color:var(--text);
+}
+html[data-theme="light"] .office-dd-panel{ background:#fff; border-color:#d6dce5; }
+html[data-theme="light"] .refresh-btn{ background:#eef1f5; border-color:#cfd6e0; }
+html[data-theme="light"] .abm-seg{ background:#f3f5f8; border-color:#cfd6e0; }
+html[data-theme="light"] .dr-kpi, html[data-theme="light"] .dr-status-card{ background:#f7f9fc; border-color:#e2e8f0; }
+html[data-theme="light"] .dr-kpi-val, html[data-theme="light"] .lst-kpi-val{ color:#0f172a; }
+html[data-theme="light"] .dr-stat-pill{ background:#f1f5f9; border-color:#e2e8f0; color:#475569; }
+html[data-theme="light"] .call-table thead tr{ border-bottom-color:#d3dae3; }
+html[data-theme="light"] .call-table tbody tr:hover td{ background:rgba(74,159,212,.10); }
+/* clear row separators between order rows (white-alpha borders vanish on white) */
+html[data-theme="light"] .call-table td{ border-bottom:1px solid #e3e8ef; }
+html[data-theme="light"] td{ border-bottom-color:#e6eaf0; }
+html[data-theme="light"] .lst-tbl td{ border-bottom-color:#e6eaf0; }
+html[data-theme="light"] .call-table th{ box-shadow:inset 0 -1px 0 #d3dae3; }
+html[data-theme="light"] .dr-table tbody tr:nth-child(even):not(.dr-total-row) td{ background:rgba(15,23,42,.03); }
+html[data-theme="light"] .dr-table tbody tr:hover td{ background:rgba(15,23,42,.05); }
+html[data-theme="light"] .card{ box-shadow:0 2px 10px rgba(15,23,42,.08); }
+html[data-theme="light"] .modal{ box-shadow:0 16px 48px rgba(15,23,42,.22); }
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;height:100vh;overflow:hidden}
 
 /* ── LOGIN ── */
@@ -1122,6 +1159,7 @@ tr:hover td{background:rgba(74,159,212,.07)}
         </div>
         <div class="topbar-actions">
           <span id="last-updated" style="font-size:.75rem;color:var(--text2)"></span>
+          <button class="refresh-btn" id="theme-toggle" onclick="_toggleTheme()" title="Switch to light" style="display:none">☀️</button>
           <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
           <div class="office-dd-wrap" id="office-dd-wrap" style="display:none">
             <button class="office-dd-btn" id="office-dd-btn" onclick="toggleOfficeDropdown(event)">
@@ -1386,6 +1424,7 @@ function initLogin() {
 }
 
 function loginShowStep(step) {
+  document.documentElement.setAttribute('data-theme', 'dark');   // the login screen is always dark
   document.getElementById('ls-email-step').style.display   = step === 'email'  ? '' : 'none';
   document.getElementById('ls-pin-step').style.display     = step === 'pin'    ? '' : 'none';
   document.getElementById('ls-set-pin-step').style.display = step === 'setpin' ? '' : 'none';
@@ -1536,9 +1575,39 @@ function _startInactivityWatcher() {
 }
 
 // ── APP INIT ─────────────────────────────────────────────────────────────
+// ── Light/Dark theme toggle ────────────────────────────────────────────────
+// Master-admin + activator always stay on the dark theme. Everyone else can
+// toggle; the choice persists per browser (localStorage 'as_theme').
+function _themeAllowed() {
+  var r = (SESSION.role || '').toLowerCase();
+  return r !== 'master-admin' && r !== 'activator';
+}
+function _applyTheme() {
+  var allowed = _themeAllowed(), pref = '';
+  try { pref = localStorage.getItem('as_theme') || ''; } catch (e) {}
+  var theme;
+  if (!allowed) theme = 'dark';                                 // master-admin + activator: always dark
+  else if (pref === 'light' || pref === 'dark') theme = pref;   // an explicit toggle choice wins
+  else theme = ((SESSION.role || '').toLowerCase() === 'owner') ? 'light' : 'dark';  // default: owner = light, everyone else dark
+  document.documentElement.setAttribute('data-theme', theme);
+  var tg = document.getElementById('theme-toggle');
+  if (tg) {
+    tg.style.display = allowed ? '' : 'none';
+    tg.textContent = theme === 'light' ? '🌙' : '☀️';
+    tg.title = theme === 'light' ? 'Switch to dark' : 'Switch to light';
+  }
+}
+function _toggleTheme() {
+  if (!_themeAllowed()) return;
+  var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  try { localStorage.setItem('as_theme', next); } catch (e) {}
+  _applyTheme();
+}
+
 function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  _applyTheme();   // master-admin/activator forced dark; others honor their saved choice
   // On phones/tablets, land new sessions on Post Sale (reps log sales in the field).
   // Only runs at session entry — Refresh and office-switch go through loadData (not
   // showApp), so they keep whatever tab the user is on. loadData's role guard still
