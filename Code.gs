@@ -1403,8 +1403,9 @@ function generateDailyReport(ss, officeId, targetDateStr) {
       var nts=nd[ni][1] instanceof Date?nd[ni][1]:(nd[ni][1]?new Date(nd[ni][1]):null);
       if (!nts||isNaN(nts.getTime())) continue;
       if (nts<refDate||nts>=refTomorrow) continue;
-      todayDsiSet[ndsi]=true;
       var nType=String(nd[ni][5]||'activation').trim();
+      if (nType==='rep' || nType==='note') continue;   // Daily Report ignores Rep Notes entirely (no Calls-Worked row, no notes)
+      todayDsiSet[ndsi]=true;
       var nLines=Math.max(0,parseInt(nd[ni][6],10)||0);
       var nAuthor=String(nd[ni][3]||'').trim();
       var nText=String(nd[ni][4]||'').trim();
@@ -1514,7 +1515,6 @@ function generateDailyReport(ss, officeId, targetDateStr) {
   // ── CALLS WORKED: grouped by category with order details ──
   var notesByDsi={};
   todayNotes.forEach(function(n){
-    if (n.noteType === 'rep' || n.noteType === 'note') return;   // Daily Report omits Rep Notes (activation notes only)
     if (!notesByDsi[n.dsi]) notesByDsi[n.dsi]=[];
     notesByDsi[n.dsi].push({ts:n.ts,authorName:n.authorName,noteText:n.noteText});
   });
