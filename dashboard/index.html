@@ -3895,7 +3895,8 @@ function _drArCls(vol,acts,bkt) {
 function _drArCell(bktData,bkt) {
   if (!bktData||!bktData.vol) return '<td class="ar-cell"></td>';
   var vol=bktData.vol,acts=bktData.acts||0,p=Math.round(acts/vol*100);
-  return '<td class="ar-cell"><span class="ar-badge '+_drArCls(vol,acts,bkt)+'">'+p+'% ('+acts+'/'+vol+')</span></td>';
+  var cls=_drChurnCls(bktData.color)||_drArCls(vol,acts,bkt);   // Tableau color, else fixed threshold
+  return '<td class="ar-cell"><span class="ar-badge '+cls+'">'+p+'% ('+acts+'/'+vol+')</span></td>';
 }
 function _drSectionActivation(arSummary) {
   var officeTotal=arSummary.officeTotal||{},repImpact=arSummary.repImpact||[];
@@ -3931,7 +3932,7 @@ function _drChurnTotalCls(bkt,pct) {
 function _drChurnCell(bktData,bkt,isTotal) {
   if (!bktData||!bktData.acts) return '<td class="ar-cell"></td>';
   var disco=bktData.disco||0,acts=bktData.acts,pct=disco/acts*100;
-  var cls=isTotal?_drChurnTotalCls(bkt,pct):_drChurnCls(bktData.color||'');
+  var cls=_drChurnCls(bktData.color||'')||(isTotal?_drChurnTotalCls(bkt,pct):'');   // Tableau color (total now carries one), else threshold
   return '<td class="ar-cell"><span class="ar-badge '+cls+'">'+pct.toFixed(1)+'% ('+disco+'/'+acts+')</span></td>';
 }
 function _drSectionChurn(churnSummary) {
@@ -4208,7 +4209,9 @@ function _drBuildEmailHtml() {
   function eArCell(bd,bkt){
     if (!bd||!bd.vol) return '<td style="'+TD+'"></td>';
     var p=Math.round(bd.acts/bd.vol*100);
-    return '<td style="'+TD+'"><span style="'+eArCls(bd.vol,bd.acts,bkt)+'">'+p+'% ('+bd.acts+'/'+bd.vol+')</span></td>';
+    var cc=String(bd.color||'').toLowerCase();
+    var sty=cc.indexOf('green')!==-1?GRN:(cc.indexOf('red')!==-1||cc.indexOf('orange')!==-1)?RED:(cc.indexOf('yellow')!==-1||cc.indexOf('blue')!==-1)?YEL:eArCls(bd.vol,bd.acts,bkt);
+    return '<td style="'+TD+'"><span style="'+sty+'">'+p+'% ('+bd.acts+'/'+bd.vol+')</span></td>';
   }
   function eCrTotCls(bkt,pct){
     var t={'0-30 Day':[2.4,3.0],'30 Day':[4.9,6.9],'60 Day':[8.9,9.9],'90 Day':[10.9,13.9],'120 Day':[13.9,17.9]};
@@ -4225,7 +4228,9 @@ function _drBuildEmailHtml() {
   function eCrCell(bd,bkt,isT){
     if (!bd||!bd.acts) return '<td style="'+TD+'"></td>';
     var disco=bd.disco||0,pct=disco/bd.acts*100;
-    return '<td style="'+TD+'"><span style="'+(isT?eCrTotCls(bkt,pct):eCrRepCls(bd.color||''))+'">'+pct.toFixed(1)+'% ('+disco+'/'+bd.acts+')</span></td>';
+    var cc=String(bd.color||'').toLowerCase();
+    var sty=cc.indexOf('green')!==-1?GRN:(cc.indexOf('red')!==-1||cc.indexOf('orange')!==-1)?RED:(cc.indexOf('yellow')!==-1||cc.indexOf('blue')!==-1)?YEL:(isT?eCrTotCls(bkt,pct):eCrRepCls(bd.color||''));
+    return '<td style="'+TD+'"><span style="'+sty+'">'+pct.toFixed(1)+'% ('+disco+'/'+bd.acts+')</span></td>';
   }
 
   // KPI summary tiles (light, email-safe inline-block)

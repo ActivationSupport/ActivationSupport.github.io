@@ -1443,6 +1443,31 @@ function _drAppointments(ss, officeId, dateStr) {
   return out;
 }
 
+// Color a bucket TOTAL the way Tableau would, derived from per-rep (pct,color)
+// samples via midpoint boundaries. lowerBetter=true => lower pct greener (churn);
+// false => higher pct greener (activation rates). Returns 'Green'/'Yellow'/'Red'/''.
+function _drBucketTotalColor(samples, totalPct, lowerBetter) {
+  var g=[], y=[], r=[];
+  (samples||[]).forEach(function(s){
+    var c=String(s.color||'').toLowerCase();
+    if (c.indexOf('green')!==-1) g.push(s.pct);
+    else if (c.indexOf('red')!==-1||c.indexOf('orange')!==-1) r.push(s.pct);
+    else if (c.indexOf('yellow')!==-1||c.indexOf('blue')!==-1) y.push(s.pct);
+  });
+  if (!g.length && !y.length && !r.length) return '';
+  function mn(a){ return a.length?Math.min.apply(null,a):null; }
+  function mx(a){ return a.length?Math.max.apply(null,a):null; }
+  if (lowerBetter) {
+    var gMax=mx(g), yMin=mn(y), yMax=mx(y), rMin=mn(r);
+    var tGY=(gMax!==null)?(yMin!==null?(gMax+yMin)/2:(rMin!==null?(gMax+rMin)/2:Infinity)):-Infinity;
+    var tYR=(rMin!==null)?(yMax!==null?(yMax+rMin)/2:(gMax!==null?(gMax+rMin)/2:-Infinity)):Infinity;
+    return totalPct<tGY?'Green':totalPct<tYR?'Yellow':'Red';
+  }
+  var gMin=mn(g), yMx=mx(y), yMn=mn(y), rMax=mx(r);
+  var tGY2=(gMin!==null)?(yMx!==null?(gMin+yMx)/2:(rMax!==null?(gMin+rMax)/2:-Infinity)):Infinity;
+  var tYR2=(rMax!==null)?(yMn!==null?(yMn+rMax)/2:(gMin!==null?(gMin+rMax)/2:Infinity)):-Infinity;
+  return totalPct>tGY2?'Green':totalPct>tYR2?'Yellow':'Red';
+}
 function generateDailyReport(ss, officeId, targetDateStr) {
   var refDate;
   if (targetDateStr) {
@@ -1680,7 +1705,7 @@ function generateDailyReport(ss, officeId, targetDateStr) {
   // ── ACTIVATION SUMMARY ──
   var AR_BUCKETS=['0-7 Days','8-14 Days','15-30 Days','31-60 Days'];
   var arData=_getSheetData(ss,ACTIVATION_RATES_TAB);
-  var bktVol={},bktActs={},repArMap={};
+  var bktVol={},bktActs={},repArMap={},arSamples={};
   if (arData&&arData.length>=2) {
     var arCol=buildTableauColumnMap(arData[0]);
     _filterByOffice(arData.slice(1),arCol,officeId).forEach(function(row){
@@ -1689,13 +1714,15 @@ function generateDailyReport(ss, officeId, targetDateStr) {
       var bkt=String(tCol(row,arCol,'ACTIVATION_BUCKET')||'').trim(); if (!bkt) return;
       var vol=Number(tCol(row,arCol,'SALES_VOL'))||0,acts=Number(tCol(row,arCol,'SALES_ACTS'))||0;
       if (vol<=0) return;
+      var arClr=String(tCol(row,arCol,'ACTIVATION_COLOR')||'').trim();
       bktVol[bkt]=(bktVol[bkt]||0)+vol; bktActs[bkt]=(bktActs[bkt]||0)+acts;
+      (arSamples[bkt]=arSamples[bkt]||[]).push({pct:acts/vol*100,color:arClr});
       if (!repArMap[rep]) repArMap[rep]={};
-      repArMap[rep][bkt]={vol:vol,acts:acts};
+      repArMap[rep][bkt]={vol:vol,acts:acts,color:arClr};
     });
   }
   var activationBuckets=AR_BUCKETS.map(function(b){var v=bktVol[b]||0,a=bktActs[b]||0;return {bucket:b,vol:v,acts:a,rate:v>0?Math.round(a/v*1000)/10:0};});
-  var officeArTotal={}; AR_BUCKETS.forEach(function(b){var v=bktVol[b]||0,a=bktActs[b]||0;officeArTotal[b]={vol:v,acts:a};});
+  var officeArTotal={}; AR_BUCKETS.forEach(function(b){var v=bktVol[b]||0,a=bktActs[b]||0;officeArTotal[b]={vol:v,acts:a,color:_drBucketTotalColor(arSamples[b]||[],v>0?a/v*100:0,false)};});
   var repArList=Object.keys(repArMap).sort(function(a,b){
     var da=repArMap[a]['8-14 Days']||{vol:0,acts:0},db=repArMap[b]['8-14 Days']||{vol:0,acts:0};
     var ra=da.vol>0?da.acts/da.vol:1,rb=db.vol>0?db.acts/db.vol:1; return ra-rb;
@@ -1704,7 +1731,7 @@ function generateDailyReport(ss, officeId, targetDateStr) {
 
   // ── CHURN SUMMARY ──
   var churnRows=readChurnReport(ss,officeId);
-  var repChurnMap={},officeTotalChurn={};
+  var repChurnMap={},officeTotalChurn={},churnSamples={};
   churnRows.forEach(function(r){
     if (!r.rep||!r.bucket) return;
     if (r.rep.toLowerCase()==='grand total') return;
@@ -1713,7 +1740,9 @@ function generateDailyReport(ss, officeId, targetDateStr) {
     if (!officeTotalChurn[r.bucket]) officeTotalChurn[r.bucket]={acts:0,disco:0};
     officeTotalChurn[r.bucket].acts+=r.activated;
     officeTotalChurn[r.bucket].disco+=r.disconnects;
+    if (r.activated>0) (churnSamples[r.bucket]=churnSamples[r.bucket]||[]).push({pct:r.disconnects/r.activated*100,color:r.color});
   });
+  Object.keys(officeTotalChurn).forEach(function(b){var d=officeTotalChurn[b];d.color=_drBucketTotalColor(churnSamples[b]||[],d.acts>0?d.disco/d.acts*100:0,true);});
   // Sort by highest raw disconnect count in 0-30 Day bucket
   var repChurnList=Object.keys(repChurnMap).sort(function(a,b){
     var ba=repChurnMap[a]['0-30 Day']||{acts:0,disco:0},bb=repChurnMap[b]['0-30 Day']||{acts:0,disco:0};
