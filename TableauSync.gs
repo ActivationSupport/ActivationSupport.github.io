@@ -612,7 +612,7 @@ function _getOfficesForCampaign(campaignType) {
 
 // === DISTRIBUTE TO OFFICES ===
 
-function distributeToOffices() {
+function distributeToOffices(onlyReportKeys) {
   var config = _getConfig();
   if (!config.sheetId) throw new Error('SHEET_ID not set');
   if (!TARGETS.length) {
@@ -625,6 +625,7 @@ function distributeToOffices() {
 
   for (var t = 0; t < TARGETS.length; t++) {
     var target = TARGETS[t];
+    if (onlyReportKeys && onlyReportKeys.indexOf(target.reportKey) === -1) continue;
     try {
       var srcSheet = tableauSS.getSheetByName(target.sourceTab);
       if (!srcSheet || srcSheet.getLastRow() < 2) {
@@ -770,6 +771,44 @@ function setupAfternoonSyncTrigger() {
     .inTimezone('America/Los_Angeles')
     .create();
   Logger.log('Afternoon sync trigger set: afternoonSync at ~5:30 PM Pacific');
+}
+
+// Hourly refresh — re-pulls ONLY Activation Rates + Churn from Tableau AND
+// distributes them to the portal's office tabs (_TableauActivationRates /
+// _TableauChurnReport) + busts the office caches, so those two stay current
+// through the day instead of only at the 1 AM pull.
+// NOTE: this is only as fresh as Tableau itself — if the Tableau data source
+// behind these views refreshes once a day, hourly pulls return the same numbers
+// until Tableau updates. (Increase the Tableau extract schedule to go fresher.)
+function hourlySync() {
+  Logger.log('=== HOURLY SYNC (Activation Rates + Churn) START ===');
+  var keys = ['b2b-activation-rates', 'b2b-churn'];
+  var syncResults = [];
+  for (var i = 0; i < keys.length; i++) {
+    try {
+      var r = syncReport(keys[i]);
+      syncResults.push(r);
+      Logger.log('✓ ' + keys[i] + ': ' + r.rowsWritten + ' rows');
+    } catch (e) {
+      syncResults.push({ ok: false, report: keys[i], error: e.message });
+      Logger.log('✗ ' + keys[i] + ': ' + e.message);
+    }
+  }
+  var distResults = distributeToOffices(keys);   // push to office tabs + bust caches
+  Logger.log('Distribute: ' + JSON.stringify(distResults));
+  Logger.log('=== HOURLY SYNC COMPLETE ===');
+  return { sync: syncResults, distribute: distResults };
+}
+
+// Run ONCE from the editor to schedule the hourly refresh. Supersedes the
+// afternoonSync trigger (which only updated the raw tabs, not the portal tabs).
+function setupHourlySyncTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'hourlySync') ScriptApp.deleteTrigger(triggers[i]);
+  }
+  ScriptApp.newTrigger('hourlySync').timeBased().everyHours(1).create();
+  Logger.log('Hourly sync trigger set: hourlySync every hour');
 }
 
 function removeDailyTrigger() {
