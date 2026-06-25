@@ -3452,19 +3452,44 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
     if (!d) return '<td class="ar-cell"></td>';
     return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">('+fmtN(d.disconnects)+'/'+fmtN(d.activated)+')<br>'+fmtRate(d.churnRate)+'</span></td>';
   }
+  // Tableau colors each churn cell per bucket (lower rate = greener), but exports
+  // no Grand Total row — so derive each bucket's cutoffs (green-ceiling / red-floor)
+  // from Tableau's own colored per-rep rows and color the total the same way.
+  var churnCuts = {};
+  _gtList.forEach(function(rep) {
+    CHURN_BUCKETS.forEach(function(bkt) {
+      var d = _gtMap[rep][bkt]; if (!d || !d.activated) return;
+      var col = String(d.color||'').toLowerCase(); if (col!=='green' && col!=='red') return;
+      var p = d.disconnects/d.activated*100;
+      if (!churnCuts[bkt]) churnCuts[bkt] = { greenMax:-Infinity, redMin:Infinity };
+      if (col==='green' && p > churnCuts[bkt].greenMax) churnCuts[bkt].greenMax = p;
+      if (col==='red'   && p < churnCuts[bkt].redMin)   churnCuts[bkt].redMin = p;
+    });
+  });
+  function churnFixedCls(bkt, pctR) {   // fallback thresholds (when cutoffs can't be derived)
+    if (bkt==='0-30 Day') return pctR<=2.4 ?'ar-green':pctR<=3.0 ?'ar-yellow':'ar-red';
+    if (bkt==='30 Day')   return pctR<=4.9 ?'ar-green':pctR<=6.9 ?'ar-yellow':'ar-red';
+    if (bkt==='60 Day')   return pctR<=8.9 ?'ar-green':pctR<=9.9 ?'ar-yellow':'ar-red';
+    if (bkt==='90 Day')   return pctR<=10.9?'ar-green':pctR<=13.9?'ar-yellow':'ar-red';
+    if (bkt==='120 Day')  return pctR<=13.9?'ar-green':pctR<=17.9?'ar-yellow':'ar-red';
+    return 'ar-blue';
+  }
+  function churnTotalCls(bkt, pct, pctR) {
+    var c = churnCuts[bkt];
+    if (c && c.greenMax!==-Infinity && c.redMin!==Infinity && c.greenMax < c.redMin) {
+      if (pct <= c.greenMax) return 'ar-green';
+      if (pct >= c.redMin)   return 'ar-red';
+      return 'ar-yellow';
+    }
+    return churnFixedCls(bkt, pctR);
+  }
   function totalCell(bkt) {
     var acts=0, disco=0;
     _gtList.forEach(function(rep){ var d=_gtMap[rep][bkt]; if(d){acts+=d.activated;disco+=d.disconnects;} });
     if (!acts) return '<td class="ar-cell"></td>';
     var pct = disco/acts*100;
     var pctR = Math.round(pct*10)/10;
-    var cls;
-    if      (bkt==='0-30 Day') cls = pctR<=2.4 ?'ar-green':pctR<=3.0 ?'ar-yellow':'ar-red';
-    else if (bkt==='30 Day')   cls = pctR<=4.9 ?'ar-green':pctR<=6.9 ?'ar-yellow':'ar-red';
-    else if (bkt==='60 Day')   cls = pctR<=8.9 ?'ar-green':pctR<=9.9 ?'ar-yellow':'ar-red';
-    else if (bkt==='90 Day')   cls = pctR<=10.9?'ar-green':pctR<=13.9?'ar-yellow':'ar-red';
-    else if (bkt==='120 Day')  cls = pctR<=13.9?'ar-green':pctR<=17.9?'ar-yellow':'ar-red';
-    else                       cls = 'ar-blue';
+    var cls = churnTotalCls(bkt, pct, pctR);
     return '<td class="ar-cell"><span class="ar-badge '+cls+'">('+fmtN(disco)+'/'+fmtN(acts)+')<br>'+pct.toFixed(1)+'%</span></td>';
   }
   var hdr = '<th style="min-width:160px">Rep</th>' +
