@@ -379,6 +379,17 @@ function _authz(ss, body, allowedRoles) {
   if (allowedRoles && allowedRoles.indexOf(c.role) === -1) return { error:'forbidden' };
   return null;
 }
+// Office-scoping on AUTH: a badged user may only act on offices their badge
+// grants (permissions = comma/space list of office ids). master-admin = all.
+// No valid badge => no-op (the STRICT_AUTH gate handles that). Empty permissions
+// (legacy badge) fails OPEN so a data quirk can't lock out a real user.
+function _officeAllowed(gs, officeId) {
+  if (!gs || !gs.valid) return true;
+  if (String(gs.rank||'').trim().toLowerCase()==='master-admin') return true;
+  var perms = String(gs.permissions||'').toLowerCase().split(/[,\s]+/).filter(Boolean);
+  if (!perms.length) return true;
+  return perms.indexOf(String(officeId||'').trim().toLowerCase()) !== -1;
+}
 var _ADMIN_ROLES = ['master-admin','owner','admin','manager','jd'];   // jd = manager-equivalent (can add/edit people + teams)
 // Login/utility actions need no badge (you don't have one yet at login).
 var _PREAUTH_ACTIONS = { checkEmail:1, validatePin:1, setPin:1, changePin:1, checkAdminEmail:1, validateAdminAccess:1, validateSession:1, logout:1 };
@@ -397,6 +408,11 @@ function _authGate(ss, body) {
   if (_PREAUTH_ACTIONS[action]) return null;
   var az = _authz(ss, body, _ADMIN_ACTIONS[action] || null);
   if (az) return az;
+  // Office-scoping: a badged user can only act on an office their badge grants.
+  if (_strictAuth() && body && body.officeId) {
+    var _gsOff = _validateSession(ss, body.token);
+    if (_gsOff && _gsOff.valid && !_officeAllowed(_gsOff, body.officeId)) return { error:'forbidden_office' };
+  }
   // Only a master-admin may grant the master-admin rank or change office permissions.
   if ((action==='addRosterEntry' || action==='updateRosterEntry') && _strictAuth()) {
     var elevating = String(body.rank||'').trim().toLowerCase()==='master-admin' ||
@@ -835,7 +851,11 @@ function doGet(e) {
     const officeId = (e && e.parameter && e.parameter.officeId) || DEFAULT_OFFICE_ID;
     const ss = getSheet(e && e.parameter);
     // Stage C: in strict mode, reads also require a valid badge.
-    if (_strictAuth()) { var _gs=_validateSession(ss, e.parameter && e.parameter.token); if (!_gs || !_gs.valid) return jsonResponse({ error:'auth_required' }); }
+    if (_strictAuth()) {
+      var _gs=_validateSession(ss, e.parameter && e.parameter.token);
+      if (!_gs || !_gs.valid) return jsonResponse({ error:'auth_required' });
+      if (e.parameter && e.parameter.officeId && !_officeAllowed(_gs, e.parameter.officeId)) return jsonResponse({ error:'forbidden_office' });
+    }
     if (action === 'debugOrderLog') {
       var sheet = ss.getSheetByName(TABLEAU_TAB);
       if (!sheet) return jsonResponse({ error: 'No _TableauOrderLog tab found' });
@@ -1008,7 +1028,7 @@ function readRoster(ss, officeId) {
       deactivated:data[i][4]===true||String(data[i][4]).toUpperCase()==='TRUE',
       dateAdded:data[i][5]||'', hasPin:pinVal.length>0&&pinVal!=='undefined',
       phone:String(data[i][7]||'').trim(), tableauName:String(data[i][8]||'').trim(),
-      permissions:homePermissions };
+      permissions:homePermissions, timezone:String(data[i][10]||'').trim() };
   }
   return result;
 }
