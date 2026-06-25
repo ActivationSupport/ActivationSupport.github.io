@@ -5410,19 +5410,21 @@ function _psvBuild() {
   var h = '<div class="card"><div class="card-header dark">Posted Sales &nbsp;' +
     '<span style="font-weight:400;font-size:.82rem;opacity:.8">' + list.length + (list.length === 1 ? ' sale' : ' sales') + '</span>' +
     '</div><div class="card-body">';
-  h += '<div class="filter-row"><input id="f-psv" placeholder="Search DSI, account, products…">';
+  h += '<div class="filter-row"><input id="f-psv" placeholder="Search rep, DSI, account, products…">';
   if (voidedCount) h += '<label class="psv-show-voided"><input type="checkbox" ' + (_PSV_SHOW_VOIDED ? 'checked' : '') +
     ' onchange="_psvToggleVoided(this.checked)"> Show voided (' + voidedCount + ')</label>';
   h += '<button class="clear-filters-btn" onclick="_psvRefresh()">&#x21BB; Refresh</button></div>';
   h += '<div class="tbl-count">' + esc(scope) + ' &middot; showing ' + list.length + '</div>';
   if (!list.length) return noData('No posted sales yet.');
   h += '<div class="call-table-wrap"><table class="call-table" id="psv-table"><thead><tr>' +
-       '<th>Date</th><th>DSI</th><th>Account</th><th>Products</th><th>Units</th>' +
+       '<th>Rep</th><th>Date</th><th>DSI</th><th>Account</th><th>Products</th><th>Units</th>' +
        '<th>Trainee</th><th>Notes</th><th></th></tr></thead><tbody>';
   list.forEach(function(s) {
     var idx = _PSV_SALES.indexOf(s);
     var note = s.notes || '';
+    var repNm = ((DATA.roster || {})[s.repEmail] && (DATA.roster || {})[s.repEmail].name) || s.repName || s.repEmail || '—';
     h += '<tr' + (s.voided ? ' class="psv-voided"' : '') + '>';
+    h += '<td>' + esc(repNm) + '</td>';
     h += '<td>' + esc(s.dateOfSale || '—') + (s.voided ? ' <span class="psv-badge">VOID</span>' : '') + '</td>';
     h += '<td>' + esc(s.dsi || '—') + '</td>';
     h += '<td>' + esc(s.accountType || '—') + '</td>';
