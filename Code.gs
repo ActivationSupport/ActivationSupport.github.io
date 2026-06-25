@@ -29,9 +29,8 @@ function officeTab(base, officeId) { return base + '_' + officeId; }
 const DEFAULT_OFFICE_ID = 'midspire';
 function buildTeamEmojiMaps(ss, officeId) {
   var emojiMap = {}, nameMap = {};
-  var sheet = ss.getSheetByName(officeTab(TAB.TEAMS, officeId));
-  if (!sheet) return { emojiMap: emojiMap, nameMap: nameMap };
-  var data = sheet.getDataRange().getValues();
+  var data = _getSheetData(ss, officeTab(TAB.TEAMS, officeId));
+  if (!data) return { emojiMap: emojiMap, nameMap: nameMap };
   for (var i = 1; i < data.length; i++) {
     var name = String(data[i][1] || '').trim();
     var emoji = String(data[i][4] || '').trim();
@@ -554,9 +553,8 @@ function readDayAfterOrders(ss, officeId) {
   }
 
   // Source 2: Local sales sheet (_Sales_elevate) — catches orders not yet in Tableau sync
-  var salesSheet = ss.getSheetByName(officeTab(TAB.SALES, officeId));
-  if (salesSheet) {
-    var salesData = salesSheet.getDataRange().getValues();
+  var salesData = _getSheetData(ss, officeTab(TAB.SALES, officeId));
+  if (salesData) {
     for (var j = 1; j < salesData.length; j++) {
       var sr = salesData[j];
       var sDsi = String(sr[OL.DSI]||'').trim();
@@ -629,8 +627,7 @@ function readOrderIssues(ss, officeId) {
   var tolRows = {}, tolCols = {}, aorRows = {}, aorCols = {};
   var tabs = [TABLEAU_TAB, AOR_TAB];
   for (var t = 0; t < tabs.length; t++) {
-    var sheet = ss.getSheetByName(tabs[t]); if (!sheet) continue;
-    var data = sheet.getDataRange().getValues(); if (data.length < 2) continue;
+    var data = _getSheetData(ss, tabs[t]); if (!data || data.length < 2) continue;
     var col = buildTableauColumnMap(data[0]);
     var rows = _filterByOffice(data.slice(1), col, officeId);
     var store = t === 0 ? tolRows : aorRows;
@@ -693,9 +690,8 @@ function readMasterTracker(ss, officeId) {
     if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
   }
   // Source 2: Local sales sheet — fills in DSIs not yet synced to Tableau
-  var salesSheet = ss.getSheetByName(officeTab(TAB.SALES, officeId));
-  if (salesSheet) {
-    var salesData = salesSheet.getDataRange().getValues();
+  var salesData = _getSheetData(ss, officeTab(TAB.SALES, officeId));
+  if (salesData) {
     for (var j = 1; j < salesData.length; j++) {
       var sr = salesData[j];
       var sDsi = String(sr[OL.DSI]||'').trim();
@@ -754,9 +750,8 @@ function readCompletedOrders(ss, officeId) {
     if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
   }
   // Source 2: Local sales sheet — fills in DSIs not yet synced to Tableau
-  var salesSheet = ss.getSheetByName(officeTab(TAB.SALES, officeId));
-  if (salesSheet) {
-    var salesData = salesSheet.getDataRange().getValues();
+  var salesData = _getSheetData(ss, officeTab(TAB.SALES, officeId));
+  if (salesData) {
     for (var j = 1; j < salesData.length; j++) {
       var sr = salesData[j];
       var sDsi = String(sr[OL.DSI]||'').trim();
@@ -1033,10 +1028,10 @@ function readRoster(ss, officeId) {
   return result;
 }
 function readPeople(ss, officeId, roster, teamNameToEmoji) {
-  const olSheet=ss.getSheetByName(officeTab(TAB.SALES,officeId));
-  if (!olSheet) return { people:[], _debug:{ error:'No Sales sheet' } };
+  const olData=_getSheetData(ss,officeTab(TAB.SALES,officeId));
+  if (!olData) return { people:[], _debug:{ error:'No Sales sheet' } };
   if (!roster||Object.keys(roster).length===0) return { people:[], _debug:{ error:'Empty roster' } };
-  const olData=olSheet.getDataRange().getValues(); const hasSalesData=olData.length>=2;
+  const hasSalesData=olData.length>=2;
   var _dbg={ totalRows:olData.length-1, noEmail:0, emailNotInRoster:0, noDate:0, badDate:0, tooOld:0, matched:0,
     headerRow:olData[0].slice(0,10).map(String),
     sampleRow2:olData.length>1?['col1(email)='+String(olData[1][OL.EMAIL]),'col3(date)='+String(olData[1][OL.DATE_OF_SALE])]:[], rosterEmails:Object.keys(roster).slice(0,5), olEmails:[] };
@@ -2309,8 +2304,8 @@ function readUnlockRequests(ss, officeId) {
   return result;
 }
 function readTeams(ss, officeId) {
-  const sheet=ss.getSheetByName(officeTab(TAB.TEAMS,officeId)); if (!sheet) return {};
-  const data=sheet.getDataRange().getValues(); const result={};
+  const data=_getSheetData(ss,officeTab(TAB.TEAMS,officeId)); if (!data) return {};
+  const result={};
   for (let i=1;i<data.length;i++) {
     const teamId=String(data[i][0]||'').trim(); if (!teamId) continue;
     result[teamId]={ teamId:teamId, name:String(data[i][1]||'').trim(), parentId:String(data[i][2]||'').trim(),
@@ -2320,9 +2315,9 @@ function readTeams(ss, officeId) {
 }
 
 function buildDsiEmailMap(ss, officeId) {
-  var olSheet=ss.getSheetByName(officeTab(TAB.SALES,officeId));
-  if (!olSheet) return { dsiToEmail:{}, emailToDsis:{} };
-  var olData=olSheet.getDataRange().getValues(); var dsiToEmail={}, emailToDsis={};
+  var olData=_getSheetData(ss,officeTab(TAB.SALES,officeId));
+  if (!olData) return { dsiToEmail:{}, emailToDsis:{} };
+  var dsiToEmail={}, emailToDsis={};
   for (var i=1;i<olData.length;i++) {
     var dsi=String(olData[i][OL.DSI]||'').trim(); var email=String(olData[i][OL.EMAIL]||'').trim().toLowerCase();
     if (dsi&&email) {
