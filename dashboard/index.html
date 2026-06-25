@@ -3452,21 +3452,21 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
     if (!d) return '<td class="ar-cell"></td>';
     return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">('+fmtN(d.disconnects)+'/'+fmtN(d.activated)+')<br>'+fmtRate(d.churnRate)+'</span></td>';
   }
-  // Tableau colors each churn cell per bucket (lower rate = greener), but exports
-  // no Grand Total row — so derive each bucket's cutoffs (green-ceiling / red-floor)
-  // from Tableau's own colored per-rep rows and color the total the same way.
-  var churnCuts = {};
+  // Tableau colors each churn cell per bucket (lower rate = greener) but exports no
+  // Grand Total row. Collect the rate of every colored per-rep cell per bucket, then
+  // place each color boundary at the midpoint between the worst-green / best-red rates
+  // Tableau actually shows — so the Grand Total is colored Tableau's way even when its
+  // rate sits between samples, and it works for all-green buckets (e.g. 0-30 Day).
+  var churnPts = {};
   _gtList.forEach(function(rep) {
     CHURN_BUCKETS.forEach(function(bkt) {
       var d = _gtMap[rep][bkt]; if (!d || !d.activated) return;
-      var col = String(d.color||'').toLowerCase(); if (col!=='green' && col!=='red') return;
-      var p = d.disconnects/d.activated*100;
-      if (!churnCuts[bkt]) churnCuts[bkt] = { greenMax:-Infinity, redMin:Infinity };
-      if (col==='green' && p > churnCuts[bkt].greenMax) churnCuts[bkt].greenMax = p;
-      if (col==='red'   && p < churnCuts[bkt].redMin)   churnCuts[bkt].redMin = p;
+      var col = String(d.color||'').toLowerCase();
+      if (col!=='green' && col!=='yellow' && col!=='red') return;
+      (churnPts[bkt] = churnPts[bkt] || { green:[], yellow:[], red:[] })[col].push(d.disconnects/d.activated*100);
     });
   });
-  function churnFixedCls(bkt, pctR) {   // fallback thresholds (when cutoffs can't be derived)
+  function churnFixedCls(bkt, pctR) {   // fallback only when a bucket has no colored rows at all
     if (bkt==='0-30 Day') return pctR<=2.4 ?'ar-green':pctR<=3.0 ?'ar-yellow':'ar-red';
     if (bkt==='30 Day')   return pctR<=4.9 ?'ar-green':pctR<=6.9 ?'ar-yellow':'ar-red';
     if (bkt==='60 Day')   return pctR<=8.9 ?'ar-green':pctR<=9.9 ?'ar-yellow':'ar-red';
@@ -3475,13 +3475,18 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
     return 'ar-blue';
   }
   function churnTotalCls(bkt, pct, pctR) {
-    var c = churnCuts[bkt];
-    if (c && c.greenMax!==-Infinity && c.redMin!==Infinity && c.greenMax < c.redMin) {
-      if (pct <= c.greenMax) return 'ar-green';
-      if (pct >= c.redMin)   return 'ar-red';
-      return 'ar-yellow';
-    }
-    return churnFixedCls(bkt, pctR);
+    var P = churnPts[bkt];
+    if (!P || (!P.green.length && !P.yellow.length && !P.red.length)) return churnFixedCls(bkt, pctR);
+    var gMax = P.green.length  ? Math.max.apply(null, P.green)  : null;
+    var yMin = P.yellow.length ? Math.min.apply(null, P.yellow) : null;
+    var yMax = P.yellow.length ? Math.max.apply(null, P.yellow) : null;
+    var rMin = P.red.length    ? Math.min.apply(null, P.red)    : null;
+    // tGY = green->yellow boundary, tYR = yellow->red boundary (rate ascending = worse)
+    var tGY = (gMax!==null) ? (yMin!==null ? (gMax+yMin)/2 : (rMin!==null ? (gMax+rMin)/2 : Infinity)) : -Infinity;
+    var tYR = (rMin!==null) ? (yMax!==null ? (yMax+rMin)/2 : (gMax!==null ? (gMax+rMin)/2 : -Infinity)) : Infinity;
+    if (pct < tGY) return 'ar-green';
+    if (pct < tYR) return 'ar-yellow';
+    return 'ar-red';
   }
   function totalCell(bkt) {
     var acts=0, disco=0;
