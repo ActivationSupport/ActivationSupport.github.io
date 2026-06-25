@@ -1326,7 +1326,7 @@ function readActRateLines(ss, officeId) {
     var vol = Number(tCol(row,col,'SALES_VOL')) || 0;
     var acts = Number(tCol(row,col,'SALES_ACTS')) || 0;
     if (vol <= 0) continue;
-    lines.push({ rep:rep, bucket:bucket, vol:vol, acts:acts });
+    lines.push({ rep:rep, bucket:bucket, vol:vol, acts:acts, color:String(tCol(row,col,'ACTIVATION_COLOR')||'').trim() });
   }
   return lines;
 }
