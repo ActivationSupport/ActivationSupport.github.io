@@ -1082,29 +1082,45 @@ function dumpChurnColorValues() {
   try {
     var csv = _downloadCustomViewData(config, auth.token, auth.siteId, report.customViewId);
     var data = _parseCsv(csv);
-    var headers = data[0];
-    Logger.log('=== ' + headers.length + ' COLUMNS ===');
-    for (var i = 0; i < headers.length; i++) Logger.log('[' + i + '] "' + headers[i] + '"');
+    var raw = data[0];
+    var headers = raw.map(function(h){ return String(h).trim(); });   // headers have trailing spaces
+    Logger.log('=== ' + headers.length + ' COLUMNS (trimmed) ===');
+    for (var i = 0; i < headers.length; i++) Logger.log('[' + i + '] "' + headers[i] + '"  (raw: "' + raw[i] + '")');
 
     var colorCols = [];
-    for (var c = 0; c < headers.length; c++) {
-      if (String(headers[c]).toLowerCase().indexOf('color') !== -1) colorCols.push(c);
-    }
-    Logger.log('=== COLOR COLUMN(S) FOUND: ' + (colorCols.length ? colorCols.map(function(c){return '"'+headers[c]+'"';}).join(', ') : 'NONE') + ' ===');
+    for (var c = 0; c < headers.length; c++) if (headers[c].toLowerCase().indexOf('color') !== -1) colorCols.push(c);
+    var repIdx = headers.indexOf('Rep'), bktIdx = headers.indexOf('Churn Buckets'), rateIdx = headers.indexOf('Churn Rate');
+    Logger.log('indices -> rep=' + repIdx + ' bucket=' + bktIdx + ' rate=' + rateIdx + ' color=' + JSON.stringify(colorCols));
+
+    var bkc = {};
+    for (var r = 1; r < data.length; r++) { var bv = String(data[r][bktIdx] || '').trim(); bkc[bv] = (bkc[bv] || 0) + 1; }
+    Logger.log('=== "Churn Buckets" DISTINCT VALUES ===');
+    Object.keys(bkc).forEach(function(v){ Logger.log('  "' + v + '" x' + bkc[v]); });
+
     colorCols.forEach(function(c) {
-      var counts = {};
-      for (var r = 1; r < data.length; r++) { var v = String(data[r][c] || '').trim(); counts[v] = (counts[v] || 0) + 1; }
-      Logger.log('  "' + headers[c] + '" distinct values:');
-      Object.keys(counts).forEach(function(v){ Logger.log('    "' + v + '" x' + counts[v]); });
+      var cc = {}; for (var r = 1; r < data.length; r++) { var v = String(data[r][c] || '').trim(); cc[v] = (cc[v] || 0) + 1; }
+      Logger.log('=== COLOR "' + headers[c] + '" DISTINCT VALUES ===');
+      Object.keys(cc).forEach(function(v){ Logger.log('  "' + v + '" x' + cc[v]); });
     });
 
-    var repIdx = headers.indexOf('Rep'), bktIdx = headers.indexOf('Churn Buckets'), rateIdx = headers.indexOf('Churn Rate');
-    Logger.log('=== SAMPLE ROWS (first 12) — rep | bucket | rate | color col(s) ===');
-    for (var s = 1; s <= Math.min(12, data.length - 1); s++) {
-      var parts = ['rep=' + (data[s][repIdx] || ''), 'bucket=' + (data[s][bktIdx] || ''), 'rate=' + (data[s][rateIdx] || '')];
-      colorCols.forEach(function(c){ parts.push('"' + headers[c] + '"=' + (data[s][c] || '')); });
-      Logger.log('  ' + parts.join(' | '));
+    // THE key check: for a few reps, list every bucket row with its rate + color.
+    // If the color is identical across a rep's buckets, the "30-60" column is a
+    // single color (wrong per-bucket); if it varies, it's correct per bucket.
+    var byRep = {};
+    for (var r = 1; r < data.length; r++) {
+      var rp = String(data[r][repIdx] || '').trim(); if (!rp) continue;
+      (byRep[rp] = byRep[rp] || []).push({
+        bucket: String(data[r][bktIdx] || '').trim(),
+        rate:   String(data[r][rateIdx] || '').trim(),
+        color:  colorCols.length ? String(data[r][colorCols[0]] || '').trim() : ''
+      });
     }
+    var reps = Object.keys(byRep).filter(function(rp){ return byRep[rp].length > 1; }).slice(0, 4);
+    Logger.log('=== PER-REP (bucket | rate | color) — does color vary by bucket? ===');
+    reps.forEach(function(rp) {
+      Logger.log('REP: ' + rp);
+      byRep[rp].forEach(function(x){ Logger.log('   bucket="' + x.bucket + '" rate=' + x.rate + ' color="' + x.color + '"'); });
+    });
   } finally {
     _tableauSignOut(config, auth.token);
   }
