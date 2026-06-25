@@ -1386,12 +1386,24 @@ function _forceReauth() {
 }
 function _authIntercept(j) { if (j && j.error === 'auth_required') _forceReauth(); return j; }
 
+// In-flight GET de-dupe: concurrent identical reads (same query string) share
+// one network round-trip instead of each firing its own. Collapses the first-paint
+// overlaps (e.g. readActRateLines preload + tab open, readPostedSales bg-refresh +
+// modal open). Safe because every api() call is an idempotent read — all writes go
+// through apiPost. The entry is cleared the moment the request settles, so periodic
+// background refreshes (90s apart) never collide and always get fresh data.
+var _API_INFLIGHT = {};
 function api(params) {
   params.key = API_KEY;
   params.officeId = CFG.officeId;
   if (SESSION && SESSION.token) params.token = SESSION.token;   // Phase 1 Stage B: carry the badge
   var qs = Object.keys(params).map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
-  return fetch(APPS_SCRIPT_URL + '?' + qs).then(function(r) { return r.json(); }).then(_authIntercept);
+  if (_API_INFLIGHT[qs]) return _API_INFLIGHT[qs];
+  var p = fetch(APPS_SCRIPT_URL + '?' + qs).then(function(r) { return r.json(); }).then(_authIntercept);
+  _API_INFLIGHT[qs] = p;
+  var clear = function() { delete _API_INFLIGHT[qs]; };
+  p.then(clear, clear);
+  return p;
 }
 
 function apiPost(body) {
