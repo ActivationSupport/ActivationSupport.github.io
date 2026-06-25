@@ -520,6 +520,57 @@ function _parseDateLocal(raw) {
   var d3=new Date(s); if (!isNaN(d3.getTime())) { d3.setHours(0,0,0,0); return d3; }
   return null;
 }
+// Shared collector for the call-log readers (Day-After / Master Tracker / Completed):
+// merges _TableauOrderLog (primary) + _TableauAOR (fills missing DSIs), office-filtered,
+// keeping only rows whose order date passes dateOk(ms); then folds in local _Sales_<office>
+// rows (Source 2) for DSIs not in Tableau, shaped like _buildTolRow output. Returns
+// { dsiRows, dsiCols } for the caller's own status/result filtering.
+function _collectOrderRows(ss, officeId, dateOk) {
+  var dsiRows = {}, dsiCols = {}, tolDsis = {};
+  var tabs = [TABLEAU_TAB, AOR_TAB];
+  for (var t = 0; t < tabs.length; t++) {
+    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
+    var col = buildTableauColumnMap(sheetData[0]);
+    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
+    for (var i = 0; i < filtered.length; i++) {
+      var row = filtered[i];
+      var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
+      if (t === 1 && tolDsis[dsi]) continue; // AOR: skip DSIs already sourced from TOL
+      var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
+      if (!dateOk(od.getTime())) continue;
+      if (!dsiRows[dsi]) { dsiRows[dsi] = []; dsiCols[dsi] = col; }
+      dsiRows[dsi].push(row);
+    }
+    if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
+  }
+  // Source 2: local _Sales_<office>  catches orders not yet synced to Tableau.
+  var salesData = _getSheetData(ss, officeTab(TAB.SALES, officeId));
+  if (salesData) {
+    for (var j = 1; j < salesData.length; j++) {
+      var sr = salesData[j];
+      var sDsi = String(sr[OL.DSI]||'').trim();
+      if (dsiRows[sDsi]) continue; // already captured from Tableau
+      var sDate = _parseDateLocal(sr[OL.DATE_OF_SALE]);
+      if (!sDate || !dateOk(sDate.getTime())) continue;
+      var key = sDsi || ('_s' + j);
+      var pCounts = {};
+      if (Number(sr[OL.CELL])||0)     pCounts['WIRELESS'] = Number(sr[OL.CELL]);
+      if (Number(sr[OL.AIR])||0)      pCounts['AIR/AWB']  = Number(sr[OL.AIR]);
+      if (Number(sr[OL.FIBER])||0)    pCounts['FIBER']    = Number(sr[OL.FIBER]);
+      if (Number(sr[OL.VOIP_QTY])||0) pCounts['VOIP']     = Number(sr[OL.VOIP_QTY]);
+      if (Number(sr[OL.DTV])||0)      pCounts['DTV']      = Number(sr[OL.DTV]);
+      var sStatus = String(sr[OL.STATUS]||'').trim() || 'Pending';
+      var sCounts = {}; sCounts[sStatus] = 1;
+      dsiRows[key] = [{ _fromSales:true, dsi:sDsi, rep:String(sr[OL.REP_NAME]||'').trim(),
+        orderDate:sDate.toISOString().split('T')[0], productCounts:pCounts, statusCounts:sCounts,
+        unitCount:Number(sr[OL.UNITS])||0, spe:String(sr[OL.CLIENT_NAME]||'').trim(),
+        installDate:String(sr[OL.INSTALL_DATE]||'').trim() }];
+      dsiCols[key] = null;
+    }
+  }
+  return { dsiRows: dsiRows, dsiCols: dsiCols };
+}
+
 function readDayAfterOrders(ss, officeId) {
   var today = new Date(); today.setHours(0,0,0,0);
   var dow = today.getDay();
@@ -531,61 +582,8 @@ function readDayAfterOrders(ss, officeId) {
   } else {
     targets.push(new Date(today.getTime()-86400000).getTime()); // yesterday
   }
-
-  var dsiRows = {}, dsiCols = {}, tolDsis = {};
-
-  // Source 1: Tableau tabs (TOL + AOR) — office-filtered by OWNER_OFFICE. TOL primary; AOR fills missing DSIs only.
-  var tabs = [TABLEAU_TAB, AOR_TAB];
-  for (var t = 0; t < tabs.length; t++) {
-    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
-    var col = buildTableauColumnMap(sheetData[0]);
-    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
-    for (var i = 0; i < filtered.length; i++) {
-      var row = filtered[i];
-      var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
-      if (t === 1 && tolDsis[dsi]) continue; // AOR: skip DSIs already sourced from TOL
-      var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
-      if (targets.indexOf(od.getTime()) === -1) continue;
-      if (!dsiRows[dsi]) { dsiRows[dsi] = []; dsiCols[dsi] = col; }
-      dsiRows[dsi].push(row);
-    }
-    if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
-  }
-
-  // Source 2: Local sales sheet (_Sales_elevate) — catches orders not yet in Tableau sync
-  var salesData = _getSheetData(ss, officeTab(TAB.SALES, officeId));
-  if (salesData) {
-    for (var j = 1; j < salesData.length; j++) {
-      var sr = salesData[j];
-      var sDsi = String(sr[OL.DSI]||'').trim();
-      if (dsiRows[sDsi]) continue; // Already captured from Tableau
-      var sDate = _parseDateLocal(sr[OL.DATE_OF_SALE]);
-      if (!sDate || targets.indexOf(sDate.getTime()) === -1) continue;
-      // Build a result row in the same shape as _buildTolRow output
-      var pCounts = {};
-      if (Number(sr[OL.CELL])||0)     pCounts['WIRELESS']  = Number(sr[OL.CELL]);
-      if (Number(sr[OL.AIR])||0)      pCounts['AIR/AWB']   = Number(sr[OL.AIR]);
-      if (Number(sr[OL.FIBER])||0)    pCounts['FIBER']     = Number(sr[OL.FIBER]);
-      if (Number(sr[OL.VOIP_QTY])||0) pCounts['VOIP']      = Number(sr[OL.VOIP_QTY]);
-      if (Number(sr[OL.DTV])||0)      pCounts['DTV']       = Number(sr[OL.DTV]);
-      var sStatus = String(sr[OL.STATUS]||'').trim() || 'Pending';
-      var key = sDsi || ('_s' + j);
-      dsiRows[key] = [{
-        _fromSales: true,
-        dsi: sDsi,
-        rep: String(sr[OL.REP_NAME]||'').trim(),
-        orderDate: sDate.toISOString().split('T')[0],
-        productCounts: pCounts,
-        statusCounts: {},
-        unitCount: Number(sr[OL.UNITS])||0,
-        spe: String(sr[OL.CLIENT_NAME]||'').trim(),
-        installDate: String(sr[OL.INSTALL_DATE]||'').trim()
-      }];
-      dsiRows[key][0].statusCounts[sStatus] = 1;
-      dsiCols[key] = null;
-    }
-  }
-
+  var collected = _collectOrderRows(ss, officeId, function(ms) { return targets.indexOf(ms) !== -1; });
+  var dsiRows = collected.dsiRows, dsiCols = collected.dsiCols;
   var results = [];
   Object.keys(dsiRows).forEach(function(dsi) {
     var rows = dsiRows[dsi];
@@ -671,49 +669,8 @@ function _isExcludedStatus(s) {
 function readMasterTracker(ss, officeId) {
   var today = new Date(); today.setHours(0,0,0,0);
   var cutoff = new Date(today.getTime() - 59 * 86400000); // 60-day inclusive window
-  var dsiRows = {}, dsiCols = {}, tolDsis = {};
-  // Source 1: Tableau (TOL + AOR), office-filtered. TOL is primary; AOR fills missing DSIs only.
-  var tabs = [TABLEAU_TAB, AOR_TAB];
-  for (var t = 0; t < tabs.length; t++) {
-    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
-    var col = buildTableauColumnMap(sheetData[0]);
-    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
-    for (var i = 0; i < filtered.length; i++) {
-      var row = filtered[i];
-      var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
-      if (t === 1 && tolDsis[dsi]) continue; // AOR: skip DSIs already sourced from TOL
-      var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
-      if (od.getTime() < cutoff.getTime()) continue;
-      if (!dsiRows[dsi]) { dsiRows[dsi] = []; dsiCols[dsi] = col; }
-      dsiRows[dsi].push(row);
-    }
-    if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
-  }
-  // Source 2: Local sales sheet — fills in DSIs not yet synced to Tableau
-  var salesData = _getSheetData(ss, officeTab(TAB.SALES, officeId));
-  if (salesData) {
-    for (var j = 1; j < salesData.length; j++) {
-      var sr = salesData[j];
-      var sDsi = String(sr[OL.DSI]||'').trim();
-      if (dsiRows[sDsi]) continue;
-      var sDate = _parseDateLocal(sr[OL.DATE_OF_SALE]);
-      if (!sDate || sDate.getTime() < cutoff.getTime()) continue;
-      var key = sDsi || ('_s' + j);
-      var pCounts = {};
-      if (Number(sr[OL.CELL])||0)     pCounts['WIRELESS'] = Number(sr[OL.CELL]);
-      if (Number(sr[OL.AIR])||0)      pCounts['AIR/AWB']  = Number(sr[OL.AIR]);
-      if (Number(sr[OL.FIBER])||0)    pCounts['FIBER']    = Number(sr[OL.FIBER]);
-      if (Number(sr[OL.VOIP_QTY])||0) pCounts['VOIP']     = Number(sr[OL.VOIP_QTY]);
-      if (Number(sr[OL.DTV])||0)      pCounts['DTV']      = Number(sr[OL.DTV]);
-      var sStatus = String(sr[OL.STATUS]||'').trim() || 'Pending';
-      var sCounts = {}; sCounts[sStatus] = 1;
-      dsiRows[key] = [{ _fromSales:true, dsi:sDsi, rep:String(sr[OL.REP_NAME]||'').trim(),
-        orderDate:sDate.toISOString().split('T')[0], productCounts:pCounts, statusCounts:sCounts,
-        unitCount:Number(sr[OL.UNITS])||0, spe:String(sr[OL.CLIENT_NAME]||'').trim(),
-        installDate:String(sr[OL.INSTALL_DATE]||'').trim() }];
-      dsiCols[key] = null;
-    }
-  }
+  var collected = _collectOrderRows(ss, officeId, function(ms) { return ms >= cutoff.getTime(); });
+  var dsiRows = collected.dsiRows, dsiCols = collected.dsiCols;
   // Exclude DSIs where ALL lines have excluded statuses
   var results = [];
   Object.keys(dsiRows).forEach(function(dsi) {
@@ -731,49 +688,8 @@ function readMasterTracker(ss, officeId) {
 function readCompletedOrders(ss, officeId) {
   var today = new Date(); today.setHours(0,0,0,0);
   var cutoff = new Date(today.getTime() - 59 * 86400000); // 60-day inclusive window
-  var dsiRows = {}, dsiCols = {}, tolDsis = {};
-  // Source 1: Tableau (TOL + AOR), office-filtered. TOL is primary; AOR fills missing DSIs only.
-  var tabs = [TABLEAU_TAB, AOR_TAB];
-  for (var t = 0; t < tabs.length; t++) {
-    var sheetData = _getSheetData(ss, tabs[t]); if (!sheetData || sheetData.length < 2) continue;
-    var col = buildTableauColumnMap(sheetData[0]);
-    var filtered = _filterByOffice(sheetData.slice(1), col, officeId);
-    for (var i = 0; i < filtered.length; i++) {
-      var row = filtered[i];
-      var dsi = String(tCol(row,col,'DSI')||'').trim(); if (!dsi) continue;
-      if (t === 1 && tolDsis[dsi]) continue; // AOR: skip DSIs already sourced from TOL
-      var od = _parseDateLocal(tCol(row,col,'ORDER_DATE')); if (!od) continue;
-      if (od.getTime() < cutoff.getTime()) continue;
-      if (!dsiRows[dsi]) { dsiRows[dsi] = []; dsiCols[dsi] = col; }
-      dsiRows[dsi].push(row);
-    }
-    if (t === 0) Object.keys(dsiRows).forEach(function(d) { tolDsis[d] = true; });
-  }
-  // Source 2: Local sales sheet — fills in DSIs not yet synced to Tableau
-  var salesData = _getSheetData(ss, officeTab(TAB.SALES, officeId));
-  if (salesData) {
-    for (var j = 1; j < salesData.length; j++) {
-      var sr = salesData[j];
-      var sDsi = String(sr[OL.DSI]||'').trim();
-      if (dsiRows[sDsi]) continue;
-      var sDate = _parseDateLocal(sr[OL.DATE_OF_SALE]);
-      if (!sDate || sDate.getTime() < cutoff.getTime()) continue;
-      var key = sDsi || ('_s' + j);
-      var pCounts = {};
-      if (Number(sr[OL.CELL])||0)     pCounts['WIRELESS'] = Number(sr[OL.CELL]);
-      if (Number(sr[OL.AIR])||0)      pCounts['AIR/AWB']  = Number(sr[OL.AIR]);
-      if (Number(sr[OL.FIBER])||0)    pCounts['FIBER']    = Number(sr[OL.FIBER]);
-      if (Number(sr[OL.VOIP_QTY])||0) pCounts['VOIP']     = Number(sr[OL.VOIP_QTY]);
-      if (Number(sr[OL.DTV])||0)      pCounts['DTV']      = Number(sr[OL.DTV]);
-      var sStatus = String(sr[OL.STATUS]||'').trim() || 'Pending';
-      var sCounts = {}; sCounts[sStatus] = 1;
-      dsiRows[key] = [{ _fromSales:true, dsi:sDsi, rep:String(sr[OL.REP_NAME]||'').trim(),
-        orderDate:sDate.toISOString().split('T')[0], productCounts:pCounts, statusCounts:sCounts,
-        unitCount:Number(sr[OL.UNITS])||0, spe:String(sr[OL.CLIENT_NAME]||'').trim(),
-        installDate:String(sr[OL.INSTALL_DATE]||'').trim() }];
-      dsiCols[key] = null;
-    }
-  }
+  var collected = _collectOrderRows(ss, officeId, function(ms) { return ms >= cutoff.getTime(); });
+  var dsiRows = collected.dsiRows, dsiCols = collected.dsiCols;
   // Include only DSIs where ALL lines have completed statuses (Active, Posted, Canceled, Disconnected)
   var results = [];
   Object.keys(dsiRows).forEach(function(dsi) {
