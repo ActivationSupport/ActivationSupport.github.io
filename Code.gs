@@ -86,7 +86,7 @@ const TOL_HEADER_MAP = {
   "measure names": "MEASURE_NAMES", "measure values": "MEASURE_VALUES",
   "activation bucket": "ACTIVATION_BUCKET",
   "activation color": "ACTIVATION_COLOR",
-  "sales (all)  (activations)": "SALES_ACTS",
+  "sales (all) (activations)": "SALES_ACTS",
   "sales (all) activation rate": "SALES_ACT_RATE",
   "sales (all)": "SALES_VOL"
 };
