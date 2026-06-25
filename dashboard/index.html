@@ -5648,16 +5648,22 @@ function _lstAgg(sales, roster) {
   });
   (sales || []).forEach(function(s) {
     if (!s.dateOfSale) return;
-    var email = s.repEmail;
-    if (!agg[email] && roster[email] && !roster[email].deactivated) {
+    // Match the roster case-insensitively (roster keys are lowercased). If the
+    // seller isn't found in the roster at all, STILL count the sale under the name
+    // stored on the sale — a posted sale must never silently vanish from the board.
+    var email = String(s.repEmail || '').trim().toLowerCase();
+    if (!email) return;
+    if (!agg[email]) {
       var r = roster[email];
+      if (r && r.deactivated) return;   // deactivated roster rep -> excluded (unchanged)
       agg[email] = {
-        name: r.name || email, team: r.team || '', rank: r.rank || 'client-rep',
+        name: (r && r.name) || s.repName || email,
+        team: (r && r.team) || '',
+        rank: (r && r.rank) || 'client-rep',
         orders: 0, units: 0,
         days: [0,1,2,3,4,5,6].map(function() { return { orders: 0, units: 0 }; })
       };
     }
-    if (!agg[email]) return;
     var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
     var diff = Math.floor((sd.getTime() - ws.getTime()) / DAY);
     if (diff < 0 || diff > 6) return;
@@ -5698,15 +5704,16 @@ function _lstBaselineMap() {
   var monStart = []; for (var k = 0; k <= 4; k++) monStart[k] = ws.getTime() - k * 7 * DAY;
   var acc = {};   // email -> {full:[5], partial:[5]}  (idx 0=this week, 1..4=prior weeks)
   (_LST_SALES || []).forEach(function(s) {
-    if (!s.dateOfSale || !s.repEmail) return;
+    var em = String(s.repEmail || '').trim().toLowerCase();
+    if (!s.dateOfSale || !em) return;
     var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
     var t = sd.getTime();
     for (var k = 0; k <= 4; k++) {
       if (t >= monStart[k] && t < monStart[k] + 7 * DAY) {
-        if (!acc[s.repEmail]) acc[s.repEmail] = { full:[0,0,0,0,0], partial:[0,0,0,0,0] };
+        if (!acc[em]) acc[em] = { full:[0,0,0,0,0], partial:[0,0,0,0,0] };
         var dayIdx = Math.floor((t - monStart[k]) / DAY);
-        acc[s.repEmail].full[k] += s.units || 0;
-        if (dayIdx <= todayIdx) acc[s.repEmail].partial[k] += s.units || 0;
+        acc[em].full[k] += s.units || 0;
+        if (dayIdx <= todayIdx) acc[em].partial[k] += s.units || 0;
         break;
       }
     }
