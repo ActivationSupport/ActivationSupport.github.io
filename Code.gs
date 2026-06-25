@@ -1408,7 +1408,7 @@ function generateDailyReport(ss, officeId, targetDateStr) {
       var nLines=Math.max(0,parseInt(nd[ni][6],10)||0);
       var nAuthor=String(nd[ni][3]||'').trim();
       var nText=String(nd[ni][4]||'').trim();
-      todayNotes.push({dsi:ndsi,ts:nts.toISOString(),authorName:nAuthor,noteText:nText});
+      todayNotes.push({dsi:ndsi,ts:nts.toISOString(),authorName:nAuthor,noteText:nText,noteType:nType});
       if (nType==='activation' && nLines>0) {
         activatedToday.lines+=nLines;
         _actOrderSet[ndsi]=true;
@@ -1514,6 +1514,7 @@ function generateDailyReport(ss, officeId, targetDateStr) {
   // ── CALLS WORKED: grouped by category with order details ──
   var notesByDsi={};
   todayNotes.forEach(function(n){
+    if (n.noteType === 'rep' || n.noteType === 'note') return;   // Daily Report omits Rep Notes (activation notes only)
     if (!notesByDsi[n.dsi]) notesByDsi[n.dsi]=[];
     notesByDsi[n.dsi].push({ts:n.ts,authorName:n.authorName,noteText:n.noteText});
   });
