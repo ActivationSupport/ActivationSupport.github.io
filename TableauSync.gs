@@ -1029,6 +1029,48 @@ function checkTableauRefresh() {
   }
 }
 
+// Read-only: dump the Activation Rates view's columns, the EXACT name of any
+// color column, and the distinct values it contains (+ sample rows). This tells
+// us precisely how Tableau encodes the cell colors so we can mirror them in the
+// portal without guessing. Run from the editor, then read the Logs.
+function dumpActivationColorValues() {
+  var config = _getConfig();
+  var report = REPORTS['b2b-activation-rates'];
+  var auth = _tableauSignIn(config);
+  try {
+    var csv = _downloadCustomViewData(config, auth.token, auth.siteId, report.customViewId);
+    var data = _parseCsv(csv);
+    var headers = data[0];
+    Logger.log('=== ' + headers.length + ' COLUMNS ===');
+    for (var i = 0; i < headers.length; i++) Logger.log('[' + i + '] "' + headers[i] + '"');
+
+    var colorCols = [];
+    for (var c = 0; c < headers.length; c++) {
+      if (String(headers[c]).toLowerCase().indexOf('color') !== -1) colorCols.push(c);
+    }
+    Logger.log('=== COLOR COLUMN(S) FOUND: ' + (colorCols.length ? colorCols.map(function(c){return '"'+headers[c]+'"';}).join(', ') : 'NONE') + ' ===');
+    colorCols.forEach(function(c) {
+      var counts = {};
+      for (var r = 1; r < data.length; r++) {
+        var v = String(data[r][c] || '').trim();
+        counts[v] = (counts[v] || 0) + 1;
+      }
+      Logger.log('  "' + headers[c] + '" distinct values:');
+      Object.keys(counts).forEach(function(v){ Logger.log('    "' + v + '" x' + counts[v]); });
+    });
+
+    var repIdx = headers.indexOf('Rep'), bktIdx = headers.indexOf('Activation Bucket');
+    Logger.log('=== SAMPLE ROWS (first 8) ===');
+    for (var s = 1; s <= Math.min(8, data.length - 1); s++) {
+      var parts = ['rep=' + (data[s][repIdx] || ''), 'bucket=' + (data[s][bktIdx] || '')];
+      colorCols.forEach(function(c){ parts.push('"' + headers[c] + '"=' + (data[s][c] || '')); });
+      Logger.log('  ' + parts.join(' | '));
+    }
+  } finally {
+    _tableauSignOut(config, auth.token);
+  }
+}
+
 function testActRatesTotalsDownload() {
   var config = _getConfig();
   var auth = _tableauSignIn(config);
