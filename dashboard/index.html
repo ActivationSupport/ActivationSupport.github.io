@@ -2952,6 +2952,23 @@ function _ctActiveFilterBar() {
 }
 
 // Lazily pull the appointment list once and map DSI -> nearest future appt, so
+// Resolve an activator's timezone for the booked badge: prefer the appointments
+// activator list (loaded once that tab is opened), else the roster timezone (col K,
+// always present in DATA.roster), else the office tz (=> no-op for same-zone).
+function _bookedActTz(email) {
+  var e = String(email || '').trim().toLowerCase();
+  var a = (_APPT.activators || []).find(function(x) { return String(x.email || '').toLowerCase() === e; });
+  if (a && a.timezone) return a.timezone;
+  var r = (DATA.roster || {})[e];
+  if (r && r.timezone) return r.timezone;
+  return _apptOfficeTzId();
+}
+// Booked slot is stored in the activator's tz — convert to office tz for display,
+// matching every other appointment view. No-op when the zones already match.
+function _bookedSlotOfficeTz(dateStr, slot, email) {
+  return _tzConvertClock(dateStr, slot, _bookedActTz(email), _apptOfficeTzId());
+}
+
 // call-log rows can show a "📅 Booked" badge. Uses the existing (already
 // deployed) getAppointments endpoint. DSIs are privacy-masked for some roles —
 // masked entries are skipped, so the badge degrades gracefully.
@@ -2965,7 +2982,7 @@ function _loadBookedAppts() {
       if(!d || d.indexOf('•')!==-1) return;            // missing or masked
       if(a.status==='cancelled') return;
       if(!a.date || a.date<today) return;              // only upcoming / today
-      if(!map[d] || a.date<map[d].date) map[d]={date:a.date,timeSlot:a.timeSlot,activator:((DATA.roster||{})[a.activatorEmail]||{}).name||a.activatorEmail};
+      if(!map[d] || a.date<map[d].date) map[d]={date:a.date,timeSlot:_bookedSlotOfficeTz(a.date,a.timeSlot,a.activatorEmail),activator:((DATA.roster||{})[a.activatorEmail]||{}).name||a.activatorEmail};
     });
     _BOOKED_MAP=map; _bookedLoading=false;
     if(_sortTblId && document.getElementById(_sortTblId)) _applyView();   // re-stamp badges
