@@ -53,7 +53,7 @@ var REPORTS = {
     tabName: 'B2B Order Log',
     dateFilterStart: 'Start Date',
     dateFilterEnd: 'End Date',
-    dateRangeDays: 120,
+    dateRangeDays: 60,
     dateFilterColumn: 'sp.Order Date (copy)',
     timeColumns: ['Order Time (Timezone)'],
     columns: [
@@ -93,7 +93,7 @@ var REPORTS = {
     viewContentUrl: 'ATTTRACKER-B2B/sheets/ActivationOpportunityReport',
     customViewId: '9f3ad24e-214d-45a1-8e1b-065e51ccb53c',
     tabName: 'AOR',
-    dateRangeDays: 120,
+    dateRangeDays: 60,
     dateFilterColumn: 'sp.Order Date (copy)',
     columns: [
       'Owner & Office',
