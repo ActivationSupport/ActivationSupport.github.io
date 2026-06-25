@@ -464,11 +464,12 @@ function _writeToSheet(sheetId, tabName, headers, rows) {
 
   // Circuit breaker: do not let a broken/partial Tableau pull wipe good data.
   // If the tab already holds a meaningful amount of data (>=50 rows) and the new
-  // pull is less than half of that, treat it as a bad pull and KEEP existing data.
+  // pull is less than a quarter of that (a >75% drop), treat it as a bad pull and KEEP
+  // existing data. (50% was too tight once order-log/AOR moved to a 60-day window.)
   var existingRows = Math.max(0, sheet.getLastRow() - 1);  // exclude header
-  if (existingRows >= 50 && rows.length < existingRows * 0.5) {
+  if (existingRows >= 50 && rows.length < existingRows * 0.25) {
     Logger.log('WARNING ' + tabName + ': SKIP overwrite - new pull (' + rows.length +
-               ' rows) < 50% of existing (' + existingRows + ' rows). Keeping last-good data.');
+               ' rows) < 25% of existing (' + existingRows + ' rows). Keeping last-good data.');
     return { tab: tabName, headers: headers.length, rows: existingRows, skipped: true };
   }
 
