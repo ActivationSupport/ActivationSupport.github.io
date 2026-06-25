@@ -975,6 +975,60 @@ function listWorkbookViews() {
   }
 }
 
+// Read-only: report how fresh the Tableau data is + the extract-refresh schedule.
+// Run from the editor, then read Executions/Logs. Shows (1) the ATTTRACKER-B2B
+// workbook's last-updated time, (2) each published data source's last-updated
+// time (the best "last refreshed" signal a non-admin can see), and (3) the
+// extract-refresh task schedule/frequency if the account has permission to list it.
+function checkTableauRefresh() {
+  var config = _getConfig();
+  var auth = _tableauSignIn(config);
+  try {
+    // (1) Workbook updatedAt
+    var wbUrl = config.server + '/api/' + TABLEAU_API_VERSION
+      + '/sites/' + auth.siteId + '/workbooks?filter=contentUrl:eq:ATTTRACKER-B2B&pageSize=10';
+    var wbResp = UrlFetchApp.fetch(wbUrl, { method:'get', headers:{ 'X-Tableau-Auth':auth.token, 'Accept':'application/json' }, muteHttpExceptions:true });
+    if (wbResp.getResponseCode() === 200) {
+      var wbs = (JSON.parse(wbResp.getContentText()).workbooks || {}).workbook || [];
+      if (wbs.length) Logger.log('WORKBOOK "' + wbs[0].name + '": updatedAt=' + wbs[0].updatedAt);
+      else Logger.log('WORKBOOK ATTTRACKER-B2B not found via filter.');
+    } else {
+      Logger.log('Workbook query HTTP ' + wbResp.getResponseCode() + ': ' + wbResp.getContentText().substring(0,200));
+    }
+
+    // (2) Data source updatedAt (last refresh signal)
+    var dsResp = UrlFetchApp.fetch(config.server + '/api/' + TABLEAU_API_VERSION + '/sites/' + auth.siteId + '/datasources?pageSize=200',
+      { method:'get', headers:{ 'X-Tableau-Auth':auth.token, 'Accept':'application/json' }, muteHttpExceptions:true });
+    if (dsResp.getResponseCode() === 200) {
+      var dss = (JSON.parse(dsResp.getContentText()).datasources || {}).datasource || [];
+      Logger.log('=== ' + dss.length + ' DATA SOURCE(S) — updatedAt (most recent = last refresh) ===');
+      dss.sort(function(a,b){ return String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')); })
+         .slice(0,15).forEach(function(d){ Logger.log('  "' + d.name + '": ' + d.updatedAt); });
+    } else {
+      Logger.log('Datasources query HTTP ' + dsResp.getResponseCode());
+    }
+
+    // (3) Extract refresh tasks (the actual schedule — usually needs site-admin)
+    var tResp = UrlFetchApp.fetch(config.server + '/api/' + TABLEAU_API_VERSION + '/sites/' + auth.siteId + '/tasks/extractRefreshes',
+      { method:'get', headers:{ 'X-Tableau-Auth':auth.token, 'Accept':'application/json' }, muteHttpExceptions:true });
+    Logger.log('=== EXTRACT REFRESH TASKS — HTTP ' + tResp.getResponseCode() + ' ===');
+    if (tResp.getResponseCode() === 200) {
+      var tasks = (JSON.parse(tResp.getContentText()).tasks || {}).task || [];
+      Logger.log(tasks.length + ' task(s):');
+      tasks.forEach(function(t, i) {
+        var er = t.extractRefresh || {}, sc = er.schedule || {};
+        var tgt = er.workbook ? ('wb:' + (er.workbook.name||er.workbook.id)) : er.datasource ? ('ds:' + (er.datasource.name||er.datasource.id)) : '?';
+        Logger.log('  [' + i + '] ' + tgt + ' | frequency=' + (sc.frequency || er.frequency || '?') + ' | nextRunAt=' + (sc.nextRunAt || er.nextRunAt || '?'));
+      });
+      Logger.log('RAW (first 1500 chars): ' + tResp.getContentText().substring(0,1500));
+    } else {
+      Logger.log('(Likely needs a site-admin account to list refresh tasks.) Body: ' + tResp.getContentText().substring(0,300));
+    }
+  } finally {
+    _tableauSignOut(config, auth.token);
+  }
+}
+
 function testActRatesTotalsDownload() {
   var config = _getConfig();
   var auth = _tableauSignIn(config);
