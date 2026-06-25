@@ -773,16 +773,15 @@ function setupAfternoonSyncTrigger() {
   Logger.log('Afternoon sync trigger set: afternoonSync at ~5:30 PM Pacific');
 }
 
-// Hourly refresh — re-pulls ONLY Activation Rates + Churn from Tableau AND
-// distributes them to the portal's office tabs (_TableauActivationRates /
-// _TableauChurnReport) + busts the office caches, so those two stay current
-// through the day instead of only at the 1 AM pull.
-// NOTE: this is only as fresh as Tableau itself — if the Tableau data source
-// behind these views refreshes once a day, hourly pulls return the same numbers
-// until Tableau updates. (Increase the Tableau extract schedule to go fresher.)
+// Hourly refresh — re-pulls ALL reports (order log + AOR, which feed the call-log
+// tabs like Day-After/Master Tracker/Delivered, plus Activation Rates + Churn) AND
+// distributes them to the portal's office tabs + busts the office caches, so the
+// whole portal stays current through the day instead of only at the 1 AM pull.
+// NOTE: this is only as fresh as Tableau itself — if a view's data source refreshes
+// once a day, hourly pulls return the same numbers until Tableau updates.
 function hourlySync() {
-  Logger.log('=== HOURLY SYNC (Activation Rates + Churn) START ===');
-  var keys = ['b2b-activation-rates', 'b2b-churn'];
+  Logger.log('=== HOURLY SYNC (order log + AOR + activation + churn) START ===');
+  var keys = ['b2b-order-log', 'b2b-aor', 'b2b-activation-rates', 'b2b-churn'];
   var syncResults = [];
   for (var i = 0; i < keys.length; i++) {
     try {
