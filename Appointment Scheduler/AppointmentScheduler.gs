@@ -1480,15 +1480,21 @@ function _sendMoved(appt) {
 // Uses rem24hSent flag (column O, index 14) to prevent duplicates.
 function checkAndSendReminders() {
   var sheet    = _ensureSheet(APPT_TAB, APPT_HEADERS);
-  var tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  var dateStr  = tomorrow.toISOString().split('T')[0];
   var data     = sheet.getDataRange().getValues();
+  // "Tomorrow" is computed per the appointment office timezone (the scheduler is
+  // office-tz based), not the script/UTC zone, so a reminder fires on the correct
+  // local day regardless of when the trigger runs. Cached per tz across the loop.
+  var _nowMs    = Date.now();
+  var _tmrwByTz = {};
+  function _tomorrowIn(tz) {
+    if (!_tmrwByTz[tz]) _tmrwByTz[tz] = Utilities.formatDate(new Date(_nowMs + 86400000), tz, 'yyyy-MM-dd');
+    return _tmrwByTz[tz];
+  }
 
   for (var i = 1; i < data.length; i++) {
     var r = data[i];
     if (!r[0]) continue;
-    if (String(r[9]).trim()  !== dateStr)     continue; // date
+    if (String(r[9]).trim()  !== _tomorrowIn(_officeTzOf(String(r[11] || "").trim()))) continue; // date (office tz)
     if (String(r[12]).trim() === 'cancelled') continue; // status
     if (r[14] === true || r[14] === 'TRUE')   continue; // already sent
 
