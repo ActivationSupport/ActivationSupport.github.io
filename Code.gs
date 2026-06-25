@@ -670,7 +670,7 @@ function _isExcludedStatus(s) {
 }
 function readMasterTracker(ss, officeId) {
   var today = new Date(); today.setHours(0,0,0,0);
-  var cutoff = new Date(today.getTime() - 119 * 86400000); // 120-day inclusive window
+  var cutoff = new Date(today.getTime() - 59 * 86400000); // 60-day inclusive window
   var dsiRows = {}, dsiCols = {}, tolDsis = {};
   // Source 1: Tableau (TOL + AOR), office-filtered. TOL is primary; AOR fills missing DSIs only.
   var tabs = [TABLEAU_TAB, AOR_TAB];
