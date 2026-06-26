@@ -5741,7 +5741,7 @@ function _lstAgg(sales, roster) {
     }
     var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
     var diff = Math.floor((sd.getTime() - ws.getTime()) / DAY);
-    if (diff < 0 || diff > 6) return;
+    if (isNaN(diff) || diff < 0 || diff > 6) return;   // NaN guard: a malformed sale date must never crash the board
     agg[email].orders++;
     agg[email].units += s.units || 0;
     agg[email].days[diff].orders++;
