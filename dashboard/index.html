@@ -1874,6 +1874,7 @@ function _clearDataCache() {
 }
 function _applyMainData(res, ts) {
   DATA = res;
+  if (_LST_POSTED !== null) _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // re-merge legacy once the bundle (with legacyLstSales) is loaded
   _CACHE.mainDataTs = ts || Date.now();
   var roster = DATA.roster || {};
   var me = roster[SESSION.email];
@@ -2122,7 +2123,7 @@ function _bgRefreshLst() {
   _CACHE.lstFlight = true;
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
     _CACHE.lstFlight = false;
-    _LST_SALES = (res.sales || []).concat(DATA.legacyLstSales || []);   // merge in old-portal rows (Elevate); empty for other offices
+    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // legacy re-merged in _applyMainData once DATA is ready
     _CACHE.lstSalesTs = Date.now();
     if (CURRENT_TAB === 'livesales') document.getElementById('main-content').innerHTML = _lstBuild();
   }).catch(function() { _CACHE.lstFlight = false; });
@@ -4681,7 +4682,7 @@ function renderTeamsTab() {
   if (_LST_SALES !== null) { doRender(); return; }
   c.innerHTML = skelLoader();
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
-    _LST_SALES = (res.sales || []).concat(DATA.legacyLstSales || []);   // merge in old-portal rows (Elevate); empty for other offices
+    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // legacy re-merged in _applyMainData once DATA is ready
     if (CURRENT_TAB === 'teams') doRender();
   }).catch(function() {
     if (CURRENT_TAB === 'teams') c.innerHTML = noData('Failed to load sales data.');
@@ -5658,6 +5659,7 @@ function _pseSave(btn) {
 
 // ── LIVE SALES TRACKER ────────────────────────────────────────────────────
 var _LST_SALES = null;
+var _LST_POSTED = null;   // raw posted sales (pre-legacy-merge), so legacy can be re-merged once the bundle loads
 var _LST_VIEW = 'days';
 var _LST_DAYS = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
 var _LST_RNKL = {
@@ -5675,7 +5677,7 @@ function renderLiveSalesTracker() {
   if (_LST_SALES !== null) { c.innerHTML = _lstBuild(); return; }
   c.innerHTML = skelLoader();
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
-    _LST_SALES = (res.sales || []).concat(DATA.legacyLstSales || []);   // merge in old-portal rows (Elevate); empty for other offices
+    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // legacy re-merged in _applyMainData once DATA is ready
     c.innerHTML = _lstBuild();
   }).catch(function() {
     c.innerHTML = '<div class="empty">Failed to load sales data.</div>';
