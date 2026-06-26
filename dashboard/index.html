@@ -1874,7 +1874,7 @@ function _clearDataCache() {
 }
 function _applyMainData(res, ts) {
   DATA = res;
-  if (_LST_POSTED !== null) _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // re-merge legacy once the bundle (with legacyLstSales) is loaded
+  if (_LST_POSTED !== null) _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // re-merge legacy once the bundle (with legacyLstSales) is loaded
   _CACHE.mainDataTs = ts || Date.now();
   var roster = DATA.roster || {};
   var me = roster[SESSION.email];
@@ -2123,7 +2123,7 @@ function _bgRefreshLst() {
   _CACHE.lstFlight = true;
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
     _CACHE.lstFlight = false;
-    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // legacy re-merged in _applyMainData once DATA is ready
+    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     _CACHE.lstSalesTs = Date.now();
     if (CURRENT_TAB === 'livesales') document.getElementById('main-content').innerHTML = _lstBuild();
   }).catch(function() { _CACHE.lstFlight = false; });
@@ -4682,7 +4682,7 @@ function renderTeamsTab() {
   if (_LST_SALES !== null) { doRender(); return; }
   c.innerHTML = skelLoader();
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
-    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // legacy re-merged in _applyMainData once DATA is ready
+    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     if (CURRENT_TAB === 'teams') doRender();
   }).catch(function() {
     if (CURRENT_TAB === 'teams') c.innerHTML = noData('Failed to load sales data.');
@@ -5677,7 +5677,7 @@ function renderLiveSalesTracker() {
   if (_LST_SALES !== null) { c.innerHTML = _lstBuild(); return; }
   c.innerHTML = skelLoader();
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
-    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // legacy re-merged in _applyMainData once DATA is ready
+    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     c.innerHTML = _lstBuild();
   }).catch(function() {
     c.innerHTML = '<div class="empty">Failed to load sales data.</div>';
@@ -5710,6 +5710,29 @@ function _lstUCls(n) {
 // Hidden from the tracker unless they personally post a sale. The four leader
 // ranks (owner/manager/jd/leader) are intentionally NOT here — they always show.
 var _LST_SKIP_UNLESS_SOLD = ['master-admin','admin','activator'];
+
+// Remap legacy (old-portal) rows onto the NEW roster. The old system uses different
+// emails, so a rep's legacy sales would land on a duplicate "client-rep" row instead
+// of their real roster row. Match by rep NAME (consistent across both systems) and use
+// the roster's email; leave unmatched rows as-is (they show under their own name).
+function _lstLegacyRows() {
+  var rows = DATA.legacyLstSales || [];
+  if (!rows.length) return rows;
+  var roster = DATA.roster || {};
+  var nameToEmail = {};
+  Object.keys(roster).forEach(function(em) {
+    var nm = String(roster[em].name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (nm && !nameToEmail[nm]) nameToEmail[nm] = em;
+  });
+  return rows.map(function(s) {
+    var em = String(s.repEmail || '').trim().toLowerCase();
+    if (roster[em]) return s;                         // old email already matches the roster
+    var nm = String(s.repName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    var match = nameToEmail[nm];
+    if (!match) return s;                             // no name match -> leave as its own row
+    return { repEmail: match, repName: s.repName, dateOfSale: s.dateOfSale, units: s.units, voided: false, _legacy: true };
+  });
+}
 
 function _lstAgg(sales, roster) {
   var ws = _lstWeekStart(), DAY = 86400000, agg = {};
