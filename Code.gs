@@ -887,6 +887,7 @@ function doGet(e) {
       notes: readNotes(ss, officeId),
       ratings: readRatings(ss, officeId),
       guestRoster: readCrossOfficeMembers(ss, officeId),
+      legacyLstSales: readLegacyLst(ss, officeId),
       tableauWarning: tableauWarning
     };
     return jsonResponse(data);
@@ -3252,6 +3253,84 @@ function voidPostedSale(body, ss, officeId) {
   sheet.getRange(rowIndex, col).setValue(body.voided ? 'true' : '');
   return { ok:true, voided: !!body.voided };
 }
+// -- LEGACY LIVE-SALES BRIDGE: one-time pull from an OLD office portal --------
+// Pulls an office's old sales-portal per-rep numbers into a _LegacyLst_<office>
+// tab that the Live Sales Tracker merges in (front-end). Config (incl. the old
+// API key) lives in the LEGACY_LST_CONFIG script property, NOT this file (Code.gs
+// can be served by Pages). Property shape:
+//   {"elevate":{"url":"https://...exec","key":"...","officeId":"off_001"}}
+// The old backend is a sibling portal; its default bundle returns people[] with
+// per-rep aggregates: days[0..6] (this week) + priorWeek/twoWkPrior/threeWkPrior/
+// fourWkPrior weekly totals ({y:orders, units}). We take this week Mon+Tue only
+// (Wed+ comes live from the new portal) plus the prior 4 weeks for the WEEKS view.
+function _legacyLstConfig(officeId) {
+  try {
+    var raw = PropertiesService.getScriptProperties().getProperty('LEGACY_LST_CONFIG');
+    if (!raw) return null;
+    var cfg = JSON.parse(raw); return cfg[officeId] || null;
+  } catch (e) { return null; }
+}
+function _legacyYmd(d) { return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2); }
+function _legacyWeekStart() {
+  var n = new Date(); n.setHours(0,0,0,0);
+  var dow = n.getDay(), dfm = dow === 0 ? 6 : dow - 1; n.setDate(n.getDate() - dfm); return n;
+}
+// Push `orders` synthetic sale rows dated dateStr whose units sum exactly to `units`.
+function _legacyPush(rows, email, name, dateStr, orders, units) {
+  orders = Math.max(0, Math.round(Number(orders) || 0)); units = Math.max(0, Math.round(Number(units) || 0));
+  if (orders <= 0) return;
+  var base = Math.floor(units / orders), rem = units - base * orders;
+  for (var i = 0; i < orders; i++) rows.push([email, name, dateStr, base + (i < rem ? 1 : 0)]);
+}
+// Run once from the editor (see buildLegacyLstElevate) after setting LEGACY_LST_CONFIG;
+// re-run anytime to refresh the snapshot.
+function buildLegacyLst(officeId) {
+  var cfg = _legacyLstConfig(officeId);
+  if (!cfg || !cfg.url || !cfg.key) throw new Error('No LEGACY_LST_CONFIG entry for office: ' + officeId);
+  var url = cfg.url + '?officeId=' + encodeURIComponent(cfg.officeId || officeId) + '&key=' + encodeURIComponent(cfg.key);
+  var resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+  var body = JSON.parse(resp.getContentText());
+  var people = body.people || [];
+  var ws = _legacyWeekStart(), DAY = 86400000;
+  var monStr = _legacyYmd(ws), tueStr = _legacyYmd(new Date(ws.getTime() + DAY));
+  var prior = [
+    { k: 'priorWeek',    date: _legacyYmd(new Date(ws.getTime() - 7  * DAY)) },
+    { k: 'twoWkPrior',   date: _legacyYmd(new Date(ws.getTime() - 14 * DAY)) },
+    { k: 'threeWkPrior', date: _legacyYmd(new Date(ws.getTime() - 21 * DAY)) },
+    { k: 'fourWkPrior',  date: _legacyYmd(new Date(ws.getTime() - 28 * DAY)) }
+  ];
+  var rows = [];
+  people.forEach(function(p) {
+    var email = String(p.email || '').trim(), name = String(p.name || '').trim();
+    if (!email && !name) return;
+    var d = p.days || [];
+    if (d[0]) _legacyPush(rows, email, name, monStr, d[0].y, d[0].units);   // Mon (this week)
+    if (d[1]) _legacyPush(rows, email, name, tueStr, d[1].y, d[1].units);   // Tue (this week)
+    prior.forEach(function(w) { var a = p[w.k]; if (a) _legacyPush(rows, email, name, w.date, a.y, a.units); });
+  });
+  var ss = getSheet({});
+  var tab = '_LegacyLst_' + officeId;
+  var sheet = ss.getSheetByName(tab) || ss.insertSheet(tab);
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, 4).setValues([['repEmail', 'repName', 'dateOfSale', 'units']]).setFontWeight('bold');
+  if (rows.length) sheet.getRange(2, 1, rows.length, 4).setValues(rows);
+  return { ok: true, office: officeId, rowsWritten: rows.length, people: people.length };
+}
+function buildLegacyLstElevate() { return buildLegacyLst('elevate'); }
+// Returns the legacy rows as sale-shaped objects for the LST to merge into _LST_SALES.
+function readLegacyLst(ss, officeId) {
+  if (!_legacyLstConfig(officeId)) return [];
+  var sheet = ss.getSheetByName('_LegacyLst_' + officeId);
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues(); var out = [];
+  for (var i = 1; i < data.length; i++) {
+    var r = data[i]; if (!r[2]) continue;
+    out.push({ repEmail: String(r[0]||'').trim(), repName: String(r[1]||'').trim(),
+      dateOfSale: String(r[2]||'').trim(), units: Number(r[3])||0, voided: false, _legacy: true });
+  }
+  return out;
+}
+
 function readPostedSales(ss, officeId, includeVoided) {
   var sheet = ss.getSheetByName('_PostedSales_' + officeId);
   if (!sheet) return [];

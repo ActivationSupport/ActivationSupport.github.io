@@ -2122,7 +2122,7 @@ function _bgRefreshLst() {
   _CACHE.lstFlight = true;
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
     _CACHE.lstFlight = false;
-    _LST_SALES = res.sales || [];
+    _LST_SALES = (res.sales || []).concat(DATA.legacyLstSales || []);   // merge in old-portal rows (Elevate); empty for other offices
     _CACHE.lstSalesTs = Date.now();
     if (CURRENT_TAB === 'livesales') document.getElementById('main-content').innerHTML = _lstBuild();
   }).catch(function() { _CACHE.lstFlight = false; });
@@ -4681,7 +4681,7 @@ function renderTeamsTab() {
   if (_LST_SALES !== null) { doRender(); return; }
   c.innerHTML = skelLoader();
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
-    _LST_SALES = res.sales || [];
+    _LST_SALES = (res.sales || []).concat(DATA.legacyLstSales || []);   // merge in old-portal rows (Elevate); empty for other offices
     if (CURRENT_TAB === 'teams') doRender();
   }).catch(function() {
     if (CURRENT_TAB === 'teams') c.innerHTML = noData('Failed to load sales data.');
@@ -5675,7 +5675,7 @@ function renderLiveSalesTracker() {
   if (_LST_SALES !== null) { c.innerHTML = _lstBuild(); return; }
   c.innerHTML = skelLoader();
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
-    _LST_SALES = res.sales || [];
+    _LST_SALES = (res.sales || []).concat(DATA.legacyLstSales || []);   // merge in old-portal rows (Elevate); empty for other offices
     c.innerHTML = _lstBuild();
   }).catch(function() {
     c.innerHTML = '<div class="empty">Failed to load sales data.</div>';
