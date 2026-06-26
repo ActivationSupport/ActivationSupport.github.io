@@ -3313,6 +3313,7 @@ function buildLegacyLst(officeId) {
   var sheet = ss.getSheetByName(tab) || ss.insertSheet(tab);
   sheet.clearContents();
   sheet.getRange(1, 1, 1, 4).setValues([['repEmail', 'repName', 'dateOfSale', 'units']]).setFontWeight('bold');
+  sheet.getRange(2, 3, Math.max(1, rows.length), 1).setNumberFormat('@');   // keep dateOfSale as text (no Date coercion)
   if (rows.length) sheet.getRange(2, 1, rows.length, 4).setValues(rows);
   return { ok: true, office: officeId, rowsWritten: rows.length, people: people.length };
 }
@@ -3325,8 +3326,10 @@ function readLegacyLst(ss, officeId) {
   var data = sheet.getDataRange().getValues(); var out = [];
   for (var i = 1; i < data.length; i++) {
     var r = data[i]; if (!r[2]) continue;
+    var _dv = r[2];
+    var _ds = (_dv instanceof Date) ? Utilities.formatDate(_dv, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(_dv||'').trim();
     out.push({ repEmail: String(r[0]||'').trim(), repName: String(r[1]||'').trim(),
-      dateOfSale: String(r[2]||'').trim(), units: Number(r[3])||0, voided: false, _legacy: true });
+      dateOfSale: _ds, units: Number(r[3])||0, voided: false, _legacy: true });
   }
   return out;
 }
