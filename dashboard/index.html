@@ -79,6 +79,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .login-set-intro{font-size:.82rem;color:var(--text2);margin-bottom:14px}
 .login-back{font-size:.8rem;color:var(--text2);text-align:center;margin-top:12px;cursor:pointer}
 .login-back:hover{color:var(--blue2)}
+/* Bayview = GOLD login box (same layout as other offices). Flip card text to navy +
+   inputs to white so they stay readable on the gold; the navy logo sits on the gold. */
+.login-card.lc-gold{background:#D3B364;border-color:rgba(19,36,58,.25);border-top-color:#13243a}
+.login-card.lc-gold h1{color:#13243a}
+.login-card.lc-gold p{color:#3c4a5d}
+.login-card.lc-gold #login-office-name{color:#6a5526}
+.login-card.lc-gold .field label{color:#13243a}
+.login-card.lc-gold .field input{background:#fff;border-color:rgba(19,36,58,.32);color:#13243a}
+.login-card.lc-gold .field input:focus{border-color:#13243a}
+.login-card.lc-gold .login-who{color:#13243a}
+.login-card.lc-gold .login-set-intro,.login-card.lc-gold .login-back{color:#3c4a5d}
+.login-card.lc-gold .login-back:hover{color:#13243a}
 
 /* ── APP SHELL ── */
 #app{display:none;height:100vh;overflow:hidden}
@@ -97,6 +109,19 @@ nav{flex:1;padding:10px 0}
 .nav-icon{font-size:1rem;width:20px;text-align:center}
 .nav-group-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.25);padding:14px 16px 4px;user-select:none}
 .sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08)}
+/* Bayview = GOLD sidebar with NAVY text (toggled via .sb-gold on the sidebar). Use
+   SOLID navy (not translucent — alpha over gold goes muddy) and LIGHT highlights for
+   hover/active (lighten the gold, rather than darken it to olive) so it reads clean. */
+.sidebar.sb-gold{background:#D3B364;color:#13243a}
+.sidebar.sb-gold .sidebar-header{border-bottom-color:rgba(19,36,58,.28)}
+.sidebar.sb-gold .sidebar-office{color:#6a5526;font-weight:800}
+.sidebar.sb-gold .sidebar-name{color:#13243a}
+.sidebar.sb-gold .sidebar-user{color:#3c4a5d}
+.sidebar.sb-gold .nav-group-label{color:#6a5526;font-weight:800}
+.sidebar.sb-gold .nav-item{color:#1b2e45;font-weight:600}
+.sidebar.sb-gold .nav-item:hover{background:rgba(255,255,255,.32);color:#0e1f33}
+.sidebar.sb-gold .nav-item.active{background:rgba(255,255,255,.55);color:#102032;border-left-color:#102032;font-weight:700}
+.sidebar.sb-gold .sidebar-footer{border-top-color:rgba(19,36,58,.28)}
 .sign-out{font-size:.78rem;color:rgba(255,255,255,.4);cursor:pointer;display:flex;align-items:center;gap:6px;transition:color .15s}
 .sign-out:hover{color:#fff}
 .dev-wrap{display:none;margin-bottom:10px;padding:8px;background:rgba(255,200,0,.06);border:1px solid rgba(255,200,0,.18);border-radius:6px}
@@ -1317,7 +1342,8 @@ var OFFICE_LOGOS  = {
   viridian: { full:'assets/viridian-logo-full.png',              emblem:'assets/viridian-logo-full.png', sidebarH:68 },
   ignite:   { full:'assets/ignite-logo-full-reverse.png',        emblem:'assets/ignite-logo-symbol.png',  sidebarH:44 },
   vanguard: { full:'assets/vanguard-logo-full-reverse.png',      emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 },
-  bayview:  { full:'assets/bayview-logo-full.png',               emblem:'assets/bayview-logo-symbol.png', sidebarH:60 }
+  // logoBg = gold panel rendered BEHIND the (unchanged) navy logo so it reads on the dark UI.
+  bayview:  { full:'assets/bayview-logo-full.png',               emblem:'assets/bayview-logo-symbol.png', sidebarH:78, loginH:92, logoBg:'#D3B364' }
 };
 // Discord webhook URLs per office — leave blank to disable notifications for that office
 var DISCORD_WEBHOOKS = {
@@ -1363,6 +1389,10 @@ function loadConfig() {
     var _logoEl = document.getElementById('login-office-logo');
     _logoEl.innerHTML = '<img src="'+_lg.full+'" alt="'+CFG.officeName+'" style="max-width:230px;max-height:'+(_lg.loginH||66)+'px;object-fit:contain">';
     _logoEl.style.display = 'block';
+    // Bayview: gold login-card background (same layout as other offices) — navy text +
+    // white inputs via .lc-gold so it stays readable; the navy logo sits on the gold.
+    var _lcard = document.querySelector('.login-card');
+    if (_lcard) _lcard.classList.toggle('lc-gold', officeId === 'bayview');
     document.getElementById('login-office-name').style.display = 'none';
   } else {
     document.getElementById('login-office-name').textContent = CFG.officeName;
@@ -1660,10 +1690,20 @@ function _setSidebarOfficeLogo(officeId) {
   var el = document.getElementById('sb-office-name');
   var lg = OFFICE_LOGOS[officeId];
   if (lg && lg.full) {
-    el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:200px;object-fit:contain;object-position:left center">';
+    if (lg.logoBg) {
+      // Bayview: the whole sidebar is gold (.sb-gold), so the logo just sits on it,
+      // centered + larger. (Logo art unchanged.)
+      el.style.cssText = 'display:block;margin:4px 0;text-align:center';
+      el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:100%;object-fit:contain">';
+    } else {
+      el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:200px;object-fit:contain;object-position:left center">';
+    }
   } else {
     el.textContent = OFFICE_NAMES[officeId] || '—';
   }
+  // Bayview: flip the whole sidebar to gold + navy text (offices with logoBg).
+  var _sb = document.querySelector('.sidebar');
+  if (_sb) _sb.classList.toggle('sb-gold', !!(lg && lg.logoBg));
 }
 
 function buildOfficeSwitcher() { updateOfficeDropdown(); }
