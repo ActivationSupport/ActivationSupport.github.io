@@ -1244,11 +1244,11 @@ var APPT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDy8ZMiho7BL5U1-
 // "unable to open the file" glitch). Per-office link = this + ?office=<id>. (Booking step 2c.)
 var CUSTOMER_BOOKING_URL = 'https://activationsupport.github.io/book.html';
 var API_KEY = 'activation-dash-2026-secret';
-var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite', vanguard:'Vanguard' };
+var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite', vanguard:'Vanguard', bayview:'Bayview Horizons' };
 // Per-office accent (sampled from each office's logo; see memory
 // reference-office-branding). Viridian's accent is GOLD (its green is used as a
 // fill/band color via OFFICE_THEME); the others use their brand color.
-var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', ignite:'#C8102E', vanguard:'#D81F1F' };
+var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', ignite:'#C8102E', vanguard:'#D81F1F', bayview:'#CDAB5A' };
 // Richer per-office theme, used to recolor the whole UI at load (applyOfficeTheme):
 //  btn    = primary button fill (--blue)       accent = bright accent on dark (--blue2)
 //  dark   = subtle dark accent (--blue3)        hover  = button hover (--blueHover)
@@ -1262,7 +1262,11 @@ var OFFICE_THEME = {
   // Vanguard = charcoal structure (band/sidebar/buttons) + BLUE app accent
   // (nav/links/highlights), with RED on the login + logo + office badge. Their
   // tri-color logo (red/blue/black) carries both colors throughout.
-  vanguard: { btn:'#1C1C1C', accent:'#3D67E8', accent2b:'#D81F1F', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' }
+  vanguard: { btn:'#1C1C1C', accent:'#3D67E8', accent2b:'#D81F1F', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' },
+  // Bayview = NAVY structure (band/sidebar/buttons) + GOLD accent (links/highlights/
+  // login title). Sampled from their logo (navy #0F2439 + gold #CDAB5A). Gold-filled
+  // controls take navy text (onAccent). Mirrors Viridian's gold-on-dark pattern.
+  bayview:  { btn:'#0F2439', accent:'#CDAB5A', dark:'#15233a', hover:'#0a1a2c', glow:'#173a63', band:'#0F2439', onBand:'#ffffff', sidebar:'#0d1a29', loginAccent:'#CDAB5A', onAccent:'#0F2439' }
 };
 // Light-email Daily Report branding — MIRROR of Code.gs OFFICE_BRAND so the
 // "Copy for Email" export matches the automated 6pm email exactly. (Keep in sync.)
@@ -1272,7 +1276,8 @@ var OFFICE_REPORT_BRAND = {
   midspire: { band:'#0c1d2e', headerText:'#ffffff', headerSub:'#a8c8e4', accent:'#4FB0FF', accentText:'#4FB0FF', logo:'midspire-logo-full.png',           logoH:38 },
   viridian: { band:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png',           logoH:54 },
   ignite:   { band:'#211210', headerText:'#ffffff', headerSub:'#e3aaaa', accent:'#F0431E', accentText:'#F0431E', logo:'ignite-logo-full-reverse.png',     logoH:40 },
-  vanguard: { band:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png',   logoH:40 }
+  vanguard: { band:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png',   logoH:40 },
+  bayview:  { band:'#0F2439', headerText:'#ffffff', headerSub:'#c9b58a', accent:'#CDAB5A', accentText:'#8C6E22', logo:'bayview-logo-full.png',           logoH:48 }
 };
 function _drReportBrand(officeId) {
   return OFFICE_REPORT_BRAND[officeId] ||
@@ -1311,7 +1316,8 @@ var OFFICE_LOGOS  = {
   midspire: { full:'assets/midspire-logo-full.png',              emblem:'assets/midspire-logo-symbol.png' },
   viridian: { full:'assets/viridian-logo-full.png',              emblem:'assets/viridian-logo-full.png', sidebarH:68 },
   ignite:   { full:'assets/ignite-logo-full-reverse.png',        emblem:'assets/ignite-logo-symbol.png',  sidebarH:44 },
-  vanguard: { full:'assets/vanguard-logo-full-reverse.png',      emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 }
+  vanguard: { full:'assets/vanguard-logo-full-reverse.png',      emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 },
+  bayview:  { full:'assets/bayview-logo-full.png',               emblem:'assets/bayview-logo-symbol.png', sidebarH:60 }
 };
 // Discord webhook URLs per office — leave blank to disable notifications for that office
 var DISCORD_WEBHOOKS = {
@@ -1319,7 +1325,8 @@ var DISCORD_WEBHOOKS = {
   midspire: '',
   viridian: '',
   ignite:   '',
-  vanguard: ''
+  vanguard: '',
+  bayview:  ''
 };
 
 var CFG = {};
@@ -6683,8 +6690,8 @@ function _apptBlocked(email, ds, slot){ var m=_APPT.blocked[email+'|'+ds]; retur
 // Cross-office cell styling: each booking office's brand color + small logo
 // (Ignite = their red, Viridian = their green). Parsed from the "Booked — <Office>"
 // label; calendar/manual blocks have no office → generic red-hatch 🔒.
-var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', ignite:'#C8102E', viridian:'#2E7A4E', vanguard:'#2652D7' };
-var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', ignite:'ignite-logo-symbol.png', viridian:'viridian-logo-full.png', vanguard:'vanguard-logo-symbol.png' };
+var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', ignite:'#C8102E', viridian:'#2E7A4E', vanguard:'#2652D7', bayview:'#1E4D7B' };
+var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', ignite:'ignite-logo-symbol.png', viridian:'viridian-logo-full.png', vanguard:'vanguard-logo-symbol.png', bayview:'bayview-logo-symbol.png' };
 function _apptBlockOffice(label){
   if(!label || label.indexOf('Booked')!==0) return '';
   var p=label.split('—'); if(p.length<2) return '';
@@ -6771,7 +6778,7 @@ function _apptActName(email) {
 }
 // Per-office timezone — mirrors the backend AppointmentScheduler.gs OFFICE_TZ.
 // Used to label appointment times so reps/customers know which zone they're in.
-var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', ignite:'America/Los_Angeles', vanguard:'America/New_York' };
+var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', ignite:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York' };
 var _TZ_ABBR = { 'America/Chicago':'CT', 'America/Los_Angeles':'PT', 'America/New_York':'ET', 'America/Denver':'MT', 'America/Anchorage':'AKT', 'Pacific/Honolulu':'HT' };
 function _tzAbbr(tz){ return _TZ_ABBR[tz] || ''; }
 // "Elevate time (PT)" — for the current office (or a given one).

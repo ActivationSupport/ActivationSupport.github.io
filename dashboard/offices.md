@@ -11,6 +11,9 @@
 | Elevate | Jackie | `https://ActivationSupport.github.io/dashboard/index.html?office=elevate` |
 | Ignite | Jacob | `https://ActivationSupport.github.io/dashboard/index.html?office=ignite` |
 | Vanguard | Ellen Dent | `https://ActivationSupport.github.io/dashboard/index.html?office=vanguard` |
+| Bayview Horizons | Tim Ewing | `https://ActivationSupport.github.io/dashboard/index.html?office=bayview` |
+
+> **Bayview Horizons** is being onboarded (navy/gold brand, ET, booking on). Owner login email + roster pending. **Ignite** is slated for retirement at the Bayview cutover.
 
 Keep these URLs private — share only with the designated owner/admin for each office.
 
@@ -46,8 +49,9 @@ Set in the `permissions` column (column 10) of each roster tab.
 | `elevate` | Elevate only |
 | `ignite` | Ignite only |
 | `vanguard` | Vanguard only |
+| `bayview` | Bayview Horizons only |
 | `elevate,ignite` | Elevate + Ignite (switcher appears in sidebar) |
-| `midspire,viridian,elevate,ignite,vanguard` | All offices |
+| `midspire,viridian,elevate,ignite,vanguard,bayview` | All offices |
 
 ---
 
