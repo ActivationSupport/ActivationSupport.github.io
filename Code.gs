@@ -1746,7 +1746,7 @@ var DAILY_REPORT_RECIPIENTS = {
   elevate:  ['jackieleroyatt@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com'],
   midspire: ['jamisgaray18@gmail.com','brandonpurkett@gmail.com','angelmilan1206@gmail.com','midspireqc@gmail.com','ryan.turner.50@gmail.com'],
   viridian: ['s.e.cameron21@gmail.com','jamisgaray18@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com'],
-  bayview:  []  // TODO: Tim Ewing + admins (pending - no recipients = no send)
+  bayview:  ['timewing74@gmail.com']  // Tim Ewing (owner)
 };
 var DAILY_REPORT_OFFICE_NAME = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', bayview:'Bayview Horizons' };
 var DAILY_REPORT_TZ = 'America/Los_Angeles';
