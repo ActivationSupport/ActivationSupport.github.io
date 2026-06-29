@@ -390,12 +390,13 @@ function _officeAllowed(gs, officeId) {
   return perms.indexOf(String(officeId||'').trim().toLowerCase()) !== -1;
 }
 var _ADMIN_ROLES = ['master-admin','owner','admin','manager','jd'];   // jd = manager-equivalent (can add/edit people + teams)
+var _PEOPLE_ROLES = _ADMIN_ROLES.concat(['activator']);   // roster/people mgmt also allows activator (scoped to the offices their badge grants via _officeAllowed); NOT teams/challenges
 // Login/utility actions need no badge (you don't have one yet at login).
 var _PREAUTH_ACTIONS = { checkEmail:1, validatePin:1, setPin:1, changePin:1, checkAdminEmail:1, validateAdminAccess:1, validateSession:1, logout:1 };
 // Actions restricted to specific roles. Anything not listed = any authenticated user.
 var _ADMIN_ACTIONS = {
-  addRosterEntry:_ADMIN_ROLES, updateRosterEntry:_ADMIN_ROLES, deleteRosterEntry:['master-admin'],
-  toggleDeactivate:_ADMIN_ROLES, setTableauName:_ADMIN_ROLES,
+  addRosterEntry:_PEOPLE_ROLES, updateRosterEntry:_PEOPLE_ROLES, deleteRosterEntry:['master-admin'],
+  toggleDeactivate:_PEOPLE_ROLES, setTableauName:_PEOPLE_ROLES,
   addTeam:_ADMIN_ROLES, updateTeam:_ADMIN_ROLES, deleteTeam:_ADMIN_ROLES,
   saveChallengeConfig:_ADMIN_ROLES, endChallenge:_ADMIN_ROLES,
   createOfficeTabs:['master-admin'], migrateFromLegacy:['master-admin'],
