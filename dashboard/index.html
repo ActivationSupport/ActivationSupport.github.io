@@ -1855,14 +1855,22 @@ function skelLoader() {
 // copy, then a fresh fetch runs in the background and re-renders. Cleared on sign-out.
 function _mainDataKey() { return 'as_data_' + CFG.officeId; }
 function _cacheMainData(res) {
-  try { sessionStorage.setItem(_mainDataKey(), JSON.stringify({ ts: Date.now(), data: res })); } catch (e) {}
+  // Stamp the blob with the office it belongs to so the reader can prove it before
+  // painting (office-isolation guard — see _readCachedMainData).
+  try { sessionStorage.setItem(_mainDataKey(), JSON.stringify({ ts: Date.now(), office: CFG.officeId, data: res })); } catch (e) {}
 }
 function _readCachedMainData() {
   try {
     var raw = sessionStorage.getItem(_mainDataKey());
     if (!raw) return null;
     var o = JSON.parse(raw);
-    return (o && o.data) ? o : null;
+    // OFFICE-ISOLATION GUARD: never instant-paint a blob that isn't stamped for the
+    // CURRENT office. Drops (a) any cache poisoned by a response that landed after an
+    // office switch and (b) older blobs written before this stamp existed. On a miss
+    // we just fall back to the loading skeleton, so a fresh login can never flash
+    // another office's orders.
+    if (!o || !o.data || o.office !== CFG.officeId) return null;
+    return o;
   } catch (e) { return null; }
 }
 function _clearDataCache() {
@@ -1922,8 +1930,12 @@ function loadData(forceFresh) {
   }
   if (!painted) document.getElementById('main-content').innerHTML = skelLoader();
   _CACHE.mainFlight = true;
+  var _reqOffice = CFG.officeId;
   api({}).then(function(res) {
     _CACHE.mainFlight = false;
+    // Office switched while this fetch was in flight — discard it so we never apply,
+    // cache, or render one office's data under another.
+    if (CFG.officeId !== _reqOffice) return;
     if (res.error) { if (!painted) document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>'; return; }
     var firstPaint = !painted;
     _applyMainData(res, Date.now());
@@ -1962,8 +1974,10 @@ function _updateLastUpdated() {
 function _bgRefreshMain() {
   if (_CACHE.mainFlight) return;
   _CACHE.mainFlight = true;
+  var _reqOffice = CFG.officeId;
   api({}).then(function(res) {
     _CACHE.mainFlight = false;
+    if (CFG.officeId !== _reqOffice) return;   // office switched mid-refresh — discard (no cross-office DATA)
     if (res.error) return;
     DATA = res;
     _CACHE.mainDataTs = Date.now();
