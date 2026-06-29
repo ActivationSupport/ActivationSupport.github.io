@@ -9,11 +9,10 @@
 | Midspire | Jamis | `https://ActivationSupport.github.io/dashboard/index.html?office=midspire` |
 | Viridian | Stefan | `https://ActivationSupport.github.io/dashboard/index.html?office=viridian` |
 | Elevate | Jackie | `https://ActivationSupport.github.io/dashboard/index.html?office=elevate` |
-| Ignite | Jacob | `https://ActivationSupport.github.io/dashboard/index.html?office=ignite` |
 | Vanguard | Ellen Dent | `https://ActivationSupport.github.io/dashboard/index.html?office=vanguard` |
 | Bayview Horizons | Tim Ewing | `https://ActivationSupport.github.io/dashboard/index.html?office=bayview` |
 
-> **Bayview Horizons** is being onboarded (navy/gold brand, ET, booking on). Owner login email + roster pending. **Ignite** is slated for retirement at the Bayview cutover.
+> **Bayview Horizons** is being onboarded (navy/gold brand, ET, booking on) to **replace Ignite**. Owner login email + roster pending. **Ignite has been deactivated** — removed from all active config so `?office=ignite` no longer loads and it's gone from the switchers; its sheet data is retained/archived (not deleted). Bayview-on / Ignite-off go live together at the Bayview cutover.
 
 Keep these URLs private — share only with the designated owner/admin for each office.
 
@@ -39,7 +38,7 @@ Set in the `permissions` column (column 10) of each roster tab.
 
 - Value is a comma-separated list of office IDs the person can view
 - Default: just their home office (e.g. `elevate`)
-- Cross-office access: `elevate,ignite`
+- Cross-office access: `elevate,viridian`
 - Master Admin sees all offices automatically — no permissions column setup needed
 
 | Value | What it grants |
@@ -47,11 +46,10 @@ Set in the `permissions` column (column 10) of each roster tab.
 | `midspire` | Midspire only |
 | `viridian` | Viridian only |
 | `elevate` | Elevate only |
-| `ignite` | Ignite only |
 | `vanguard` | Vanguard only |
 | `bayview` | Bayview Horizons only |
-| `elevate,ignite` | Elevate + Ignite (switcher appears in sidebar) |
-| `midspire,viridian,elevate,ignite,vanguard,bayview` | All offices |
+| `elevate,viridian` | Elevate + Viridian (switcher appears in sidebar) |
+| `midspire,viridian,elevate,vanguard,bayview` | All offices |
 
 ---
 

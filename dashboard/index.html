@@ -1269,11 +1269,11 @@ var APPT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDy8ZMiho7BL5U1-
 // "unable to open the file" glitch). Per-office link = this + ?office=<id>. (Booking step 2c.)
 var CUSTOMER_BOOKING_URL = 'https://activationsupport.github.io/book.html';
 var API_KEY = 'activation-dash-2026-secret';
-var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite', vanguard:'Vanguard', bayview:'Bayview Horizons' };
+var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', vanguard:'Vanguard', bayview:'Bayview Horizons' };
 // Per-office accent (sampled from each office's logo; see memory
 // reference-office-branding). Viridian's accent is GOLD (its green is used as a
 // fill/band color via OFFICE_THEME); the others use their brand color.
-var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', ignite:'#C8102E', vanguard:'#D81F1F', bayview:'#CDAB5A' };
+var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', vanguard:'#D81F1F', bayview:'#CDAB5A' };
 // Richer per-office theme, used to recolor the whole UI at load (applyOfficeTheme):
 //  btn    = primary button fill (--blue)       accent = bright accent on dark (--blue2)
 //  dark   = subtle dark accent (--blue3)        hover  = button hover (--blueHover)
@@ -1283,7 +1283,6 @@ var OFFICE_THEME = {
   elevate:  { btn:'#0A1FFF', accent:'#3D5BFF', dark:'#14224a', hover:'#0816cc', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
   midspire: { btn:'#4FB0FF', accent:'#4FB0FF', dark:'#0f2f44', hover:'#2e97ec', glow:'#0f3f5e', band:'#0E7BD4', onBand:'#ffffff', sidebar:'#0c1d2e' },
   viridian: { btn:'#16382A', accent:'#D9C87E', dark:'#16281e', hover:'#0e2a1f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A' },
-  ignite:   { btn:'#F0431E', accent:'#F0431E', dark:'#2e1416', hover:'#d1340f', glow:'#4a1518', band:'#C8102E', onBand:'#ffffff', sidebar:'#211210' },
   // Vanguard = charcoal structure (band/sidebar/buttons) + BLUE app accent
   // (nav/links/highlights), with RED on the login + logo + office badge. Their
   // tri-color logo (red/blue/black) carries both colors throughout.
@@ -1300,7 +1299,6 @@ var OFFICE_REPORT_BRAND = {
   elevate:  { band:'#111827', headerText:'#ffffff', headerSub:'#aab8d6', accent:'#0A1FFF', accentText:'#0A1FFF', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
   midspire: { band:'#0c1d2e', headerText:'#ffffff', headerSub:'#a8c8e4', accent:'#4FB0FF', accentText:'#4FB0FF', logo:'midspire-logo-full.png',           logoH:38 },
   viridian: { band:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png',           logoH:54 },
-  ignite:   { band:'#211210', headerText:'#ffffff', headerSub:'#e3aaaa', accent:'#F0431E', accentText:'#F0431E', logo:'ignite-logo-full-reverse.png',     logoH:40 },
   vanguard: { band:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png',   logoH:40 },
   bayview:  { band:'#0F2439', headerText:'#ffffff', headerSub:'#c9b58a', accent:'#CDAB5A', accentText:'#8C6E22', logo:'bayview-logo-full.png',           logoH:48 }
 };
@@ -1334,13 +1332,12 @@ function _hexToRgba(hex, a) {
   var n = parseInt(hex, 16);
   return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
 }
-// .full = wordmark for the dark UI (Ignite uses its white "reverse" version so
-// its dark "SOLUTIONS" text stays legible). .emblem = small symbol for switcher.
+// .full = wordmark for the dark UI (offices whose wordmark is dark use a white
+// "reverse" version so it stays legible). .emblem = small symbol for switcher.
 var OFFICE_LOGOS  = {
   elevate:  { full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
   midspire: { full:'assets/midspire-logo-full.png',              emblem:'assets/midspire-logo-symbol.png' },
   viridian: { full:'assets/viridian-logo-full.png',              emblem:'assets/viridian-logo-full.png', sidebarH:68 },
-  ignite:   { full:'assets/ignite-logo-full-reverse.png',        emblem:'assets/ignite-logo-symbol.png',  sidebarH:44 },
   vanguard: { full:'assets/vanguard-logo-full-reverse.png',      emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 },
   // logoBg = gold panel rendered BEHIND the (unchanged) navy logo so it reads on the dark UI.
   bayview:  { full:'assets/bayview-logo-full.png',               emblem:'assets/bayview-logo-symbol.png', sidebarH:78, loginH:92, logoBg:'#D3B364' }
@@ -1350,7 +1347,6 @@ var DISCORD_WEBHOOKS = {
   elevate:  '',
   midspire: '',
   viridian: '',
-  ignite:   '',
   vanguard: '',
   bayview:  ''
 };
@@ -6742,10 +6738,10 @@ var _APPT = { activators:null, appointments:null, weekOffset:0, dayOffset:0, vie
 // manual block, or buffer/cap) so blocked cells can render as 🔒 unavailable.
 function _apptBlocked(email, ds, slot){ var m=_APPT.blocked[email+'|'+ds]; return (m && m[slot]) || ''; }
 // Cross-office cell styling: each booking office's brand color + small logo
-// (Ignite = their red, Viridian = their green). Parsed from the "Booked — <Office>"
+// (per-office tint, e.g. Viridian = their green). Parsed from the "Booked — <Office>"
 // label; calendar/manual blocks have no office → generic red-hatch 🔒.
-var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', ignite:'#C8102E', viridian:'#2E7A4E', vanguard:'#2652D7', bayview:'#1E4D7B' };
-var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', ignite:'ignite-logo-symbol.png', viridian:'viridian-logo-full.png', vanguard:'vanguard-logo-symbol.png', bayview:'bayview-logo-symbol.png' };
+var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', viridian:'#2E7A4E', vanguard:'#2652D7', bayview:'#1E4D7B' };
+var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', viridian:'viridian-logo-full.png', vanguard:'vanguard-logo-symbol.png', bayview:'bayview-logo-symbol.png' };
 function _apptBlockOffice(label){
   if(!label || label.indexOf('Booked')!==0) return '';
   var p=label.split('—'); if(p.length<2) return '';
@@ -6832,7 +6828,7 @@ function _apptActName(email) {
 }
 // Per-office timezone — mirrors the backend AppointmentScheduler.gs OFFICE_TZ.
 // Used to label appointment times so reps/customers know which zone they're in.
-var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', ignite:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York' };
+var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York' };
 var _TZ_ABBR = { 'America/Chicago':'CT', 'America/Los_Angeles':'PT', 'America/New_York':'ET', 'America/Denver':'MT', 'America/Anchorage':'AKT', 'Pacific/Honolulu':'HT' };
 function _tzAbbr(tz){ return _TZ_ABBR[tz] || ''; }
 // "Elevate time (PT)" — for the current office (or a given one).

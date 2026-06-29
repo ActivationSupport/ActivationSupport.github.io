@@ -13,13 +13,13 @@
 //    APPT_API_KEY  — that backend's API_KEY value
 // ============================================================
 
-var OFFICES = ['elevate', 'midspire', 'viridian', 'ignite', 'vanguard', 'bayview'];
+var OFFICES = ['elevate', 'midspire', 'viridian', 'vanguard', 'bayview'];
 
 // Per-office timezone (mirrors the Appointment Scheduler OFFICE_TZ). Customer
 // pages show open times in the OFFICE's timezone; a cross-zone activator's
 // stored slots (their tz) are converted to/from office tz at this proxy so the
 // scheduler's specific-activator contract (act-tz values) stays unchanged.
-var OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', ignite:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York' };
+var OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York' };
 function _cbHmToMin(t){ var p=String(t).split(':'); return (+p[0])*60 + (+p[1]); }
 function _cbMinToHm(m){ var h=Math.floor(m/60), mi=m%60; return ('0'+h).slice(-2)+':'+('0'+mi).slice(-2); }
 function _cbLocalDateTime(dateStr, minutes, tz){

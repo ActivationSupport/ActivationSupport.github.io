@@ -14,7 +14,6 @@ var OFFICE_OWNER_MAP = {
   'midspire': 'atomic marketing, inc.',
   'viridian': 'viridian, inc.',
   'elevate': 'elevate marketing team, inc.',
-  'ignite': 'ignite solutions, inc.',
   'vanguard': 'tenacity solutions, inc',
   'bayview': 'bayview horizons, inc.'
 };
@@ -1745,11 +1744,10 @@ function setupDailyReportTrigger() {
 var DAILY_REPORT_RECIPIENTS = {
   elevate:  ['jackieleroyatt@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com'],
   midspire: ['jamisgaray18@gmail.com','brandonpurkett@gmail.com','angelmilan1206@gmail.com','midspireqc@gmail.com','ryan.turner.50@gmail.com'],
-  ignite:   ['jacobdennett0902@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com','jackieleroyatt@gmail.com'],
   viridian: ['s.e.cameron21@gmail.com','jamisgaray18@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com'],
   bayview:  []  // TODO: Tim Ewing + admins (pending - no recipients = no send)
 };
-var DAILY_REPORT_OFFICE_NAME = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite', bayview:'Bayview Horizons' };
+var DAILY_REPORT_OFFICE_NAME = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', bayview:'Bayview Horizons' };
 var DAILY_REPORT_TZ = 'America/Los_Angeles';
 // Where the daily admin heartbeat/status email goes. Silence on a weekday by
 // ~6:05pm PT = the 6pm trigger did not fire. Set '' to disable the heartbeat.
@@ -1764,7 +1762,6 @@ var OFFICE_BRAND = {
   elevate:  { band:'#111827', header:'#111827', headerText:'#ffffff', headerSub:'#aab8d6', accent:'#0A1FFF', accentText:'#0A1FFF', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
   midspire: { band:'#0c1d2e', header:'#0c1d2e', headerText:'#ffffff', headerSub:'#a8c8e4', accent:'#4FB0FF', accentText:'#4FB0FF', logo:'midspire-logo-full.png',           logoH:38 },
   viridian: { band:'#1B3A2D', header:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png',           logoH:54 },
-  ignite:   { band:'#211210', header:'#211210', headerText:'#ffffff', headerSub:'#e3aaaa', accent:'#F0431E', accentText:'#F0431E', logo:'ignite-logo-full-reverse.png',     logoH:40 },
   vanguard: { band:'#1C1C1C', header:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png',   logoH:40 },
   bayview:  { band:'#0F2439', header:'#0F2439', headerText:'#ffffff', headerSub:'#c9b58a', accent:'#CDAB5A', accentText:'#8C6E22', logo:'bayview-logo-full.png',           logoH:48 }
 };
@@ -3015,7 +3012,7 @@ function postLeaderboardToChat(optOfficeId) {
 
 function migrateOfficeIds(ss) {
   if (!ss) { var sid=PropertiesService.getScriptProperties().getProperty('SHEET_ID')||''; ss=sid?SpreadsheetApp.openById(sid):SpreadsheetApp.getActiveSpreadsheet(); }
-  var officeMap = { 'off_001':'midspire', 'off_002':'viridian', 'off_003':'elevate', 'off_004':'ignite' };
+  var officeMap = { 'off_001':'midspire', 'off_002':'viridian', 'off_003':'elevate' };
   var tabBases = [TAB.SALES,TAB.ROSTER,TAB.TEAMS,TAB.TEAM_CUSTOM,TAB.OVERRIDES,TAB.UNLOCKS,TAB.SETTINGS,TAB.CHALLENGE,'_Notes','_Ratings'];
   var log = []; var renamed = 0; var skipped = 0;
   Object.keys(officeMap).forEach(function(oldId) {
