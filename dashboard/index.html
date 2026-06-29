@@ -4525,7 +4525,10 @@ function renderPeople() {
   var roster = DATA.roster || {};
   var guestRoster = DATA.guestRoster || {};
   var role = SESSION.role;
-  var isAdmin   = role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd';
+  // People management (add + edit) — jd/manager/admin/owner/master-admin, plus activator
+  // (activators work across offices; their multi-office badge + the per-office switcher
+  // scope them, and _officeAllowed on the backend enforces it). NOT a Teams-management grant.
+  var isAdmin   = role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd' || role === 'activator';
   var isMgr     = false;   // jd is now a full admin here (manager-equivalent)
   var myEmail   = (SESSION.email || '').toLowerCase();
   var homeRows = Object.keys(roster).map(function(email) {
@@ -4577,6 +4580,7 @@ function buildPersonForm(email, person) {
   else if (role === 'admin')   editLevel = 'admin';
   else if (role === 'jd') editLevel = 'admin';   // jd = manager-equivalent
   else if (role === 'manager') editLevel = 'admin';
+  else if (role === 'activator') editLevel = 'admin';   // manages people across their permitted offices
   else editLevel = 'selfphone';
   var canRole   = editLevel === 'full' || editLevel === 'owner';
   var canPerms  = editLevel === 'full' || editLevel === 'owner';
@@ -4631,6 +4635,7 @@ function savePerson(existingEmail) {
   else if (role === 'admin')   editLevel = 'admin';
   else if (role === 'jd') editLevel = 'admin';   // jd = manager-equivalent
   else if (role === 'manager') editLevel = 'admin';
+  else if (role === 'activator') editLevel = 'admin';   // manages people across their permitted offices
   else editLevel = 'selfphone';
   var canRole   = editLevel === 'full' || editLevel === 'owner';
   var canPerms  = editLevel === 'full' || editLevel === 'owner';
