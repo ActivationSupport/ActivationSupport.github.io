@@ -1345,7 +1345,7 @@ function _selfServiceButtonsHtml(office, token) {
   var canc  = SELF_SERVICE_BASE + 'cancel.html' + q;
   var BR    = _emailBrand(office);
   return '' +
-    '<tr><td style="padding:4px 32px 26px;">' +
+    '<tr><td style="padding:18px 32px 26px;">' +
       '<p style="margin:0 0 12px;font:600 14px Arial,sans-serif;color:#16314f;">Need to make a change?</p>' +
       '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
         '<td style="padding-right:10px;"><a href="' + resch + '" style="display:inline-block;background:' + BR.accent + ';color:' + BR.onAccent + ';text-decoration:none;font:600 14px Arial,sans-serif;padding:11px 22px;border-radius:6px;">Reschedule</a></td>' +
@@ -1379,9 +1379,9 @@ function _apptEmailHtml(o) {
   var BR = _emailBrand(o.office);
 
   return '' +
-  '<!doctype html><html><body style="margin:0;padding:0;background:#f4f6f8;">' +
-  '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 12px;"><tr><td align="center">' +
-    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e7ec;">' +
+  '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#e9ecf1;">' +
+  '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e9ecf1;padding:24px 12px;"><tr><td align="center">' +
+    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#f5f6f9;border-radius:12px;overflow:hidden;border:1px solid #cbd5e1;">' +
       '<tr><td style="background:' + BR.band + ';padding:22px 32px;">' +
         '<div style="font:700 18px Arial,sans-serif;color:#ffffff;letter-spacing:.3px;">Activation Support</div>' +
         '<div style="font:13px Arial,sans-serif;color:' + BR.sub + ';margin-top:2px;">AT&amp;T Activation Scheduling</div>' +
@@ -1392,16 +1392,16 @@ function _apptEmailHtml(o) {
         '<p style="margin:0;font:15px/1.5 Arial,sans-serif;color:#475467;">Hi ' + _htmlEsc(o.name || 'there') + ', ' + _htmlEsc(o.intro) + '</p>' +
       '</td></tr>' +
       '<tr><td style="padding:18px 32px 2px;">' +
-        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #eef1f5;border-radius:10px;"><tr><td style="padding:4px 20px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + detailRows + '</table></td></tr></table>' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceff4;border:1px solid #cbd5e1;border-radius:10px;"><tr><td style="padding:4px 20px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + detailRows + '</table></td></tr></table>' +
       '</td></tr>' +
       '<tr><td style="padding:18px 32px 2px;">' +
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + (BR.boxBg || BR.soft) + ';border-left:4px solid ' + BR.accent + ';border-radius:6px;"><tr><td style="padding:13px 16px;font:14px/1.5 Arial,sans-serif;color:#1e3a5f;">' +
-          '<b>This is a phone appointment</b> — there is nothing to attend in person.<br>' + phoneLine + callInLine +
+          '<b>This is a phone appointment</b> &mdash; there is nothing to attend in person.<br>' + phoneLine + callInLine +
         '</td></tr></table>' +
       '</td></tr>' +
       (o.buttons || '') +
-      '<tr><td style="padding:18px 32px 26px;border-top:1px solid #eef1f5;">' +
-        '<p style="margin:0;font:12px/1.5 Arial,sans-serif;color:#98a2b3;">Sent by Activation Support Bookings · please do not reply to this email.</p>' +
+      '<tr><td style="padding:18px 32px 26px;border-top:1px solid #cbd5e1;">' +
+        '<p style="margin:0;font:12px/1.5 Arial,sans-serif;color:#98a2b3;">Sent by Activation Support Bookings &middot; please do not reply to this email.</p>' +
       '</td></tr>' +
     '</table>' +
   '</td></tr></table></body></html>';
@@ -1422,7 +1422,7 @@ function _sendConfirmation(appt) {
     'Services: ' + (appt.services || 'N/A')   + '\n' +
     'Devices:  ' + (appt.deviceCount || 1)    + '\n' +
     '───────────────────────\n\n' +
-    'This is a PHONE appointment — there is nothing to attend in person.\n' +
+    'This is a PHONE appointment - there is nothing to attend in person.\n' +
     _callInBlock(appt.office, appt.customerPhone) +
     _selfServiceBlock(appt.office, appt.cancelToken) + '\n' +
     'Activation Support Team';
@@ -1456,7 +1456,7 @@ function _sendMoved(appt) {
     'Services: ' + (appt.services || 'N/A')   + '\n' +
     'Devices:  ' + (appt.deviceCount || 1)    + '\n' +
     '───────────────────────\n\n' +
-    'This is a PHONE appointment — there is nothing to attend in person.\n' +
+    'This is a PHONE appointment - there is nothing to attend in person.\n' +
     _callInBlock(appt.office, appt.customerPhone) +
     _selfServiceBlock(appt.office, appt.cancelToken) + '\n' +
     'Activation Support Team';
@@ -1514,7 +1514,7 @@ function checkAndSendReminders() {
         'Services: ' + (r[7] || 'N/A')             + '\n' +
         'Devices:  ' + (r[8] || 1)                 + '\n' +
         '───────────────────────\n\n' +
-        'This is a PHONE appointment — there is nothing to attend in person.\n' +
+        'This is a PHONE appointment - there is nothing to attend in person.\n' +
         _callInBlock(String(r[11]), String(r[5] || '')) + '\n\n' +
         'Activation Support Team';
       var html = _apptEmailHtml({
