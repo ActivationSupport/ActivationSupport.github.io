@@ -2084,7 +2084,7 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
     '</div></div></body></html>';
   // Force every non-ASCII char (emoji, em-dashes, ·) to a numeric HTML entity so it
   // renders regardless of source-file/MIME/client charset — literal emoji garbled in Gmail.
-  return __html.replace(/[^ -]/gu, function(ch){ return '&#'+ch.codePointAt(0)+';'; });
+  return __html.replace(/[^\x00-\x7F]/gu, function(ch){ return '&#'+ch.codePointAt(0)+';'; });
 }
 
 function writeSetting(body, ss, officeId) {
