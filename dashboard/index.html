@@ -4850,23 +4850,23 @@ function _tmBuildDetail(teamId) {
   var memberEmails = Object.keys(roster).filter(function(e){ return !roster[e].deactivated && roster[e].team===team.name; });
   var memberTabs   = memberEmails.map(function(e){ return (roster[e].tableauName||'').toLowerCase(); }).filter(Boolean);
 
-  // This-week + prior 4-week unit totals
-  var ws = _lstWeekStart();
-  var wkU=0, wkO=0, priorW=[0,0,0,0];
+  // ── Rolling 4-week (28-day) unit avg + recent-7-day trend (from _LST_SALES) ──
+  // Rolling window ending TODAY (not fixed calendar weeks): sum the team's units over
+  // the last 28 days and divide by 4 = avg units/week. The 7-day total drives Remarks.
+  var today = new Date(); today.setHours(0,0,0,0);
+  var t0 = today.getTime();
+  var win28 = t0 - 28*DAY_MS, win7 = t0 - 7*DAY_MS;
+  var u28 = 0, u7 = 0;
   (_LST_SALES||[]).forEach(function(s) {
-    if (!s.dateOfSale||memberEmails.indexOf(s.repEmail)===-1) return;
-    var d=new Date(s.dateOfSale+'T12:00:00'); d.setHours(0,0,0,0);
-    var u=Number(s.units)||0;
-    if (d>=ws){ wkU+=u; wkO++; }
-    else {
-      var daysAgo=Math.floor((ws.getTime()-d.getTime())/DAY_MS);
-      var wi=Math.floor(daysAgo/7); if(wi>=0&&wi<=3) priorW[wi]+=u;
-    }
+    if (!s.dateOfSale || memberEmails.indexOf(s.repEmail)===-1) return;
+    var d = new Date(s.dateOfSale+'T12:00:00'); d.setHours(0,0,0,0);
+    var t = d.getTime(); if (t > t0) return;
+    var u = Number(s.units)||0;
+    if (t > win28) u28 += u;
+    if (t > win7)  u7  += u;
   });
-  var fourWkSum=(priorW[0]+priorW[1]+priorW[2]+priorW[3]);
-  var fourWkAvg=fourWkSum/4;
-  var vsPct=fourWkAvg>0?(wkU-fourWkAvg)/fourWkAvg*100:(wkU>0?100:0);
-  var perRep=memberEmails.length>0?wkU/memberEmails.length:0;
+  var fourWkAvg = u28/4;
+  var vsPct = fourWkAvg>0 ? (u7-fourWkAvg)/fourWkAvg*100 : (u7>0?100:0);
 
   var trendLabel,trendCls;
   if      (vsPct>=20) { trendLabel='Strong upward trend'; trendCls='tm-trend-up'; }
@@ -4875,25 +4875,26 @@ function _tmBuildDetail(teamId) {
   else if (vsPct<=-5) { trendLabel='Slight decline';      trendCls='tm-trend-down'; }
   else                { trendLabel='Steady performance';  trendCls='tm-trend-flat'; }
 
-  // Line stats from masterTracker
-  var teamLines=(DATA.masterTracker||[]).filter(function(l){ return memberTabs.indexOf((l.rep||'').toLowerCase())!==-1; });
-  var tot=teamLines.length, act=0, post=0, can=0;
-  teamLines.forEach(function(l){
-    var s=(l.dtrStatus||'').toLowerCase();
-    if(s==='active')act++; else if(s==='posted')post++; else if(s==='canceled')can++;
+  // ── Rolling 30-day Pending & Cancel rates (master tracker). Window ENDS 2 days ago
+  // (buffer for statuses to settle) and goes 30 days back: orderDate in [t0-32d, t0-2d]. ──
+  var wEnd = t0 - 2*DAY_MS, wStart = wEnd - 30*DAY_MS;
+  var wTot=0, wPend=0, wCanc=0;
+  (DATA.masterTracker||[]).forEach(function(l) {
+    if (memberTabs.indexOf((l.rep||'').toLowerCase())===-1) return;
+    var od = String(l.orderDate||''); if (!/^\d{4}-\d{2}-\d{2}/.test(od)) return;
+    var dt = new Date(od.slice(0,10)+'T12:00:00'); dt.setHours(0,0,0,0);
+    var t = dt.getTime(); if (t < wStart || t > wEnd) return;
+    wTot++;
+    var s = (l.dtrStatus||'').toLowerCase();
+    if (s==='canceled') wCanc++;
+    else if (s!=='active' && s!=='posted' && s!=='disconnected') wPend++;
   });
-  var pend=Math.max(0,tot-act-post-can);
-  var pct=function(n){ return tot?Math.round(n/tot*100):0; };
+  var pendRate = wTot ? Math.round(wPend/wTot*100) : 0;
+  var cancRate = wTot ? Math.round(wCanc/wTot*100) : 0;
 
-  // Churn data
+  // Churn data (team) — used by the churn section below
   var churnRows=(DATA.churnReport||[]).filter(function(r){ return memberTabs.indexOf((r.rep||'').toLowerCase())!==-1; });
   var churnBuilt=_buildChurnRepMap(churnRows,'');
-  var acts0=0,dis0=0;
-  churnBuilt.repList.forEach(function(rep){ var d=churnBuilt.repMap[rep]['0-30 Day']; if(d){acts0+=d.activated;dis0+=d.disconnects;} });
-  var projDisco=acts0>0?Math.round(dis0/acts0*100):0;
-
-  var vsColor=vsPct>=0?'color:#4ade80':'color:#f87171';
-  var vsSign=vsPct>=0?'↑':'↓';
 
   var hdr = '<div class="tm-back" onclick="_tmBackToList()">← Teams</div>' +
     '<div class="tm-detail-hdr"><span class="tm-detail-em">'+(team.emoji||'👥')+'</span><span class="tm-detail-nm">'+esc(team.name)+'</span></div>';
@@ -4903,13 +4904,11 @@ function _tmBuildDetail(teamId) {
     '<div class="tm-remarks-card '+trendCls+'">' +
     '<div class="tm-remarks-label">REMARKS</div>' +
     '<div class="tm-remarks-trend">'+esc(trendLabel)+'</div>' +
-    '<div class="tm-remarks-sub">Team Avg: '+perRep.toFixed(1)+' · 4Wk Total: '+fourWkSum+'</div>' +
+    '<div class="tm-remarks-sub">Last 7d: '+u7+' units · 4-wk avg '+fourWkAvg.toFixed(1)+'/wk</div>' +
     '</div>' +
-    '<div class="tm-stat-pill"><span style="'+vsColor+';font-size:1.3rem;font-weight:800">'+vsSign+Math.abs(vsPct).toFixed(1)+'%</span><div class="tm-stat-lbl">VS 4WK AVG</div></div>' +
-    '<div class="tm-stat-pill"><span class="tm-stat-val">'+pct(act+post)+'%</span><div class="tm-stat-lbl">ACTIVE %</div></div>' +
-    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#fbbf24">'+pct(pend)+'%</span><div class="tm-stat-lbl">PENDING %</div></div>' +
-    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#f87171">'+pct(can)+'%</span><div class="tm-stat-lbl">CANCEL %</div></div>' +
-    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#f87171">'+projDisco+'%</span><div class="tm-stat-lbl">PROJ. DISCO %</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val">'+fourWkAvg.toFixed(1)+'</span><div class="tm-stat-lbl">4-WK AVG · UNITS/WK</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#fbbf24">'+pendRate+'%</span><div class="tm-stat-lbl">PENDING · 30D</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#f87171">'+cancRate+'%</span><div class="tm-stat-lbl">CANCEL · 30D</div></div>' +
     '</div>';
 
   var churnSec = '<div class="tm-section-label">CHURN BUCKETS</div><div class="tm-churn-row">' +
