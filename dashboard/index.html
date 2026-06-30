@@ -83,6 +83,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .login-set-intro{font-size:.82rem;color:var(--text2);margin-bottom:14px}
 .login-back{font-size:.8rem;color:var(--text2);text-align:center;margin-top:12px;cursor:pointer}
 .login-back:hover{color:var(--blue2)}
+/* Bayview = GOLD login box (same layout as other offices). Flip card text to navy +
+   inputs to white so they stay readable on the gold; the navy logo sits on the gold. */
+.login-card.lc-gold{background:#D3B364;border-color:rgba(19,36,58,.25);border-top-color:#13243a}
+.login-card.lc-gold h1{color:#13243a}
+.login-card.lc-gold p{color:#3c4a5d}
+.login-card.lc-gold #login-office-name{color:#6a5526}
+.login-card.lc-gold .field label{color:#13243a}
+.login-card.lc-gold .field input{background:#fff;border-color:rgba(19,36,58,.32);color:#13243a}
+.login-card.lc-gold .field input:focus{border-color:#13243a}
+.login-card.lc-gold .login-who{color:#13243a}
+.login-card.lc-gold .login-set-intro,.login-card.lc-gold .login-back{color:#3c4a5d}
+.login-card.lc-gold .login-back:hover{color:#13243a}
 
 /* ── APP SHELL ── */
 #app{display:none;height:100vh;overflow:hidden}
@@ -101,6 +113,19 @@ nav{flex:1;padding:10px 0}
 .nav-icon{font-size:1rem;width:20px;text-align:center}
 .nav-group-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.25);padding:14px 16px 4px;user-select:none}
 .sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08)}
+/* Bayview = GOLD sidebar with NAVY text (toggled via .sb-gold on the sidebar). Use
+   SOLID navy (not translucent — alpha over gold goes muddy) and LIGHT highlights for
+   hover/active (lighten the gold, rather than darken it to olive) so it reads clean. */
+.sidebar.sb-gold{background:#D3B364;color:#13243a}
+.sidebar.sb-gold .sidebar-header{border-bottom-color:rgba(19,36,58,.28)}
+.sidebar.sb-gold .sidebar-office{color:#6a5526;font-weight:800}
+.sidebar.sb-gold .sidebar-name{color:#13243a}
+.sidebar.sb-gold .sidebar-user{color:#3c4a5d}
+.sidebar.sb-gold .nav-group-label{color:#6a5526;font-weight:800}
+.sidebar.sb-gold .nav-item{color:#1b2e45;font-weight:600}
+.sidebar.sb-gold .nav-item:hover{background:rgba(255,255,255,.32);color:#0e1f33}
+.sidebar.sb-gold .nav-item.active{background:rgba(255,255,255,.55);color:#102032;border-left-color:#102032;font-weight:700}
+.sidebar.sb-gold .sidebar-footer{border-top-color:rgba(19,36,58,.28)}
 .sign-out{font-size:.78rem;color:rgba(255,255,255,.4);cursor:pointer;display:flex;align-items:center;gap:6px;transition:color .15s}
 .sign-out:hover{color:#fff}
 .dev-wrap{display:none;margin-bottom:10px;padding:8px;background:rgba(255,200,0,.06);border:1px solid rgba(255,200,0,.18);border-radius:6px}
@@ -1244,11 +1269,11 @@ var APPT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDy8ZMiho7BL5U1-
 // "unable to open the file" glitch). Per-office link = this + ?office=<id>. (Booking step 2c.)
 var CUSTOMER_BOOKING_URL = 'https://activationsupport.github.io/book.html';
 var API_KEY = 'activation-dash-2026-secret';
-var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', ignite:'Ignite', vanguard:'Vanguard' };
+var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', vanguard:'Vanguard', bayview:'Bayview Horizons' };
 // Per-office accent (sampled from each office's logo; see memory
 // reference-office-branding). Viridian's accent is GOLD (its green is used as a
 // fill/band color via OFFICE_THEME); the others use their brand color.
-var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', ignite:'#C8102E', vanguard:'#D81F1F' };
+var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', vanguard:'#D81F1F', bayview:'#CDAB5A' };
 // Richer per-office theme, used to recolor the whole UI at load (applyOfficeTheme):
 //  btn    = primary button fill (--blue)       accent = bright accent on dark (--blue2)
 //  dark   = subtle dark accent (--blue3)        hover  = button hover (--blueHover)
@@ -1258,11 +1283,14 @@ var OFFICE_THEME = {
   elevate:  { btn:'#0A1FFF', accent:'#3D5BFF', dark:'#14224a', hover:'#0816cc', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
   midspire: { btn:'#4FB0FF', accent:'#4FB0FF', dark:'#0f2f44', hover:'#2e97ec', glow:'#0f3f5e', band:'#0E7BD4', onBand:'#ffffff', sidebar:'#0c1d2e' },
   viridian: { btn:'#16382A', accent:'#D9C87E', dark:'#16281e', hover:'#0e2a1f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A' },
-  ignite:   { btn:'#F0431E', accent:'#F0431E', dark:'#2e1416', hover:'#d1340f', glow:'#4a1518', band:'#C8102E', onBand:'#ffffff', sidebar:'#211210' },
   // Vanguard = charcoal structure (band/sidebar/buttons) + BLUE app accent
   // (nav/links/highlights), with RED on the login + logo + office badge. Their
   // tri-color logo (red/blue/black) carries both colors throughout.
-  vanguard: { btn:'#1C1C1C', accent:'#3D67E8', accent2b:'#D81F1F', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' }
+  vanguard: { btn:'#1C1C1C', accent:'#3D67E8', accent2b:'#D81F1F', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' },
+  // Bayview = NAVY structure (band/sidebar/buttons) + GOLD accent (links/highlights/
+  // login title). Sampled from their logo (navy #0F2439 + gold #CDAB5A). Gold-filled
+  // controls take navy text (onAccent). Mirrors Viridian's gold-on-dark pattern.
+  bayview:  { btn:'#0F2439', accent:'#CDAB5A', dark:'#15233a', hover:'#0a1a2c', glow:'#173a63', band:'#0F2439', onBand:'#ffffff', sidebar:'#0d1a29', loginAccent:'#CDAB5A', onAccent:'#0F2439' }
 };
 // Light-email Daily Report branding — MIRROR of Code.gs OFFICE_BRAND so the
 // "Copy for Email" export matches the automated 6pm email exactly. (Keep in sync.)
@@ -1271,8 +1299,8 @@ var OFFICE_REPORT_BRAND = {
   elevate:  { band:'#111827', headerText:'#ffffff', headerSub:'#aab8d6', accent:'#0A1FFF', accentText:'#0A1FFF', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
   midspire: { band:'#0c1d2e', headerText:'#ffffff', headerSub:'#a8c8e4', accent:'#4FB0FF', accentText:'#4FB0FF', logo:'midspire-logo-full.png',           logoH:38 },
   viridian: { band:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png',           logoH:54 },
-  ignite:   { band:'#211210', headerText:'#ffffff', headerSub:'#e3aaaa', accent:'#F0431E', accentText:'#F0431E', logo:'ignite-logo-full-reverse.png',     logoH:40 },
-  vanguard: { band:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png',   logoH:40 }
+  vanguard: { band:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png',   logoH:40 },
+  bayview:  { band:'#0F2439', headerText:'#ffffff', headerSub:'#c9b58a', accent:'#CDAB5A', accentText:'#8C6E22', logo:'bayview-logo-full.png',           logoH:48 }
 };
 function _drReportBrand(officeId) {
   return OFFICE_REPORT_BRAND[officeId] ||
@@ -1312,22 +1340,23 @@ function _hexToRgbTriplet(hex) {
   var n = parseInt(hex, 16);
   return ((n>>16)&255)+','+((n>>8)&255)+','+(n&255);
 }
-// .full = wordmark for the dark UI (Ignite uses its white "reverse" version so
-// its dark "SOLUTIONS" text stays legible). .emblem = small symbol for switcher.
+// .full = wordmark for the dark UI (offices whose wordmark is dark use a white
+// "reverse" version so it stays legible). .emblem = small symbol for switcher.
 var OFFICE_LOGOS  = {
   elevate:  { full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
   midspire: { full:'assets/midspire-logo-full.png',              emblem:'assets/midspire-logo-symbol.png' },
   viridian: { full:'assets/viridian-logo-full.png',              emblem:'assets/viridian-logo-full.png', sidebarH:68 },
-  ignite:   { full:'assets/ignite-logo-full-reverse.png',        emblem:'assets/ignite-logo-symbol.png',  sidebarH:44 },
-  vanguard: { full:'assets/vanguard-logo-full-reverse.png',      emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 }
+  vanguard: { full:'assets/vanguard-logo-full-reverse.png',      emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 },
+  // logoBg = gold panel rendered BEHIND the (unchanged) navy logo so it reads on the dark UI.
+  bayview:  { full:'assets/bayview-logo-full.png',               emblem:'assets/bayview-logo-symbol.png', sidebarH:78, loginH:92, logoBg:'#D3B364' }
 };
 // Discord webhook URLs per office — leave blank to disable notifications for that office
 var DISCORD_WEBHOOKS = {
   elevate:  '',
   midspire: '',
   viridian: '',
-  ignite:   '',
-  vanguard: ''
+  vanguard: '',
+  bayview:  ''
 };
 
 var CFG = {};
@@ -1364,6 +1393,10 @@ function loadConfig() {
     var _logoEl = document.getElementById('login-office-logo');
     _logoEl.innerHTML = '<img src="'+_lg.full+'" alt="'+CFG.officeName+'" style="max-width:230px;max-height:'+(_lg.loginH||66)+'px;object-fit:contain">';
     _logoEl.style.display = 'block';
+    // Bayview: gold login-card background (same layout as other offices) — navy text +
+    // white inputs via .lc-gold so it stays readable; the navy logo sits on the gold.
+    var _lcard = document.querySelector('.login-card');
+    if (_lcard) _lcard.classList.toggle('lc-gold', officeId === 'bayview');
     document.getElementById('login-office-name').style.display = 'none';
   } else {
     document.getElementById('login-office-name').textContent = CFG.officeName;
@@ -1661,10 +1694,20 @@ function _setSidebarOfficeLogo(officeId) {
   var el = document.getElementById('sb-office-name');
   var lg = OFFICE_LOGOS[officeId];
   if (lg && lg.full) {
-    el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:200px;object-fit:contain;object-position:left center">';
+    if (lg.logoBg) {
+      // Bayview: the whole sidebar is gold (.sb-gold), so the logo just sits on it,
+      // centered + larger. (Logo art unchanged.)
+      el.style.cssText = 'display:block;margin:4px 0;text-align:center';
+      el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:100%;object-fit:contain">';
+    } else {
+      el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:200px;object-fit:contain;object-position:left center">';
+    }
   } else {
     el.textContent = OFFICE_NAMES[officeId] || '—';
   }
+  // Bayview: flip the whole sidebar to gold + navy text (offices with logoBg).
+  var _sb = document.querySelector('.sidebar');
+  if (_sb) _sb.classList.toggle('sb-gold', !!(lg && lg.logoBg));
 }
 
 function buildOfficeSwitcher() { updateOfficeDropdown(); }
@@ -1890,7 +1933,7 @@ function _clearDataCache() {
 }
 function _applyMainData(res, ts) {
   DATA = res;
-  if (_LST_POSTED !== null) _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // re-merge legacy once the bundle (with legacyLstSales) is loaded
+  if (_LST_POSTED !== null) _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // re-merge legacy once the bundle (with legacyLstSales) is loaded
   _CACHE.mainDataTs = ts || Date.now();
   var roster = DATA.roster || {};
   var me = roster[SESSION.email];
@@ -2145,7 +2188,7 @@ function _bgRefreshLst() {
   _CACHE.lstFlight = true;
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
     _CACHE.lstFlight = false;
-    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // legacy re-merged in _applyMainData once DATA is ready
+    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     _CACHE.lstSalesTs = Date.now();
     if (CURRENT_TAB === 'livesales') document.getElementById('main-content').innerHTML = _lstBuild();
   }).catch(function() { _CACHE.lstFlight = false; });
@@ -4713,7 +4756,7 @@ function renderTeamsTab() {
   if (_LST_SALES !== null) { doRender(); return; }
   c.innerHTML = skelLoader();
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
-    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // legacy re-merged in _applyMainData once DATA is ready
+    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     if (CURRENT_TAB === 'teams') doRender();
   }).catch(function() {
     if (CURRENT_TAB === 'teams') c.innerHTML = noData('Failed to load sales data.');
@@ -5806,7 +5849,7 @@ function renderLiveSalesTracker() {
   if (_LST_SALES !== null) { c.innerHTML = _lstBuild(); return; }
   c.innerHTML = skelLoader();
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
-    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(DATA.legacyLstSales || []);   // legacy re-merged in _applyMainData once DATA is ready
+    _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     c.innerHTML = _lstBuild();
   }).catch(function() {
     c.innerHTML = '<div class="empty">Failed to load sales data.</div>';
@@ -5839,6 +5882,29 @@ function _lstUCls(n) {
 // Hidden from the tracker unless they personally post a sale. The four leader
 // ranks (owner/manager/jd/leader) are intentionally NOT here — they always show.
 var _LST_SKIP_UNLESS_SOLD = ['master-admin','admin','activator'];
+
+// Remap legacy (old-portal) rows onto the NEW roster. The old system uses different
+// emails, so a rep's legacy sales would land on a duplicate "client-rep" row instead
+// of their real roster row. Match by rep NAME (consistent across both systems) and use
+// the roster's email; leave unmatched rows as-is (they show under their own name).
+function _lstLegacyRows() {
+  var rows = DATA.legacyLstSales || [];
+  if (!rows.length) return rows;
+  var roster = DATA.roster || {};
+  var nameToEmail = {};
+  Object.keys(roster).forEach(function(em) {
+    var nm = String(roster[em].name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (nm && !nameToEmail[nm]) nameToEmail[nm] = em;
+  });
+  return rows.map(function(s) {
+    var em = String(s.repEmail || '').trim().toLowerCase();
+    if (roster[em]) return s;                         // old email already matches the roster
+    var nm = String(s.repName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    var match = nameToEmail[nm];
+    if (!match) return s;                             // no name match -> leave as its own row
+    return { repEmail: match, repName: s.repName, dateOfSale: s.dateOfSale, units: s.units, voided: false, _legacy: true };
+  });
+}
 
 function _lstAgg(sales, roster) {
   var ws = _lstWeekStart(), DAY = 86400000, agg = {};
@@ -6787,10 +6853,10 @@ var _APPT = { activators:null, appointments:null, weekOffset:0, dayOffset:0, vie
 // manual block, or buffer/cap) so blocked cells can render as 🔒 unavailable.
 function _apptBlocked(email, ds, slot){ var m=_APPT.blocked[email+'|'+ds]; return (m && m[slot]) || ''; }
 // Cross-office cell styling: each booking office's brand color + small logo
-// (Ignite = their red, Viridian = their green). Parsed from the "Booked — <Office>"
+// (per-office tint, e.g. Viridian = their green). Parsed from the "Booked — <Office>"
 // label; calendar/manual blocks have no office → generic red-hatch 🔒.
-var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', ignite:'#C8102E', viridian:'#2E7A4E', vanguard:'#2652D7' };
-var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', ignite:'ignite-logo-symbol.png', viridian:'viridian-logo-full.png', vanguard:'vanguard-logo-symbol.png' };
+var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', viridian:'#2E7A4E', vanguard:'#2652D7', bayview:'#1E4D7B' };
+var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', viridian:'viridian-logo-full.png', vanguard:'vanguard-logo-symbol.png', bayview:'bayview-logo-symbol.png' };
 function _apptBlockOffice(label){
   if(!label || label.indexOf('Booked')!==0) return '';
   var p=label.split('—'); if(p.length<2) return '';
@@ -6877,7 +6943,7 @@ function _apptActName(email) {
 }
 // Per-office timezone — mirrors the backend AppointmentScheduler.gs OFFICE_TZ.
 // Used to label appointment times so reps/customers know which zone they're in.
-var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', ignite:'America/Los_Angeles', vanguard:'America/New_York' };
+var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York' };
 var _TZ_ABBR = { 'America/Chicago':'CT', 'America/Los_Angeles':'PT', 'America/New_York':'ET', 'America/Denver':'MT', 'America/Anchorage':'AKT', 'Pacific/Honolulu':'HT' };
 function _tzAbbr(tz){ return _TZ_ABBR[tz] || ''; }
 // "Elevate time (PT)" — for the current office (or a given one).

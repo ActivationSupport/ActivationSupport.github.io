@@ -21,14 +21,14 @@ var BOOKING_MAX_DAYS = 7;  // latest   = today + 7 (same weekday next week)
 // any/all of this via "Manage My Schedule".
 var DEFAULT_HOURS = { start: '10:00', end: '17:00', days: ['mon','tue','wed','thu','fri'] };
 
-var ALL_OFFICES = ['midspire', 'viridian', 'elevate', 'ignite', 'vanguard'];
+var ALL_OFFICES = ['midspire', 'viridian', 'elevate', 'vanguard', 'bayview'];
 
 var OFFICE_TZ = {
   midspire: 'America/Chicago',
   viridian:  'America/Chicago',
   elevate:   'America/Los_Angeles',
-  ignite:    'America/Los_Angeles',
-  vanguard:  'America/New_York'
+  vanguard:  'America/New_York',
+  bayview:   'America/New_York'
 };
 
 // Optional per-office call-in fallback number shown in customer emails.
@@ -38,8 +38,8 @@ var OFFICE_CALLIN = {
   midspire: '(224) 524-8968',
   viridian: '(314) 789-1988',
   elevate:  '(858) 321-5699',
-  ignite:   '(949) 841-2241',
-  vanguard: '(813) 524-7081'
+  vanguard: '(813) 524-7081',
+  bayview:  ''
 };
 
 // Per-office colors for the customer booking emails (confirmation / moved /
@@ -60,8 +60,8 @@ var OFFICE_EMAIL_BRAND = {
   elevate:  { band:'#111827', sub:'#aab8d6', accent:'#0A1FFF', onAccent:'#ffffff', ink:'#0A1FFF', soft:'#e7eaff' },
   midspire: { band:'#0c1d2e', sub:'#a8c8e4', accent:'#4FB0FF', onAccent:'#0c1d2e', ink:'#1573c4', soft:'#e6f4ff' },
   viridian: { band:'#1B3A2D', sub:'#cfd9cf', accent:'#D9C87E', onAccent:'#1B3A2D', ink:'#7a6a2e', soft:'#f6f1de' },
-  ignite:   { band:'#211210', sub:'#e3aaaa', accent:'#F0431E', onAccent:'#ffffff', ink:'#c0341a', soft:'#fdeae6' },
-  vanguard: { band:'#1C1C1C', sub:'#c9b3b1', accent:'#2652D7', onAccent:'#ffffff', ink:'#c01a1a', soft:'#fbe7e7', boxBg:'#e9eefb' }
+  vanguard: { band:'#1C1C1C', sub:'#c9b3b1', accent:'#2652D7', onAccent:'#ffffff', ink:'#c01a1a', soft:'#fbe7e7', boxBg:'#e9eefb' },
+  bayview:  { band:'#0F2439', sub:'#c9b58a', accent:'#CDAB5A', onAccent:'#0F2439', ink:'#8C6E22', soft:'#f6efdd' }
 };
 function _emailBrand(office) {
   return OFFICE_EMAIL_BRAND[String(office || '').toLowerCase()] ||
