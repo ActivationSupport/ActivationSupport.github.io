@@ -1746,9 +1746,10 @@ var DAILY_REPORT_RECIPIENTS = {
   elevate:  ['jackieleroyatt@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com'],
   midspire: ['jamisgaray18@gmail.com','brandonpurkett@gmail.com','angelmilan1206@gmail.com','midspireqc@gmail.com','ryan.turner.50@gmail.com'],
   viridian: ['s.e.cameron21@gmail.com','jamisgaray18@gmail.com','ryan.turner.50@gmail.com','angelmilan1206@gmail.com'],
+  vanguard: ['ryan.turner.50@gmail.com','elldeemusic@gmail.com','angelmilan1206@gmail.com','gavonfuller2024@gmail.com'],  // Ellen Dent (owner) = elldeemusic@gmail.com
   bayview:  []  // Tim Ewing = timewing74@gmail.com (owner); DR PAUSED until launch (no recipients = no send)
 };
-var DAILY_REPORT_OFFICE_NAME = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', bayview:'Bayview Horizons' };
+var DAILY_REPORT_OFFICE_NAME = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', vanguard:'Vanguard', bayview:'Bayview Horizons' };
 var DAILY_REPORT_TZ = 'America/Los_Angeles';
 // Where the daily admin heartbeat/status email goes. Silence on a weekday by
 // ~6:05pm PT = the 6pm trigger did not fire. Set '' to disable the heartbeat.
