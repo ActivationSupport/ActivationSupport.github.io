@@ -739,8 +739,8 @@ tr:hover td{background:rgba(74,159,212,.07)}
 .tm-role-tag{color:var(--text2);font-size:.75rem}
 .tm-num-cell{text-align:center;font-size:.9rem;min-width:80px}
 .tm-act-cell{text-align:right;white-space:nowrap}
-.tm-btn-edit{background:#2a3a4a;border:1px solid rgba(74,159,212,.4);color:#4A9FD4;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;letter-spacing:.5px;transition:all .15s}
-.tm-btn-edit:hover{background:#3a4a5a}
+.tm-btn-edit{background:var(--surface2);border:1px solid var(--blue2);color:var(--blue2);font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;letter-spacing:.5px;transition:all .15s}
+.tm-btn-edit:hover{background:var(--blue2-fade)}
 .tm-btn-del{background:#3a1a1a;border:1px solid rgba(248,113,113,.4);color:#f87171;font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;letter-spacing:.5px;margin-left:4px;transition:all .15s}
 .tm-btn-del:hover{background:#4a2a2a}
 .tm-back{color:var(--text2);font-size:.82rem;cursor:pointer;margin-bottom:12px;display:inline-block}
@@ -4681,6 +4681,7 @@ function noData(msg) {
 var _TM_VIEW = 'list';
 var _TM_DETAIL_ID = null;
 var _TM_LDR_VIEW = 'days';
+var _TM_ORD = { rep:'', status:'', from:'', to:'' };   // Team Orders filters
 var _TM_EMOJIS = [
   '🦁','🐯','🐻','🐼','🦊','🐺','🐗','🦝','🦡','🦏','🐘','🦍','🐆','🐅','🐃','🦬',
   '🦅','🦆','🦉','🦚','🦜','🦩','🐦','🦃','🐓','🦤','🪶',
@@ -4782,6 +4783,7 @@ function _tmBuildList() {
 
 function _tmShowDetail(teamId) {
   _TM_VIEW = 'detail'; _TM_DETAIL_ID = teamId; _TM_LDR_VIEW = 'days';
+  _TM_ORD = { rep:'', status:'', from:'', to:'' };   // fresh Team Orders filters per team
   document.getElementById('main-content').innerHTML = _tmBuildDetail(teamId);
 }
 
@@ -4886,7 +4888,9 @@ function _tmBuildDetail(teamId) {
     '</div></div>' +
     '<div id="tm-ldr-wrap">'+_tmLdrTable(teamId)+'</div>';
 
-  return hdr+'<div class="card"><div class="card-body">'+breakdown+arSec+churnSec+ldrSec+'</div></div>';
+  var ordSec = '<div class="tm-section-label">TEAM ORDERS</div>' + _tmOrdersHtml(teamId);
+
+  return hdr+'<div class="card"><div class="card-body">'+breakdown+arSec+churnSec+ldrSec+ordSec+'</div></div>';
 }
 
 // Team Activation Rates — same coloring/structure as the main AR tab (_buildArTable),
@@ -4938,6 +4942,66 @@ function _tmArTableHtml(memberTabs) {
   }
   var grandRow='<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Team Total</td>'+cell(totals.b0_7,'b0_7',true)+cell(totals.b8_14,'b8_14',true)+cell(totals.b15_30,'b15_30',true)+cell(totals.b31_60,'b31_60',true)+'</tr>';
   return '<div class="tbl-wrap"><table class="call-table"><thead><tr><th>Rep</th><th>0–7 Days</th><th>8–14 Days</th><th>15–30 Days</th><th>31–60 Days</th></tr></thead><tbody>'+grandRow+'</tbody></table></div>';
+}
+
+// Team Orders — all the team's orders from the Tableau order log (60-day window),
+// filterable by Rep / Status / Date. Order-grouped (one row per DSI).
+function _tmOrdersHtml(teamId) {
+  var team = (DATA.teams||{})[teamId]; if (!team) return '';
+  var roster = DATA.roster||{};
+  var memberTabs = Object.keys(roster)
+    .filter(function(e){ return !roster[e].deactivated && roster[e].team===team.name; })
+    .map(function(e){ return (roster[e].tableauName||'').toLowerCase(); }).filter(Boolean);
+  var orders = (DATA.masterTracker||[]).filter(function(o){ return memberTabs.indexOf((o.rep||'').toLowerCase())!==-1; });
+
+  var reps={}, stats={};
+  orders.forEach(function(o){
+    if(o.rep) reps[o.rep]=true;
+    Object.keys(o.statusCounts||{}).forEach(function(s){ if(s) stats[s]=true; });
+  });
+  var repOpts='<option value="">All reps</option>'+Object.keys(reps).sort().map(function(r){return '<option value="'+esc(r)+'"'+(_TM_ORD.rep===r?' selected':'')+'>'+esc(r)+'</option>';}).join('');
+  var statOpts='<option value="">All statuses</option>'+Object.keys(stats).sort().map(function(s){return '<option value="'+esc(s)+'"'+(_TM_ORD.status===s?' selected':'')+'>'+esc(s)+'</option>';}).join('');
+
+  var rows = orders.filter(function(o){
+    if(_TM_ORD.rep && o.rep!==_TM_ORD.rep) return false;
+    if(_TM_ORD.status && !((o.statusCounts||{})[_TM_ORD.status])) return false;
+    var od=String(o.orderDate||'').slice(0,10);
+    if(_TM_ORD.from && od < _TM_ORD.from) return false;
+    if(_TM_ORD.to   && od > _TM_ORD.to)   return false;
+    return true;
+  }).slice().sort(_byOrderDateDesc);
+
+  var body = rows.length ? rows.map(function(o){
+    var nc=((DATA.notes||{})[o.dsi]||[]).length, sid=String(o.dsi||'').replace(/\W/g,'_');
+    return '<tr>'+
+      '<td><span class="rep-name">'+esc(o.rep)+'</span></td>'+
+      '<td>'+esc(o.dsi)+'</td>'+
+      '<td>'+esc(o.orderDate)+'</td>'+
+      '<td>'+productBreakdown(o.productCounts,false)+'</td>'+
+      '<td>'+statusBreakdown(o.statusCounts,false)+'</td>'+
+      '<td><button class="notes-btn'+(nc>0?' has-notes':'')+'" data-dsi="'+esc(o.dsi)+'" onclick="openNotesModal(\''+esc(o.dsi)+'\',\''+esc(o.spe||'')+'\',\''+esc(o.rep)+'\')">NOTES'+(nc>0?'<span class="notes-count" id="nc-'+sid+'">'+nc+'</span>':'')+'</button></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--text2)">No orders match these filters.</td></tr>';
+
+  var anyFilter = _TM_ORD.rep||_TM_ORD.status||_TM_ORD.from||_TM_ORD.to;
+  var cS='width:auto;min-width:140px;max-width:220px';
+  var filters='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
+    '<select class="ps-select" style="'+cS+'" onchange="_tmOrdSet(\'rep\',this.value)">'+repOpts+'</select>'+
+    '<select class="ps-select" style="'+cS+'" onchange="_tmOrdSet(\'status\',this.value)">'+statOpts+'</select>'+
+    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(_TM_ORD.from)+'" onchange="_tmOrdSet(\'from\',this.value)" title="From date">'+
+    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(_TM_ORD.to)+'" onchange="_tmOrdSet(\'to\',this.value)" title="To date">'+
+    (anyFilter?'<button class="lst-toggle-btn" onclick="_tmOrdClear()">Clear</button>':'')+
+    '</div>';
+
+  return '<div id="tm-ord-wrap">'+filters+
+    '<div class="tbl-wrap"><table class="call-table"><thead><tr><th>Rep</th><th>DSI</th><th>Date</th><th>Products</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+body+'</tbody></table></div>'+
+    '<div style="font-size:11px;color:var(--text2);margin-top:8px">'+rows.length+' order'+(rows.length!==1?'s':'')+' · last 60 days</div></div>';
+}
+function _tmOrdSet(field, val){ _TM_ORD[field]=val; _tmOrdRerender(); }
+function _tmOrdClear(){ _TM_ORD={rep:'',status:'',from:'',to:''}; _tmOrdRerender(); }
+function _tmOrdRerender(){
+  var w=document.getElementById('tm-ord-wrap'); if(!w||!_TM_DETAIL_ID) return;
+  w.outerHTML=_tmOrdersHtml(_TM_DETAIL_ID);
 }
 
 function _tmChurnBucket(built, bucket) {
