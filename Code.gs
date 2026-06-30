@@ -3387,8 +3387,8 @@ function readRepLineStats(ss, officeId, repEmail) {
   var repInfo = roster[repEmail.toLowerCase()];
   var tableauName = (repInfo && repInfo.tableauName) ? repInfo.tableauName.trim() : '';
   if (!tableauName) return { noLink: true };
-  var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-120); cutoff.setHours(0,0,0,0);
-  var total=0, active=0, posted=0, canceled=0, disconnected=0;
+  var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-60); cutoff.setHours(0,0,0,0);
+  var total=0, active=0, posted=0, canceled=0, disconnected=0, orderIssues=0;
   _readBothLogs(ss, officeId, function(row, col, dsi, allRows) {
     var rep = String(tCol(row,col,'REP')||'').trim();
     if (rep !== tableauName) return null;
@@ -3401,10 +3401,13 @@ function readRepLineStats(ss, officeId, repEmail) {
       else if (st==='posted') posted++;
       else if (st==='canceled') canceled++;
       else if (st==='disconnected') disconnected++;
+      // Order issues (BYOD, Porting Issue, Port Approved, Pending Order Port, Pending Valid
+      // Payment) — broken out from pending, mirrors the FE isIssueStatus().
+      else if (st.indexOf('byod')!==-1 || st.indexOf('porting issue')!==-1 || st.indexOf('port approved')!==-1 || st.indexOf('pending order port')!==-1 || st.indexOf('pending valid payment')!==-1) orderIssues++;
     });
     return true;
   });
-  var pending = total - active - posted - canceled - disconnected;
-  return { tableauName:tableauName, total:total, active:active, posted:posted, canceled:canceled, disconnected:disconnected, pending:pending };
+  var pending = total - active - posted - canceled - disconnected - orderIssues;
+  return { tableauName:tableauName, total:total, active:active, posted:posted, canceled:canceled, disconnected:disconnected, orderIssues:orderIssues, pending:pending };
 }
 
