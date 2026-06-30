@@ -2197,6 +2197,9 @@ function _preloadArLines() {
     if (CURRENT_TAB === 'actrates') {
       var c = document.getElementById('main-content');
       if (c) c.innerHTML = _renderActRatesWithData();
+    } else if (CURRENT_TAB === 'teams' && _TM_VIEW === 'detail' && _TM_DETAIL_ID) {
+      var tc = document.getElementById('main-content');
+      if (tc) tc.innerHTML = _tmBuildDetail(_TM_DETAIL_ID);   // team AR table was waiting on this
     }
   }).catch(function() { _AR_LOADING = false; _AR_LINES = []; });
 }
@@ -4911,10 +4914,12 @@ function _tmBuildDetail(teamId) {
     '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#f87171">'+cancRate+'%</span><div class="tm-stat-lbl">CANCEL · 30D</div></div>' +
     '</div>';
 
-  var churnSec = '<div class="tm-section-label">CHURN BUCKETS</div><div class="tm-churn-row">' +
-    _tmChurnBucket(churnBuilt,'0-30 Day')+_tmChurnBucket(churnBuilt,'30 Day')+
-    _tmChurnBucket(churnBuilt,'60 Day')+_tmChurnBucket(churnBuilt,'90 Day')+
-    _tmChurnBucket(churnBuilt,'120 Day')+'</div>';
+  // Activation Rates + Churn — the SAME full tables as the main tabs, filtered to the team.
+  var arSec = '<div class="tm-section-label">ACTIVATION RATES</div>' + _tmArTableHtml(memberTabs);
+  // Team view shows just the TEAM TOTAL row (empty repList); drill into a rep via the
+  // leaderboard for their individual churn/AR.
+  var churnSec = '<div class="tm-section-label">CHURN</div>' +
+    _churnTableHtml([], {}, churnBuilt.repList, churnBuilt.repMap).replace('>Grand Total<','>Team Total<');
 
   var ldrSec = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
     '<div class="tm-section-label" style="margin:0;border:none">TEAM LEADERBOARD</div>' +
@@ -4924,7 +4929,58 @@ function _tmBuildDetail(teamId) {
     '</div></div>' +
     '<div id="tm-ldr-wrap">'+_tmLdrTable(teamId)+'</div>';
 
-  return hdr+'<div class="card"><div class="card-body">'+breakdown+churnSec+ldrSec+'</div></div>';
+  return hdr+'<div class="card"><div class="card-body">'+breakdown+arSec+churnSec+ldrSec+'</div></div>';
+}
+
+// Team Activation Rates — same coloring/structure as the main AR tab (_buildArTable),
+// but filtered to an arbitrary team's tableau names (the main one keys off the logged-in
+// user's role/team, so it can't render a team you're just viewing).
+function _tmArTableHtml(memberTabs) {
+  if (_AR_LINES === null) { _preloadArLines(); return '<div class="empty">Loading activation rates…</div>'; }
+  if (!_AR_LINES.length)  return '<div class="empty">No activation rate data.</div>';
+  var BKT_MAP = { '0-7 Days':'b0_7', '8-14 Days':'b8_14', '15-30 Days':'b15_30', '31-60 Days':'b31_60' };
+  var lines = _AR_LINES.filter(function(l){ return memberTabs.indexOf(String(l.rep||'').trim().toLowerCase()) !== -1; });
+  if (!lines.length) return '<div class="empty">No activation rate data for this team.</div>';
+  // Team view = team TOTAL only (drill into a rep via the leaderboard for per-rep AR).
+  var totals = {b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
+  lines.forEach(function(l){
+    var b=BKT_MAP[l.bucket]; if(!b) return;
+    totals[b].t+=(l.vol||0); totals[b].a+=(l.acts||0);
+  });
+  function bktCls(bk,pct){
+    if(bk==='b0_7')   return pct>=21?'ar-green':pct>=10?'ar-yellow':'ar-red';
+    if(bk==='b8_14')  return pct>=71?'ar-green':pct>=51?'ar-yellow':'ar-red';
+    if(bk==='b15_30') return pct>=75?'ar-green':pct>=70?'ar-yellow':'ar-red';
+    if(bk==='b31_60') return pct>=86?'ar-green':pct>=79?'ar-yellow':'ar-red';
+    return pct>=80?'ar-green':pct>=60?'ar-yellow':'ar-red';
+  }
+  function arColorCls(c){ c=String(c||'').toLowerCase(); return c==='green'?'ar-green':c==='yellow'?'ar-yellow':c==='red'?'ar-red':''; }
+  var arCuts={};
+  (_AR_LINES||[]).forEach(function(l){
+    var bk=BKT_MAP[l.bucket]; if(!bk||!l.vol) return;
+    var p=Math.round(l.acts/l.vol*100), cc=String(l.color||'').toLowerCase();
+    if(!arCuts[bk]) arCuts[bk]={greenMin:Infinity,redMax:-Infinity};
+    if(cc==='green'&&p<arCuts[bk].greenMin) arCuts[bk].greenMin=p;
+    if(cc==='red'&&p>arCuts[bk].redMax) arCuts[bk].redMax=p;
+  });
+  function arTotalCls(bk,pct){
+    var c=arCuts[bk];
+    if(c&&c.greenMin!==Infinity&&c.redMax!==-Infinity&&c.redMax<c.greenMin){
+      if(pct>=c.greenMin) return 'ar-green';
+      if(pct<=c.redMax) return 'ar-red';
+      return 'ar-yellow';
+    }
+    return bktCls(bk,pct);
+  }
+  function cell(b,bk,isTotal){
+    if(!isTotal&&b.t===0) return '<td></td>';
+    if(b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-blue">(0/0)<br>—</div></td>';
+    var pct=Math.round(b.a/b.t*100);
+    var cls=isTotal?arTotalCls(bk,pct):(arColorCls(b.color)||bktCls(bk,pct));
+    return '<td class="ar-cell"><div class="ar-badge '+cls+'">('+b.a+'/'+b.t+')<br>'+pct+'%</div></td>';
+  }
+  var grandRow='<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Team Total</td>'+cell(totals.b0_7,'b0_7',true)+cell(totals.b8_14,'b8_14',true)+cell(totals.b15_30,'b15_30',true)+cell(totals.b31_60,'b31_60',true)+'</tr>';
+  return '<div class="tbl-wrap"><table class="call-table"><thead><tr><th>Rep</th><th>0–7 Days</th><th>8–14 Days</th><th>15–30 Days</th><th>31–60 Days</th></tr></thead><tbody>'+grandRow+'</tbody></table></div>';
 }
 
 function _tmChurnBucket(built, bucket) {
