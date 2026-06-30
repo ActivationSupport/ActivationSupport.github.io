@@ -4899,15 +4899,20 @@ function _tmBuildDetail(teamId) {
   // (buffer for statuses to settle) and goes 30 days back: orderDate in [t0-32d, t0-2d]. ──
   var wEnd = t0 - 2*DAY_MS, wStart = wEnd - 30*DAY_MS;
   var wTot=0, wPend=0, wCanc=0;
-  (DATA.masterTracker||[]).forEach(function(l) {
-    if (memberTabs.indexOf((l.rep||'').toLowerCase())===-1) return;
-    var od = String(l.orderDate||''); if (!/^\d{4}-\d{2}-\d{2}/.test(od)) return;
+  (DATA.masterTracker||[]).forEach(function(o) {
+    if (memberTabs.indexOf((o.rep||'').toLowerCase())===-1) return;
+    var od = String(o.orderDate||''); if (!/^\d{4}-\d{2}-\d{2}/.test(od)) return;
     var dt = new Date(od.slice(0,10)+'T12:00:00'); dt.setHours(0,0,0,0);
     var t = dt.getTime(); if (t < wStart || t > wEnd) return;
-    wTot++;
-    var s = (l.dtrStatus||'').toLowerCase();
-    if (s==='canceled') wCanc++;
-    else if (s!=='active' && s!=='posted' && s!=='disconnected') wPend++;
+    // Count LINES by their real status (statusCounts = the Status-column values), not
+    // the dtrStatus "enriched" field (different vocabulary, inflated the pending rate).
+    var sc = o.statusCounts||{};
+    Object.keys(sc).forEach(function(st){
+      var c = sc[st]||0, sl = String(st).toLowerCase();
+      wTot += c;
+      if (sl.indexOf('cancel')!==-1) wCanc += c;
+      else if (sl!=='active' && sl!=='posted' && sl!=='approved' && sl.indexOf('disco')===-1) wPend += c;
+    });
   });
   var pendRate = wTot ? Math.round(wPend/wTot*100) : 0;
   var cancRate = wTot ? Math.round(wCanc/wTot*100) : 0;
