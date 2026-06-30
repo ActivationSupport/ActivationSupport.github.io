@@ -1919,12 +1919,12 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
   var ST_CLS={'Active':'sp-active','Posted':'sp-posted','Approved':'sp-posted','Confirmed':'sp-pale-yellow','Canceled':'sp-canceled','Disconnected':'sp-disconnected','Porting Issue':'sp-orange-bright','Pending Valid Payment':'sp-orange-bright','BYOD':'sp-orange','Port Approved':'sp-dark-orange','Pending Order Port':'sp-dark-orange','Delivered':'sp-purple','Shipped':'sp-yellow-bright','Scheduled':'sp-yellow','Pending':'sp-pale-yellow','Pending Shipment':'sp-pale-yellow','Null':'sp-pale-yellow','Open':'sp-pale-yellow','Backordered':'sp-pale-yellow','TOTAL':''};
 
   var TBL='border-collapse:collapse;width:100%;font-size:12px;margin:0';
-  var TH='padding:7px 10px;background:#f8fafc;color:#475569;font-weight:700;text-align:left;white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e2e8f0';
-  var TD='padding:8px 10px;color:#1e293b;vertical-align:top;border-bottom:1px solid #e2e8f0';
-  var TDG='padding:8px 10px;background:#eef4fb;font-weight:700;color:#0f172a;vertical-align:top;border-bottom:1px solid #e2e8f0';
+  var TH='padding:7px 10px;background:#eceff4;color:#475569;font-weight:700;text-align:left;white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #b6c2d0';
+  var TD='padding:8px 10px;color:#1e293b;vertical-align:top;border-bottom:1px solid #cbd5e1';
+  var TDG='padding:8px 10px;background:#eef4fb;font-weight:700;color:#0f172a;vertical-align:top;border-bottom:1px solid #cbd5e1';
   var SEC='background:#f2f5f8;color:'+BR.accentText+';font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-left:4px solid '+BR.accent+';border-radius:0 5px 5px 0;margin:0';
   var SUB='font-size:12px;font-weight:700;color:#1e293b;padding:6px 10px;background:#eef2f7;border-left:3px solid #94a3b8;border-radius:4px;margin:14px 0 7px';
-  var ZEB='background:#f4f7fa';
+  var ZEB='background:#eaedf3';
   var BADGE='padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;white-space:nowrap;display:inline-block';
   var GRN=BADGE+';background:#dcfce7;color:#166534';
   var YEL=BADGE+';background:#fef9c3;color:#854d0e';
@@ -1947,7 +1947,7 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
   var daT=cats.dayAfterTotal||0,daW=cats.dayAfterWorked||0;
   var covPct=daT>0?Math.round(daW/daT*100):null;
   var covColor=covPct===null?'#64748b':covPct>=80?'#16a34a':covPct>=50?'#ca8a04':'#dc2626';
-  function eTile(value,label,accent,sub){ return '<div style="display:inline-block;vertical-align:top;background:#f8fafc;border:1px solid #e2e8f0;border-top:3px solid '+accent+';border-radius:8px;padding:9px 13px;margin:0 6px 6px 0;min-width:92px">'+'<div style="font-size:20px;font-weight:800;color:#0f172a;line-height:1">'+value+'</div>'+'<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:3px">'+label+'</div>'+(sub?'<div style="font-size:10px;color:#94a3b8;margin-top:1px">'+sub+'</div>':'')+'</div>'; }
+  function eTile(value,label,accent,sub){ return '<div style="display:inline-block;vertical-align:top;background:#eceff4;border:1px solid #e2e8f0;border-top:3px solid '+accent+';border-radius:8px;padding:9px 13px;margin:0 6px 6px 0;min-width:92px">'+'<div style="font-size:20px;font-weight:800;color:#0f172a;line-height:1">'+value+'</div>'+'<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:3px">'+label+'</div>'+(sub?'<div style="font-size:10px;color:#94a3b8;margin-top:1px">'+sub+'</div>':'')+'</div>'; }
   var eActOrders=eAct.orders||0;
   var statBar=eTile(eAct.lines||0,'Activated Today','#16a34a',eActOrders+' order'+(eActOrders===1?'':'s'))+
     eTile(rpt.ordersSubmitted||0,'Orders Submitted','#4A9FD4','Post Sale form')+
@@ -1959,18 +1959,18 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
     eTile(eBk.total||0,'Appts Booked','#0891b2')+
     eTile(eSc.completed||0,'Appts Completed','#3b82f6');
 
-  var EC={'sp-active':'background:#f0fdf4;border:1px solid #86efac','sp-posted':'background:#f0fdf4;border:1px solid #4ade80','sp-canceled':'background:#fef2f2;border:1px solid #fca5a5','sp-disconnected':'background:#fff1f2;border:1px solid #fda4af','sp-orange-bright':'background:#fff7ed;border:1px solid #fdba74','sp-orange':'background:#fff7ed;border:1px solid #fb923c','sp-dark-orange':'background:#fff7ed;border:1px solid #f97316','sp-purple':'background:#faf5ff;border:1px solid #d8b4fe','sp-yellow-bright':'background:#fefce8;border:1px solid #fde047','sp-yellow':'background:#fefce8;border:1px solid #fde68a','sp-pale-yellow':'background:#fefce8;border:1px solid #fef08a','':'background:#f8fafc;border:1px solid #e2e8f0'};
+  var EC={'sp-active':'background:#f0fdf4;border:1px solid #86efac','sp-posted':'background:#f0fdf4;border:1px solid #4ade80','sp-canceled':'background:#fef2f2;border:1px solid #fca5a5','sp-disconnected':'background:#fff1f2;border:1px solid #fda4af','sp-orange-bright':'background:#fff7ed;border:1px solid #fdba74','sp-orange':'background:#fff7ed;border:1px solid #fb923c','sp-dark-orange':'background:#fff7ed;border:1px solid #f97316','sp-purple':'background:#faf5ff;border:1px solid #d8b4fe','sp-yellow-bright':'background:#fefce8;border:1px solid #fde047','sp-yellow':'background:#fefce8;border:1px solid #fde68a','sp-pale-yellow':'background:#fefce8;border:1px solid #fef08a','':'background:#eceff4;border:1px solid #e2e8f0'};
   var HOUSING_HDR={'green':'background:#f0fdf4;border:1px solid #86efac;color:#166534','orange':'background:#fff7ed;border:1px solid #fdba74;color:#9a3412','purple':'background:#faf5ff;border:1px solid #d8b4fe;color:#581c87','yellow':'background:#fefce8;border:1px solid #fde68a;color:#713f12'};
-  function eSubCards(sub){ return (sub||[]).map(function(s){ var cls=ST_CLS[s.status]||''; return '<div style="display:inline-block;'+(EC[cls]||EC[''])+';border-radius:6px;padding:7px 9px;text-align:center;vertical-align:top;margin:3px;min-width:90px">'+'<div style="padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(s.status)+'</div>'+'<table style="width:100%;border-collapse:collapse;margin-top:4px"><tr>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+s.customers+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Customers</div></td>'+'<td style="width:1px;background:#e2e8f0;padding:0;border:none"></td>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+s.lines+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Lines</div></td>'+'</tr></table></div>'; }).join(''); }
-  function eHousingCell(label,colorKey,data){ if(!data||(!data.customers&&!data.lines)) return ''; var hdrStyle=HOUSING_HDR[colorKey]||HOUSING_HDR['green']; return '<details style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+'<summary style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;list-style:none;display:block">'+esc(label)+' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' customers &nbsp;&middot;&nbsp; '+data.lines+' lines</span>'+'&nbsp;&nbsp;<span style="font-size:11px;opacity:.7">&#9662;</span>'+'</summary>'+'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+eSubCards(data.sub)+'</div>'+'</details>'; }
-  function eNiCell(data){ if(!data||(!data.customers&&!data.lines)) return ''; var hdrStyle=HOUSING_HDR['yellow'], v=data.voip||{}; function row(k,val){ return '<tr><td style="padding:3px 12px;font-size:12px;color:#475569;border:none">'+k+'</td><td style="padding:3px 12px;font-size:12px;font-weight:700;color:#0f172a;text-align:right;border:none">'+(val||0)+'</td></tr>'; } var summary='<table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px">'+row('New',data.newOrders)+row('Existing (upgrade)',data.existingOrders)+row('VoIPs attached (total)',v.total)+row('Orders with VoIP',v.ordersWith)+row('Orders without VoIP',v.ordersWithout)+'</table>'; return '<details style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+'<summary style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;list-style:none;display:block">'+'New Internet'+' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' orders &nbsp;&middot;&nbsp; '+data.lines+' lines</span>'+'&nbsp;&nbsp;<span style="font-size:11px;opacity:.7">&#9662;</span>'+'</summary>'+'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+summary+eSubCards(data.sub)+'</div>'+'</details>'; }
+  function eSubCards(sub){ return (sub||[]).map(function(s){ var cls=ST_CLS[s.status]||''; return '<div style="display:inline-block;'+(EC[cls]||EC[''])+';border-radius:6px;padding:7px 9px;text-align:center;vertical-align:top;margin:3px;min-width:90px">'+'<div style="padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(s.status)+'</div>'+'<table style="width:100%;border-collapse:collapse;margin-top:4px"><tr>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+s.customers+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Customers</div></td>'+'<td style="width:1px;background:#cbd5e1;padding:0;border:none"></td>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+s.lines+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Lines</div></td>'+'</tr></table></div>'; }).join(''); }
+  function eHousingCell(label,colorKey,data){ if(!data||(!data.customers&&!data.lines)) return ''; var hdrStyle=HOUSING_HDR[colorKey]||HOUSING_HDR['green']; return '<details style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+'<summary style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;list-style:none;display:block">'+esc(label)+' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' customers &nbsp;&middot;&nbsp; '+data.lines+' lines</span>'+'&nbsp;&nbsp;<span style="font-size:11px;opacity:.7">&#9662;</span>'+'</summary>'+'<div style="background:#eceff4;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+eSubCards(data.sub)+'</div>'+'</details>'; }
+  function eNiCell(data){ if(!data||(!data.customers&&!data.lines)) return ''; var hdrStyle=HOUSING_HDR['yellow'], v=data.voip||{}; function row(k,val){ return '<tr><td style="padding:3px 12px;font-size:12px;color:#475569;border:none">'+k+'</td><td style="padding:3px 12px;font-size:12px;font-weight:700;color:#0f172a;text-align:right;border:none">'+(val||0)+'</td></tr>'; } var summary='<table style="width:100%;border-collapse:collapse;background:#f5f6f9;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:6px">'+row('New',data.newOrders)+row('Existing (upgrade)',data.existingOrders)+row('VoIPs attached (total)',v.total)+row('Orders with VoIP',v.ordersWith)+row('Orders without VoIP',v.ordersWithout)+'</table>'; return '<details style="margin-bottom:8px;border-radius:8px;overflow:hidden">'+'<summary style="'+hdrStyle+';padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;list-style:none;display:block">'+'New Internet'+' &nbsp;<span style="font-size:11px;font-weight:400">'+data.customers+' orders &nbsp;&middot;&nbsp; '+data.lines+' lines</span>'+'&nbsp;&nbsp;<span style="font-size:11px;opacity:.7">&#9662;</span>'+'</summary>'+'<div style="background:#eceff4;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:6px">'+summary+eSubCards(data.sub)+'</div>'+'</details>'; }
   var sbRaw=rpt.statusBreakdown||{};
   var sbTotal=Array.isArray(sbRaw) ? (function(){ for(var i=0;i<sbRaw.length;i++){ if(sbRaw[i].status==='TOTAL') return sbRaw[i]; } return {customerRows:0,totalLines:0}; })() : (sbRaw.total||{customers:0,lines:0});
   var sbTotCust=sbTotal.customers||sbTotal.customerRows||0;
   var sbTotLines=sbTotal.lines||sbTotal.totalLines||0;
   var sbContent='';
   if (Array.isArray(sbRaw)) {
-    sbContent=sbRaw.filter(function(r){return r.status!=='TOTAL';}).map(function(r){ var cls=ST_CLS[r.status]||''; return '<div style="display:inline-block;'+(EC[cls]||EC[''])+';border-radius:6px;padding:7px 9px;text-align:center;vertical-align:top;margin:3px;min-width:90px">'+'<div style="padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(r.status)+'</div>'+'<table style="width:100%;border-collapse:collapse;margin-top:4px"><tr>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+r.customerRows+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Customers</div></td>'+'<td style="width:1px;background:#e2e8f0;padding:0;border:none"></td>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+r.totalLines+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Lines</div></td>'+'</tr></table></div>'; }).join('');
+    sbContent=sbRaw.filter(function(r){return r.status!=='TOTAL';}).map(function(r){ var cls=ST_CLS[r.status]||''; return '<div style="display:inline-block;'+(EC[cls]||EC[''])+';border-radius:6px;padding:7px 9px;text-align:center;vertical-align:top;margin:3px;min-width:90px">'+'<div style="padding:1px 7px;border-radius:3px;font-size:11px;font-weight:700;'+(PILL_MAP[cls]||PILL_MAP[''])+'">'+esc(r.status)+'</div>'+'<table style="width:100%;border-collapse:collapse;margin-top:4px"><tr>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+r.customerRows+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Customers</div></td>'+'<td style="width:1px;background:#cbd5e1;padding:0;border:none"></td>'+'<td style="text-align:center;padding:2px 3px;border:none"><div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1">'+r.totalLines+'</div><div style="font-size:9px;color:#64748b;text-transform:uppercase">Lines</div></td>'+'</tr></table></div>'; }).join('');
   } else {
     sbContent=eHousingCell('Completed Orders','green', sbRaw.completedOrders)+eHousingCell('Order Issues','orange',sbRaw.orderIssues)+eHousingCell('All Pending Lines','purple',sbRaw.allPendingLines)+eNiCell(sbRaw.newInternet||sbRaw.fiber);
   }
@@ -1994,7 +1994,7 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
   (rpt.escalations||[]).forEach(function(e){ if(e.dsi) cwDupEsc[e.dsi]=true; });
   (rpt.noAnswers||[]).forEach(function(e){ if(e.dsi) cwDupNa[e.dsi]=true; });
   function eOrderLine(e){ var parts=[]; var dt=fmtDate(e.orderDate); if(dt&&dt!=='—') parts.push(dt); var prods=Object.keys(e.productCounts||{}).map(function(p){return p+' x'+e.productCounts[p];}); if(prods.length) parts.push(prods.join(', ')); var stats=Object.keys(e.statusCounts||{}).map(function(s){return s+' x'+e.statusCounts[s];}); if(stats.length) parts.push(stats.join(', ')); return parts.join(' · '); }
-  function eCwGroup(entries,label){ if(!entries||!entries.length) return ''; var rows=entries.map(function(e,i){ var detail=eOrderLine(e); var notes; if(cwDupEsc[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under Escalations</span>'; else if(cwDupNa[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under No Answers</span>'; else notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:1px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+'">'+esc(e.dsi)+(detail?'<div style="font-size:10px;color:#64748b;margin-top:2px">'+esc(detail)+'</div>':'')+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join(''); return '<div style="margin-bottom:6px"><div style="'+SUB+'">'+esc(label)+' <span style="font-weight:400;color:#94a3b8;font-size:11px">('+entries.length+')</span></div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">Order</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>'; }
+  function eCwGroup(entries,label){ if(!entries||!entries.length) return ''; var rows=entries.map(function(e,i){ var detail=eOrderLine(e); var notes; if(cwDupEsc[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under Escalations</span>'; else if(cwDupNa[e.dsi]) notes='<span style="color:#94a3b8;font-size:11px">&#8593; Notes under No Answers</span>'; else notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:3px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+';white-space:nowrap">'+esc(e.rep||'—')+'</td><td style="'+TD+'">'+esc(e.dsi)+(detail?'<div style="font-size:10px;color:#64748b;margin-top:2px">'+esc(detail)+'</div>':'')+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join(''); return '<div style="margin-bottom:6px"><div style="'+SUB+'">'+esc(label)+' <span style="font-weight:400;color:#94a3b8;font-size:11px">('+entries.length+')</span></div>'+eTbl('<tr><th style="'+TH+'">Rep</th><th style="'+TH+'">Order</th><th style="'+TH+'">Notes</th></tr>',rows)+'</div>'; }
   var cw=rpt.callsWorked||{};
   var cwTotal=(cw.dayafter||[]).length+(cw.delivered||[]).length+(cw.issues||[]).length+(cw.other||[]).length;
   var cwSec=cwTotal?eHdr('Calls Worked That Day ('+cwTotal+' orders)')+eCwGroup(cw.dayafter,'Day-After')+eCwGroup(cw.issues,'Order Issues')+eCwGroup(cw.delivered,'Delivered Not Active')+eCwGroup(cw.other,'Other'):'';
@@ -2002,14 +2002,14 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
   var naList=rpt.noAnswers||[];
   var naSec='';
   if (naList.length) {
-    var naRows=naList.map(function(e,i){ var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
+    var naRows=naList.map(function(e,i){ var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:3px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
     naSec=eHdr('No Answers That Day ('+naList.length+')')+eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">Notes</th></tr>',naRows);
   }
 
   var escList=rpt.escalations||[];
   var escSec='';
   if (escList.length) {
-    var escRows=escList.map(function(e,i){ var rbg=e.rating==='1 Star'?'#fee2e2':'#ffe4e6', rtx=e.rating==='1 Star'?'#991b1b':'#9f1239'; var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+';white-space:nowrap"><span style="background:'+rbg+';color:'+rtx+';padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+esc(e.rating)+'</span></td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
+    var escRows=escList.map(function(e,i){ var rbg=e.rating==='1 Star'?'#fee2e2':'#ffe4e6', rtx=e.rating==='1 Star'?'#991b1b':'#9f1239'; var notes=(e.notes||[]).length?e.notes.map(function(n){return '<div style="margin:3px 0;font-size:11px"><b>'+esc(n.authorName||'?')+'</b>: '+esc(n.noteText)+'</div>';}).join(''):'<span style="color:#94a3b8;font-size:11px">No notes</span>'; return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+';white-space:nowrap"><span style="background:'+rbg+';color:'+rtx+';padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+esc(e.rating)+'</span></td><td style="'+TD+';white-space:nowrap">'+esc(e.dsi)+'</td><td style="'+TD+'">'+notes+'</td></tr>'; }).join('');
     escSec=eHdr('Escalations That Day ('+escList.length+')')+eTbl('<tr><th style="'+TH+'">Rating</th><th style="'+TH+'">DSI</th><th style="'+TH+'">Notes</th></tr>',escRows);
   }
 
@@ -2020,7 +2020,7 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
   if (eAp.scheduled&&eAp.scheduled.total) glParts.push('<b>'+(eSc.completed||0)+'</b> appt'+((eSc.completed||0)===1?'':'s')+' completed'+(eSc.noShow?', <b>'+eSc.noShow+'</b> no-show':''));
   var gAttn=(cats.noAnswerTotal||0)+(cats.escalationTotal||0);
   if (gAttn) glParts.push('<b>'+gAttn+'</b> item'+(gAttn===1?'':'s')+' need attention');
-  var glanceSec='<div style="font-size:13px;line-height:1.5;color:#1e293b;background:#f6f8fb;border:1px solid #e2e8f0;border-left:3px solid '+BR.accent+';border-radius:0 7px 7px 0;padding:10px 14px">'+glParts.join(' &nbsp;&middot;&nbsp; ')+'</div>';
+  var glanceSec='<div style="font-size:13px;line-height:1.5;color:#1e293b;background:#eceff4;border:1px solid #e2e8f0;border-left:3px solid '+BR.accent+';border-radius:0 7px 7px 0;padding:10px 14px">'+glParts.join(' &nbsp;&middot;&nbsp; ')+'</div>';
 
   var actSec='';
   if ((eAct.list||[]).length) {
@@ -2059,8 +2059,8 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
   }
 
   var officeNm=officeName||'';
-  var __html='<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#fff">'+
-    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;background:#fff;max-width:960px;margin:0 auto;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden">'+
+  var __html='<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#e9ecf1">'+
+    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;background:#f5f6f9;max-width:960px;margin:0 auto;border:1px solid #cbd5e1;border-radius:9px;overflow:hidden">'+
     (logoUrl
       ? '<div style="background:'+BR.band+';text-align:center;padding:16px 20px'+(BR.band==='#ffffff'?';border-bottom:1px solid #eef1f5':'')+'">'+
           '<img src="'+logoUrl+'" alt="'+esc(officeNm)+'" style="max-height:'+BR.logoH+'px;max-width:240px;vertical-align:middle">'+
@@ -2068,19 +2068,22 @@ function _buildDailyReportEmailHtml(rpt, officeName, dateStr, officeId) {
       : '')+
     '<div style="background:'+BR.header+';padding:13px 22px">'+
       '<div style="font-size:15px;font-weight:700;color:'+BR.headerText+'">📋 Daily Call Report'+((!logoUrl&&officeNm)?' &middot; '+esc(officeNm):'')+'</div>'+
-      '<div style="font-size:12px;color:'+BR.headerSub+';margin-top:3px">'+esc(dayLabel)+' &nbsp;&middot;&nbsp; Generated '+fmtTs(rpt.generatedAt)+'</div>'+
+      '<div style="font-size:12px;color:'+BR.headerSub+';margin-top:5px">'+esc(dayLabel)+' &nbsp;&middot;&nbsp; Generated '+fmtTs(rpt.generatedAt)+'</div>'+
     '</div>'+
     '<div style="padding:18px 22px">'+
-    '<div style="margin-bottom:14px">'+glanceSec+'</div>'+
-    '<div style="margin-bottom:16px">'+statBar+'</div>'+
-    (escSec?'<div style="margin-top:18px">'+escSec+'</div>':'')+
-    (naSec?'<div style="margin-top:18px">'+naSec+'</div>':'')+
-    (cwSec?'<div style="margin-top:18px">'+cwSec+'</div>':'')+
-    (actSec?'<div style="margin-top:18px">'+actSec+'</div>':'')+
-    '<div style="margin-top:18px">'+statusSec+'</div>'+
-    '<div style="margin-top:18px">'+arSec+'</div>'+
-    '<div style="margin-top:18px">'+crSec+'</div>'+
-    (apSec?'<div style="margin-top:18px">'+apSec+'</div>':'')+
+    // Even, single-direction section rhythm: first section has no top margin, every
+    // following section gets a uniform 16px top gap (avoids margin-collapse differences
+    // across email clients that made the old 14/16/18 mix look uneven).
+    '<div>'+glanceSec+'</div>'+
+    '<div style="margin-top:16px">'+statBar+'</div>'+
+    (escSec?'<div style="margin-top:16px">'+escSec+'</div>':'')+
+    (naSec?'<div style="margin-top:16px">'+naSec+'</div>':'')+
+    (cwSec?'<div style="margin-top:16px">'+cwSec+'</div>':'')+
+    (actSec?'<div style="margin-top:16px">'+actSec+'</div>':'')+
+    '<div style="margin-top:16px">'+statusSec+'</div>'+
+    '<div style="margin-top:16px">'+arSec+'</div>'+
+    '<div style="margin-top:16px">'+crSec+'</div>'+
+    (apSec?'<div style="margin-top:16px">'+apSec+'</div>':'')+
     '</div></div></body></html>';
   // Force every non-ASCII char (emoji, em-dashes, ·) to a numeric HTML entity so it
   // renders regardless of source-file/MIME/client charset — literal emoji garbled in Gmail.
