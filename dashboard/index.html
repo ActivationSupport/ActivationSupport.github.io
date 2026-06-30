@@ -1308,7 +1308,7 @@ var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C',
 var OFFICE_THEME = {
   elevate:  { btn:'#0A1FFF', accent:'#3D5BFF', dark:'#14224a', hover:'#0816cc', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
   midspire: { btn:'#4FB0FF', accent:'#4FB0FF', dark:'#0f2f44', hover:'#2e97ec', glow:'#0f3f5e', band:'#0E7BD4', onBand:'#ffffff', sidebar:'#0c1d2e' },
-  viridian: { btn:'#16382A', accent:'#D9C87E', dark:'#16281e', hover:'#0e2a1f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A' },
+  viridian: { btn:'#16382A', accent:'#D9C87E', dark:'#16281e', hover:'#0e2a1f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A', lightInk:'#7a6a2e' },
   // Vanguard = charcoal structure (band/sidebar/buttons) + BLUE app accent
   // (nav/links/highlights), with RED on the login + logo + office badge. Their
   // tri-color logo (red/blue/black) carries both colors throughout.
@@ -1316,7 +1316,7 @@ var OFFICE_THEME = {
   // Bayview = NAVY structure (band/sidebar/buttons) + GOLD accent (links/highlights/
   // login title). Sampled from their logo (navy #0F2439 + gold #CDAB5A). Gold-filled
   // controls take navy text (onAccent). Mirrors Viridian's gold-on-dark pattern.
-  bayview:  { btn:'#0F2439', accent:'#CDAB5A', dark:'#15233a', hover:'#0a1a2c', glow:'#173a63', band:'#0F2439', onBand:'#ffffff', sidebar:'#0d1a29', loginAccent:'#CDAB5A', onAccent:'#0F2439' }
+  bayview:  { btn:'#0F2439', accent:'#CDAB5A', dark:'#15233a', hover:'#0a1a2c', glow:'#173a63', band:'#0F2439', onBand:'#ffffff', sidebar:'#0d1a29', loginAccent:'#CDAB5A', onAccent:'#0F2439', lightInk:'#8C6E22' }
 };
 // Light-email Daily Report branding — MIRROR of Code.gs OFFICE_BRAND so the
 // "Copy for Email" export matches the automated 6pm email exactly. (Keep in sync.)
@@ -1338,17 +1338,22 @@ function applyOfficeTheme(officeId) {
   var t = OFFICE_THEME[officeId]; if (!t) return;
   var r = document.documentElement.style;
   r.setProperty('--blue', t.btn);
-  r.setProperty('--blue2', t.accent);
-  r.setProperty('--accent2b', t.accent2b || t.accent);   // dual accent; non-vanguard offices fall back to their main accent (no change)
+  // In LIGHT mode, gold offices (Viridian/Bayview) swap their pale accent for a darker
+  // "ink" so accent TEXT/borders stay legible on the white surfaces; the accent FILLS then
+  // need white on-accent text. One pair of var swaps cascades to every --blue2 usage.
+  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  var ink = (isLight && t.lightInk) ? t.lightInk : t.accent;
+  r.setProperty('--blue2', ink);
+  r.setProperty('--accent2b', t.accent2b || ink);   // dual accent; non-vanguard offices fall back to their main accent (no change)
   r.setProperty('--blue3', t.dark);
   r.setProperty('--blueHover', t.hover);
   r.setProperty('--blueText', t.btnText || '#fff');
-  r.setProperty('--login-accent', t.loginAccent || t.accent);   // login title/border (kept non-gold for Viridian)
-  r.setProperty('--on-accent', t.onAccent || '#fff');           // text/icon color on accent-filled controls
+  r.setProperty('--login-accent', t.loginAccent || t.accent);   // login is ALWAYS dark → keep the brand accent (not the ink)
+  r.setProperty('--on-accent', (isLight && t.lightInk) ? '#fff' : (t.onAccent || '#fff'));   // dark ink fill needs white text
   r.setProperty('--sidebar-bg', t.sidebar || '#111827');
-  r.setProperty('--blue2-fade', _hexToRgba(t.accent, 0.14));
-  r.setProperty('--blue2-faint', _hexToRgba(t.accent, 0.06));
-  r.setProperty('--blue2-rgb', _hexToRgbTriplet(t.accent));   // accent "r,g,b" for rgba(var(--blue2-rgb),a) tints
+  r.setProperty('--blue2-fade', _hexToRgba(ink, 0.14));
+  r.setProperty('--blue2-faint', _hexToRgba(ink, 0.06));
+  r.setProperty('--blue2-rgb', _hexToRgbTriplet(ink));   // accent "r,g,b" for rgba(var(--blue2-rgb),a) tints
   var ls = document.getElementById('login-screen');
   if (ls) ls.style.background = 'radial-gradient(ellipse at center, '+t.glow+' 0%, #111 65%)';
 }
@@ -1674,6 +1679,8 @@ function _applyTheme() {
     tg.textContent = theme === 'light' ? '🌙' : '☀️';
     tg.title = theme === 'light' ? 'Switch to dark' : 'Switch to light';
   }
+  // Recompute the office accent for the new theme (gold offices use a darker ink in light mode).
+  if (typeof CFG !== 'undefined' && CFG && CFG.officeId) applyOfficeTheme(CFG.officeId);
 }
 function _toggleTheme() {
   if (!_themeAllowed()) return;
