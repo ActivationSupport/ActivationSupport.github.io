@@ -25,8 +25,8 @@
 /* First pass: flips the core surfaces + the common hardcoded dark elements.
    Sidebar intentionally stays dark navy (white content + dark rail). */
 html[data-theme="light"]{
-  --bg:#eef1f5; --surface:#ffffff; --surface2:#f3f5f8;
-  --border:rgba(15,23,42,.12);
+  --bg:#e9ecf1; --surface:#f5f6f9; --surface2:#eceff4;
+  --border:rgba(15,23,42,.18);
   --text:#1b2433; --text2:#5b6675;
 }
 html[data-theme="light"] .field input,
@@ -48,16 +48,23 @@ html[data-theme="light"] .office-dd-item:hover{ background:#eef1f5; }
 html[data-theme="light"] .office-dd-current{ background:#eef1f5; color:var(--text2); }
 html[data-theme="light"] .refresh-btn{ background:#eef1f5; border-color:#cfd6e0; }
 html[data-theme="light"] .abm-seg{ background:#f3f5f8; border-color:#cfd6e0; }
-html[data-theme="light"] .dr-kpi, html[data-theme="light"] .dr-status-card{ background:#f7f9fc; border-color:#e2e8f0; }
+html[data-theme="light"] .dr-kpi, html[data-theme="light"] .dr-status-card{ background:#eef2f7; border-color:#c4cedb; }
 html[data-theme="light"] .dr-kpi-val, html[data-theme="light"] .lst-kpi-val{ color:#0f172a; }
-html[data-theme="light"] .dr-stat-pill{ background:#f1f5f9; border-color:#e2e8f0; color:#475569; }
-html[data-theme="light"] .call-table thead tr{ border-bottom-color:#d3dae3; }
+html[data-theme="light"] .dr-stat-pill{ background:#e8edf3; border-color:#c4cedb; color:#475569; }
+/* Light mode: lift the near-white DR panels off the white page (clearer fills + visible
+   borders) and repair the at-a-glance line, which otherwise keeps dark-mode text colors. */
+html[data-theme="light"] .dr-sc-total{ background:#e8f0fb; border-color:#b6c2d0; }
+html[data-theme="light"] .dr-sec-hdr{ background:rgba(var(--blue2-rgb),.14); }
+html[data-theme="light"] .dr-glance{ background:rgba(var(--blue2-rgb),.10); border-color:rgba(var(--blue2-rgb),.30); color:#1b2433; }
+html[data-theme="light"] .dr-glance b{ color:#0f172a; }
+html[data-theme="light"] .call-table thead tr{ border-bottom-color:#b6c2d0; }
+html[data-theme="light"] .call-table tbody tr:nth-child(even) td{ background:rgba(15,23,42,.045); }
 html[data-theme="light"] .call-table tbody tr:hover td{ background:rgba(var(--blue2-rgb),.10); }
 /* clear row separators between order rows (white-alpha borders vanish on white) */
-html[data-theme="light"] .call-table td{ border-bottom:1px solid #e3e8ef; }
-html[data-theme="light"] td{ border-bottom-color:#e6eaf0; }
-html[data-theme="light"] .lst-tbl td{ border-bottom-color:#e6eaf0; }
-html[data-theme="light"] .call-table th{ box-shadow:inset 0 -1px 0 #d3dae3; }
+html[data-theme="light"] .call-table td{ border-bottom:1px solid #cbd5e1; }
+html[data-theme="light"] td{ border-bottom-color:#cbd5e1; }
+html[data-theme="light"] .lst-tbl td{ border-bottom-color:#cbd5e1; }
+html[data-theme="light"] .call-table th{ box-shadow:inset 0 -1px 0 #b6c2d0; }
 html[data-theme="light"] .dr-table tbody tr:nth-child(even):not(.dr-total-row) td{ background:rgba(15,23,42,.03); }
 html[data-theme="light"] .dr-table tbody tr:hover td{ background:rgba(15,23,42,.05); }
 html[data-theme="light"] .card{ box-shadow:0 2px 10px rgba(15,23,42,.08); }
@@ -213,12 +220,12 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .ar-cell{text-align:center;padding:4px 8px;vertical-align:middle}
 .ar-badge{display:inline-block;padding:5px 10px;border-radius:5px;font-weight:700;font-size:.82rem;line-height:1.4;min-width:64px;text-align:center}
 .ar-green{background:#1b5e20;color:#a5d6a7}
-.ar-yellow{background:#5c4200;color:#ffe082}
+.ar-yellow{background:#946a00;color:#ffe6a3}
 .ar-red{background:#b71c1c;color:#ffcdd2}
 .ar-blue{background:#0d47a1;color:#90caf9}
 .ar-rep{padding:10px 14px;font-size:.875rem;color:var(--text);vertical-align:middle}
 .ar-grand-row{border-top:2px solid rgba(255,255,255,.15);border-bottom:2px solid rgba(255,255,255,.15)}
-#ar-table-wrap th+th,#churn-table-wrap th+th,.dr-section .call-table th+th{text-align:center}
+#ar-table-wrap th+th,#churn-table-wrap th+th,.dr-section .call-table th+th,.tm-rate-wrap th+th{text-align:center}
 .ar-grand-rep{font-weight:700;color:var(--blue2)}
 /* .call-table td sets color:var(--text) which beats .ar-grand-rep — keep the grand-total
    row its accent color inside call-tables too (so AR + Churn totals match). */
@@ -250,6 +257,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .filter-active-badge{font-size:.72rem;font-weight:700;color:var(--blue2);white-space:nowrap}
 .call-table td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;color:var(--text)}
 .call-table tbody tr:last-child td{border-bottom:none}
+.call-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.03)}
 .call-table tbody tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .rep-name{font-weight:600;color:var(--text)}
 .dsi-link{color:var(--blue2);font-weight:600;cursor:pointer;text-decoration:none;transition:color .15s}
@@ -755,6 +763,13 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .rp-rate-val{font-size:18px;font-weight:700;line-height:1}
 .rp-rate-sub{font-size:10px;color:var(--text2);margin-top:3px}
 @media(max-width:480px){.rp-rate-row{grid-template-columns:repeat(2,1fr)}}
+/* Rep-profile data tables (Activation Rates / Churn / Order Log): center headers
+   over the centered badge cells, keep columns even, and drop the inner scrollbox
+   so the page scrolls cleanly instead of nesting a scrollbar inside the card. */
+.rp-card .call-table th,.rp-card table th{text-align:center}
+.rp-card .call-table td,.rp-card table td{text-align:center;vertical-align:middle}
+.rp-card .tbl-wrap{max-height:none;overflow-y:visible}
+.rp-card .call-table th{position:static}
 /* ── TEAMS TAB ── */
 .tm-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
 .tm-title{font-size:1.6rem;font-weight:800;color:var(--text);line-height:1.2}
@@ -762,6 +777,8 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .tm-hr{border:none;border-top:1px solid var(--border);margin:14px 0}
 .tm-table{width:100%;border-collapse:collapse}
 .tm-table th{font-size:.72rem;letter-spacing:.8px;font-weight:700;color:var(--text2);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.tm-table th.tm-num-hdr{text-align:center}
+.tm-table th.tm-act-hdr{text-align:right}
 .tm-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle}
 .tm-name-cell{min-width:160px}
 .tm-emoji-col{font-size:1.2rem;margin-right:8px;vertical-align:middle}
@@ -782,15 +799,17 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .tm-detail-em{font-size:2rem}
 .tm-detail-nm{font-size:1.6rem;font-weight:800;color:var(--text)}
 .tm-section-label{font-size:.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px}
-.tm-breakdown-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
-.tm-remarks-card{flex:0 0 200px;padding:14px;border-radius:8px;border:1.5px solid rgba(255,255,255,.1);background:var(--surface2)}
+.tm-breakdown-row{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 1fr;gap:10px;margin-bottom:20px}
+@media(max-width:760px){.tm-breakdown-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:440px){.tm-breakdown-row{grid-template-columns:1fr}}
+.tm-remarks-card{padding:14px 12px;border-radius:8px;border:1.5px solid rgba(255,255,255,.08);background:var(--surface2);text-align:center;display:flex;flex-direction:column;justify-content:center;min-height:84px}
 .tm-remarks-label{font-size:.6rem;font-weight:700;letter-spacing:.8px;color:var(--text2);text-transform:uppercase;margin-bottom:4px}
 .tm-remarks-trend{font-size:.95rem;font-weight:700;margin-bottom:6px}
 .tm-remarks-sub{font-size:.72rem;color:var(--text2)}
 .tm-trend-up .tm-remarks-trend{color:#4ade80}
 .tm-trend-down .tm-remarks-trend{color:#f87171}
 .tm-trend-flat .tm-remarks-trend{color:#94a3b8}
-.tm-stat-pill{flex:1;min-width:80px;padding:12px 10px;text-align:center;background:var(--surface2);border-radius:8px;border:1.5px solid rgba(255,255,255,.08)}
+.tm-stat-pill{padding:14px 12px;text-align:center;background:var(--surface2);border-radius:8px;border:1.5px solid rgba(255,255,255,.08);display:flex;flex-direction:column;justify-content:center;min-height:84px}
 .tm-stat-val{font-size:1.3rem;font-weight:800;color:var(--text);display:block;margin-bottom:4px}
 .tm-stat-lbl{font-size:.6rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text2)}
 .tm-ldr-table{width:100%;border-collapse:collapse;font-size:.82rem}
@@ -806,6 +825,12 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .tm-unit-cell{font-weight:700}
 .tm-total-row{border-top:1.5px solid var(--border)!important;background:var(--surface2)}
 .tm-total-row td{font-weight:700}
+/* Team detail: stack the four tables flush with even spacing. Drop the per-table
+   inner scrollbox (max-height) and the sticky header — on one long page those make
+   opaque headers float over the section above, which reads as overlapping tables.
+   Horizontal scroll (overflow-x) is preserved for the wide leaderboard/orders tables. */
+.tm-detail-body .tbl-wrap{max-height:none;margin-bottom:24px}
+.tm-detail-body .call-table th{position:static}
 
 /* ── APPOINTMENTS ── */
 .appt-wrap{}
@@ -4826,7 +4851,7 @@ function _tmBuildList() {
     '<div class="tm-header"><div><div class="tm-title">Teams</div><div class="tm-count">'+teamArr.length+' team'+(teamArr.length!==1?'s':'')+'</div></div>'+createBtn+'</div>' +
     '<hr class="tm-hr">' +
     '<div class="tbl-wrap"><table class="tm-table"><thead><tr>' +
-    '<th>TEAM</th><th>LEADER</th><th>MEMBERS</th><th>UNITS (WK)</th>'+(canManage?'<th>ACTIONS</th>':'') +
+    '<th>TEAM</th><th>LEADER</th><th class="tm-num-hdr">MEMBERS</th><th class="tm-num-hdr">UNITS (WK)</th>'+(canManage?'<th class="tm-act-hdr">ACTIONS</th>':'') +
     '</tr></thead><tbody>'+rows+'</tbody></table></div>' +
     '</div></div>';
 }
@@ -4932,11 +4957,12 @@ function _tmBuildDetail(teamId) {
     '</div>';
 
   // Activation Rates + Churn — the SAME full tables as the main tabs, filtered to the team.
-  var arSec = '<div class="tm-section-label">ACTIVATION RATES</div>' + _tmArTableHtml(memberTabs);
+  // Wrapped in .tm-rate-wrap so the bucket headers center over the badge cells (matches tabs).
+  var arSec = '<div class="tm-section-label">ACTIVATION RATES</div><div class="tm-rate-wrap">' + _tmArTableHtml(memberTabs) + '</div>';
   // Team view shows just the TEAM TOTAL row (empty repList); drill into a rep via the
   // leaderboard for their individual churn/AR.
-  var churnSec = '<div class="tm-section-label">CHURN</div>' +
-    _churnTableHtml([], {}, churnBuilt.repList, churnBuilt.repMap).replace('>Grand Total<','>Team Total<');
+  var churnSec = '<div class="tm-section-label">CHURN</div><div class="tm-rate-wrap">' +
+    _churnTableHtml([], {}, churnBuilt.repList, churnBuilt.repMap).replace('>Grand Total<','>Team Total<') + '</div>';
 
   var ldrSec = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
     '<div class="tm-section-label" style="margin:0;border:none">TEAM LEADERBOARD</div>' +
@@ -4948,7 +4974,7 @@ function _tmBuildDetail(teamId) {
 
   var ordSec = '<div class="tm-section-label">TEAM ORDERS</div>' + _tmOrdersHtml(teamId);
 
-  return hdr+'<div class="card"><div class="card-body">'+breakdown+arSec+churnSec+ldrSec+ordSec+'</div></div>';
+  return hdr+'<div class="card"><div class="card-body tm-detail-body">'+breakdown+arSec+churnSec+ldrSec+ordSec+'</div></div>';
 }
 
 // Team Activation Rates — same coloring/structure as the main AR tab (_buildArTable),
@@ -6651,6 +6677,7 @@ var _LST_TBL_NAMES = null;
 
 function _lstShowRepProfile(email) {
   _LST_PROFILE = email;
+  _RP_ORD = { dsi:'', status:'', from:'', to:'' };   // fresh Order Log filters per rep
   var c = document.getElementById('main-content');
   c.innerHTML = skelLoader();
   var p1 = api({ action:'readRepNames', officeId:CFG.officeId });
@@ -6761,6 +6788,8 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   h += _lstRepArHtml(tableauName);
   // Churn
   h += _lstRepChurnHtml(tableauName);
+  // Order Log — this rep's individual orders
+  h += _lstRepOrdersHtml(tableauName);
 
   return h + '</div>';
 }
@@ -6797,57 +6826,142 @@ function _lstLineStatsHtml(ls) {
 
 function _lstRepArHtml(tableauName) {
   if (!_AR_LINES || !_AR_LINES.length) return '<div class="rp-card"><div class="rp-card-title">Activation Rates</div><div class="rp-no-data">No data. Visit the Activation Rates tab first to load it.</div></div>';
-  var BKT = {'0-7 Days':'b0_7','8-14 Days':'b8_14','15-30 Days':'b15_30','31-60 Days':'b31_60'};
-  var bkts = {b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
+  // Same badge-table format + Tableau colors as the Activation Rates tab (_buildArTable),
+  // scoped to this one rep (no Grand Total row — it would just duplicate the rep row).
+  var BKT_MAP = {'0-7 Days':'b0_7','8-14 Days':'b8_14','15-30 Days':'b15_30','31-60 Days':'b31_60'};
+  var d = {b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
   _AR_LINES.forEach(function(l) {
     if (l.rep !== tableauName) return;
-    var b = BKT[l.bucket]; if (!b) return;
-    bkts[b].t += l.vol||0; bkts[b].a += l.acts||0;
+    var b = BKT_MAP[l.bucket]; if (!b) return;
+    d[b].t += l.vol||0; d[b].a += l.acts||0; d[b].color = l.color;
   });
-  var hasData = Object.keys(bkts).some(function(k){ return bkts[k].t > 0; });
+  var hasData = ['b0_7','b8_14','b15_30','b31_60'].some(function(k){ return d[k].t > 0; });
   if (!hasData) return '<div class="rp-card"><div class="rp-card-title">Activation Rates</div><div class="rp-no-data">No activation rate data for this rep.</div></div>';
 
-  function arColor(k, pct) {
-    if (k==='b0_7')   return pct>=21?'#4ade80':pct>=10?'#fbbf24':'#f87171';
-    if (k==='b8_14')  return pct>=71?'#4ade80':pct>=51?'#fbbf24':'#f87171';
-    if (k==='b15_30') return pct>=75?'#4ade80':pct>=70?'#fbbf24':'#f87171';
-    if (k==='b31_60') return pct>=86?'#4ade80':pct>=79?'#fbbf24':'#f87171';
-    return 'var(--text2)';
+  // Portal fallback thresholds — used only when Tableau's color isn't present.
+  function bktCls(bktKey, pct) {
+    if (bktKey==='b0_7')   return pct>=21?'ar-green':pct>=10?'ar-yellow':'ar-red';
+    if (bktKey==='b8_14')  return pct>=71?'ar-green':pct>=51?'ar-yellow':'ar-red';
+    if (bktKey==='b15_30') return pct>=75?'ar-green':pct>=70?'ar-yellow':'ar-red';
+    if (bktKey==='b31_60') return pct>=86?'ar-green':pct>=79?'ar-yellow':'ar-red';
+    return pct>=80?'ar-green':pct>=60?'ar-yellow':'ar-red';
   }
-
-  var BKTS = [{k:'b0_7',lbl:'0–7 Days'},{k:'b8_14',lbl:'8–14 Days'},{k:'b15_30',lbl:'15–30 Days'},{k:'b31_60',lbl:'31–60 Days'}];
-  var h = '<div class="rp-card"><div class="rp-card-title">Activation Rates</div><div class="rp-rate-row">';
-  BKTS.forEach(function(bkt) {
-    var b = bkts[bkt.k], pct = b.t > 0 ? Math.round(b.a/b.t*100) : null;
-    var color = pct !== null ? arColor(bkt.k, pct) : 'var(--text2)';
-    h += '<div class="rp-rate-cell"><div class="rp-rate-bkt">'+bkt.lbl+'</div>';
-    h += '<div class="rp-rate-val" style="color:'+color+'">'+(pct!==null?pct+'%':'—')+'</div>';
-    if (pct !== null) h += '<div class="rp-rate-sub">('+b.a+'/'+b.t+')</div>';
-    h += '</div>';
-  });
-  return h + '</div></div>';
+  function arColorCls(color) {
+    var c = String(color||'').toLowerCase();
+    return c==='green'?'ar-green':c==='yellow'?'ar-yellow':c==='red'?'ar-red':'';
+  }
+  function cell(b, bktKey) {
+    if (b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-blue">(0/0)<br>—</div></td>';
+    var pct=Math.round(b.a/b.t*100);
+    var cls = arColorCls(b.color) || bktCls(bktKey, pct);
+    return '<td class="ar-cell"><div class="ar-badge '+cls+'">('+b.a+'/'+b.t+')<br>'+pct+'%</div></td>';
+  }
+  return '<div class="rp-card"><div class="rp-card-title">Activation Rates</div>' +
+    '<div class="tbl-wrap"><table class="call-table"><thead><tr>' +
+    '<th>0–7 Days</th><th>8–14 Days</th><th>15–30 Days</th><th>31–60 Days</th>' +
+    '</tr></thead><tbody><tr>' +
+    cell(d.b0_7,'b0_7')+cell(d.b8_14,'b8_14')+cell(d.b15_30,'b15_30')+cell(d.b31_60,'b31_60') +
+    '</tr></tbody></table></div></div>';
 }
 
 function _lstRepChurnHtml(tableauName) {
+  // Same badge-table format + Tableau colors as the Churn tab (_churnTableHtml),
+  // scoped to this one rep (no Grand Total row — it would just duplicate the rep row).
   function fmtR(s) {
     var str = String(s==null?'':s).trim();
     if (str.indexOf('%')!==-1) return str;
     var n = parseFloat(str); if (isNaN(n)) return '0.0%';
     return (n<=1?n*100:n).toFixed(1)+'%';
   }
+  function fmtN(n) { return Number(n).toLocaleString(); }
   var rows = (DATA.churnReport||[]).filter(function(r){ return r.rep===tableauName; });
   if (!rows.length) return '<div class="rp-card"><div class="rp-card-title">Churn</div><div class="rp-no-data">No churn data for this rep.</div></div>';
-  var BKTS = ['0-30 Day','30 Day','60 Day','90 Day','120 Day'];
   var rowMap = {}; rows.forEach(function(r){ rowMap[r.bucket]=r; });
-  var h = '<div class="rp-card"><div class="rp-card-title">Churn</div><div class="rp-rate-row" style="grid-template-columns:repeat(5,1fr)">';
-  BKTS.forEach(function(bkt) {
-    var r = rowMap[bkt];
-    h += '<div class="rp-rate-cell"><div class="rp-rate-bkt">'+bkt+'</div>';
-    if (!r) { h += '<div class="rp-rate-val" style="color:var(--text2)">—</div>'; }
-    else { h += '<div class="rp-rate-val">'+fmtR(r.churnRate)+'</div><div class="rp-rate-sub">'+r.disconnects+' disco</div>'; }
-    h += '</div>';
-  });
-  return h + '</div></div>';
+  function cell(d) {
+    if (!d) return '<td class="ar-cell"></td>';
+    return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">('+fmtN(d.disconnects)+'/'+fmtN(d.activated)+')<br>'+fmtR(d.churnRate)+'</span></td>';
+  }
+  return '<div class="rp-card"><div class="rp-card-title">Churn</div>' +
+    '<div class="tbl-wrap"><table class="call-table"><thead><tr>' +
+    CHURN_BUCKETS.map(function(b){ return '<th style="min-width:110px">'+esc(b)+'</th>'; }).join('') +
+    '</tr></thead><tbody><tr>' +
+    CHURN_BUCKETS.map(function(b){ return cell(rowMap[b]); }).join('') +
+    '</tr></tbody></table></div></div>';
+}
+
+// Order Log — this rep's individual orders from the Tableau order log (60-day
+// window, one row per DSI). Search by DSI + filter by Status / Date. Same table
+// format as Team Orders (_tmOrdersHtml) minus the Rep column (single-rep page).
+var _RP_ORD = { dsi:'', status:'', from:'', to:'' };   // Rep profile Order Log filters
+function _rpOrdSet(field, val){ _RP_ORD[field]=val; _rpOrdRerender(); }
+function _rpOrdClear(){ _RP_ORD={dsi:'',status:'',from:'',to:''}; _rpOrdRerender(); }
+function _rpOrdRerender(){
+  var w=document.getElementById('rp-ord-wrap'); if(!w||!_LST_PROFILE) return;
+  var tn=((DATA.roster||{})[_LST_PROFILE]||{}).tableauName||'';
+  w.outerHTML=_lstRepOrdersHtml(tn);
+}
+// This rep's orders (60-day Tableau log) for the current Order Log.
+function _rpOrdOrders(){
+  if(!_LST_PROFILE) return [];
+  var tnl=(((DATA.roster||{})[_LST_PROFILE]||{}).tableauName||'').toLowerCase();
+  return (DATA.masterTracker||[]).filter(function(o){ return (o.rep||'').toLowerCase()===tnl; });
+}
+function _rpOrdFilter(orders){
+  var q=String(_RP_ORD.dsi||'').trim().toLowerCase();
+  return orders.filter(function(o){
+    if(q && String(o.dsi||'').toLowerCase().indexOf(q)===-1) return false;
+    if(_RP_ORD.status && !((o.statusCounts||{})[_RP_ORD.status])) return false;
+    var od=String(o.orderDate||'').slice(0,10);
+    if(_RP_ORD.from && od < _RP_ORD.from) return false;
+    if(_RP_ORD.to   && od > _RP_ORD.to)   return false;
+    return true;
+  }).slice().sort(_byOrderDateDesc);
+}
+function _rpOrdBody(rows){
+  return rows.length ? rows.map(function(o){
+    var nc=((DATA.notes||{})[o.dsi]||[]).length, sid=String(o.dsi||'').replace(/\W/g,'_');
+    return '<tr>'+
+      '<td>'+esc(o.dsi)+'</td>'+
+      '<td>'+esc(o.orderDate)+'</td>'+
+      '<td>'+productBreakdown(o.productCounts,false)+'</td>'+
+      '<td>'+statusBreakdown(o.statusCounts,false)+'</td>'+
+      '<td><button class="notes-btn'+(nc>0?' has-notes':'')+'" data-dsi="'+esc(o.dsi)+'" onclick="openNotesModal(\''+esc(o.dsi)+'\',\''+esc(o.spe||'')+'\',\''+esc(o.rep)+'\')">NOTES'+(nc>0?'<span class="notes-count" id="nc-'+sid+'">'+nc+'</span>':'')+'</button></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--text2)">No orders match this search.</td></tr>';
+}
+// Live DSI search: update only the table body + count so the search box keeps focus
+// (a full rerender via outerHTML would drop the caret on every keystroke).
+function _rpOrdSearch(val){
+  _RP_ORD.dsi=val;
+  var rows=_rpOrdFilter(_rpOrdOrders());
+  var tb=document.getElementById('rp-ord-tbody'); if(tb) tb.innerHTML=_rpOrdBody(rows);
+  var ct=document.getElementById('rp-ord-count'); if(ct) ct.textContent=rows.length+' order'+(rows.length!==1?'s':'')+' · last 60 days';
+}
+
+function _lstRepOrdersHtml(tableauName) {
+  var tnl=(tableauName||'').toLowerCase();
+  var orders=(DATA.masterTracker||[]).filter(function(o){ return (o.rep||'').toLowerCase()===tnl; });
+
+  var stats={};
+  orders.forEach(function(o){ Object.keys(o.statusCounts||{}).forEach(function(s){ if(s) stats[s]=true; }); });
+  var statOpts='<option value="">All statuses</option>'+Object.keys(stats).sort().map(function(s){return '<option value="'+esc(s)+'"'+(_RP_ORD.status===s?' selected':'')+'>'+esc(s)+'</option>';}).join('');
+
+  var rows=_rpOrdFilter(orders);
+  var body=_rpOrdBody(rows);
+
+  var anyFilter=_RP_ORD.dsi||_RP_ORD.status||_RP_ORD.from||_RP_ORD.to;
+  var cS='width:auto;min-width:140px;max-width:220px';
+  var filters='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
+    '<input class="ps-input" style="flex:1;min-width:180px;max-width:280px" type="text" value="'+esc(_RP_ORD.dsi)+'" oninput="_rpOrdSearch(this.value)" placeholder="🔍 Search DSI…">'+
+    '<select class="ps-select" style="'+cS+'" onchange="_rpOrdSet(\'status\',this.value)">'+statOpts+'</select>'+
+    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(_RP_ORD.from)+'" onchange="_rpOrdSet(\'from\',this.value)" title="From date">'+
+    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(_RP_ORD.to)+'" onchange="_rpOrdSet(\'to\',this.value)" title="To date">'+
+    (anyFilter?'<button class="lst-toggle-btn" onclick="_rpOrdClear()">Clear</button>':'')+
+    '</div>';
+
+  return '<div class="rp-card" id="rp-ord-wrap"><div class="rp-card-title">Order Log</div>'+filters+
+    '<div class="tbl-wrap"><table class="call-table"><thead><tr><th>DSI</th><th>Date</th><th>Products</th><th>Status</th><th>Notes</th></tr></thead><tbody id="rp-ord-tbody">'+body+'</tbody></table></div>'+
+    '<div id="rp-ord-count" style="font-size:11px;color:var(--text2);margin-top:8px">'+rows.length+' order'+(rows.length!==1?'s':'')+' · last 60 days</div></div>';
 }
 
 // ── APPOINTMENTS ─────────────────────────────────────────────────────────
