@@ -5381,8 +5381,8 @@ function _psStep1Html() {
   h += '<div class="ps-label">DATE OF SALE</div>';
   h += '<input class="ps-input" type="date" id="ps-date" value="' + d.dateOfSale + '" onchange="_PS_DATA.dateOfSale=this.value">';
   h += '<div class="ps-label">DSI NUMBER</div>';
-  h += '<input class="ps-input" type="text" id="ps-dsi" placeholder="ENTER 12+ CHARACTER DSI" maxlength="30" value="' + esc(d.dsi) + '" oninput="_psDsiInput(this)">';
-  h += '<div class="ps-char-count' + (d.dsi.length > 0 && d.dsi.length < 12 ? ' warn' : '') + '" id="ps-dsi-count">' + d.dsi.length + '/12 min characters</div>';
+  h += '<input class="ps-input" type="text" id="ps-dsi" placeholder="ENTER 12-CHARACTER DSI" maxlength="12" value="' + esc(d.dsi) + '" oninput="_psDsiInput(this)">';
+  h += '<div class="ps-char-count' + (d.dsi.length > 0 && d.dsi.length !== 12 ? ' warn' : '') + '" id="ps-dsi-count">' + d.dsi.length + '/12 characters</div>';
   h += '<div class="ps-label">TYPE OF ACCOUNT</div>';
   h += '<div class="ps-toggle-row">';
   h += '<div class="ps-toggle' + (d.accountType === 'Consumer' ? ' active' : '') + '" onclick="_psToggle(\'accountType\',\'Consumer\',this)">Consumer</div>';
@@ -5420,8 +5420,8 @@ function _psStep1Html() {
 function _psDsiInput(el) {
   _PS_DATA.dsi = el.value;
   var c = document.getElementById('ps-dsi-count'); if (!c) return;
-  c.textContent = el.value.length + '/12 min characters';
-  c.className = 'ps-char-count' + (el.value.length > 0 && el.value.length < 12 ? ' warn' : '');
+  c.textContent = el.value.length + '/12 characters';
+  c.className = 'ps-char-count' + (el.value.length > 0 && el.value.length !== 12 ? ' warn' : '');
 }
 function _psToggle(field, val, el) {
   _PS_DATA[field] = val;
@@ -5441,7 +5441,7 @@ function _psNext1() {
   if (dsiEl) _PS_DATA.dsi = dsiEl.value.trim();
   if (dateEl) _PS_DATA.dateOfSale = dateEl.value.trim();
   if (!_PS_DATA.dateOfSale) { alert('Please enter a date of sale.'); return; }
-  if (_PS_DATA.dsi.length < 12) { alert('DSI must be at least 12 characters.'); return; }
+  if (_PS_DATA.dsi.length !== 12) { alert('DSI must be exactly 12 characters.'); return; }
   if (_PS_DATA.trainee !== 'Yes' && _PS_DATA.trainee !== 'No') { alert('Please answer: did you have a trainee?'); return; }
   if (_PS_DATA.trainee === 'Yes' && !(_PS_DATA.traineeName || '').trim()) { alert("Please enter the trainee's name."); return; }
   _PS_STEP = 2;
@@ -5661,7 +5661,11 @@ function _psSubmit(btn) {
       document.getElementById('main-content').innerHTML=renderPostSale();
       _psNotifyDiscord(payload, _psCalcUnits());
     }
-    else { btn.disabled=false; btn.textContent='SUBMIT'; alert('Error: '+(res&&res.error?res.error:'Unknown error')); }
+    else {
+      btn.disabled=false; btn.textContent='SUBMIT';
+      // Duplicate = the order already saved (option A): show the plain message, no scary "Error:".
+      alert((res&&res.duplicate) ? (res.error||'This order was already posted today.') : ('Error: '+(res&&res.error?res.error:'Unknown error')));
+    }
   }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert('Submission failed. Please try again.'); });
 }
 
@@ -5804,7 +5808,7 @@ function _pseFormHtml() {
   h += '<div class="ps-label">DATE OF SALE</div>';
   h += '<input class="ps-input" type="date" value="' + esc(d.dateOfSale) + '" onchange="_pseSet(\'dateOfSale\',this.value)">';
   h += '<div class="ps-label">DSI NUMBER</div>';
-  h += '<input class="ps-input" type="text" maxlength="30" value="' + esc(d.dsi) + '" oninput="_pseSet(\'dsi\',this.value)">';
+  h += '<input class="ps-input" type="text" maxlength="12" value="' + esc(d.dsi) + '" oninput="_pseSet(\'dsi\',this.value)">';
   h += '<div class="ps-label">TYPE OF ACCOUNT</div><div class="ps-toggle-row">' + tog('accountType','Consumer','Consumer') + tog('accountType','Business','Business') + '</div>';
   h += '<div class="ps-label">HOW WAS THIS ORDER PROCESSED?</div><div class="ps-toggle-row">' + tog('processedVia','Sara','Sara') + tog('processedVia','Tower','Tower') + '</div>';
   h += '<div class="ps-label">TRAINEE?</div><div class="ps-toggle-row">' + tog('trainee','Yes','Yes') + tog('trainee','No','No') + '</div>';
@@ -5866,7 +5870,7 @@ function _pseRerender() { document.getElementById('modal-body').innerHTML = _pse
 function _pseSave(btn) {
   var d = _PSE;
   if (!d.dateOfSale) { alert('Please enter a date of sale.'); return; }
-  if ((d.dsi || '').trim().length < 12) { alert('DSI must be at least 12 characters.'); return; }
+  if ((d.dsi || '').trim().length !== 12) { alert('DSI must be exactly 12 characters.'); return; }
   if (d.trainee === 'Yes' && !(d.traineeName || '').trim()) { alert("Please enter the trainee's name."); return; }
   if (!(d.air || d.wireless || d.fiber || d.voip || d.dtv)) { alert('Please select at least one product.'); return; }
   if (d.fiber && !d.fiberPackage) { alert('Please select a Fiber package.'); return; }
