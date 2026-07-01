@@ -4681,6 +4681,13 @@ function buildPersonForm(email, person) {
     .map(function(ro) { return '<option value="'+ro+'"'+(ro===rank?' selected':'')+'>'+esc(_ROLE_LABELS[ro]||ro)+'</option>'; }).join('');
   var tableauOpts = '<option value="">— Not Assigned —</option>' +
     (PEOPLE_TABLEAU_NAMES||[]).map(function(n){ return '<option value="'+esc(n)+'"'+(n===(p.tableauName||'')?' selected':'')+'>'+esc(n)+'</option>'; }).join('');
+  // Team = dropdown of the teams already created (DATA.teams). A former/stale team name that no
+  // longer exists is kept as an extra option so editing doesn't silently blank it.
+  var _pfTeams = Object.keys(DATA.teams||{}).map(function(tid){ return (DATA.teams[tid]||{}).name||''; }).filter(Boolean).sort(function(a,b){ return a.localeCompare(b); });
+  var _pfCurTeam = p.team || '';
+  var teamOpts = '<option value="">— No team —</option>' +
+    _pfTeams.map(function(n){ return '<option value="'+esc(n)+'"'+(n===_pfCurTeam?' selected':'')+'>'+esc(n)+'</option>'; }).join('') +
+    ((_pfCurTeam && _pfTeams.indexOf(_pfCurTeam)===-1) ? '<option value="'+esc(_pfCurTeam)+'" selected>'+esc(_pfCurTeam)+' (former team)</option>' : '');
   var officeChecks = Object.keys(OFFICE_NAMES).map(function(o){
     return '<label style="display:flex;align-items:center;gap:6px;margin:4px 0;font-size:.85rem"><input type="checkbox" value="'+o+'"'+(perms.indexOf(o)!==-1?' checked':'')+(canPerms?'':' disabled')+'>'+OFFICE_NAMES[o]+'</label>';
   }).join('');
@@ -4691,7 +4698,7 @@ function buildPersonForm(email, person) {
   html += '<div class="field"><label>Email</label><input type="email" id="pf-email" value="'+esc(email||'')+'"'+(isEdit?' readonly style="'+fs+ds+'"':' style="'+fs+'"')+'></div>';
   html += '<div class="field"><label>Phone</label><input type="text" id="pf-phone" value="'+esc(p.phone||'')+'" placeholder="e.g. 555-867-5309" style="'+fs+'"></div>';
   html += '<div class="field"><label>Role'+lock(canRole)+'</label><select id="pf-role"'+(canRole?'':' disabled')+' style="'+fs+(canRole?'':ds)+'">'+ roleOpts+'</select></div>';
-  html += '<div class="field"><label>Team</label><input type="text" id="pf-team" value="'+esc(p.team||'')+'"'+(canBasic?'':' readonly')+' style="'+fs+(canBasic?'':ds)+'"></div>';
+  html += '<div class="field"><label>Team</label><select id="pf-team"'+(canBasic?'':' disabled')+' style="'+fs+(canBasic?'':ds)+'">'+teamOpts+'</select></div>';
   html += '<div class="field"><label>Tableau Name'+lock(canBasic)+'</label><select id="pf-tableau"'+(canBasic?'':' disabled')+' style="'+fs+(canBasic?'':ds)+'">'+tableauOpts+'</select></div>';
   html += '<div class="field"><label>Office Permissions'+lock(canPerms)+'</label><div id="pf-perms" style="padding:8px;border:1.5px solid #3a3a3a;border-radius:6px'+(canPerms?'':';background:#1e1e1e')+'">'+ officeChecks+'</div></div>';
   html += '<div class="field"><label>Status'+lock(canStatus)+'</label><select id="pf-status"'+(canStatus?'':' disabled')+' style="'+fs+(canStatus?'':ds)+'"><option value="false"'+(p.deactivated?'':' selected')+'>Active</option><option value="true"'+(p.deactivated?' selected':'')+'>Inactive</option></select></div>';
