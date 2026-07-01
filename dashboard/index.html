@@ -5324,7 +5324,9 @@ var _PS_DATA = null;
 function _psInit() {
   if (_PS_DATA) return;
   _PS_DATA = {
-    dateOfSale: new Date().toISOString().split('T')[0],
+    // LOCAL date (not toISOString/UTC) — UTC rolls to tomorrow at ~5pm Pacific, which was
+    // pre-filling the next day and causing orders to be logged under the wrong date.
+    dateOfSale: _apptDateStr(new Date()),
     dsi: '', accountType: 'Consumer', processedVia: 'Sara',
     underSomeoneCodes: 'No', codesUsedBy: '', trainee: '', traineeName: '', notes: '',
     products: { air: false, wireless: false, fiber: false, voip: false, dtv: false },
