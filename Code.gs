@@ -3140,13 +3140,38 @@ function _getPostedSalesSheet(ss, officeId) {
   return sheet;
 }
 
+// Normalize a DSI for matching: uppercase, strip non-alphanumerics, drop a leading "DSI"
+// prefix — mirrors the Training tab's DSI matching so formatting variants collapse to one key.
+function _normDsiKey(s) {
+  var x = String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (x.indexOf('DSI') === 0) x = x.slice(3);
+  return x;
+}
+// True if a NON-VOIDED posted-sale row already exists with this normalized DSI on this
+// date-of-sale (business rule: at most one order per DSI per day). voidedIdx = 0-based col.
+function _postedSaleDup(sheet, normDsi, dateStr, voidedIdx) {
+  if (!normDsi) return false;
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (voidedIdx >= 0 && String(row[voidedIdx] || '').trim().toLowerCase() === 'true') continue;
+    if (_normDsiKey(row[POSTED.DSI]) !== normDsi) continue;
+    var rd = row[POSTED.DATE];
+    var rdStr = (rd instanceof Date)
+      ? (rd.getFullYear() + '-' + ('0' + (rd.getMonth() + 1)).slice(-2) + '-' + ('0' + rd.getDate()).slice(-2))
+      : String(rd || '').slice(0, 10);
+    if (rdStr === dateStr) return true;
+  }
+  return false;
+}
+
 function writePostSale(body, ss, officeId) {
   var email = String(body.repEmail||'').trim().toLowerCase();
   if (!email) return { error: 'Missing repEmail' };
   var dateOfSale = String(body.dateOfSale||'').trim();
   if (!dateOfSale) return { error: 'Missing dateOfSale' };
   var dsi = String(body.dsi||'').trim();
-  if (!dsi || dsi.length < 12) return { error: 'DSI must be at least 12 characters' };
+  if (!dsi || dsi.length !== 12) return { error: 'DSI must be exactly 12 characters' };
   var repName = String(body.repName||'').trim();
   var repTeam = '';
   try {
@@ -3172,7 +3197,7 @@ function writePostSale(body, ss, officeId) {
   var dtvPkg      = String(body.dtvPackage||'').trim();
   var units = airQty + wirelessNew + wirelessByod + (fiberPkg ? 1 : 0) + voipQty + dtvQty;
   var sheet = _getPostedSalesSheet(ss, officeId);
-  _safeAppend(sheet, [
+  var _rowArr = [
     new Date(), email, repName, repTeam,
     new Date(dateOfSale + 'T12:00:00'), dsi,
     String(body.accountType||'').trim(), String(body.processedVia||'Sara').trim(),
@@ -3180,7 +3205,20 @@ function writePostSale(body, ss, officeId) {
     String(body.trainee||'No').trim(), String(body.traineeName||'').trim(),
     airQty, wirelessNew, wirelessByod, fiberPkg, fiberDate,
     voipQty, dtvQty, dtvPkg, String(body.notes||'').trim(), units
-  ]);
+  ];
+  // One order per DSI per day (business rule). Do the (DSI+date) dedup check AND the append
+  // atomically under one script lock, so a lost-response retry or a same-day re-entry can't
+  // create a duplicate (two simultaneous submits: one wins, the other gets the dup message).
+  var _voidedIdx = _ensurePostedVoidedCol(sheet) - 1;
+  var _normNew = _normDsiKey(dsi);
+  var _lock = LockService.getScriptLock();
+  try { _lock.waitLock(20000); } catch (eL) { return { error: 'Server busy — please try again in a moment.' }; }
+  try {
+    if (_postedSaleDup(sheet, _normNew, dateOfSale, _voidedIdx)) {
+      return { duplicate: true, error: 'An order for DSI ' + dsi + ' on ' + dateOfSale + ' was already posted — it is saved, no need to re-submit.' };
+    }
+    sheet.appendRow(_rowArr);
+  } finally { try { _lock.releaseLock(); } catch (e2) {} }
   // Cross-post the rep's additional note into the call-log Rep Notes (keyed by
   // DSI) so notes typed on the Post Sale form show on that order in the call lists.
   var _psNote = String(body.notes||'').trim();
@@ -3232,7 +3270,7 @@ function updatePostedSale(body, ss, officeId) {
   var gs = _validateSession(ss, body.token);
   var auth = _authorizePostedEdit(sheet, rowIndex, gs); if (auth.error) return auth;
   var dateOfSale = String(body.dateOfSale||'').trim(); if (!dateOfSale) return { error:'Missing dateOfSale' };
-  var dsi = String(body.dsi||'').trim(); if (dsi.length < 12) return { error:'DSI must be at least 12 characters' };
+  var dsi = String(body.dsi||'').trim(); if (dsi.length !== 12) return { error:'DSI must be exactly 12 characters' };
   var airQty = Number(body.airQty)||0, wn = Number(body.wirelessNew)||0, wb = Number(body.wirelessByod)||0;
   var fiberPkg = String(body.fiberPackage||'').trim();
   var voipQty = Number(body.voipQty)||0, dtvQty = Number(body.dtvQty)||0;
