@@ -1138,12 +1138,14 @@ function readTrainingOrders(ss, officeId) {
     var saleDate = new Date(rawDate); if (isNaN(saleDate.getTime())) continue;
     saleDate.setHours(0,0,0,0); if (saleDate < cutoff) continue;
     var isSunday = (saleDate.getDay()===0);
-    // (no payout-type filter -- Training & Tracking lists every posted order)
-    // Every applicable type stacks (display order Sunday > Profit Transfer > Split).
+    // Training & Tracking lists ONLY the 3 payout types (Owner's Stroke/Sunday,
+    // Profit Transfer, Split). Every applicable type stacks (display order Sunday >
+    // Profit Transfer > Split).
     var payTypes = [];
     if (isSunday) payTypes.push('sunday');
     if (isCodesSwap) payTypes.push('profit-transfer');
     if (isTraineeOrder) payTypes.push('split');
+    if (!payTypes.length) continue;   // no flag → not a payout order → skip
     var paidOut = {}; try { var rp = String(row[paidIdx]||'').trim(); if (rp) paidOut = JSON.parse(rp); } catch(e) {}
     orders.push({
       rowIndex: i+1, repName: String(row[POSTED.REP_NAME]||'').trim(),
