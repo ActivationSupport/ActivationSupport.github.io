@@ -5321,12 +5321,27 @@ document.getElementById('detail-modal').addEventListener('click', function(e) { 
 var _PS_STEP = 1;
 var _PS_DATA = null;
 
+// "Today" as YYYY-MM-DD in the CURRENT OFFICE's timezone, so the Post Sale date rolls at
+// office-midnight — not UTC (rolled at ~5pm Pacific → pre-filled tomorrow), and not the
+// rep's browser zone (a rep may sit in a different timezone than their office).
+function _psOfficeToday() {
+  var tz = (typeof APPT_OFFICE_TZ !== 'undefined') ? APPT_OFFICE_TZ[CFG.officeId] : '';
+  var now = new Date();
+  if (tz) {
+    try {
+      var m = {};
+      new Intl.DateTimeFormat('en-US', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit' })
+        .formatToParts(now).forEach(function(p){ m[p.type] = p.value; });
+      if (m.year && m.month && m.day) return m.year + '-' + m.month + '-' + m.day;
+    } catch (e) {}
+  }
+  return _apptDateStr(now);   // fallback: browser-local
+}
+
 function _psInit() {
   if (_PS_DATA) return;
   _PS_DATA = {
-    // LOCAL date (not toISOString/UTC) — UTC rolls to tomorrow at ~5pm Pacific, which was
-    // pre-filling the next day and causing orders to be logged under the wrong date.
-    dateOfSale: _apptDateStr(new Date()),
+    dateOfSale: _psOfficeToday(),
     dsi: '', accountType: 'Consumer', processedVia: 'Sara',
     underSomeoneCodes: 'No', codesUsedBy: '', trainee: '', traineeName: '', notes: '',
     products: { air: false, wireless: false, fiber: false, voip: false, dtv: false },
