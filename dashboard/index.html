@@ -5780,12 +5780,12 @@ function _rehashText(d) {
   if (hasW || hasA) s.push('Delivery date: 1-3 business days');   // Fiber-only = install appointment, no delivery line
   s.push('Account number: ' + acct);
   s.push('PIN: Created by the customer at point of sale', '');
-  s.push('Thank you for joining the AT&T family! Here is what to expect. Please check your email for any updates.', '');
-  s.push('For any problems, please contact the VIP line FIRST and use our group chat with our dedicated activation team as the main contact thread for visibility.', '');
+  s.push('Thank you for joining the AT&T family! Here is what to expect — and please keep an eye on your email for any updates.', '');
+  s.push('If you have any questions or run into any issues, please contact your VIP Support Line first. Your dedicated activation team is also available in your group chat and is your main point of contact.', '');
   s.push('———————————————————', '');
   // Booking portal — everything EXCEPT Fiber-only (Fiber is an install appointment, not an activation call)
   if (hasW || hasA) {
-    s.push('📅 Schedule your activation appointment');
+    s.push('📅 Schedule Your Activation Appointment');
     s.push('   • ' + bookUrl, '');
   }
   // VIP Support — always
@@ -5805,7 +5805,7 @@ function _rehashText(d) {
     s.push('   • https://rewardcenter.att.com/home.aspx', '');
   }
   // Apps — myAT&T on every order; Smart Home Manager only on internet products (Fiber/Air)
-  s.push('📲 Download the AT&T apps');
+  s.push('📲 Download the AT&T Apps');
   s.push('   • myAT&T (Android): https://play.google.com/store/apps/details?id=com.att.myWireless&hl=en_US');
   s.push('   • myAT&T (Apple): https://apps.apple.com/us/app/at-t/id309172177');
   if (hasF || hasA) {
@@ -5824,12 +5824,12 @@ function _rehashText(d) {
     s.push('   • https://www.att.com/support/article/u-verse-high-speed-internet/KM1046993/', '');
   }
   // Always
-  s.push('🔕 Opt out of AutoPay with your old provider', '');
+  s.push('🔕 Opt Out of AutoPay with Your Old Provider', '');
   s.push('✅ Validate Signature / Appreciation Discounts');
   s.push('   • www.ATT.com/verification/signaturehub', '');
   // Order status — Wireless (all), Air (all), Fiber (Consumer only)
   if (hasW || hasA || (hasF && !isBiz)) {
-    s.push('🔎 Check your order status');
+    s.push('🔎 Check Your Order Status');
     s.push('   • https://www.att.com/orders/checkmyorder', '');
   }
   s.push('———————————————————', '');
@@ -5848,7 +5848,9 @@ function _rehashText(d) {
   s.push('   • Credit reimbursement');
   s.push('   • Credits from the 1st, 2nd, and 3rd bill all apply here', '');
   s.push('4️⃣  Fourth Bill:');
-  s.push('   • The regular bill that was quoted');
+  s.push('   • The regular bill that was quoted', '');
+  s.push('———————————————————', '');
+  s.push('Thank you again for choosing AT&T — we truly appreciate your business!');
   return s.join('\n');
 }
 
