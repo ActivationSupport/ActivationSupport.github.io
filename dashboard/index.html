@@ -1824,6 +1824,7 @@ var ROLES_REP  = ['master-admin','owner','admin','client-rep','leader','jd','man
 var ROLES_PAYROLL = ['master-admin','owner','admin'];
 var TABS = [
   { id: 'postsale',    icon: '➕', label: 'Post Sale',            roles: ROLES_REP,  group: 'Sales',       sub: 'Log a new sale' },
+  { id: 'rehash',      icon: '💬', label: 'Rehash Text',          roles: ROLES_REP,  group: 'Sales',       sub: 'Generate the customer welcome text' },
   { id: 'postedsales', icon: '🧾', label: 'Posted Sales',         roles: ALL_ROLES,  group: 'Sales',       sub: 'View & correct posted sales' },
   { id: 'appointments', icon: '📅', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
   { id: 'myorders',    icon: '🗂️',  label: 'My Orders',           roles: ['client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
@@ -2410,6 +2411,7 @@ function renderTab(id) {
     case 'churn':       c.innerHTML = renderChurn();       break;
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
     case 'postsale':    c.innerHTML = renderPostSale();    break;
+    case 'rehash':      c.innerHTML = renderRehashTab();   break;
     case 'postedsales': renderPostedSalesTab();           break;
     case 'livesales':   renderLiveSalesTracker();          break;
     case 'teams':        renderTeamsTab();          break;
@@ -5601,8 +5603,25 @@ function _psStep4Html() {
     '<div class="ps-success-sub">Saved successfully &mdash; here\'s what was logged:</div>' +
     '<div class="ps-success-units"><span>' + units + '</span> unit' + (units!==1?'s':'') + ' logged</div></div>';
   h += _psRecapHtml(false);   // read-only recap of exactly what was submitted
-  h += '<div class="ps-btn-row"><button class="ps-btn" onclick="resetPostSaleForm()">Post Another Sale</button></div>';
+  h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="resetPostSaleForm()">Post Another Sale</button><button class="ps-btn" onclick="_psToRehash()">Create Rehash Text &rarr;</button></div>';
   return h;
+}
+// Journey handoff: carry the just-posted sale into the Rehash Text tab, pre-filling
+// everything Post Sale captured (products, date, account type). The rep only adds the
+// customer's first name + AT&T account number (Post Sale doesn't collect those).
+function _psToRehash() {
+  var p = _PS_DATA || {}, prods = p.products || {};
+  var rp = { Wireless: !!prods.wireless, Fiber: !!prods.fiber, Air: !!prods.air };
+  if (!rp.Wireless && !rp.Fiber && !rp.Air) rp.Wireless = true;   // never empty (e.g. VoIP/DTV-only sale)
+  _REHASH = {
+    products: rp,
+    firstName: '',
+    repName: (SESSION.name || ''),
+    dateOfSale: p.dateOfSale || _psOfficeToday(),
+    accountNumber: '',
+    acctType: (p.accountType === 'Business') ? 'Business' : 'Consumer'
+  };
+  switchTab('rehash');
 }
 function _psNotifyDiscord(payload, units) {
   var url = DISCORD_WEBHOOKS[CFG.officeId || ''];
@@ -5667,6 +5686,170 @@ function _psSubmit(btn) {
       alert((res&&res.duplicate) ? (res.error||'This order was already posted today.') : ('Error: '+(res&&res.error?res.error:'Unknown error')));
     }
   }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert('Submission failed. Please try again.'); });
+}
+
+// ── REHASH TEXT ───────────────────────────────────────────────────────────
+// Reps fill 4 fields → generates the AT&T welcome/rehash text to copy & send to
+// the customer. NOTHING is saved (no backend call); the account number is used
+// only to build the message. VIP line number switches on Consumer vs Business.
+var _REHASH = null;
+function _rehashInit() {
+  if (_REHASH) return;
+  _REHASH = { products:{ Wireless:true, Fiber:false, Air:false }, firstName:'', repName:(SESSION.name||''), dateOfSale:_psOfficeToday(), accountNumber:'', acctType:'Consumer' };
+}
+function renderRehashTab() {
+  _rehashInit();
+  var d = _REHASH;
+  var tog  = function(v){ return '<div class="ps-toggle'+(d.acctType===v?' active':'')+'" onclick="_rehashPick(\'acctType\',\''+v+'\')">'+v+'</div>'; };
+  var ptog = function(v){ return '<div class="ps-toggle'+(d.products[v]?' active':'')+'" onclick="_rehashToggleProduct(\''+v+'\')">'+v+'</div>'; };
+  return '<div class="card"><div class="card-header dark">💬 Rehash Text</div><div class="card-body">'+
+    '<div style="font-size:.85rem;color:var(--text2);margin-bottom:18px;line-height:1.5">Pick the product + fill these in, then tap <b>Copy Text</b> and send it to the customer. Nothing here is saved — the account number is used only to build the message.</div>'+
+    '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">'+
+      // ── Left: the fields (side-by-side on desktop, stacks full-width on phones) ──
+      '<div style="flex:1 1 240px;min-width:220px">'+
+        '<div class="ps-label" style="margin-top:0">PRODUCTS SOLD &mdash; select all that apply</div>'+
+        '<div class="ps-toggle-row">'+ptog('Wireless')+ptog('Fiber')+ptog('Air')+'</div>'+
+        '<div class="ps-label">CUSTOMER FIRST NAME</div>'+
+        '<input class="ps-input" id="rh-first" value="'+esc(d.firstName)+'" placeholder="Customer first name" oninput="_rehashSet(\'firstName\',this.value)">'+
+        '<div class="ps-label">SALES REP</div>'+
+        '<input class="ps-input" id="rh-rep" value="'+esc(d.repName)+'" oninput="_rehashSet(\'repName\',this.value)">'+
+        '<div class="ps-label">DATE OF SALE</div>'+
+        '<input class="ps-input" type="date" id="rh-date" value="'+esc(d.dateOfSale)+'" onchange="_rehashSet(\'dateOfSale\',this.value)">'+
+        '<div class="ps-label">ACCOUNT NUMBER</div>'+
+        '<input class="ps-input" id="rh-acct" value="'+esc(d.accountNumber)+'" placeholder="Used only for this text — not saved" oninput="_rehashSet(\'accountNumber\',this.value)">'+
+        '<div class="ps-label">ACCOUNT TYPE</div>'+
+        '<div class="ps-toggle-row">'+tog('Consumer')+tog('Business')+'</div>'+
+      '</div>'+
+      // ── Right: the live message preview ──
+      '<div style="flex:1.5 1 300px;min-width:260px">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;gap:10px;flex-wrap:wrap">'+
+          '<span class="ps-label" style="margin:0">MESSAGE PREVIEW</span>'+
+          '<button class="ps-btn" onclick="_rehashCopy(this)">📋 Copy Text</button>'+
+        '</div>'+
+        '<textarea id="rh-preview" readonly style="width:100%;min-height:520px;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;line-height:1.5;padding:14px;white-space:pre-wrap;resize:vertical">'+esc(_rehashText(d))+'</textarea>'+
+      '</div>'+
+    '</div>'+
+    '</div></div>';
+}
+function _rehashSet(field, val) {
+  _rehashInit(); _REHASH[field] = val;
+  var t = document.getElementById('rh-preview'); if (t) t.value = _rehashText(_REHASH);
+}
+function _rehashPick(field, val) {
+  _rehashInit(); _REHASH[field] = val;
+  document.getElementById('main-content').innerHTML = renderRehashTab();
+}
+function _rehashToggleProduct(v) {
+  _rehashInit();
+  var p = _REHASH.products, on = Object.keys(p).filter(function(k){ return p[k]; });
+  if (p[v] && on.length === 1) return;   // keep at least one product selected
+  p[v] = !p[v];
+  document.getElementById('main-content').innerHTML = renderRehashTab();
+}
+function _rehashCopy(btn) {
+  var t = document.getElementById('rh-preview'); if (!t) return;
+  var txt = t.value;
+  var done = function(){ var o = btn.textContent; btn.textContent = '✓ Copied!'; setTimeout(function(){ btn.textContent = o; }, 1500); };
+  var fallback = function(){ t.removeAttribute('readonly'); t.select(); try{ document.execCommand('copy'); done(); }catch(e){} t.setAttribute('readonly','readonly'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(done, fallback); }
+  else { fallback(); }
+}
+function _rehashText(d) {
+  var name = (d.firstName || '').trim() || '[Customer first name]';
+  var rep  = (d.repName || '').trim() || '[Rep name]';
+  var date = (d.dateOfSale || '').trim() || '[Date of sale]';
+  var acct = (d.accountNumber || '').trim() || '[Account number]';
+  var P = d.products || { Wireless:true };
+  var hasW = !!P.Wireless, hasF = !!P.Fiber, hasA = !!P.Air;
+  if (!hasW && !hasF && !hasA) hasW = true;   // safety: never empty
+  var isBiz = (d.acctType === 'Business');
+  var vip  = isBiz ? '855 370 6941' : '833 603 3270';
+  // Current office's public customer booking portal (same source as the Appointments-tab link).
+  var bookUrl = (typeof CUSTOMER_BOOKING_URL !== 'undefined' ? CUSTOMER_BOOKING_URL : 'https://activationsupport.github.io/book.html') +
+    '?office=' + encodeURIComponent((typeof CFG !== 'undefined' && CFG && CFG.officeId) ? CFG.officeId : '');
+  // Header lists whatever was selected; single product keeps its own icon.
+  var sel = []; if (hasW) sel.push('Wireless'); if (hasF) sel.push('Fiber'); if (hasA) sel.push('Internet Air');
+  var hdr;
+  if (sel.length === 1) { var ic = hasW ? '📱' : hasA ? '📡' : '🌐'; hdr = ic + ' YOUR ' + sel[0].toUpperCase() + ' ORDER'; }
+  else { hdr = '📋 YOUR AT&T ORDER — ' + sel.join(' + '); }
+  var s = [];
+  s.push('Hi ' + name + ',', '');
+  s.push(hdr);
+  s.push('Sales Rep: ' + rep);
+  s.push('Order date: ' + date);
+  if (hasW || hasA) s.push('Delivery date: 1-3 business days');   // Fiber-only = install appointment, no delivery line
+  s.push('Account number: ' + acct);
+  s.push('PIN: Birth Year (unless customer created a different one, like an off-site sale)', '');
+  s.push('Thank you for joining the AT&T family! Here is what to expect. Please check your email for any updates.', '');
+  s.push('For any problems, please contact the VIP line FIRST and use our group chat with our dedicated activation team as the main contact thread for visibility.', '');
+  s.push('———————————————————', '');
+  // Booking portal — everything EXCEPT Fiber-only (Fiber is an install appointment, not an activation call)
+  if (hasW || hasA) {
+    s.push('📅 Schedule your activation appointment');
+    s.push('   • ' + bookUrl, '');
+  }
+  // VIP Support — always
+  s.push('📞 VIP Support Line');
+  s.push('   • Dedicated hotline for your neighborhood');
+  s.push('   • ' + vip, '');
+  // Wireless-only sections
+  if (hasW) {
+    s.push('📦 Trade-In + Next Up');
+    s.push('   • Call ' + vip + ' to request boxes for your trade-in', '');
+    s.push('💳 Phone Reimbursement');
+    s.push('   • After activating your new AT&T phones, your old carrier will send a final bill with the remaining balance of any unpaid devices');
+    s.push('   • Submit that bill here: https://rewardcenteroffers.com/ETF');
+    s.push('   • Can take 8-11 weeks to receive', '');
+    s.push('🎁 $250 Gift Card');
+    s.push('   • Redemption will be emailed 3 weeks after activation');
+    s.push('   • https://rewardcenter.att.com/home.aspx', '');
+  }
+  // Apps — myAT&T on every order; Smart Home Manager only on internet products (Fiber/Air)
+  s.push('📲 Download the AT&T apps');
+  s.push('   • myAT&T (Android): https://play.google.com/store/apps/details?id=com.att.myWireless&hl=en_US');
+  s.push('   • myAT&T (Apple): https://apps.apple.com/us/app/at-t/id309172177');
+  if (hasF || hasA) {
+    s.push('   • Smart Home Manager (Android): https://play.google.com/store/apps/details?id=com.att.shm&hl=en_US');
+    s.push('   • Smart Home Manager (Apple): https://apps.apple.com/us/app/smart-home-manager/id1258654743');
+  }
+  s.push('');
+  // AIR Compass — Air + Business
+  if (hasA && isBiz) {
+    s.push('🧭 AIR Compass');
+    s.push('   • https://aiab-signal.att.com/', '');
+  }
+  // Appointment Manager Portal — Fiber + Business
+  if (hasF && isBiz) {
+    s.push('📅 Appointment Manager Portal');
+    s.push('   • https://www.att.com/support/article/u-verse-high-speed-internet/KM1046993/', '');
+  }
+  // Always
+  s.push('🔕 Opt out of AutoPay with your old provider', '');
+  s.push('✅ Validate Signature / Appreciation Discounts');
+  s.push('   • www.ATT.com/verification/signaturehub', '');
+  // Order status — Wireless (all), Air (all), Fiber (Consumer only)
+  if (hasW || hasA || (hasF && !isBiz)) {
+    s.push('🔎 Check your order status');
+    s.push('   • https://www.att.com/orders/checkmyorder', '');
+  }
+  s.push('———————————————————', '');
+  // Billing — same block across all products
+  s.push('🧾 YOUR BILLING', '');
+  s.push('1️⃣  First Bill — starts higher due to:');
+  s.push('   • Proration (31-60 days of service)');
+  s.push('   • Activation fees (will be reimbursed)');
+  s.push('   • Delayed credits (not applied yet)');
+  s.push('   • Trade-in credits (will be reimbursed)');
+  s.push('   • $250 port credits (will be reimbursed)', '');
+  s.push('2️⃣  Second Bill:');
+  s.push('   • No more proration (only 30 days of service)');
+  s.push('   • Delayed credits (not applied yet)', '');
+  s.push('3️⃣  Third Bill:');
+  s.push('   • Credit reimbursement');
+  s.push('   • Credits from the 1st, 2nd, and 3rd bill all apply here', '');
+  s.push('4️⃣  Fourth Bill:');
+  s.push('   • The regular bill that was quoted');
+  return s.join('\n');
 }
 
 // ── POSTED SALES (view + self-correct + void) ─────────────────────────────
@@ -5772,7 +5955,14 @@ function _psvVoid(idx, makeVoid) {
   if (!confirm(msg)) return;
   apiPost({ action:'voidPostedSale', key:API_KEY, officeId:CFG.officeId, rowIndex:s.rowIndex, voided:makeVoid })
     .then(function(res) {
-      if (res && res.ok) { _PSV_SALES = null; _psInvalidateDownstream(); renderPostedSalesTab(); }
+      if (res && res.ok) {
+        // Update the record in place + repaint locally (no re-fetch / no spinner / keep scroll).
+        s.voided = makeVoid;
+        _psInvalidateDownstream();
+        var _sc = _snapScroll();
+        _psvPaint();
+        _restoreScroll(_sc);
+      }
       else alert('Error: ' + (res && res.error ? res.error : 'Unknown error'));
     }).catch(function() { alert('Action failed. Please try again.'); });
 }
