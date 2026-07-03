@@ -4817,6 +4817,8 @@ function renderPeople() {
   // scope them, and _officeAllowed on the backend enforces it). NOT a Teams-management grant.
   var isAdmin   = role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd' || role === 'activator';
   var isMgr     = false;   // jd is now a full admin here (manager-equivalent)
+  // Team LEADS can also add + edit people (assign teams, basics) — restricted fields via buildPersonForm.
+  var canManagePeople = isAdmin || role === 'leader';
   var myEmail   = (SESSION.email || '').toLowerCase();
   var homeRows = Object.keys(roster).map(function(email) {
     return Object.assign({ email: email, isGuest: false }, roster[email]);
@@ -4826,7 +4828,7 @@ function renderPeople() {
   });
   var rows = homeRows.concat(guestRows).sort(function(a,b) { return (a.name||'').localeCompare(b.name||''); });
   if (!rows.length) return noData('No people in the roster yet.');
-  var addBtn = isAdmin ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
+  var addBtn = canManagePeople ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
   return '<div class="card"><div class="card-header dark">People &amp; Roster</div><div class="card-body">' +
     addBtn +
     '<div class="filter-row"><input id="f-people" placeholder="Search name, email, role…"></div>' +
@@ -4841,7 +4843,7 @@ function renderPeople() {
       var actions;
       if (row.isGuest) {
         actions = (isAdmin || isMgr) ? '<td style="color:#aaa;font-size:.78rem">Managed in ' + esc(OFFICE_NAMES[row.homeOffice]||row.homeOffice) + '</td>' : '<td></td>';
-      } else if (isAdmin) {
+      } else if (canManagePeople) {
         actions = '<td style="white-space:nowrap"><button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">Edit</button>' +
           (role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson(\''+esc(row.email)+'\')">Remove</button>' : '') + '</td>';
       } else if (isMgr) {
@@ -4868,6 +4870,7 @@ function buildPersonForm(email, person) {
   else if (role === 'jd') editLevel = 'admin';   // jd = manager-equivalent
   else if (role === 'manager') editLevel = 'admin';
   else if (role === 'activator') editLevel = 'admin';   // manages people across their permitted offices
+  else if (role === 'leader')    editLevel = 'leaderbasic';   // team leads: add/assign people + edit basics (no role/perms/status)
   else editLevel = 'selfphone';
   var canRole   = editLevel === 'full' || editLevel === 'owner';
   var canPerms  = editLevel === 'full' || editLevel === 'owner';
@@ -4930,6 +4933,7 @@ function savePerson(existingEmail) {
   else if (role === 'jd') editLevel = 'admin';   // jd = manager-equivalent
   else if (role === 'manager') editLevel = 'admin';
   else if (role === 'activator') editLevel = 'admin';   // manages people across their permitted offices
+  else if (role === 'leader')    editLevel = 'leaderbasic';   // team leads: add/assign people + edit basics (no role/perms/status)
   else editLevel = 'selfphone';
   var canRole   = editLevel === 'full' || editLevel === 'owner';
   var canPerms  = editLevel === 'full' || editLevel === 'owner';
@@ -5007,9 +5011,15 @@ function _tmBuildList() {
   var teams  = DATA.teams  || {};
   var roster = DATA.roster || {};
   var role = SESSION.role;
-  var canManage = ['master-admin','owner','admin','manager'].indexOf(role) !== -1;
+  var canManage = ['master-admin','owner','admin','manager','jd'].indexOf(role) !== -1;   // jd can create/manage teams
   var teamArr = Object.keys(teams).map(function(k){ return teams[k]; });
   teamArr.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+  // Client reps see ONLY their own team.
+  if (role === 'client-rep') {
+    var _myTeam = ((roster[(SESSION.email||'').toLowerCase()])||{}).team || '';
+    teamArr = teamArr.filter(function(t){ return t && t.name === _myTeam; });
+    if (!teamArr.length) return '<div class="card"><div class="card-body"><div class="empty">You&rsquo;re not on a team yet.</div></div></div>';
+  }
 
   // Member counts
   var memberCounts = {};
