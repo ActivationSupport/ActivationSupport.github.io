@@ -7914,6 +7914,10 @@ function _apptUpcomingTable(appts) {
     else outcomeCell='—';
     // Actions: reschedule (non-cancelled, non-terminal) + cancel (non-cancelled).
     var actions='';
+    if (ok) {   // notes reference the customer → only for viewers who can see them
+      var _nN=(a.notes?a.notes.length:0)+(a.customerNote?1:0);
+      actions+='<button class="appt-resched-btn" title="Notes" onclick="openApptNotes(\''+esc(a.appointmentId)+'\')">📝'+(_nN?' '+_nN:'')+'</button>';
+    }
     if (canX && !cancelled && !terminal)
       actions+='<button class="appt-resched-btn" onclick="rescheduleApptUI(\''+esc(a.appointmentId)+'\')">Reschedule</button>';
     if (canX && !cancelled)
@@ -8168,6 +8172,7 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
         '<div class="field"><label>DSI Number</label><input type="text" class="appt-form-input" id="abm-dsi" placeholder="DSI #"></div>'+
         '<div class="field"><label>Contact Number</label><input type="tel" class="appt-form-input" id="abm-phone" placeholder="(555) 555-5555"></div>'+
         '<div class="field"><label>Customer Email</label><input type="email" class="appt-form-input" id="abm-email" placeholder="customer@email.com"></div>'+
+        '<div class="field"><label>Notes (optional)</label><textarea class="appt-form-input" id="abm-note" rows="2" placeholder="Special requests, context, best time to reach…" style="resize:vertical"></textarea></div>'+
         '<div class="field" style="grid-column:1/-1"><label>Services &amp; quantity (tap to select)</label>'+
           '<div class="abm-prod-list" id="abm-svcs"></div>'+
         '</div>'+
@@ -8310,6 +8315,7 @@ function submitApptBooking() {
   var dsi=(document.getElementById('abm-dsi')||{}).value||'';
   var phone=(document.getElementById('abm-phone')||{}).value||'';
   var email=(document.getElementById('abm-email')||{}).value||'';
+  var note=((document.getElementById('abm-note')||{}).value||'').trim().slice(0,500);
   // Encode per-product quantities into the existing fields (no backend change):
   // services becomes ["Wireless x2","Air x1"] (backend joins with ", "); deviceCount = total.
   // NB: plain ASCII "x" (not "×") — the × multiplication sign gets mangled in the
@@ -8329,7 +8335,7 @@ function submitApptBooking() {
   if(btn){btn.disabled=true;btn.textContent='Booking…';}
   _apptPost({action:'bookAppointment',bookerEmail:SESSION.email,activatorEmail:actEmail,
     date:date,timeSlot:slot,customerName:name,customerDSI:dsi,customerPhone:phone,
-    customerEmail:email,services:svcs,deviceCount:devices,office:CFG.officeId,
+    customerEmail:email,customerNote:note,services:svcs,deviceCount:devices,office:CFG.officeId,
     nextMode:nextMode, role:(sameday?SESSION.role:'')   // role sent only on explicit same-day opt-in
   }).then(function(res){
     if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
@@ -8339,6 +8345,44 @@ function submitApptBooking() {
 }
 
 function closeApptModal() { document.getElementById('appt-booking-modal').classList.remove('open'); }
+
+// ── Appointment notes (customer note + internal staff thread) ──
+function _apptNoteTime(iso){ if(!iso) return ''; var d=new Date(iso); return isNaN(d.getTime())?'':d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+function _apptNotesBody(a){
+  var cust = a.customerNote
+    ? '<div style="background:rgba(var(--blue2-rgb),.1);border:1px solid rgba(var(--blue2-rgb),.25);border-radius:8px;padding:10px 12px;margin-bottom:14px">'+
+        '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:3px">Customer note</div>'+
+        '<div style="white-space:pre-wrap">'+esc(a.customerNote)+'</div></div>'
+    : '';
+  var thread = (a.notes&&a.notes.length)
+    ? a.notes.map(function(n){
+        return '<div style="border-bottom:1px solid var(--border);padding:8px 0">'+
+          '<div style="font-size:.74rem;color:var(--text2)">'+esc(n.authorName||n.authorEmail||'Staff')+' &middot; '+esc(_apptNoteTime(n.ts))+'</div>'+
+          '<div style="margin-top:2px;white-space:pre-wrap">'+esc(n.noteText)+'</div></div>';
+      }).join('')
+    : '<div style="color:var(--text2);font-size:.85rem;padding:6px 0">No staff notes yet.</div>';
+  return cust +
+    '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:4px">Staff notes (internal)</div>'+
+    '<div id="appt-note-thread">'+thread+'</div>'+
+    '<textarea id="appt-note-input" class="nm-textarea" rows="2" placeholder="Add an internal note…" style="margin-top:10px"></textarea>'+
+    '<div class="nm-actions"><button class="nm-add-btn" onclick="addApptNoteUI(\''+esc(a.appointmentId)+'\')">ADD NOTE</button><button class="nm-close-btn" onclick="closeModal()">CLOSE</button></div>';
+}
+function openApptNotes(id){
+  var a=((window._APPT&&_APPT.appointments)||[]).filter(function(x){return x.appointmentId===id;})[0];
+  if(!a) return;
+  document.getElementById('modal-title').innerHTML='<div class="nm-dsi">Appointment Notes — '+esc(a.customerName||'')+'</div>';
+  document.getElementById('modal-body').innerHTML=_apptNotesBody(a);
+  document.getElementById('detail-modal').classList.add('open');
+}
+function addApptNoteUI(id){
+  var inp=document.getElementById('appt-note-input'); var txt=(inp?inp.value:'').trim().slice(0,1000); if(!txt) return;
+  var a=((window._APPT&&_APPT.appointments)||[]).filter(function(x){return x.appointmentId===id;})[0];
+  _apptPost({action:'addApptNote',appointmentId:id,noteText:txt,authorEmail:SESSION.email,authorName:SESSION.name,role:SESSION.role}).then(function(res){
+    if(res&&res.ok){
+      if(a){ a.notes=a.notes||[]; a.notes.push({ts:new Date().toISOString(),authorEmail:SESSION.email,authorName:SESSION.name,noteText:txt}); document.getElementById('modal-body').innerHTML=_apptNotesBody(a); }
+    } else alert((res&&res.error)||'Could not add note.');
+  }).catch(function(){ alert('Connection error.'); });
+}
 
 function cancelAppt(id) {
   if (!confirm('Cancel this appointment?')) return;

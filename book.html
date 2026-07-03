@@ -35,7 +35,7 @@
     font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:7px}
   .step-num{display:inline-flex;width:19px;height:19px;border-radius:50%;background:var(--accentdim);
     color:var(--accent2);align-items:center;justify-content:center;font-size:11px;font-weight:800}
-  input,select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+  input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
     border-radius:10px;padding:12px 13px;font-size:15px;font-family:inherit;outline:none;transition:.15s}
   input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentdim)}
   input::placeholder{color:var(--muted)}
@@ -142,6 +142,7 @@
       <div class="fld"><span>What are you activating? Tap a product, then set how many.</span>
         <div class="prod-list" id="svcs"></div>
       </div>
+      <label class="fld"><span>Anything we should know? (optional)</span><textarea id="cnote" rows="3" placeholder="Special requests, best time to reach you, etc." style="font:inherit;padding:11px 13px;border-radius:10px;resize:vertical"></textarea></label>
     </div>
 
     <!-- Honeypot: off-screen, hidden from humans; bots that fill it are silently dropped server-side. -->
@@ -324,12 +325,13 @@
 
     var svcs = products.map(function(p){ return p.name + " x" + p.qty; });
     var devices = products.reduce(function(s,p){ return s + p.qty; }, 0);
+    var note = ($("cnote") ? $("cnote").value : "").trim().slice(0, 500);
 
     var btn = $("submit"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Booking…';
     apiPost({
       action:"book", office:OFFICE, activatorId:act, date:date, timeSlot:selectedSlot,
       customerName:name, customerPhone:phone, customerEmail:email,
-      services:svcs, deviceCount:devices, hp:$("hp").value
+      customerNote:note, services:svcs, deviceCount:devices, hp:$("hp").value
     }).then(function(res){
       if(res && res.ok){
         $("recap").innerHTML =
