@@ -1829,6 +1829,7 @@ var TABS = [
   { id: 'appointments', icon: '📅', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
   { id: 'myorders',    icon: '🗂️',  label: 'My Orders',           roles: ['client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
   { id: 'myteam',      icon: '👪', label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 120-day window" },
+  { id: 'actsupport',  icon: '📶', label: 'Activation Support',    roles: ALL_ROLES,                              group: 'Orders', sub: 'Pending & Activation sheets — Date → Rep → Product → Status' },
   { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ROLES_CALL, group: 'Call Logs',   sub: '120-day window' },
   { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
   { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
@@ -2402,6 +2403,7 @@ function renderTab(id) {
     case 'myorders':    c.innerHTML = renderCallTable(_myOrdersFilter(DATA.masterTracker||[]), 'My Orders', 'No orders found.'); break;
     case 'myteam':      c.innerHTML = renderCallTable(_myTeamFilter(DATA.masterTracker||[]), "My Team's Orders", 'No orders found.'); break;
     case 'master':      c.innerHTML = renderCallTable(repFilter(DATA.masterTracker||[]), 'Master Tracker', 'No orders found.'); break;
+    case 'actsupport':  renderActivationSupport(); break;
     case 'dayafter':    c.innerHTML = renderCallTable(repFilter(DATA.dayAfterOrders||[]), 'Day-After Calls', 'No day-after orders found.'); break;
     case 'delivered':   c.innerHTML = renderCallTable(repFilter(within29Days(DATA.deliveredOrders||[])), 'Delivered Not Active', 'No delivered-not-active orders found.'); break;
     case 'issues':      c.innerHTML = renderCallTable(repFilter(issueFilter(DATA.orderIssues||[])), 'Order Issues', 'No order issues found.'); break;
@@ -3225,6 +3227,202 @@ function renderCallTable(orders, title, emptyMsg) {
     '<div class="call-table-wrap"><table class="call-table" id="ct-table"><thead><tr>' +
     _sortHeaders('ct-table') +
     '</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div></div></div>';
+}
+
+
+// ── ACTIVATION SUPPORT (Pending / Activation sheets · Date → Rep → Product → Status) ──
+// One tab, two toggled pages. Pending = only lines NOT yet Active/Posted/Cancelled/
+// Disconnected (from masterTracker). Activation = every line, every status (master ∪
+// completed). Both role-scoped via repFilter. Also shows the auto-email "last sent" badge.
+var _asPage = 'pending';        // 'pending' | 'activation'
+var _AS_STATUS = null;          // cached readAutoEmailStatus result (global, not per-office)
+var _asStatusFlight = false;
+
+function _asIsDone(s){ var l=String(s||'').toLowerCase().trim(); return l==='active'||l==='posted'||l.indexOf('cancel')!==-1||l.indexOf('disco')!==-1; }
+function _asProdLabelFE(p){
+  var s=String(p||'').trim(); if(!s) return 'Other'; var l=s.toLowerCase();
+  if(l.indexOf('wireless')!==-1||l==='cell'||l==='new phones'||l==='byod') return 'Wireless';
+  if(l.indexOf('fiber')!==-1) return 'Fiber';
+  if(l.indexOf('air')!==-1||l.indexOf('awb')!==-1) return 'Air';
+  if(l.indexOf('voip')!==-1||l.indexOf('ooma')!==-1) return 'VoIP';
+  if(l.indexOf('dtv')!==-1||l.indexOf('directv')!==-1) return 'DTV';
+  if(l.indexOf('internet')!==-1) return 'Internet';
+  return s;
+}
+function _asStatusColorFE(st){
+  var l=String(st||'').toLowerCase();
+  if(l==='active'||l==='posted') return '#1f8a4c';
+  if(l.indexOf('cancel')!==-1||l.indexOf('disco')!==-1) return '#c0392b';
+  return '#b8791a';
+}
+// Per-line pairs. Uses the backend o.lines when present; otherwise (pre-redeploy) synthesizes
+// from productCounts/statusCounts so the drill-down still renders live — self-corrects once
+// Code.gs is redeployed with the real per-line pairing.
+function _asLinesOf(o){
+  if(o.lines && o.lines.length) return o.lines;
+  var prods=[], pc=o.productCounts||{}; Object.keys(pc).forEach(function(p){ var n=pc[p]||0; for(var i=0;i<n;i++) prods.push(p); });
+  var stats=[], sc=o.statusCounts||{}; Object.keys(sc).forEach(function(s){ var n=sc[s]||0; for(var i=0;i<n;i++) stats.push(s); });
+  if(!prods.length) prods.push(o.productType||'Other');
+  if(!stats.length) stats.push(o.dtrStatus||'Null');
+  var n=Math.max(prods.length,stats.length), out=[];
+  for(var i=0;i<n;i++) out.push({ product:prods[i%prods.length], status:stats[i%stats.length] });
+  return out;
+}
+// orders -> { date:{ rep:{ product:{ status:{count,dsis{}} } } } }
+function _asTree(orders, includeDone){
+  var tree={};
+  (orders||[]).forEach(function(o){
+    var date=o.orderDate||'Unknown', rep=o.rep||'Unknown';
+    _asLinesOf(o).forEach(function(ln){
+      if(!includeDone && _asIsDone(ln.status)) return;
+      var prod=_asProdLabelFE(ln.product), st=String(ln.status||'Null').trim()||'Null';
+      if(!tree[date]) tree[date]={};
+      if(!tree[date][rep]) tree[date][rep]={};
+      if(!tree[date][rep][prod]) tree[date][rep][prod]={};
+      if(!tree[date][rep][prod][st]) tree[date][rep][prod][st]={count:0,dsis:{}};
+      var cell=tree[date][rep][prod][st]; cell.count++; if(o.dsi) cell.dsis[o.dsi]=true;
+    });
+  });
+  return tree;
+}
+function _asSum(node){
+  if(node && typeof node.count==='number' && node.dsis) return node.count;
+  var n=0; for(var k in node){ if(node.hasOwnProperty(k)) n+=_asSum(node[k]); } return n;
+}
+function _asFmtDateFE(iso){
+  if(!iso||iso==='Unknown') return 'Unknown date';
+  var d=new Date(String(iso)+'T12:00:00'); if(isNaN(d.getTime())) return String(iso);
+  return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+}
+function _asDetails(headBg, title, meta, innerHtml, open){
+  return '<details '+(open?'open ':'')+'style="margin:6px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border)">'+
+    '<summary style="background:'+headBg+';color:var(--text);padding:9px 12px;font-size:.85rem;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px">'+
+      '<span class="as-caret" style="opacity:.55;font-size:.66rem">▶</span>'+
+      '<span>'+esc(title)+'</span>'+
+      '<span style="margin-left:auto;font-weight:500;font-size:.76rem;opacity:.85">'+esc(meta)+'</span>'+
+    '</summary>'+
+    '<div style="padding:2px 10px 8px">'+innerHtml+'</div>'+
+  '</details>';
+}
+function _asStatusRows(statusMap){
+  return Object.keys(statusMap).sort().map(function(st){
+    var cell=statusMap[st], dsis=Object.keys(cell.dsis);
+    return '<tr>'+
+      '<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-weight:600;color:'+_asStatusColorFE(st)+'">'+esc(st)+'</td>'+
+      '<td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:center;font-weight:700;width:56px">'+cell.count+'</td>'+
+      '<td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--text2);font-size:.76rem;word-break:break-word">'+esc(dsis.join(', '))+'</td>'+
+    '</tr>';
+  }).join('');
+}
+function _asRenderProducts(prodMap){
+  return Object.keys(prodMap).sort().map(function(prod){
+    var n=_asSum(prodMap[prod]);
+    var inner='<table style="width:100%;border-collapse:collapse;font-size:.82rem"><tbody>'+_asStatusRows(prodMap[prod])+'</tbody></table>';
+    return _asDetails('var(--surface)', prod, n+' line'+(n===1?'':'s'), inner, false);
+  }).join('');
+}
+function _asRenderReps(repMap){
+  return Object.keys(repMap).sort().map(function(rep){
+    var n=_asSum(repMap[rep]);
+    return _asDetails('var(--surface2)', rep, n+' line'+(n===1?'':'s'), _asRenderProducts(repMap[rep]), false);
+  }).join('');
+}
+// Merge a date's rep-map down to a single product map (used when only one rep is in view).
+function _asMergeToProducts(repMap){
+  var pm={};
+  Object.keys(repMap).forEach(function(rep){
+    var prods=repMap[rep];
+    Object.keys(prods).forEach(function(p){
+      pm[p]=pm[p]||{};
+      Object.keys(prods[p]).forEach(function(s){
+        if(!pm[p][s]) pm[p][s]={count:0,dsis:{}};
+        pm[p][s].count+=prods[p][s].count;
+        Object.keys(prods[p][s].dsis).forEach(function(d){ pm[p][s].dsis[d]=true; });
+      });
+    });
+  });
+  return pm;
+}
+function _asRenderTree(tree){
+  var dates=Object.keys(tree).sort(function(a,b){ return a<b?1:a>b?-1:0; }); // newest first
+  if(!dates.length) return noData(_asPage==='pending' ? 'No pending lines — everyone is caught up. 🎉' : 'No orders in the last 60 days.');
+  var repSet={}; dates.forEach(function(d){ Object.keys(tree[d]).forEach(function(r){ repSet[r]=true; }); });
+  var multiRep=Object.keys(repSet).length>1;
+  return dates.map(function(date,i){
+    var total=_asSum(tree[date]);
+    var inner = multiRep ? _asRenderReps(tree[date]) : _asRenderProducts(_asMergeToProducts(tree[date]));
+    return _asDetails('rgba(var(--blue2-rgb),.14)', _asFmtDateFE(date), total+' line'+(total===1?'':'s'), inner, i===0);
+  }).join('');
+}
+function _asPageOrders(){
+  if(_asPage==='activation') return repFilter((DATA.masterTracker||[]).concat(DATA.completedOrders||[]));
+  return repFilter(DATA.masterTracker||[]);
+}
+function _asToggleHtml(){
+  function btn(page,label,sub){
+    var on=_asPage===page;
+    return '<button onclick="_asSwitchPage(\''+page+'\')" style="flex:1;min-width:170px;border:1px solid '+(on?'var(--blue2)':'var(--border)')+';background:'+(on?'rgba(var(--blue2-rgb),.14)':'var(--surface)')+';color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;font-size:.92rem;text-align:left">'+
+      esc(label)+'<div style="font-weight:400;font-size:.75rem;color:var(--text2);margin-top:2px">'+esc(sub)+'</div></button>';
+  }
+  return '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+
+    btn('pending','⏳ Pending','Not yet Active / Cancelled / Disconnected / Posted')+
+    btn('activation','📶 Activation','Every line, every status')+
+  '</div>';
+}
+function _asRenderSignifier(){
+  var s=_AS_STATUS;
+  function row(type,label,day){
+    var d=s&&s[type], body;
+    if(!s){ body='<span style="color:var(--text2)">Loading…</span>'; }
+    else if(!d){ body='<span style="color:var(--text2)">No send recorded yet</span>'; }
+    else {
+      var when=d.ts?new Date(d.ts).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):(d.date||'');
+      var icon=d.ok?'✅':'⚠️';
+      var detail=d.sent+' sent'+(d.qualifying?(' / '+d.qualifying+' qualified'):'')+(d.failed?(' · '+d.failed+' failed'):'')+(d.quotaHit?' · ⚠ quota hit':'');
+      body=icon+' Last sent <b>'+esc(when)+'</b> &nbsp;·&nbsp; '+esc(detail);
+    }
+    return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;flex-wrap:wrap">'+
+      '<span style="font-weight:700;min-width:128px">'+esc(label)+'</span>'+
+      '<span style="font-size:.78rem;color:var(--text2);min-width:132px">Auto-sends '+esc(day)+' · 6pm PT</span>'+
+      '<span style="font-size:.84rem">'+body+'</span>'+
+    '</div>';
+  }
+  return '<div style="border:1px solid var(--border);border-radius:10px;padding:9px 14px;margin-bottom:12px;background:var(--surface)">'+
+    '<div style="font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:2px">Auto-email status</div>'+
+    row('pending','Pending Sheet','Fridays')+
+    row('activation','Activation Sheet','Mondays')+
+  '</div>';
+}
+function _asShell(){
+  var orders=_asPageOrders();
+  var tree=_asTree(orders, _asPage==='activation');
+  var lineCount=_asSum(tree);
+  return _tableauWarnBanner()+
+    '<style>.as-wrap details>summary::-webkit-details-marker{display:none}.as-wrap .as-caret{transition:transform .12s ease;display:inline-block}.as-wrap details[open]>summary .as-caret{transform:rotate(90deg)}</style>'+
+    '<div class="as-wrap">'+
+      '<div id="as-signifier">'+_asRenderSignifier()+'</div>'+
+      _asToggleHtml()+
+      '<div class="card"><div class="card-header dark">'+
+        (_asPage==='pending'?'Pending Sheet':'Activation Sheet')+
+        ' &nbsp;<span style="font-weight:400;font-size:.82rem;opacity:.8">'+lineCount+' line'+(lineCount===1?'':'s')+' · last 60 days</span>'+
+      '</div><div class="card-body">'+_asRenderTree(tree)+'</div></div>'+
+    '</div>';
+}
+function _asSwitchPage(page){
+  _asPage=(page==='activation')?'activation':'pending';
+  renderActivationSupport();
+}
+function renderActivationSupport(){
+  var c=document.getElementById('main-content');
+  c.innerHTML=_asShell();
+  if(!_asStatusFlight){
+    _asStatusFlight=true;
+    api({action:'readAutoEmailStatus'}).then(function(res){
+      _asStatusFlight=false;
+      if(res && !res.error){ _AS_STATUS=res; }
+      if(CURRENT_TAB==='actsupport'){ var sc=document.getElementById('as-signifier'); if(sc) sc.innerHTML=_asRenderSignifier(); }
+    }).catch(function(){ _asStatusFlight=false; });
+  }
 }
 
 
