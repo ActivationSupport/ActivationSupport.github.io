@@ -2417,7 +2417,7 @@ function renderTab(id) {
     case 'postedsales': renderPostedSalesTab();           break;
     case 'livesales':   renderLiveSalesTracker();          break;
     case 'teams':        renderTeamsTab();          break;
-    case 'appointments': renderAppointmentsTab();  break;
+    case 'appointments': _APPT.weekOffset=0; _APPT.dayOffset=0; renderAppointmentsTab();  break;  // always open on the current week/day
     case 'training':     renderTrainingTab();       break;
     default: c.innerHTML = '<div class="empty">Coming soon.</div>';
   }
