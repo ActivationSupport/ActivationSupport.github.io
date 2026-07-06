@@ -136,6 +136,7 @@
   function fmtTime(t){var p=String(t).split(":").map(Number),h=p[0],m=p[1];var ap=h>=12?"PM":"AM",hr=h>12?h-12:(h===0?12:h);return hr+":"+(m<10?"0"+m:m)+" "+ap;}
   function fmtDate(d){var p=String(d).split("-").map(Number);var mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return mo[p[1]-1]+" "+p[2]+", "+p[0];}
   function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):"";}
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 
   function init(){
     applyTheme(OFFICE);
@@ -148,8 +149,8 @@
       $("recap").innerHTML=
         '<div><span class="k">Date</span><span class="v">'+fmtDate(a.date)+'</span></div>'+
         '<div><span class="k">Time</span><span class="v">'+fmtTime(a.timeSlot)+'</span></div>'+
-        '<div><span class="k">Office</span><span class="v">'+cap(a.office)+'</span></div>'+
-        '<div><span class="k">Activating</span><span class="v">'+(a.services||"—")+'</span></div>';
+        '<div><span class="k">Office</span><span class="v">'+esc(cap(a.office))+'</span></div>'+
+        '<div><span class="k">Activating</span><span class="v">'+esc(a.services||"—")+'</span></div>';
       show("confirm");
     }).catch(function(){ show("invalid"); });
     $("cancelBtn").addEventListener("click", doCancel);
