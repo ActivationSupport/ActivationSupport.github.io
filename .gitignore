@@ -1,6 +1,8 @@
 .claude/
 _vgtmp/
 _bktest/
+_private/
+PORTAL_AUDIT.md
 dashboard/_pstest.html
 dashboard/_themetest.html
 
