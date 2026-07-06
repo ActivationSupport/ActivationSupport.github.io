@@ -2266,6 +2266,21 @@ function _preloadTabs() {
   try { _preloadTraining(); } catch (e) {}
 }
 
+// One main-refresh tick — shared by the 15s interval and the visibilitychange
+// catch-up below, so a backgrounded tab stops polling but refreshes the moment
+// the user comes back to it.
+function _bgTick() {
+  if (document.hidden) return;   // background tab — skip (catch-up runs on return)
+  if (document.getElementById('app').style.display === 'none') return;
+  var modalOpen = document.getElementById('detail-modal').classList.contains('open');
+  if (modalOpen) {
+    if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _pendingRefresh = true;
+    return;
+  }
+  if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _bgRefreshMain();
+  if (Date.now() - _CACHE.lstSalesTs  >= _CACHE.LST_TTL)  _bgRefreshLst();
+}
+
 function _startBgRefresh() {
   clearInterval(_bgInterval);
   clearInterval(_luInterval);
@@ -2273,23 +2288,27 @@ function _startBgRefresh() {
   // Notes poll — frequent + non-disruptive. Runs even while the notes window is open
   // (so notes appear live there) and only when notes are on screen. Pauses when hidden.
   _notesInterval = setInterval(function() {
+    if (document.hidden) return;   // background tab — skip (catch-up runs on return)
     if (document.getElementById('app').style.display === 'none') return;
     _bgRefreshNotes();
   }, _CACHE.NOTES_TTL);
   // Check every 15s — fires a refresh once the TTL (90s) has passed
-  _bgInterval = setInterval(function() {
-    if (document.getElementById('app').style.display === 'none') return;
-    var modalOpen = document.getElementById('detail-modal').classList.contains('open');
-    if (modalOpen) {
-      if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _pendingRefresh = true;
-      return;
-    }
-    if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _bgRefreshMain();
-    if (Date.now() - _CACHE.lstSalesTs  >= _CACHE.LST_TTL)  _bgRefreshLst();
-  }, 15000);
+  _bgInterval = setInterval(_bgTick, 15000);
   // Tick the "X ago" label every 20s
   _luInterval = setInterval(_updateLastUpdated, 20000);
 }
+
+// When the tab returns to the foreground, catch up immediately — the polls above
+// skip their ticks while document.hidden, so anything past its TTL refreshes now
+// instead of waiting for the next interval.
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) return;
+  var app = document.getElementById('app');
+  if (!app || app.style.display === 'none') return;
+  _updateLastUpdated();
+  _bgTick();
+  _bgRefreshNotes();
+});
 
 // ── TEAM HELPERS ─────────────────────────────────────────────────────────
 function _myTeam() {
@@ -3491,6 +3510,7 @@ function _trStartLive() {
   if (_trTimer) return;
   _trTimer = setInterval(function() {
     if (CURRENT_TAB !== 'training') { clearInterval(_trTimer); _trTimer = null; return; }
+    if (document.hidden) return;   // background tab — skip this pull
     if (_trFlight) return;
     _trFlight = true;
     api({ action:'readTrainingOrders' }).then(function(res) {
