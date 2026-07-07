@@ -1169,7 +1169,36 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
         <input type="password" id="login-pin" placeholder="Enter your password" autocomplete="current-password">
       </div>
       <button class="btn" id="login-btn">Sign In</button>
+      <div class="login-back" onclick="doForgotPassword()" style="margin-top:10px">Forgot password?</div>
       <div class="login-back" onclick="loginBack()">← Use a different email</div>
+    </div>
+
+    <!-- Step: reset link sent confirmation -->
+    <div id="ls-reset-sent-step" style="display:none">
+      <p class="login-set-intro">If <span id="login-reset-sent-who" style="color:var(--login-accent);font-weight:600"></span> is registered, a password reset link is on its way. Check your inbox (and spam) — the link works for 45 minutes.</p>
+      <button class="btn" onclick="loginBack()">Back to sign in</button>
+    </div>
+
+    <!-- Step: set a new password from a reset link (?pwreset=…) -->
+    <div id="ls-reset-set-step" style="display:none">
+      <p class="login-set-intro">Choose a new password for your account.</p>
+      <div class="field">
+        <label>New password</label>
+        <input type="password" id="login-reset-pin" placeholder="Create a password" autocomplete="new-password" oninput="_pwCheck('login-reset-pin','login-reset-req')">
+      </div>
+      <ul class="pw-req" id="login-reset-req">
+        <li data-k="len">At least 8 characters</li>
+        <li data-k="upper">An uppercase letter</li>
+        <li data-k="lower">A lowercase letter</li>
+        <li data-k="num">A number</li>
+        <li data-k="special">A special character (!?@#$…)</li>
+      </ul>
+      <div class="field">
+        <label>Confirm password</label>
+        <input type="password" id="login-reset-confirm" placeholder="Re-enter your password" autocomplete="new-password">
+      </div>
+      <button class="btn" id="login-reset-btn">Set Password &amp; Sign In</button>
+      <div class="login-back" onclick="_resetCancel()">← Back to sign in</div>
     </div>
 
     <!-- Step 2b: create password (new user) -->
@@ -1553,7 +1582,22 @@ function initLogin() {
   document.getElementById('login-upg-current').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-upg-pin').focus(); });
   document.getElementById('login-upg-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-upg-confirm').focus(); });
   document.getElementById('login-upg-confirm').addEventListener('keydown', function(e) { if (e.key === 'Enter') doUpgrade(); });
-  document.getElementById('login-confirm-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSetPin(); });
+  document.getElementById('login-reset-btn').onclick = doResetWithToken;
+  document.getElementById('login-reset-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-reset-confirm').focus(); });
+  document.getElementById('login-reset-confirm').addEventListener('keydown', function(e) { if (e.key === 'Enter') doResetWithToken(); });
+
+  // Arrived from a password-reset email (…?pwreset=<token>) → show the set-new-password
+  // screen. Strip the token from the URL so it isn't left in history/the address bar.
+  var _p = new URLSearchParams(window.location.search);
+  var _pwreset = _p.get('pwreset');
+  if (_pwreset) {
+    LOGIN_RESET_TOKEN = _pwreset;
+    try { _p.delete('pwreset'); var _q = _p.toString(); history.replaceState(null, '', window.location.pathname + (_q ? '?' + _q : '')); } catch(e) {}
+    loginShowStep('resetset');
+    _pwCheck('login-reset-pin', 'login-reset-req');
+    document.getElementById('login-reset-pin').focus();
+    return;   // don't auto-restore a session — they came here to reset
+  }
 
   var saved = sessionStorage.getItem('as_session_' + CFG.officeId);
   if (saved) { try { SESSION = JSON.parse(saved); showApp(); } catch(e) {} }
@@ -1565,6 +1609,8 @@ function loginShowStep(step) {
   document.getElementById('ls-pin-step').style.display     = step === 'pin'    ? '' : 'none';
   document.getElementById('ls-set-pin-step').style.display = step === 'setpin' ? '' : 'none';
   document.getElementById('ls-upgrade-step').style.display = step === 'upgrade'? '' : 'none';
+  document.getElementById('ls-reset-sent-step').style.display = step === 'resetsent' ? '' : 'none';
+  document.getElementById('ls-reset-set-step').style.display  = step === 'resetset'  ? '' : 'none';
   document.getElementById('login-error').style.display = 'none';
   // Reset action buttons to their default enabled state every time a step is
   // shown. Fixes the "Sign In" button stuck on "Signing in…" — doLogin sets that
@@ -1575,7 +1621,43 @@ function loginShowStep(step) {
   _rb('login-btn', 'Sign In');
   _rb('login-set-pin-btn', 'Set Password & Sign In');
   _rb('login-upg-btn', 'Update Password & Sign In');
+  _rb('login-reset-btn', 'Set Password & Sign In');
 }
+
+var LOGIN_RESET_TOKEN = '';   // reset token from the ?pwreset= link, held only for the reset step
+// "Forgot password?" — email a reset link to the address they already entered.
+function doForgotPassword() {
+  var err = document.getElementById('login-error'); err.style.display = 'none';
+  if (!LOGIN_EMAIL) { loginBack(); return; }
+  var show = function() { document.getElementById('login-reset-sent-who').textContent = LOGIN_EMAIL; loginShowStep('resetsent'); };
+  // Always show the same confirmation (the backend never reveals whether the email exists).
+  apiPost({ action:'requestPasswordReset', email:LOGIN_EMAIL }).then(show).catch(show);
+}
+// Set a new password using the token from the emailed link, then sign in.
+function doResetWithToken() {
+  var newPw  = document.getElementById('login-reset-pin').value;
+  var confirm = document.getElementById('login-reset-confirm').value;
+  var err = document.getElementById('login-error');
+  var btn = document.getElementById('login-reset-btn');
+  err.style.display = 'none';
+  var pErr = _pwClientError(newPw);
+  if (pErr) { err.textContent = pErr; err.style.display = 'block'; return; }
+  if (newPw !== confirm) { err.textContent = "Passwords don't match. Try again."; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Setting password…';
+  apiPost({ action: 'resetPasswordWithToken', token: LOGIN_RESET_TOKEN, newPin: newPw }).then(function(res) {
+    if (res && res.ok && res.valid) { LOGIN_RESET_TOKEN = ''; if (res.email) LOGIN_EMAIL = res.email; _adoptSession(res); }
+    else {
+      err.textContent = (res && res.error) || 'Could not reset your password. The link may have expired — request a new one.';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Set Password & Sign In';
+    }
+  }).catch(function() {
+    err.textContent = 'Connection error. Try again.';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Set Password & Sign In';
+  });
+}
+function _resetCancel() { LOGIN_RESET_TOKEN = ''; loginBack(); }
 
 // Password policy (mirrors the backend _pwPolicyError exactly). Returns an error
 // string or null. The backend re-checks — this is UX only.
