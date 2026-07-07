@@ -88,6 +88,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 #login-error{color:#e74c3c;font-size:.82rem;margin-top:10px;display:none}
 .login-who{font-size:.88rem;color:var(--login-accent);font-weight:600;margin-bottom:14px;word-break:break-all}
 .login-set-intro{font-size:.82rem;color:var(--text2);margin-bottom:14px}
+.pw-req{list-style:none;margin:-4px 0 14px;padding:0;font-size:.76rem}
+.pw-req li{color:var(--text2);opacity:.7;padding:2px 0 2px 20px;position:relative;transition:color .15s,opacity .15s}
+.pw-req li::before{content:"○";position:absolute;left:2px;color:var(--text2)}
+.pw-req li.ok{color:#38b26a;opacity:1}
+.pw-req li.ok::before{content:"✓";color:#38b26a}
+.login-card.lc-gold .pw-req li{color:#3c4a5d}
+.login-card.lc-gold .pw-req li.ok{color:#1f7a44}
 .login-back{font-size:.8rem;color:var(--text2);text-align:center;margin-top:12px;cursor:pointer}
 .login-back:hover{color:var(--blue2)}
 /* Bayview = GOLD login box (same layout as other offices). Flip card text to navy +
@@ -1154,30 +1161,60 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
       <button class="btn" id="login-continue-btn">Continue</button>
     </div>
 
-    <!-- Step 2a: enter PIN -->
+    <!-- Step 2a: enter password -->
     <div id="ls-pin-step" style="display:none">
       <div class="login-who" id="login-who"></div>
       <div class="field">
-        <label>PIN</label>
-        <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric">
+        <label>Password</label>
+        <input type="password" id="login-pin" placeholder="Enter your password" autocomplete="current-password">
       </div>
       <button class="btn" id="login-btn">Sign In</button>
       <div class="login-back" onclick="loginBack()">← Use a different email</div>
     </div>
 
-    <!-- Step 2b: create PIN -->
+    <!-- Step 2b: create password (new user) -->
     <div id="ls-set-pin-step" style="display:none">
       <div class="login-who" id="login-who-set"></div>
-      <p class="login-set-intro">No PIN yet — create one to access your dashboard.</p>
+      <p class="login-set-intro">Welcome — create a password to access your dashboard.</p>
       <div class="field">
-        <label>New PIN (4–6 digits)</label>
-        <input type="password" id="login-new-pin" placeholder="••••" maxlength="6" inputmode="numeric">
+        <label>New password</label>
+        <input type="password" id="login-new-pin" placeholder="Create a password" autocomplete="new-password" oninput="_pwCheck('login-new-pin','login-new-pin-req')">
       </div>
+      <ul class="pw-req" id="login-new-pin-req">
+        <li data-k="len">At least 8 characters</li>
+        <li data-k="upper">An uppercase letter</li>
+        <li data-k="lower">A lowercase letter</li>
+        <li data-k="num">A number</li>
+        <li data-k="special">A special character (!?@#$…)</li>
+      </ul>
       <div class="field">
-        <label>Confirm PIN</label>
-        <input type="password" id="login-confirm-pin" placeholder="••••" maxlength="6" inputmode="numeric">
+        <label>Confirm password</label>
+        <input type="password" id="login-confirm-pin" placeholder="Re-enter your password" autocomplete="new-password">
       </div>
-      <button class="btn" id="login-set-pin-btn">Set PIN &amp; Sign In</button>
+      <button class="btn" id="login-set-pin-btn">Set Password &amp; Sign In</button>
+      <div class="login-back" onclick="loginBack()">← Use a different email</div>
+    </div>
+
+    <!-- Step 2c: forced upgrade (existing user with an old numeric PIN) -->
+    <div id="ls-upgrade-step" style="display:none">
+      <div class="login-who" id="login-who-upg"></div>
+      <p class="login-set-intro">For your security, set a stronger password to continue. This replaces your old PIN.</p>
+      <div class="field">
+        <label>New password</label>
+        <input type="password" id="login-upg-pin" placeholder="Create a password" autocomplete="new-password" oninput="_pwCheck('login-upg-pin','login-upg-req')">
+      </div>
+      <ul class="pw-req" id="login-upg-req">
+        <li data-k="len">At least 8 characters</li>
+        <li data-k="upper">An uppercase letter</li>
+        <li data-k="lower">A lowercase letter</li>
+        <li data-k="num">A number</li>
+        <li data-k="special">A special character (!?@#$…)</li>
+      </ul>
+      <div class="field">
+        <label>Confirm password</label>
+        <input type="password" id="login-upg-confirm" placeholder="Re-enter your password" autocomplete="new-password">
+      </div>
+      <button class="btn" id="login-upg-btn">Update Password &amp; Sign In</button>
       <div class="login-back" onclick="loginBack()">← Use a different email</div>
     </div>
 
@@ -1498,15 +1535,20 @@ function apiPost(body) {
 
 // ── AUTH ─────────────────────────────────────────────────────────────────
 var LOGIN_EMAIL = '';
+var LOGIN_UPGRADE_PIN = '';   // S6: the just-verified old PIN, held only across the one-time upgrade step
 
 function initLogin() {
   if (!loadConfig()) return;
   document.getElementById('login-continue-btn').onclick = loginCheckEmail;
   document.getElementById('login-btn').onclick = doLogin;
   document.getElementById('login-set-pin-btn').onclick = doSetPin;
+  document.getElementById('login-upg-btn').onclick = doUpgrade;
   document.getElementById('login-email').addEventListener('keydown', function(e) { if (e.key === 'Enter') loginCheckEmail(); });
   document.getElementById('login-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
   document.getElementById('login-new-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-confirm-pin').focus(); });
+  document.getElementById('login-confirm-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSetPin(); });
+  document.getElementById('login-upg-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-upg-confirm').focus(); });
+  document.getElementById('login-upg-confirm').addEventListener('keydown', function(e) { if (e.key === 'Enter') doUpgrade(); });
   document.getElementById('login-confirm-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSetPin(); });
 
   var saved = sessionStorage.getItem('as_session_' + CFG.officeId);
@@ -1518,6 +1560,7 @@ function loginShowStep(step) {
   document.getElementById('ls-email-step').style.display   = step === 'email'  ? '' : 'none';
   document.getElementById('ls-pin-step').style.display     = step === 'pin'    ? '' : 'none';
   document.getElementById('ls-set-pin-step').style.display = step === 'setpin' ? '' : 'none';
+  document.getElementById('ls-upgrade-step').style.display = step === 'upgrade'? '' : 'none';
   document.getElementById('login-error').style.display = 'none';
   // Reset action buttons to their default enabled state every time a step is
   // shown. Fixes the "Sign In" button stuck on "Signing in…" — doLogin sets that
@@ -1526,11 +1569,32 @@ function loginShowStep(step) {
   var _rb = function(id, txt){ var b = document.getElementById(id); if (b) { b.disabled = false; b.textContent = txt; } };
   _rb('login-continue-btn', 'Continue');
   _rb('login-btn', 'Sign In');
-  _rb('login-set-pin-btn', 'Set PIN & Sign In');
+  _rb('login-set-pin-btn', 'Set Password & Sign In');
+  _rb('login-upg-btn', 'Update Password & Sign In');
+}
+
+// Password policy (mirrors the backend _pwPolicyError exactly). Returns an error
+// string or null. The backend re-checks — this is UX only.
+function _pwClientError(pw) {
+  pw = String(pw || '');
+  if (pw.length < 8)            return 'Password must be at least 8 characters.';
+  if (!/[A-Z]/.test(pw))        return 'Password needs an uppercase letter.';
+  if (!/[a-z]/.test(pw))        return 'Password needs a lowercase letter.';
+  if (!/[0-9]/.test(pw))        return 'Password needs a number.';
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'Password needs a special character (e.g. !?@#$).';
+  return null;
+}
+// Live-tick the requirements checklist under a password field as the user types.
+function _pwCheck(inputId, listId) {
+  var pw = document.getElementById(inputId).value;
+  var checks = { len: pw.length >= 8, upper: /[A-Z]/.test(pw), lower: /[a-z]/.test(pw), num: /[0-9]/.test(pw), special: /[^A-Za-z0-9]/.test(pw) };
+  var items = document.querySelectorAll('#' + listId + ' li');
+  for (var i = 0; i < items.length; i++) { items[i].classList.toggle('ok', !!checks[items[i].getAttribute('data-k')]); }
 }
 
 function loginBack() {
   LOGIN_EMAIL = '';
+  LOGIN_UPGRADE_PIN = '';
   loginShowStep('email');
   document.getElementById('login-email').value = '';
   document.getElementById('login-email').focus();
@@ -1587,8 +1651,19 @@ function doLogin() {
       _reauthing = false;   // fresh session — re-arm the expiry handler
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
+    } else if (res.mustUpgrade) {
+      // Correct old PIN, but the account is still on the retired PIN format —
+      // send the user to the one-time password-upgrade step (S6). Stash the
+      // just-verified PIN so the upgrade call can re-prove identity server-side.
+      LOGIN_UPGRADE_PIN = pin;
+      document.getElementById('login-who-upg').textContent = LOGIN_EMAIL;
+      loginShowStep('upgrade');
+      document.getElementById('login-upg-pin').value = '';
+      document.getElementById('login-upg-confirm').value = '';
+      _pwCheck('login-upg-pin', 'login-upg-req');
+      document.getElementById('login-upg-pin').focus();
     } else {
-      err.textContent = res.error || 'Incorrect PIN. Try again.';
+      err.textContent = res.error || 'Incorrect password. Try again.';
       err.style.display = 'block';
       btn.disabled = false; btn.textContent = 'Sign In';
     }
@@ -1598,6 +1673,40 @@ function doLogin() {
     btn.disabled = false; btn.textContent = 'Sign In';
   });
 }
+// Shared: adopt a successful login/upgrade/set response into SESSION + enter app.
+function _adoptSession(res) {
+  SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
+  if (res.rank) { SESSION.role = res.rank; SESSION._actualRole = res.rank; }
+  SESSION.isMaster = res.rank === 'master-admin';
+  if (res.token) { SESSION.token = res.token; SESSION.tokenExpires = res.tokenExpires; }
+  _reauthing = false;
+  sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
+  showApp();
+}
+
+function doUpgrade() {
+  var newPw  = document.getElementById('login-upg-pin').value;
+  var confirm = document.getElementById('login-upg-confirm').value;
+  var err = document.getElementById('login-error');
+  var btn = document.getElementById('login-upg-btn');
+  err.style.display = 'none';
+  var pErr = _pwClientError(newPw);
+  if (pErr) { err.textContent = pErr; err.style.display = 'block'; return; }
+  if (newPw !== confirm) { err.textContent = "Passwords don't match. Try again."; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Updating…';
+  apiPost({ action: 'upgradePin', email: LOGIN_EMAIL, currentPin: LOGIN_UPGRADE_PIN, newPin: newPw }).then(function(res) {
+    if (res.ok && res.valid) { LOGIN_UPGRADE_PIN = ''; _adoptSession(res); }
+    else {
+      err.textContent = res.error || 'Could not update your password. Try again.';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Update Password & Sign In';
+    }
+  }).catch(function() {
+    err.textContent = 'Connection error. Try again.';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Update Password & Sign In';
+  });
+}
 
 function doSetPin() {
   var newPin     = document.getElementById('login-new-pin').value.trim();
@@ -1605,28 +1714,22 @@ function doSetPin() {
   var err = document.getElementById('login-error');
   var btn = document.getElementById('login-set-pin-btn');
   err.style.display = 'none';
-  if (!newPin) { err.textContent = 'Enter a PIN.'; err.style.display = 'block'; return; }
-  if (!/^\d{4,6}$/.test(newPin)) { err.textContent = 'PIN must be 4–6 digits.'; err.style.display = 'block'; return; }
-  if (newPin !== confirmPin) { err.textContent = "PINs don't match. Try again."; err.style.display = 'block'; return; }
-  btn.disabled = true; btn.textContent = 'Setting PIN…';
+  var pErr = _pwClientError(newPin);
+  if (pErr) { err.textContent = pErr; err.style.display = 'block'; return; }
+  if (newPin !== confirmPin) { err.textContent = "Passwords don't match. Try again."; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Setting password…';
   apiPost({ action: 'setPin', email: LOGIN_EMAIL, pin: newPin }).then(function(res) {
     if (res.ok && res.valid) {
-      SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
-      if (res.rank) { SESSION.role = res.rank; SESSION._actualRole = res.rank; }
-      SESSION.isMaster = res.rank === 'master-admin';
-      if (res.token) { SESSION.token = res.token; SESSION.tokenExpires = res.tokenExpires; }   // Phase 1 Stage B: keep the badge
-      _reauthing = false;   // fresh session — re-arm the expiry handler
-      sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
-      showApp();
+      _adoptSession(res);
     } else {
-      err.textContent = res.error || 'Failed to set PIN. Try again.';
+      err.textContent = res.error || 'Failed to set password. Try again.';
       err.style.display = 'block';
-      btn.disabled = false; btn.textContent = 'Set PIN & Sign In';
+      btn.disabled = false; btn.textContent = 'Set Password & Sign In';
     }
   }).catch(function() {
     err.textContent = 'Connection error. Try again.';
     err.style.display = 'block';
-    btn.disabled = false; btn.textContent = 'Set PIN & Sign In';
+    btn.disabled = false; btn.textContent = 'Set Password & Sign In';
   });
 }
 
