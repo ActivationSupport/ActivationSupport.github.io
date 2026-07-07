@@ -2733,10 +2733,21 @@ function openNotesModal(dsi, customer, rep) {
   var actHistHtml = actNotes.length ? actNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No activation notes yet.</div>';
   var repHistHtml = repNotes.length ? repNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No rep notes yet.</div>';
 
-  var ratingHtml = RATING_OPTS.map(function(r) {
-    var active = r===rating ? ' active-'+( r==='No Answer'?'na': r.replace(' Stars','').replace(' Star','') ) : '';
-    return '<button class="nm-r-btn'+active+'" onclick="modalSetRating(\''+r+'\')">'+r+'</button>';
-  }).join('');
+  // Only the activation team may SET ratings (mirrors the backend setRating gate);
+  // everyone else sees the current rating read-only.
+  var canRate = ['master-admin','admin','activator'].indexOf(role) !== -1;
+  var ratingHtml;
+  if (canRate) {
+    ratingHtml = RATING_OPTS.map(function(r) {
+      var active = r===rating ? ' active-'+( r==='No Answer'?'na': r.replace(' Stars','').replace(' Star','') ) : '';
+      return '<button class="nm-r-btn'+active+'" onclick="modalSetRating(\''+r+'\')">'+r+'</button>';
+    }).join('');
+  } else if (rating) {
+    var roCls = rating==='No Answer'?'rp-na':rating==='1 Star'?'rp-1':rating==='2 Stars'?'rp-2':rating==='3 Stars'?'rp-3':rating==='4 Stars'?'rp-4':rating==='5 Stars'?'rp-5':'';
+    ratingHtml = '<span class="rating-pill '+roCls+'">'+rating+'</span>';
+  } else {
+    ratingHtml = '<span class="nm-empty">Not rated yet.</span>';
+  }
 
   document.getElementById('modal-title').innerHTML =
     '<div class="nm-dsi">DSI: '+esc(dsi)+'</div>' +
