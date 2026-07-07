@@ -4987,6 +4987,9 @@ function renderPeople() {
   var isMgr     = false;   // jd is now a full admin here (manager-equivalent)
   // Team LEADS can also add + edit people (assign teams, basics) — restricted fields via buildPersonForm.
   var canManagePeople = isAdmin || role === 'leader';
+  // Password reset is a security action — limited to the management tier (mirrors
+  // the backend resetUserPin gate = _ADMIN_ROLES; excludes activators + leaders).
+  var canResetPw = role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd';
   var myEmail   = (SESSION.email || '').toLowerCase();
   var homeRows = Object.keys(roster).map(function(email) {
     return Object.assign({ email: email, isGuest: false }, roster[email]);
@@ -5012,7 +5015,12 @@ function renderPeople() {
       if (row.isGuest) {
         actions = (isAdmin || isMgr) ? '<td style="color:#aaa;font-size:.78rem">Managed in ' + esc(OFFICE_NAMES[row.homeOffice]||row.homeOffice) + '</td>' : '<td></td>';
       } else if (canManagePeople) {
+        // Reset Password: management tier only, never your own row, and a
+        // master-admin target only by another master-admin (matches the backend).
+        var resetBtn = (canResetPw && !isSelf && (row.rank !== 'master-admin' || role === 'master-admin'))
+          ? ' <button class="notes-btn" onclick="resetPersonPassword(\''+esc(row.email)+'\')">Reset Password</button>' : '';
         actions = '<td style="white-space:nowrap"><button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">Edit</button>' +
+          resetBtn +
           (role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson(\''+esc(row.email)+'\')">Remove</button>' : '') + '</td>';
       } else if (isMgr) {
         actions = '<td><button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">Edit</button></td>';
@@ -5132,6 +5140,23 @@ function deletePerson(email) {
   apiPost({ action:'deleteRosterEntry', email:email }).then(function(res) {
     if (res.ok) refreshData(); else alert(res.error||'Delete failed.');
   });
+}
+
+// Admin password reset: blanks the person's stored hash so they create a new
+// password on their next sign-in. The account has no password in between, so the
+// first person to enter that email sets the new one — do it when they're ready.
+function resetPersonPassword(email) {
+  var person = (DATA.roster || {})[email] || {};
+  var who = person.name || email;
+  if (!confirm('Reset the password for ' + who + '?\n\n'
+    + '• Their current password/PIN stops working right away.\n'
+    + '• They create a new password the next time they sign in.\n\n'
+    + 'Do this when they are ready to log in — until they set a new one, whoever '
+    + 'enters their email first can set it.')) return;
+  apiPost({ action:'resetUserPin', email:email }).then(function(res) {
+    if (res && res.ok) alert('✅ Password reset for ' + who + '.\nThey will set a new password on their next sign-in.');
+    else alert((res && res.error) ? ('Could not reset: ' + res.error) : 'Could not reset the password. Try again.');
+  }).catch(function() { alert('Connection error. Try again.'); });
 }
 
 function noData(msg) {
