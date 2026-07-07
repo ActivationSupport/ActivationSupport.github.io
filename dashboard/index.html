@@ -1198,7 +1198,11 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
     <!-- Step 2c: forced upgrade (existing user with an old numeric PIN) -->
     <div id="ls-upgrade-step" style="display:none">
       <div class="login-who" id="login-who-upg"></div>
-      <p class="login-set-intro">For your security, set a stronger password to continue. This replaces your old PIN.</p>
+      <p class="login-set-intro">Your account uses an old PIN. Enter it once and choose a new password to continue — this replaces your PIN going forward.</p>
+      <div class="field">
+        <label>Current PIN</label>
+        <input type="password" id="login-upg-current" placeholder="Your existing PIN" autocomplete="current-password">
+      </div>
       <div class="field">
         <label>New password</label>
         <input type="password" id="login-upg-pin" placeholder="Create a password" autocomplete="new-password" oninput="_pwCheck('login-upg-pin','login-upg-req')">
@@ -1535,7 +1539,6 @@ function apiPost(body) {
 
 // ── AUTH ─────────────────────────────────────────────────────────────────
 var LOGIN_EMAIL = '';
-var LOGIN_UPGRADE_PIN = '';   // S6: the just-verified old PIN, held only across the one-time upgrade step
 
 function initLogin() {
   if (!loadConfig()) return;
@@ -1547,6 +1550,7 @@ function initLogin() {
   document.getElementById('login-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
   document.getElementById('login-new-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-confirm-pin').focus(); });
   document.getElementById('login-confirm-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSetPin(); });
+  document.getElementById('login-upg-current').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-upg-pin').focus(); });
   document.getElementById('login-upg-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('login-upg-confirm').focus(); });
   document.getElementById('login-upg-confirm').addEventListener('keydown', function(e) { if (e.key === 'Enter') doUpgrade(); });
   document.getElementById('login-confirm-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSetPin(); });
@@ -1594,7 +1598,6 @@ function _pwCheck(inputId, listId) {
 
 function loginBack() {
   LOGIN_EMAIL = '';
-  LOGIN_UPGRADE_PIN = '';
   loginShowStep('email');
   document.getElementById('login-email').value = '';
   document.getElementById('login-email').focus();
@@ -1616,7 +1619,17 @@ function loginCheckEmail() {
       err.style.display = 'block';
       return;
     }
-    if (res.hasPin) {
+    if (res.hasPin && res.needsUpgrade) {
+      // Still on the old PIN format — go straight to the combined upgrade screen
+      // (enter current PIN once + choose a new password), no confusing password prompt.
+      document.getElementById('login-who-upg').textContent = email;
+      loginShowStep('upgrade');
+      document.getElementById('login-upg-current').value = '';
+      document.getElementById('login-upg-pin').value = '';
+      document.getElementById('login-upg-confirm').value = '';
+      _pwCheck('login-upg-pin', 'login-upg-req');
+      document.getElementById('login-upg-current').focus();
+    } else if (res.hasPin) {
       document.getElementById('login-who').textContent = email;
       loginShowStep('pin');
       document.getElementById('login-pin').value = '';
@@ -1626,6 +1639,7 @@ function loginCheckEmail() {
       loginShowStep('setpin');
       document.getElementById('login-new-pin').value = '';
       document.getElementById('login-confirm-pin').value = '';
+      _pwCheck('login-new-pin', 'login-new-pin-req');
       document.getElementById('login-new-pin').focus();
     }
   }).catch(function() {
@@ -1652,12 +1666,12 @@ function doLogin() {
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
       showApp();
     } else if (res.mustUpgrade) {
-      // Correct old PIN, but the account is still on the retired PIN format —
-      // send the user to the one-time password-upgrade step (S6). Stash the
-      // just-verified PIN so the upgrade call can re-prove identity server-side.
-      LOGIN_UPGRADE_PIN = pin;
+      // Fallback: a correct old PIN reached the sign-in path (e.g. checkEmail's
+      // needsUpgrade wasn't honored). Route to the upgrade screen with the
+      // just-verified PIN pre-filled so they only choose a new password.
       document.getElementById('login-who-upg').textContent = LOGIN_EMAIL;
       loginShowStep('upgrade');
+      document.getElementById('login-upg-current').value = pin;
       document.getElementById('login-upg-pin').value = '';
       document.getElementById('login-upg-confirm').value = '';
       _pwCheck('login-upg-pin', 'login-upg-req');
@@ -1685,17 +1699,19 @@ function _adoptSession(res) {
 }
 
 function doUpgrade() {
+  var curPin = document.getElementById('login-upg-current').value.trim();
   var newPw  = document.getElementById('login-upg-pin').value;
   var confirm = document.getElementById('login-upg-confirm').value;
   var err = document.getElementById('login-error');
   var btn = document.getElementById('login-upg-btn');
   err.style.display = 'none';
+  if (!curPin) { err.textContent = 'Enter your current PIN.'; err.style.display = 'block'; return; }
   var pErr = _pwClientError(newPw);
   if (pErr) { err.textContent = pErr; err.style.display = 'block'; return; }
   if (newPw !== confirm) { err.textContent = "Passwords don't match. Try again."; err.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Updating…';
-  apiPost({ action: 'upgradePin', email: LOGIN_EMAIL, currentPin: LOGIN_UPGRADE_PIN, newPin: newPw }).then(function(res) {
-    if (res.ok && res.valid) { LOGIN_UPGRADE_PIN = ''; _adoptSession(res); }
+  apiPost({ action: 'upgradePin', email: LOGIN_EMAIL, currentPin: curPin, newPin: newPw }).then(function(res) {
+    if (res.ok && res.valid) { _adoptSession(res); }
     else {
       err.textContent = res.error || 'Could not update your password. Try again.';
       err.style.display = 'block';
