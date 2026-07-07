@@ -1176,7 +1176,8 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
     <!-- Step: reset link sent confirmation -->
     <div id="ls-reset-sent-step" style="display:none">
       <p class="login-set-intro">If <span id="login-reset-sent-who" style="color:var(--login-accent);font-weight:600"></span> is registered, a password reset link is on its way. Check your inbox (and spam) — the link works for 45 minutes.</p>
-      <button class="btn" onclick="loginBack()">Back to sign in</button>
+      <button class="btn" id="login-resend-btn" onclick="doResendReset()">Resend link</button>
+      <div class="login-back" onclick="loginBack()">← Back to sign in</div>
     </div>
 
     <!-- Step: set a new password from a reset link (?pwreset=…) -->
@@ -1625,13 +1626,34 @@ function loginShowStep(step) {
 }
 
 var LOGIN_RESET_TOKEN = '';   // reset token from the ?pwreset= link, held only for the reset step
+var _resendTimer = null;      // 30s cooldown on the "Resend link" button
 // "Forgot password?" — email a reset link to the address they already entered.
 function doForgotPassword() {
   var err = document.getElementById('login-error'); err.style.display = 'none';
   if (!LOGIN_EMAIL) { loginBack(); return; }
-  var show = function() { document.getElementById('login-reset-sent-who').textContent = LOGIN_EMAIL; loginShowStep('resetsent'); };
+  var show = function() { document.getElementById('login-reset-sent-who').textContent = LOGIN_EMAIL; loginShowStep('resetsent'); _startResendCountdown(); };
   // Always show the same confirmation (the backend never reveals whether the email exists).
   apiPost({ action:'requestPasswordReset', email:LOGIN_EMAIL }).then(show).catch(show);
+}
+// Disable the Resend button for 30s (anti-spam), counting down, then re-enable it.
+function _startResendCountdown() {
+  var btn = document.getElementById('login-resend-btn');
+  if (_resendTimer) { clearInterval(_resendTimer); _resendTimer = null; }
+  var secs = 30;
+  btn.disabled = true; btn.textContent = 'Resend link in ' + secs + 's';
+  _resendTimer = setInterval(function() {
+    secs--;
+    if (secs <= 0) { clearInterval(_resendTimer); _resendTimer = null; btn.disabled = false; btn.textContent = 'Resend link'; }
+    else { btn.textContent = 'Resend link in ' + secs + 's'; }
+  }, 1000);
+}
+// Resend a fresh link — only fires once the 30s cooldown elapsed (the button is
+// disabled during the countdown). Backend still hard-caps at 3 per 15 min.
+function doResendReset() {
+  var btn = document.getElementById('login-resend-btn');
+  if (btn.disabled || !LOGIN_EMAIL) return;
+  apiPost({ action:'requestPasswordReset', email:LOGIN_EMAIL }).then(function(){}).catch(function(){});
+  _startResendCountdown();
 }
 // Set a new password using the token from the emailed link, then sign in.
 function doResetWithToken() {
@@ -1680,6 +1702,7 @@ function _pwCheck(inputId, listId) {
 
 function loginBack() {
   LOGIN_EMAIL = '';
+  if (_resendTimer) { clearInterval(_resendTimer); _resendTimer = null; }
   loginShowStep('email');
   document.getElementById('login-email').value = '';
   document.getElementById('login-email').focus();
