@@ -677,7 +677,9 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .lst-pod.gold::before{background:#F59E0B}
 .lst-pod.silver::before{background:#9CA3AF}
 .lst-pod.bronze::before{background:#CD7F32}
-.lst-pod-medal{font-size:26px;margin-bottom:6px}
+.lst-pod-medal{font-size:34px;margin-bottom:6px}
+.medal{display:inline-flex;vertical-align:-0.18em;line-height:1}
+.medal svg{width:1em;height:1em;overflow:visible}
 .lst-pod-emoji{font-size:22px;margin:4px 0}
 .lst-pod-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;line-height:1.25}
 .lst-pod-role{font-size:10px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
@@ -1215,12 +1217,24 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
   <symbol id="i-trending-up" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
-  <!-- leaderboard: colored medal (Feather award, tinted gold/silver/bronze) + Unicons hot/cold (slice 4) -->
-  <symbol id="i-medal" viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></symbol>
+  <!-- leaderboard: Unicons hot/cold flags (slice 4). Medals now render via medalSvg() (slice V5), not the sprite. -->
   <symbol id="i-fire" viewBox="0 0 24 24"><path d="m8.468 8.395-.002.001-.003.002Zm9.954-.187a1.237 1.237 0 0 0-.23-.175 1 1 0 0 0-1.4.411 5.782 5.782 0 0 1-1.398 1.778 8.664 8.664 0 0 0 .134-1.51 8.714 8.714 0 0 0-4.4-7.582 1 1 0 0 0-1.492.806 7.017 7.017 0 0 1-2.471 4.942l-.23.187a8.513 8.513 0 0 0-1.988 1.863 8.983 8.983 0 0 0 3.656 13.908 1 1 0 0 0 1.377-.926 1.05 1.05 0 0 0-.05-.312 6.977 6.977 0 0 1-.19-2.581 9.004 9.004 0 0 0 4.313 4.016.997.997 0 0 0 .715.038 8.995 8.995 0 0 0 3.654-14.863Zm-3.905 12.831a6.964 6.964 0 0 1-3.577-4.402 8.908 8.908 0 0 1-.18-.964 1 1 0 0 0-.799-.845.982.982 0 0 0-.191-.018 1 1 0 0 0-.867.5 8.959 8.959 0 0 0-1.205 4.718 6.985 6.985 0 0 1-1.176-9.868 6.555 6.555 0 0 1 1.562-1.458.745.745 0 0 0 .075-.055s.296-.245.306-.25a8.968 8.968 0 0 0 2.9-4.633 6.736 6.736 0 0 1 1.385 8.088 1 1 0 0 0 1.184 1.418 7.856 7.856 0 0 0 3.862-2.688 7 7 0 0 1-3.279 10.457Z"/></symbol>
   <symbol id="i-snowflake" viewBox="0 0 24 24"><path d="M21.16,16.13l-2-1.15.89-.24a1,1,0,1,0-.52-1.93l-2.82.76L14,12l2.71-1.57,2.82.76.26,0a1,1,0,0,0,.26-2L19.16,9l2-1.15a1,1,0,0,0-1-1.74L18,7.37l.3-1.11a1,1,0,1,0-1.93-.52l-.82,3L13,10.27V7.14l2.07-2.07a1,1,0,0,0,0-1.41,1,1,0,0,0-1.42,0L13,4.31V2a1,1,0,0,0-2,0V4.47l-.81-.81a1,1,0,0,0-1.42,0,1,1,0,0,0,0,1.41L11,7.3v3L8.43,8.78l-.82-3a1,1,0,1,0-1.93.52L6,7.37,3.84,6.13a1,1,0,0,0-1,1.74L4.84,9,4,9.26a1,1,0,0,0,.26,2l.26,0,2.82-.76L10,12,7.29,13.57l-2.82-.76A1,1,0,1,0,4,14.74l.89.24-2,1.15a1,1,0,0,0,1,1.74L6,16.63l-.3,1.11A1,1,0,0,0,6.39,19a1.15,1.15,0,0,0,.26,0,1,1,0,0,0,1-.74l.82-3L11,13.73v3.13L8.93,18.93a1,1,0,0,0,0,1.41,1,1,0,0,0,.71.3,1,1,0,0,0,.71-.3l.65-.65V22a1,1,0,0,0,2,0V19.53l.81.81a1,1,0,0,0,1.42,0,1,1,0,0,0,0-1.41L13,16.7v-3l2.57,1.49.82,3a1,1,0,0,0,1,.74,1.15,1.15,0,0,0,.26,0,1,1,0,0,0,.71-1.23L18,16.63l2.14,1.24a1,1,0,1,0,1-1.74Z"/></symbol>
   <!-- empty-state default (slice V4) -->
   <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  <!-- products / misc chrome (slice V5): Feather (MIT) + hand-authored crown -->
+  <symbol id="i-smartphone" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></symbol>
+  <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></symbol>
+  <symbol id="i-wind" viewBox="0 0 24 24"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 8l3.6 3.2L12 5l5.4 6.2L21 8l-1.5 10.2a1 1 0 0 1-1 .8H5.5a1 1 0 0 1-1-.8z"/><line x1="8" y1="15.5" x2="16" y2="15.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+  <symbol id="i-chev-up" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></symbol>
+  <symbol id="i-corner-down-right" viewBox="0 0 24 24"><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></symbol>
 </svg>
 
 <!-- LOGIN -->
@@ -1248,14 +1262,14 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
       </div>
       <button class="btn" id="login-btn">Sign In</button>
       <div class="login-back" onclick="doForgotPassword()" style="margin-top:10px">Forgot password?</div>
-      <div class="login-back" onclick="loginBack()">← Use a different email</div>
+      <div class="login-back" onclick="loginBack()"><span class="ico"><svg><use href="#i-arrow-left"></use></svg></span>Use a different email</div>
     </div>
 
     <!-- Step: reset link sent confirmation -->
     <div id="ls-reset-sent-step" style="display:none">
       <p class="login-set-intro">If <span id="login-reset-sent-who" style="color:var(--login-accent);font-weight:600"></span> is registered, a password reset link is on its way. Check your inbox (and spam) — the link works for 45 minutes.</p>
       <button class="btn" id="login-resend-btn" onclick="doResendReset()">Resend link</button>
-      <div class="login-back" onclick="loginBack()">← Back to sign in</div>
+      <div class="login-back" onclick="loginBack()"><span class="ico"><svg><use href="#i-arrow-left"></use></svg></span>Back to sign in</div>
     </div>
 
     <!-- Step: set a new password from a reset link (?pwreset=…) -->
@@ -1277,7 +1291,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
         <input type="password" id="login-reset-confirm" placeholder="Re-enter your password" autocomplete="new-password">
       </div>
       <button class="btn" id="login-reset-btn">Set Password &amp; Sign In</button>
-      <div class="login-back" onclick="_resetCancel()">← Back to sign in</div>
+      <div class="login-back" onclick="_resetCancel()"><span class="ico"><svg><use href="#i-arrow-left"></use></svg></span>Back to sign in</div>
     </div>
 
     <!-- Step 2b: create password (new user) -->
@@ -1300,7 +1314,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
         <input type="password" id="login-confirm-pin" placeholder="Re-enter your password" autocomplete="new-password">
       </div>
       <button class="btn" id="login-set-pin-btn">Set Password &amp; Sign In</button>
-      <div class="login-back" onclick="loginBack()">← Use a different email</div>
+      <div class="login-back" onclick="loginBack()"><span class="ico"><svg><use href="#i-arrow-left"></use></svg></span>Use a different email</div>
     </div>
 
     <!-- Step 2c: forced upgrade (existing user with an old numeric PIN) -->
@@ -1327,7 +1341,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
         <input type="password" id="login-upg-confirm" placeholder="Re-enter your password" autocomplete="new-password">
       </div>
       <button class="btn" id="login-upg-btn">Update Password &amp; Sign In</button>
-      <div class="login-back" onclick="loginBack()">← Use a different email</div>
+      <div class="login-back" onclick="loginBack()"><span class="ico"><svg><use href="#i-arrow-left"></use></svg></span>Use a different email</div>
     </div>
 
     <div id="login-error"></div>
@@ -1385,7 +1399,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
     <div class="wb-office" id="wb-office">—</div>
     <div class="wb-title" id="wb-title">Live Sales</div>
     <div class="wb-clock" id="wb-clock">—</div>
-    <button class="wb-close" onclick="closeWallboard()" title="Exit (Esc)">✕</button>
+    <button class="wb-close" onclick="closeWallboard()" title="Exit (Esc)"><span class="ico"><svg><use href="#i-x"></use></svg></span></button>
   </div>
   <div class="wb-stage" id="wb-stage"></div>
   <div class="wb-dots" id="wb-dots"></div>
@@ -1394,7 +1408,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 <!-- DETAIL MODAL -->
 <div class="modal-bg" id="detail-modal">
   <div class="modal">
-    <span class="modal-close" onclick="closeModal()">✕</span>
+    <span class="modal-close" onclick="closeModal()"><span class="ico"><svg><use href="#i-x"></use></svg></span></span>
     <h3 id="modal-title">Details</h3>
     <div id="modal-body"></div>
   </div>
@@ -1403,7 +1417,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 <!-- APPOINTMENT BOOKING MODAL -->
 <div class="modal-bg" id="appt-booking-modal">
   <div class="modal" style="max-width:640px;width:95%">
-    <span class="modal-close" onclick="closeApptModal()">✕</span>
+    <span class="modal-close" onclick="closeApptModal()"><span class="ico"><svg><use href="#i-x"></use></svg></span></span>
     <h3>Book Appointment</h3>
     <div id="appt-booking-body"></div>
   </div>
@@ -1412,7 +1426,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 <!-- ACTIVATOR SCHEDULE MODAL -->
 <div class="modal-bg" id="appt-sched-modal">
   <div class="modal" style="max-width:580px;width:95%">
-    <span class="modal-close" onclick="closeApptSchedModal()">✕</span>
+    <span class="modal-close" onclick="closeApptSchedModal()"><span class="ico"><svg><use href="#i-x"></use></svg></span></span>
     <h3>My Schedule &amp; Availability</h3>
     <div id="appt-sched-body"></div>
   </div>
@@ -1421,7 +1435,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 <!-- APPOINTMENT RESCHEDULE MODAL -->
 <div class="modal-bg" id="appt-resched-modal">
   <div class="modal" style="max-width:520px;width:95%">
-    <span class="modal-close" onclick="closeApptReschedModal()">✕</span>
+    <span class="modal-close" onclick="closeApptReschedModal()"><span class="ico"><svg><use href="#i-x"></use></svg></span></span>
     <h3>Reschedule Appointment</h3>
     <div id="appt-resched-body"></div>
   </div>
@@ -1430,7 +1444,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 <!-- APPOINTMENT OUTCOME MODAL -->
 <div class="modal-bg" id="appt-outcome-modal">
   <div class="modal" style="max-width:480px;width:95%">
-    <span class="modal-close" onclick="closeApptOutcomeModal()">✕</span>
+    <span class="modal-close" onclick="closeApptOutcomeModal()"><span class="ico"><svg><use href="#i-x"></use></svg></span></span>
     <h3 id="appt-outcome-title">Mark Outcome</h3>
     <div id="appt-outcome-body"></div>
   </div>
@@ -2114,29 +2128,29 @@ var ROLES_REP  = ['master-admin','owner','admin','client-rep','leader','jd','man
 // Payroll/tracking tabs: leadership only
 var ROLES_PAYROLL = ['master-admin','owner','admin'];
 var TABS = [
-  { id: 'postsale',    icon: '➕', label: 'Post Sale',            roles: ROLES_REP,  group: 'Sales',       sub: 'Log a new sale' },
-  { id: 'rehash',      icon: '💬', label: 'Rehash Text',          roles: ROLES_REP,  group: 'Sales',       sub: 'Generate the customer welcome text' },
-  { id: 'postedsales', icon: '🧾', label: 'Posted Sales',         roles: ALL_ROLES,  group: 'Sales',       sub: 'View & correct posted sales' },
-  { id: 'appointments', icon: '📅', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
-  { id: 'myorders',    icon: '🗂️',  label: 'My Orders',           roles: ['client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
-  { id: 'myteam',      icon: '👪', label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 120-day window" },
-  { id: 'master',      icon: '📋', label: 'Master Tracker',       roles: ROLES_CALL, group: 'Call Logs',   sub: '120-day window' },
-  { id: 'dayafter',    icon: '📞', label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
-  { id: 'delivered',   icon: '📦', label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
-  { id: 'issues',      icon: '⚠️',  label: 'Order Issues',        roles: ROLES_CALL, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
-  { id: 'escalations', icon: '🚨', label: 'Escalations',          roles: ROLES_CALL, group: 'Call Logs',   sub: '1 & 2 star ratings' },
-  { id: 'noanswer',    icon: '📵', label: 'No Answer',            roles: ROLES_CALL, group: 'Call Logs',   sub: 'No answer ratings' },
-  { id: 'livesales',   icon: '🏆', label: 'Live Sales Tracker',   roles: ROLES_REP,  group: 'Performance', sub: "This week's leaderboard" },
-  { id: 'dailyreport', icon: '📋', label: 'Daily Report',         roles: ROLES_CALL, group: 'Performance', sub: 'Office daily summary' },
-  { id: 'actrates',    icon: '📊', label: 'Activation Rates',     roles: ROLES_REP,  group: 'Performance', sub: 'Rep activation breakdown' },
-  { id: 'churn',       icon: '📉', label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },
-  { id: 'completed',   icon: '✅', label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
-  { id: 'training',    icon: '🎓', label: 'Training & Tracking',   roles: ROLES_PAYROLL, group: 'Payroll',  sub: 'Every posted order + payout tracking' },
-  { id: 'people',       icon: '👥', label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
-  { id: 'teams',        icon: '🤝', label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
+  { id: 'postsale',    label: 'Post Sale',            roles: ROLES_REP,  group: 'Sales',       sub: 'Log a new sale' },
+  { id: 'rehash',      label: 'Rehash Text',          roles: ROLES_REP,  group: 'Sales',       sub: 'Generate the customer welcome text' },
+  { id: 'postedsales', label: 'Posted Sales',         roles: ALL_ROLES,  group: 'Sales',       sub: 'View & correct posted sales' },
+  { id: 'appointments', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
+  { id: 'myorders',    label: 'My Orders',           roles: ['client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
+  { id: 'myteam',      label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 120-day window" },
+  { id: 'master',      label: 'Master Tracker',       roles: ROLES_CALL, group: 'Call Logs',   sub: '120-day window' },
+  { id: 'dayafter',    label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
+  { id: 'delivered',   label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
+  { id: 'issues',      label: 'Order Issues',        roles: ROLES_CALL, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
+  { id: 'escalations', label: 'Escalations',          roles: ROLES_CALL, group: 'Call Logs',   sub: '1 & 2 star ratings' },
+  { id: 'noanswer',    label: 'No Answer',            roles: ROLES_CALL, group: 'Call Logs',   sub: 'No answer ratings' },
+  { id: 'livesales',   label: 'Live Sales Tracker',   roles: ROLES_REP,  group: 'Performance', sub: "This week's leaderboard" },
+  { id: 'dailyreport', label: 'Daily Report',         roles: ROLES_CALL, group: 'Performance', sub: 'Office daily summary' },
+  { id: 'actrates',    label: 'Activation Rates',     roles: ROLES_REP,  group: 'Performance', sub: 'Rep activation breakdown' },
+  { id: 'churn',       label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },
+  { id: 'completed',   label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
+  { id: 'training',    label: 'Training & Tracking',   roles: ROLES_PAYROLL, group: 'Payroll',  sub: 'Every posted order + payout tracking' },
+  { id: 'people',       label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
+  { id: 'teams',        label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
   // TEMP: Activation Support parked at the very bottom + master-admin-only until the auto-emails go live;
   // then move it back into the 'Orders' group and reopen roles to the intended set.
-  { id: 'actsupport',  icon: '📶', label: 'Activation Support',    roles: ['master-admin'],  group: 'Beta',   sub: 'Pending & Activation sheets — Date → Rep → Product → Status (preview)' },
+  { id: 'actsupport',  label: 'Activation Support',    roles: ['master-admin'],  group: 'Beta',   sub: 'Pending & Activation sheets — Date → Rep → Product → Status (preview)' },
 ];
 
 var _DEV_ROLE = null;
@@ -2190,6 +2204,20 @@ function icon(name) { return '<span class="ico"><svg><use href="#i-' + name + '"
 // (gold/silver/bronze medals, orange/blue hot/cold). `filled` uses the .ico-fill class
 // for solid Unicons glyphs; otherwise a stroked Feather glyph tinted via `color`.
 function iconc(name, color, filled) { return '<span class="' + (filled ? 'ico-fill' : 'ico') + '" style="color:' + color + '"><svg><use href="#i-' + name + '"></use></svg></span>'; }
+// Real medal graphic (gold/silver/bronze) — a filled disc + ribbon + engraved star, in
+// the metal's own two tones (meaning IS the color, so it is not themed). Rendered inline
+// rather than via the sprite because the sprite forces a single currentColor. rank: 0=gold.
+function medalSvg(rank) {
+  var C = [['#FFCB3D','#C88A1E'],['#DCE1E8','#98A2AF'],['#DB9153','#A6612C']][rank] || ['#FFCB3D','#C88A1E'];
+  var face = C[0], edge = C[1];
+  return '<span class="medal"><svg viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M7.5 1.5 L10.8 1.5 L12.4 9.5 L9.2 11 Z" fill="' + edge + '"/>' +
+    '<path d="M16.5 1.5 L13.2 1.5 L11.6 9.5 L14.8 11 Z" fill="' + face + '"/>' +
+    '<circle cx="12" cy="15" r="6.3" fill="' + face + '" stroke="' + edge + '" stroke-width="1"/>' +
+    '<circle cx="12" cy="15" r="4.5" fill="none" stroke="' + edge + '" stroke-width="0.7" opacity="0.55"/>' +
+    '<path d="M12 11.6 L12.91 13.75 L15.23 13.95 L13.47 15.48 L14 17.75 L12 16.55 L10 17.75 L10.53 15.48 L8.77 13.95 L11.09 13.75 Z" fill="' + edge + '"/>' +
+    '</svg></span>';
+}
 
 function buildNav() {
   var role = SESSION.role || 'client-rep';
@@ -3009,7 +3037,7 @@ var _modalDsi = '';
 
 function _noteItemHtml(n) {
   var la=Math.max(0,parseInt(n.linesActivated,10)||0);
-  var badge=la>0?' <span class="nm-lines-badge">⚡ '+la+' line'+(la===1?'':'s')+' activated</span>':'';
+  var badge=la>0?' <span class="nm-lines-badge">'+icon('zap')+' '+la+' line'+(la===1?'':'s')+' activated</span>':'';
   return '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(n.ts)+' &mdash; '+esc(n.authorName)+badge+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
 }
 
@@ -3050,7 +3078,7 @@ function openNotesModal(dsi, customer, rep) {
   document.getElementById('modal-body').innerHTML =
     '<div class="nm-section-label nm-act-label">Activation Notes</div>' +
     '<div class="nm-history" id="nm-act-hist">'+actHistHtml+'</div>' +
-    (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…" style="margin-bottom:8px"></textarea>'+_linesFieldHtml('modal-body','⚡ Lines activated on this order')+'<button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
+    (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…" style="margin-bottom:8px"></textarea>'+_linesFieldHtml('modal-body',icon('zap')+' Lines activated on this order')+'<button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
     '<div class="nm-section-label nm-rep-label" style="margin-top:8px">Rep Notes</div>' +
     '<div class="nm-history" id="nm-rep-hist">'+repHistHtml+'</div>' +
     (canAddRep ? '<textarea class="nm-textarea" id="nm-rep-input" placeholder="Add rep note…"></textarea><button class="nm-add-btn nm-rep-add-btn" onclick="modalAddNote(\'rep\')" style="margin-bottom:14px">ADD REP NOTE</button>' : '') +
@@ -3348,9 +3376,9 @@ function _ctChipsInner(orders) {
     return '<span class="ct-chip'+(cls?' '+cls:'')+(risk===val?' ct-chip-active':'')+'" onclick="_ctSetRisk(\''+val+'\')">'+label+' <b>'+count+'</b></span>';
   }
   return chip('','Orders',n,'') +
-    chip('atrisk','&#x26A0; At-risk',ar,'ct-chip-atrisk') +
-    chip('rotting','&#x23F3; Rotting',rot,'ct-chip-rotting') +
-    chip('booked','&#x1F4C5; Booked',bk,'ct-chip-booked');
+    chip('atrisk',icon('issues')+' At-risk',ar,'ct-chip-atrisk') +
+    chip('rotting',icon('clock')+' Rotting',rot,'ct-chip-rotting') +
+    chip('booked',icon('appointments')+' Booked',bk,'ct-chip-booked');
 }
 function _ctSetRisk(val) {
   _activeFilters.risk = (_activeFilters.risk===val ? '' : val);   // toggle off if same chip
@@ -3415,7 +3443,7 @@ function _ctActiveFilterBar() {
     chips.push(_ctFilterChip('Status', s, 'status', s));
   });
   if (_activeFilters.risk) {
-    var rl={atrisk:'⚠ At-risk',rotting:'⏳ Rotting',booked:'📅 Booked'}[_activeFilters.risk]||_activeFilters.risk;
+    var rl={atrisk:icon('issues')+' At-risk',rotting:icon('clock')+' Rotting',booked:icon('appointments')+' Booked'}[_activeFilters.risk]||_activeFilters.risk;
     chips.push(_ctFilterChip('', rl, 'risk', ''));
   }
   if (_activeFilters.lastCalled) {
@@ -4309,7 +4337,7 @@ function _drBuildHtml() {
     '<div class="dr-titlewrap">'+
       drLogoImg+
       (officeNm?'<span class="dr-office">'+esc(officeNm)+'</span>':'')+
-      '<span class="dr-title">📋 Daily Call Report</span>'+
+      '<span class="dr-title">'+icon('dailyreport')+' Daily Call Report</span>'+
       '<span class="dr-daylabel">'+esc(dayLabel)+'</span>'+genAt+
     '</div>'+
     '<div class="dr-controls">'+
@@ -4419,7 +4447,7 @@ function _drSectionActivatedToday(act) {
       '<td>'+esc(x.activator||'—')+'</td>'+
       '<td>'+esc(x.note||'—')+'</td></tr>';
   }).join('');
-  return '<div class="dr-section"><div class="dr-sec-hdr">⚡ Lines Activated Today '+
+  return '<div class="dr-section"><div class="dr-sec-hdr">'+icon('zap')+' Lines Activated Today '+
     '<span class="dr-subhdr">'+act.lines+' line'+(act.lines===1?'':'s')+' across '+act.orders+' order'+(act.orders===1?'':'s')+'</span></div>'+
     '<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>DSI</th><th>Lines</th><th>Activator</th><th>Note</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
@@ -4760,7 +4788,7 @@ function _drSectionAppointments(ap) {
       }).join('');
       inner='<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>Time</th><th>Date</th><th>Customer</th><th>DSI</th><th>Activator</th></tr></thead><tbody>'+bRows+'</tbody></table></div>';
     } else { inner='<div class="dr-muted" style="padding:.2rem .1rem">'+bk.total+' booked.</div>'; }
-    bookedHtml=group('📅 Booked That Day',bk.total,'',inner);
+    bookedHtml=group(icon('appointments')+' Booked That Day',bk.total,'',inner);
   }
 
   // ── Group 2: Scheduled this day ── Time · Customer · DSI · Activator · Outcome
@@ -4774,7 +4802,7 @@ function _drSectionAppointments(ap) {
         '<td>'+(x.outcome?_drOutcomePill(x.outcome):'<span class="dr-muted">— not marked</span>')+'</td></tr>';
     }).join('');
     var sInner='<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>Time</th><th>Customer</th><th>DSI</th><th>Activator</th><th>Outcome</th></tr></thead><tbody>'+sRows+'</tbody></table></div>';
-    schedHtml=group('🗓️ Scheduled For This Day',s.total,_drOutcomeBreakdown(s,true),sInner);
+    schedHtml=group(icon('appointments')+' Scheduled For This Day',s.total,_drOutcomeBreakdown(s,true),sInner);
   }
 
   // ── Group 3: Status changed that day ── Outcome · Customer · DSI · Activator · When
@@ -4788,7 +4816,7 @@ function _drSectionAppointments(ap) {
         '<td class="dr-nw">'+esc(_drFmtDate(x.apptDate))+' · '+esc(_drApptTime(x.timeSlot))+'</td></tr>';
     }).join('');
     var cInner='<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>Outcome</th><th>Customer</th><th>DSI</th><th>Activator</th><th>Appt</th></tr></thead><tbody>'+cRows+'</tbody></table></div>';
-    changeHtml=group('🔄 Status Changed That Day',sc.total,_drOutcomeBreakdown(sc,false),cInner);
+    changeHtml=group(icon('refresh')+' Status Changed That Day',sc.total,_drOutcomeBreakdown(sc,false),cInner);
   }
 
   var sub=(bk.total||0)+' booked · '+(s.total||0)+' scheduled · '+(sc.total||0)+' status changes'+
@@ -5436,7 +5464,7 @@ function _tmBuildList() {
     var cnt  = memberCounts[team.teamId]||0;
     var units = weekUnits[team.teamId]||0;
     var uColor = units>=10?'#4ade80':units>=5?'#fbbf24':units>0?'#94a3b8':'#6b7280';
-    var parent = team.parentId && teams[team.parentId] ? '<span class="tm-parent-tag">↳ '+esc(teams[team.parentId].name)+'</span>' : '';
+    var parent = team.parentId && teams[team.parentId] ? '<span class="tm-parent-tag">'+icon('corner-down-right')+' '+esc(teams[team.parentId].name)+'</span>' : '';
     var acts = canManage ?
       '<td class="tm-act-cell"><button class="tm-btn-edit" onclick="openEditTeamModal(\''+esc(team.teamId)+'\')">EDIT</button><button class="tm-btn-del" onclick="_tmDelete(\''+esc(team.teamId)+'\',\''+esc(team.name)+'\')">DEL</button></td>' :
       '<td></td>';
@@ -5541,7 +5569,7 @@ function _tmBuildDetail(teamId) {
   var churnRows=(DATA.churnReport||[]).filter(function(r){ return memberTabs.indexOf((r.rep||'').toLowerCase())!==-1; });
   var churnBuilt=_buildChurnRepMap(churnRows,'');
 
-  var hdr = '<div class="tm-back" onclick="_tmBackToList()">← Teams</div>' +
+  var hdr = '<div class="tm-back" onclick="_tmBackToList()">'+icon('arrow-left')+' Teams</div>' +
     '<div class="tm-detail-hdr"><span class="tm-detail-em">'+(team.emoji||'👥')+'</span><span class="tm-detail-nm">'+esc(team.name)+'</span></div>';
 
   var breakdown = '<div class="tm-section-label">TEAM BREAKDOWN</div>' +
@@ -6039,7 +6067,7 @@ function _psStep2Html() {
   var h = '<div class="ps-label" style="margin-top:0">SELECT PRODUCTS SOLD</div>';
   h += '<div class="ps-products">';
   // Air
-  h += _psProductCardHtml('air', '&#128752;', 'Internet Air', d.products.air, '');
+  h += _psProductCardHtml('air', icon('wind'), 'Internet Air', d.products.air, '');
   // Wireless
   var wDetail = '';
   if (d.products.wireless) {
@@ -6048,7 +6076,7 @@ function _psStep2Html() {
     wDetail += '<div class="ps-qty-col"><div class="ps-qty-label">BYODS</div>' + _psQtyStepperHtml('wirelessByod') + '</div>';
     wDetail += '</div><div class="ps-total-lines" id="ps-wl-total">Total lines: ' + ((d.wirelessNew||0)+(d.wirelessByod||0)) + '</div></div>';
   }
-  h += _psProductCardHtml('wireless', '&#128241;', 'Wireless', d.products.wireless, wDetail);
+  h += _psProductCardHtml('wireless', icon('smartphone'), 'Wireless', d.products.wireless, wDetail);
   // Fiber
   var fDetail = '';
   if (d.products.fiber) {
@@ -6062,14 +6090,14 @@ function _psStep2Html() {
     fDetail += '<input class="ps-input" type="date" value="' + (d.fiberInstallDate||'') + '" onchange="_PS_DATA.fiberInstallDate=this.value">';
     fDetail += '</div>';
   }
-  h += _psProductCardHtml('fiber', '&#127760;', 'Fiber', d.products.fiber, fDetail);
+  h += _psProductCardHtml('fiber', icon('globe'), 'Fiber', d.products.fiber, fDetail);
   // VoIP
   var vDetail = '';
   if (d.products.voip) {
     vDetail = '<div class="ps-product-detail"><div class="ps-qty-label">QUANTITY OF LINES</div>';
     vDetail += _psQtyStepperHtml('voipQty') + '</div>';
   }
-  h += _psProductCardHtml('voip', '&#127911;', 'VoIP', d.products.voip, vDetail);
+  h += _psProductCardHtml('voip', icon('headphones'), 'VoIP', d.products.voip, vDetail);
   // DirecTV
   var dtvDetail = '';
   if (d.products.dtv) {
@@ -6081,7 +6109,7 @@ function _psStep2Html() {
     dtvDetail += '<select class="ps-select" onchange="_PS_DATA.dtvPackage=this.value"><option value="">Select...</option>' + dtvOpts + '</select>';
     dtvDetail += '</div>';
   }
-  h += _psProductCardHtml('dtv', '&#128250;', 'DirecTV', d.products.dtv, dtvDetail);
+  h += _psProductCardHtml('dtv', icon('tv'), 'DirecTV', d.products.dtv, dtvDetail);
   h += '</div>';
   h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="_psGoStep(1)">BACK</button>';
   h += '<button class="ps-btn" onclick="_psNext2()">NEXT</button></div>';
@@ -6188,7 +6216,7 @@ function _psStep4Html() {
     '<div class="ps-success-sub">Saved successfully &mdash; here\'s what was logged:</div>' +
     '<div class="ps-success-units"><span>' + units + '</span> unit' + (units!==1?'s':'') + ' logged</div></div>';
   h += _psRecapHtml(false);   // read-only recap of exactly what was submitted
-  h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="resetPostSaleForm()">Post Another Sale</button><button class="ps-btn" onclick="_psToRehash()">Create Rehash Text &rarr;</button></div>';
+  h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="resetPostSaleForm()">Post Another Sale</button><button class="ps-btn" onclick="_psToRehash()">Create Rehash Text '+icon('arrow-right')+'</button></div>';
   return h;
 }
 // Journey handoff: carry the just-posted sale into the Rehash Text tab, pre-filling
@@ -6255,7 +6283,7 @@ function renderRehashTab() {
   var d = _REHASH;
   var tog  = function(v){ return '<div class="ps-toggle'+(d.acctType===v?' active':'')+'" onclick="_rehashPick(\'acctType\',\''+v+'\')">'+v+'</div>'; };
   var ptog = function(v){ return '<div class="ps-toggle'+(d.products[v]?' active':'')+'" onclick="_rehashToggleProduct(\''+v+'\')">'+v+'</div>'; };
-  return '<div class="card"><div class="card-header dark">💬 Rehash Text</div><div class="card-body">'+
+  return '<div class="card"><div class="card-header dark">'+icon('rehash')+' Rehash Text</div><div class="card-body">'+
     '<div style="font-size:.85rem;color:var(--text2);margin-bottom:18px;line-height:1.5">Pick the product + fill these in, then tap <b>Copy Text</b> and send it to the customer. Nothing here is saved — the account number is used only to build the message.</div>'+
     '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">'+
       // ── Left: the fields (side-by-side on desktop, stacks full-width on phones) ──
@@ -6277,7 +6305,7 @@ function renderRehashTab() {
       '<div style="flex:1.5 1 300px;min-width:260px">'+
         '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;gap:10px;flex-wrap:wrap">'+
           '<span class="ps-label" style="margin:0">MESSAGE PREVIEW</span>'+
-          '<button class="ps-btn" onclick="_rehashCopy(this)">📋 Copy Text</button>'+
+          '<button class="ps-btn" onclick="_rehashCopy(this)">'+icon('copy')+' Copy Text</button>'+
         '</div>'+
         '<textarea id="rh-preview" readonly style="width:100%;min-height:520px;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;line-height:1.5;padding:14px;white-space:pre-wrap;resize:vertical">'+esc(_rehashText(d))+'</textarea>'+
       '</div>'+
@@ -6464,7 +6492,7 @@ function _psvBuild() {
   h += '<div class="filter-row"><input id="f-psv" placeholder="Search rep, DSI, account, products…">';
   if (voidedCount) h += '<label class="psv-show-voided"><input type="checkbox" ' + (_PSV_SHOW_VOIDED ? 'checked' : '') +
     ' onchange="_psvToggleVoided(this.checked)"> Show voided (' + voidedCount + ')</label>';
-  h += '<button class="clear-filters-btn" onclick="_psvRefresh()">&#x21BB; Refresh</button></div>';
+  h += '<button class="clear-filters-btn" onclick="_psvRefresh()">'+icon('refresh')+' Refresh</button></div>';
   h += '<div class="tbl-count">' + esc(scope) + ' &middot; showing ' + list.length + '</div>';
   if (!list.length) return noData('No posted sales yet.', {icon:'postedsales'});
   h += '<div class="call-table-wrap"><table class="call-table" id="psv-table"><thead><tr>' +
@@ -6941,7 +6969,7 @@ function _wbHead(label){
     '<div class="wb-units">Units</div></div>';
 }
 function _wbRow(rank,name,orders,units){
-  var medal = rank===0?iconc('medal','#FFC000'):rank===1?iconc('medal','#C0C0C0'):rank===2?iconc('medal','#CD7F32'):(rank+1);
+  var medal = rank<3?medalSvg(rank):(rank+1);
   return '<div class="wb-row"><div class="wb-rank">'+medal+'</div>'+
     '<div class="wb-name">'+name+'</div>'+
     '<div class="wb-ord">'+orders+'</div>'+
@@ -7034,7 +7062,7 @@ function _lstKpiBuckets(sales, roster, view, teamSet) {
 function _lstDelta(cur, prev, word, decimals) {
   var d = cur - prev;
   var cls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
-  var arrow = d > 0 ? '▲' : d < 0 ? '▼' : '—';
+  var arrow = d > 0 ? icon('chev-up') : d < 0 ? icon('chev-down') : '—';
   var mag = decimals ? Math.abs(d).toFixed(decimals) : Math.abs(d);
   var sign = d > 0 ? '+' : d < 0 ? '−' : '';
   var pct = '';
@@ -7080,7 +7108,7 @@ function _lstKpiCard(label, value, deltaHtml, sparkHtml, color, metric) {
 
 function _lstKpiTopCard(top, view) {
   var body = top
-    ? '<div class="lst-kpi-top-name">'+iconc('medal','#FFC000')+' '+esc(top.name)+'</div>'+
+    ? '<div class="lst-kpi-top-name">'+medalSvg(0)+' '+esc(top.name)+'</div>'+
       '<div class="lst-kpi-top-stats">'+top.units+' units · '+top.orders+' orders</div>'
     : '<div class="lst-kpi-top-name lst-kpi-top-empty">No sales yet</div>';
   return '<div class="lst-kpi-card lst-kpi-card-top" style="--kpi-accent:#FFC000">'+
@@ -7241,7 +7269,7 @@ function _lstKpiCards(sales, roster, view, teamSet) {
 }
 
 function _lstTopPerf(topAll, topTeams) {
-  var medals = [iconc('medal','#FFC000'),iconc('medal','#C0C0C0'),iconc('medal','#CD7F32')], podCls = ['gold','silver','bronze'];
+  var medals = [medalSvg(0),medalSvg(1),medalSvg(2)], podCls = ['gold','silver','bronze'];
   var order = [1, 0, 2]; // render 2nd | 1st | 3rd
 
   function indCard(i) {
@@ -7288,7 +7316,7 @@ function _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) {
   var h = '<div>';
   h += '<div class="lst-board-hdr">';
   h += '<div><div class="lst-board-title">' + esc(boardTitle || 'OFFICE LEADERBOARD') +
-    '<span class="lst-refresh-btn" onclick="lstRefresh()" title="Refresh">↺</span></div>' +
+    '<span class="lst-refresh-btn" onclick="lstRefresh()" title="Refresh">'+icon('refresh')+'</span></div>' +
     '<div class="lst-board-cnt">' + leaders.length + ' leaders &middot; ' + reps.length + ' reps</div></div>';
   h += '<div class="lst-view-toggle">' +
     '<div class="lst-view-btn' + (_LST_VIEW === 'days' ? ' active' : '') + '" onclick="lstSetView(\'days\')">DAYS</div>' +
@@ -7318,7 +7346,7 @@ function _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) {
 }
 
 function _lstDaysTbl(leaders, reps, todayIdx) {
-  var medals = [iconc('medal','#FFC000'),iconc('medal','#C0C0C0'),iconc('medal','#CD7F32')];
+  var medals = [medalSvg(0),medalSvg(1),medalSvg(2)];
   var h = '<thead><tr>';
   h += '<th style="width:36px">#</th><th class="ll" style="min-width:160px">NAME</th>';
   _LST_DAYS.forEach(function(d) { h += '<th colspan="2">' + d + '</th>'; });
@@ -7364,11 +7392,11 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
 
   h += '<tr class="lst-section-sep"><td colspan="' + (2 + 14) + '">LEADERS</td></tr>';
   leaders.forEach(function(item, i) { h += row(item, i + 1); });
-  h += totalRow('👑 LEADER TOTAL', leaders);
+  h += totalRow(icon('crown')+' LEADER TOTAL', leaders);
 
   h += '<tr class="lst-section-sep"><td colspan="' + (2 + 14) + '">CLIENT REPS</td></tr>';
   reps.forEach(function(item, i) { h += row(item, i + 1); });
-  h += totalRow('⚡ REP TOTAL', reps);
+  h += totalRow(icon('zap')+' REP TOTAL', reps);
   h += totalRow('OFFICE TOTAL', leaders.concat(reps), 'lst-grand-row');
 
   return h + '</tbody>';
@@ -7410,7 +7438,7 @@ function _lstWeeksTbl(leaders, reps) {
     }
   });
 
-  var medals = [iconc('medal','#FFC000'),iconc('medal','#C0C0C0'),iconc('medal','#CD7F32')];
+  var medals = [medalSvg(0),medalSvg(1),medalSvg(2)];
   var h = '<thead><tr><th style="width:36px">#</th><th class="ll" style="min-width:160px">NAME</th>';
   weeks.forEach(function(w) { h += '<th colspan="2">' + w.label + '</th>'; });
   h += '</tr><tr><th></th><th></th>';
@@ -7442,10 +7470,10 @@ function _lstWeeksTbl(leaders, reps) {
 
   h += '<tr class="lst-section-sep"><td colspan="' + (2 + weeks.length * 2) + '">LEADERS</td></tr>';
   leaders.forEach(function(item, i) { h += row(item, i + 1); });
-  h += totalRow('👑 LEADER TOTAL', leaders);
+  h += totalRow(icon('crown')+' LEADER TOTAL', leaders);
   h += '<tr class="lst-section-sep"><td colspan="' + (2 + weeks.length * 2) + '">CLIENT REPS</td></tr>';
   reps.forEach(function(item, i) { h += row(item, i + 1); });
-  h += totalRow('⚡ REP TOTAL', reps);
+  h += totalRow(icon('zap')+' REP TOTAL', reps);
   h += totalRow('OFFICE TOTAL', leaders.concat(reps), 'lst-grand-row');
 
   return h + '</tbody>';
@@ -7521,7 +7549,7 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   });
 
   var h = '<div class="rp-wrap">';
-  h += '<div class="rp-back" onclick="lstBackToLeaderboard()">← LEADERBOARD</div>';
+  h += '<div class="rp-back" onclick="lstBackToLeaderboard()">'+icon('arrow-left')+' LEADERBOARD</div>';
   h += '<div class="rp-name">' + esc(name) + '</div>';
   h += '<div class="rp-meta">';
   h += '<span class="rp-badge blue">' + esc(_LST_RNKL[rank]||rank) + '</span>';
@@ -8106,7 +8134,7 @@ function _apptBuildView() {
         '<button class="appt-book-btn" onclick="openApptBookingModal(\'\',\'\',\'\')">+ Book Appointment</button>'+
       '</div>'+
     '</div>'+
-    (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note">&#128339; Times shown in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>. Each activator works the hours &amp; timezone set in their own schedule.</div>' : '')+
+    (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note">'+icon('clock')+' Times shown in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>. Each activator works the hours &amp; timezone set in their own schedule.</div>' : '')+
     _apptUtilStrip(appts, acts, mode, ws, dStr)+
     body+
     _apptUpcomingTable(appts)+(
@@ -8505,7 +8533,7 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
         '</div>'+
         '<div class="field" style="grid-column:1/-1"><label>When</label>'+
           '<div class="abm-seg">'+
-            '<button type="button" class="abm-seg-btn" id="abm-seg-soonest" onclick="_abmSetWhen(\'soonest\')">⚡ Soonest available</button>'+
+            '<button type="button" class="abm-seg-btn" id="abm-seg-soonest" onclick="_abmSetWhen(\'soonest\')">'+icon('zap')+' Soonest available</button>'+
             '<button type="button" class="abm-seg-btn" id="abm-seg-date" onclick="_abmSetWhen(\'date\')">'+icon('appointments')+' Pick a date</button>'+
           '</div>'+
           (_apptCanSameDay() ? '<label class="appt-chk abm-inline-chk abm-sameday-chk"><input type="checkbox" id="abm-sameday" onchange="_abmSameDayToggle()"> '+icon('issues')+' Include same-day <span class="appt-nextmode-hint">override — normally earliest is tomorrow</span></label>' : '')+
@@ -8568,7 +8596,7 @@ function _abmSetWhen(mode) {
       '<div class="field"><label>Date</label><input type="date" class="appt-form-input" id="abm-date" min="'+win.min+'" max="'+win.max+'" onchange="_abmLoadSlots()"></div>'+
       '<div class="field"><label>Time Slot</label><select class="appt-form-input" id="abm-slot"><option value="">Select a date first…</option></select></div>'+
     '</div>'+
-    (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note" style="margin:10px 0 0">&#128339; Times are in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>.</div>' : '');
+    (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note" style="margin:10px 0 0">'+icon('clock')+' Times are in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>.</div>' : '');
   }
 }
 
@@ -8768,7 +8796,7 @@ function setApptOutcomeUI(id, outcome) {
   var canActivate = SESSION.role==='master-admin' || SESSION.role==='activator';
   // Lines-activated only makes sense when the appointment actually happened.
   var showLines = canActivate && outcome==='completed';
-  var linesField = showLines ? _linesFieldHtml('appt-outcome-body','⚡ Lines activated during this appointment') : '';
+  var linesField = showLines ? _linesFieldHtml('appt-outcome-body',icon('zap')+' Lines activated during this appointment') : '';
   document.getElementById('appt-outcome-title').textContent = 'Mark Outcome — '+(_OUTCOME_LABELS[outcome]||outcome);
   document.getElementById('appt-outcome-body').innerHTML =
     '<label class="ao-label">Note '+(showLines?'':'(optional)')+'</label>'+
@@ -8815,7 +8843,7 @@ function rescheduleApptUI(id) {
       '<div class="field"><label>Activator</label><select class="appt-form-input" id="rsd-act" onchange="_reschedLoadSlots()">'+actOpts+'</select></div>'+
       '<div class="field" style="grid-column:1/-1"><label>New Time Slot</label><select class="appt-form-input" id="rsd-slot"><option value="">Pick a date first…</option></select></div>'+
     '</div>'+
-    (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note" style="margin:10px 0 0">&#128339; Times are in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>.</div>' : '')+
+    (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note" style="margin:10px 0 0">'+icon('clock')+' Times are in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>.</div>' : '')+
     '<div id="rsd-error" style="color:var(--red);font-size:.82rem;margin-top:10px;display:none"></div>'+
     '<input type="hidden" id="rsd-id" value="'+esc(id)+'">'+
     '<input type="hidden" id="rsd-curact" value="'+esc(a.activatorEmail)+'">'+
@@ -8993,7 +9021,7 @@ function _loadBlocks(email) {
         '<span class="appt-block-date">'+esc(_apptFmtDate(b.date))+'</span>'+
         '<span class="appt-block-time">'+esc(t)+'</span>'+
         '<span class="appt-block-reason">'+esc(b.reason||'')+'</span>'+
-        '<button class="appt-do-cancel-btn" onclick="_removeBlk(\''+esc(b.blockId)+'\',\''+esc(email)+'\')">✕</button>'+
+        '<button class="appt-do-cancel-btn" onclick="_removeBlk(\''+esc(b.blockId)+'\',\''+esc(email)+'\')"><span class="ico"><svg><use href="#i-x"></use></svg></span></button>'+
       '</div>';
     }).join('');
   });
