@@ -224,6 +224,12 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .skel-hdr{height:12px;width:160px;margin-bottom:20px}
 .skel-line{height:11px;margin-bottom:12px}
 .empty{text-align:center;padding:40px;color:var(--text2);font-size:.88rem}
+/* Shared empty-state (icon in a soft accent circle + message + optional sub/action). */
+.empty-state{text-align:center;padding:46px 24px;color:var(--text2)}
+.empty-ico{display:inline-flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:50%;background:rgba(var(--blue2-rgb),.10);color:var(--blue2);margin-bottom:14px;font-size:1.55rem}
+.empty-msg{font-size:.95rem;font-weight:600;color:var(--text)}
+.empty-sub{font-size:.82rem;color:var(--text2);margin-top:5px;line-height:1.45;max-width:340px;margin-left:auto;margin-right:auto}
+.empty-action{margin-top:16px}
 
 /* ── CALL TABLE ── */
 .call-table-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 260px)}
@@ -1206,6 +1212,8 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
   <symbol id="i-medal" viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></symbol>
   <symbol id="i-fire" viewBox="0 0 24 24"><path d="m8.468 8.395-.002.001-.003.002Zm9.954-.187a1.237 1.237 0 0 0-.23-.175 1 1 0 0 0-1.4.411 5.782 5.782 0 0 1-1.398 1.778 8.664 8.664 0 0 0 .134-1.51 8.714 8.714 0 0 0-4.4-7.582 1 1 0 0 0-1.492.806 7.017 7.017 0 0 1-2.471 4.942l-.23.187a8.513 8.513 0 0 0-1.988 1.863 8.983 8.983 0 0 0 3.656 13.908 1 1 0 0 0 1.377-.926 1.05 1.05 0 0 0-.05-.312 6.977 6.977 0 0 1-.19-2.581 9.004 9.004 0 0 0 4.313 4.016.997.997 0 0 0 .715.038 8.995 8.995 0 0 0 3.654-14.863Zm-3.905 12.831a6.964 6.964 0 0 1-3.577-4.402 8.908 8.908 0 0 1-.18-.964 1 1 0 0 0-.799-.845.982.982 0 0 0-.191-.018 1 1 0 0 0-.867.5 8.959 8.959 0 0 0-1.205 4.718 6.985 6.985 0 0 1-1.176-9.868 6.555 6.555 0 0 1 1.562-1.458.745.745 0 0 0 .075-.055s.296-.245.306-.25a8.968 8.968 0 0 0 2.9-4.633 6.736 6.736 0 0 1 1.385 8.088 1 1 0 0 0 1.184 1.418 7.856 7.856 0 0 0 3.862-2.688 7 7 0 0 1-3.279 10.457Z"/></symbol>
   <symbol id="i-snowflake" viewBox="0 0 24 24"><path d="M21.16,16.13l-2-1.15.89-.24a1,1,0,1,0-.52-1.93l-2.82.76L14,12l2.71-1.57,2.82.76.26,0a1,1,0,0,0,.26-2L19.16,9l2-1.15a1,1,0,0,0-1-1.74L18,7.37l.3-1.11a1,1,0,1,0-1.93-.52l-.82,3L13,10.27V7.14l2.07-2.07a1,1,0,0,0,0-1.41,1,1,0,0,0-1.42,0L13,4.31V2a1,1,0,0,0-2,0V4.47l-.81-.81a1,1,0,0,0-1.42,0,1,1,0,0,0,0,1.41L11,7.3v3L8.43,8.78l-.82-3a1,1,0,1,0-1.93.52L6,7.37,3.84,6.13a1,1,0,0,0-1,1.74L4.84,9,4,9.26a1,1,0,0,0,.26,2l.26,0,2.82-.76L10,12,7.29,13.57l-2.82-.76A1,1,0,1,0,4,14.74l.89.24-2,1.15a1,1,0,0,0,1,1.74L6,16.63l-.3,1.11A1,1,0,0,0,6.39,19a1.15,1.15,0,0,0,.26,0,1,1,0,0,0,1-.74l.82-3L11,13.73v3.13L8.93,18.93a1,1,0,0,0,0,1.41,1,1,0,0,0,.71.3,1,1,0,0,0,.71-.3l.65-.65V22a1,1,0,0,0,2,0V19.53l.81.81a1,1,0,0,0,1.42,0,1,1,0,0,0,0-1.41L13,16.7v-3l2.57,1.49.82,3a1,1,0,0,0,1,.74,1.15,1.15,0,0,0,.26,0,1,1,0,0,0,.71-1.23L18,16.63l2.14,1.24a1,1,0,1,0,1-1.74Z"/></symbol>
+  <!-- empty-state default (slice V4) -->
+  <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
 </svg>
 
 <!-- LOGIN -->
@@ -2763,7 +2771,7 @@ function renderActRates() {
 }
 
 function _renderActRatesWithData() {
-  if (!_AR_LINES || !_AR_LINES.length) return noData('No activation rate data available.');
+  if (!_AR_LINES || !_AR_LINES.length) return noData('No activation rate data available.', {icon:'actrates'});
 
   var role = SESSION.role || 'client-rep';
   var myName = (SESSION.tableauName || '').toLowerCase();
@@ -3671,7 +3679,7 @@ function _asRepTable(lines){
 // Rep-first: one collapsible section PER REP → a table of ALL their orders (last 30 days).
 function _asRenderTree(byRep){
   var reps=Object.keys(byRep).sort(function(a,b){ return a.localeCompare(b); });
-  if(!reps.length) return noData(_asPage==='pending' ? 'No pending lines — everyone is caught up. 🎉' : 'No orders in the last 30 days.');
+  if(!reps.length) return noData(_asPage==='pending' ? 'Everyone is caught up!' : 'No orders in the last 30 days.', {icon:_asPage==='pending'?'completed':'inbox'});
   // A single rep in view (a rep seeing only their own) → skip the rep header, show their table directly.
   if(reps.length===1) return _asRepTable(byRep[reps[0]]);
   return reps.map(function(rep){
@@ -4005,7 +4013,7 @@ function _noAnswerOrders() {
 
 function renderNoAnswerTable() {
   var ratings = DATA.ratings || {};
-  if (!Object.keys(ratings).some(function(dsi) { return ratings[dsi]==='No Answer'; })) return noData('No orders marked No Answer yet.');
+  if (!Object.keys(ratings).some(function(dsi) { return ratings[dsi]==='No Answer'; })) return noData('No orders marked No Answer yet.', {icon:'noanswer'});
   var orders = _noAnswerOrders();
   _tabOrders = orders.slice(); _sortTblId = 'na-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '', lastCalled: '' }; _extraColFn = _lastCallCell;
   _ctShowRiskFlags = false; _ISSUE_DSI = null;
@@ -4045,7 +4053,7 @@ function _escalationOrders() {
 
 function renderEscalationsTable() {
   var ratings = DATA.ratings || {};
-  if (!Object.keys(ratings).some(function(dsi) { return ratings[dsi]==='1 Star'||ratings[dsi]==='2 Stars'; })) return noData('No escalations yet. Orders rated 1 or 2 Stars appear here.');
+  if (!Object.keys(ratings).some(function(dsi) { return ratings[dsi]==='1 Star'||ratings[dsi]==='2 Stars'; })) return noData('No escalations yet.', {icon:'escalations', sub:'Orders rated 1 or 2 Stars will appear here.'});
   var orders = _escalationOrders();
   _tabOrders = orders.slice(); _sortTblId = 'esc-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = null;
   _ctShowRiskFlags = false; _ISSUE_DSI = null;
@@ -4150,7 +4158,7 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
 
 function renderChurn() {
   var rows = DATA.churnReport || [];
-  if (!rows.length) return noData('No churn data yet. Tableau sync runs nightly.');
+  if (!rows.length) return noData('No churn data yet.', {icon:'churn', sub:'Tableau sync runs nightly — check back soon.'});
   var role = SESSION.role || 'client-rep';
   var isTeamRole = role === 'leader';   // jd is office-wide (manager-equivalent)
   if (isTeamRole) {
@@ -5158,7 +5166,7 @@ function renderPeople() {
     return Object.assign({ email: email, isGuest: true }, guestRoster[email]);
   });
   var rows = homeRows.concat(guestRows).sort(function(a,b) { return (a.name||'').localeCompare(b.name||''); });
-  if (!rows.length) return noData('No people in the roster yet.');
+  if (!rows.length) return noData('No people in the roster yet.', {icon:'people'});
   var addBtn = canManagePeople ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
   return '<div class="card"><div class="card-header dark">People &amp; Roster</div><div class="card-body">' +
     addBtn +
@@ -5319,8 +5327,17 @@ function resetPersonPassword(email) {
   }).catch(function() { alert('Connection error. Try again.'); });
 }
 
-function noData(msg) {
-  return '<div class="card"><div class="card-body"><div class="empty">'+esc(msg)+'</div></div></div>';
+// Shared empty-state. noData(msg) still works; pass opts for polish:
+//   {icon:'<sprite id>'}  — contextual glyph (default 'inbox')
+//   {sub:'…'}             — a lighter explanatory line under the message
+//   {action:'<html>'}     — an optional call-to-action (raw HTML, e.g. a button)
+function noData(msg, opts) {
+  opts = opts || {};
+  var sub = opts.sub ? '<div class="empty-sub">'+esc(opts.sub)+'</div>' : '';
+  var action = opts.action ? '<div class="empty-action">'+opts.action+'</div>' : '';
+  return '<div class="card"><div class="card-body"><div class="empty-state">'+
+    '<div class="empty-ico">'+icon(opts.icon||'inbox')+'</div>'+
+    '<div class="empty-msg">'+esc(msg)+'</div>'+sub+action+'</div></div></div>';
 }
 
 // ── TEAMS TAB ─────────────────────────────────────────────────────────────
@@ -6442,7 +6459,7 @@ function _psvBuild() {
     ' onchange="_psvToggleVoided(this.checked)"> Show voided (' + voidedCount + ')</label>';
   h += '<button class="clear-filters-btn" onclick="_psvRefresh()">&#x21BB; Refresh</button></div>';
   h += '<div class="tbl-count">' + esc(scope) + ' &middot; showing ' + list.length + '</div>';
-  if (!list.length) return noData('No posted sales yet.');
+  if (!list.length) return noData('No posted sales yet.', {icon:'postedsales'});
   h += '<div class="call-table-wrap"><table class="call-table" id="psv-table"><thead><tr>' +
        '<th>Rep</th><th>Date</th><th>DSI</th><th>Account</th><th>Products</th><th>Units</th>' +
        '<th>Trainee</th><th>Notes</th><th></th></tr></thead><tbody>';
