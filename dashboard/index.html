@@ -1195,6 +1195,10 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
   <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></symbol>
+  <!-- status / badges (slice 3) -->
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-trending-up" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
 </svg>
 
 <!-- LOGIN -->
@@ -1558,7 +1562,7 @@ function loadConfig() {
 }
 
 function showError(msg) {
-  document.getElementById('login-office-name').textContent = '⚠ ' + msg;
+  document.getElementById('login-office-name').innerHTML = icon('issues') + ' ' + esc(msg);
 }
 
 // ── API ──────────────────────────────────────────────────────────────────
@@ -3448,8 +3452,8 @@ function callTableRows(orders, extraColFn) {
     var atrisk=_isAtRisk(dsi);                 // order issues / 1–2★ persist regardless of a booking
     var rowCls = rotting ? ' class="ct-row-rotting"' : (atrisk ? ' class="ct-row-atrisk"' : '');
     var flags='';
-    if (_ctShowRiskFlags && rotting) flags+='<span class="ct-flag ct-flag-rotting" title="No Answer · 8+ days since last call">⏳ Rotting</span>';
-    if (_ctShowRiskFlags && atrisk) flags+='<span class="ct-flag ct-flag-atrisk" title="1–2★ rating or Order Issue">⚠ At-risk</span>';
+    if (_ctShowRiskFlags && rotting) flags+='<span class="ct-flag ct-flag-rotting" title="No Answer · 8+ days since last call">'+icon('clock')+' Rotting</span>';
+    if (_ctShowRiskFlags && atrisk) flags+='<span class="ct-flag ct-flag-atrisk" title="1–2★ rating or Order Issue">'+icon('issues')+' At-risk</span>';
     var dsiCell='<span class="dsi-link" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>'+(flags?'<div class="ct-flags">'+flags+'</div>':'');
     return '<tr'+rowCls+'>' +
       '<td><span class="rep-name">'+esc(o.rep)+'</span></td>' +
@@ -3473,7 +3477,7 @@ function callTableRows(orders, extraColFn) {
 function _bookedCell(booked) {
   if (!booked) return '<td class="ct-appt-cell">—</td>';
   var bTxt=_ctShortDate(booked.date)+(booked.timeSlot?' '+_apptFmt12(booked.timeSlot):'')+(booked.activator?' · '+String(booked.activator).split(' ')[0]:'');
-  return '<td class="ct-appt-cell"><span class="ct-flag ct-flag-booked" title="Next appointment: '+esc(_apptFmtDate(booked.date))+' at '+esc(_apptFmt12(booked.timeSlot))+(booked.activator?' · '+esc(booked.activator):'')+'">📅 '+esc(bTxt)+'</span></td>';
+  return '<td class="ct-appt-cell"><span class="ct-flag ct-flag-booked" title="Next appointment: '+esc(_apptFmtDate(booked.date))+' at '+esc(_apptFmt12(booked.timeSlot))+(booked.activator?' · '+esc(booked.activator):'')+'">'+icon('appointments')+' '+esc(bTxt)+'</span></td>';
 }
 
 function _sortHeaders(tblId) {
@@ -3502,7 +3506,7 @@ function _tableauWarnBanner() {
   if (!w) return '';
   return '<div style="background:#3d1a0a;border:1px solid #7a3b10;color:#ffcda0;' +
     'padding:12px 16px;border-radius:8px;margin-bottom:14px;font-size:.88rem;font-weight:600">' +
-    '⚠️ ' + esc(w) + '</div>';
+    icon('issues') + ' ' + esc(w) + '</div>';
 }
 
 function renderCallTable(orders, title, emptyMsg) {
@@ -3671,14 +3675,14 @@ function _asPageOrders(){
   return repFilter(base).filter(function(o){ return (o.orderDate||'') >= cutoff; });   // today → back 30 days
 }
 function _asToggleHtml(){
-  function btn(page,label,sub){
+  function btn(page,ico,label,sub){
     var on=_asPage===page;
     return '<button onclick="_asSwitchPage(\''+page+'\')" style="flex:1;min-width:170px;border:1px solid '+(on?'var(--blue2)':'var(--border)')+';background:'+(on?'rgba(var(--blue2-rgb),.14)':'var(--surface)')+';color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;font-size:.92rem;text-align:left">'+
-      esc(label)+'<div style="font-weight:400;font-size:.75rem;color:var(--text2);margin-top:2px">'+esc(sub)+'</div></button>';
+      ico+' '+esc(label)+'<div style="font-weight:400;font-size:.75rem;color:var(--text2);margin-top:2px">'+esc(sub)+'</div></button>';
   }
   return '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+
-    btn('pending','⏳ Pending','Not yet Active / Cancelled / Disconnected / Posted')+
-    btn('activation','📶 Activation','Every line, every status')+
+    btn('pending',icon('clock'),'Pending','Not yet Active / Cancelled / Disconnected / Posted')+
+    btn('activation',icon('actsupport'),'Activation','Every line, every status')+
   '</div>';
 }
 function _asRenderSignifier(){
@@ -3689,9 +3693,9 @@ function _asRenderSignifier(){
     else if(!d){ body='<span style="color:var(--text2)">No send recorded yet</span>'; }
     else {
       var when=d.ts?new Date(d.ts).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):(d.date||'');
-      var icon=d.ok?'✅':'⚠️';
-      var detail=d.sent+' sent'+(d.qualifying?(' / '+d.qualifying+' qualified'):'')+(d.failed?(' · '+d.failed+' failed'):'')+(d.quotaHit?' · ⚠ quota hit':'');
-      body=icon+' Last sent <b>'+esc(when)+'</b> &nbsp;·&nbsp; '+esc(detail);
+      var statusGlyph=d.ok?icon('completed'):icon('issues');
+      var detail=d.sent+' sent'+(d.qualifying?(' / '+d.qualifying+' qualified'):'')+(d.failed?(' · '+d.failed+' failed'):'')+(d.quotaHit?' · quota hit':'');
+      body=statusGlyph+' Last sent <b>'+esc(when)+'</b> &nbsp;·&nbsp; '+esc(detail);
     }
     return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;flex-wrap:wrap">'+
       '<span style="font-weight:700;min-width:128px">'+esc(label)+'</span>'+
@@ -7487,7 +7491,7 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   h += '<div class="rp-meta">';
   h += '<span class="rp-badge blue">' + esc(_LST_RNKL[rank]||rank) + '</span>';
   if (team) h += '<span class="rp-badge">' + esc(team) + '</span>';
-  if (tableauName) h += '<span class="rp-badge">📊 ' + esc(tableauName) + '</span>';
+  if (tableauName) h += '<span class="rp-badge">'+icon('actrates')+' ' + esc(tableauName) + '</span>';
   h += '</div>';
 
   // Tableau Name assignment (owner/admin only)
@@ -7938,7 +7942,7 @@ function _apptMetricsPanel(appts){
           '<span class="appt-metric-act-stat" style="color:#e9756a">'+r.ns+' ✗</span></div>';
       }).join('')+'</div>';
   }
-  return '<details class="appt-metrics-wrap" open><summary class="appt-metrics-summary">📊 Booking Performance <span style="font-weight:400;color:var(--text2);font-size:.8rem">· last 30 days</span></summary>'+
+  return '<details class="appt-metrics-wrap" open><summary class="appt-metrics-summary">'+icon('actrates')+' Booking Performance <span style="font-weight:400;color:var(--text2);font-size:.8rem">· last 30 days</span></summary>'+
     '<div class="appt-metrics">'+cards+'</div>'+actHtml+'</details>';
 }
 
@@ -8148,7 +8152,7 @@ function _apptCalGrid(appts, acts, ws) {
         } else if(_apptBlocked(fe,ds,_apptToAct(ds,slot,fe))){
           var _bl=_apptBlocked(fe,ds,_apptToAct(ds,slot,fe)), _oid=_apptBlockOffice(_bl);
           html+= _oid ? _apptXofficeCell(_bl,_oid)
-                      : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">🔒</div>';
+                      : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">'+icon('lock')+'</div>';
         } else if(availAt(ds,slot)){
           html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+_apptToAct(ds,slot,fe)+'\')">'+
             '<span class="appt-avail-plus">+</span> Book</div>';
@@ -8300,7 +8304,7 @@ function _apptAllActGrid(appts, acts, dStr){
       } else if(inSched && _apptBlocked(a.email,dStr,asl)){
         var _bl=_apptBlocked(a.email,dStr,asl), _oid=_apptBlockOffice(_bl);
         html+= _oid ? _apptXofficeCell(_bl,_oid)
-                    : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">🔒</div>';
+                    : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">'+icon('lock')+'</div>';
       } else if(inSched){
         html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+dStr+'\',\''+esc(a.email)+'\',\''+asl+'\')"><span class="appt-avail-plus">+</span> Book</div>';
       } else {
@@ -8385,7 +8389,7 @@ function _apptUtilStrip(appts, acts, mode, ws, dStr){
   });
   var periodLbl = mode==='week'?'this week':'this day';
   if(!totCap){
-    return '<div class="appt-util"><div class="appt-util-head"><span class="appt-util-title">📈 Booking Utilization</span>'+
+    return '<div class="appt-util"><div class="appt-util-head"><span class="appt-util-title">'+icon('trending-up')+' Booking Utilization</span>'+
       '<span class="appt-util-note">No bookable capacity in view (outside the booking window).</span></div></div>';
   }
   var pct=Math.round(totBk/totCap*100), open=totCap-totBk;
@@ -8399,7 +8403,7 @@ function _apptUtilStrip(appts, acts, mode, ws, dStr){
       '<span class="appt-util-act-num">'+r.bk+'/'+r.cap+'</span></div>';
   }).join('');
   return '<div class="appt-util">'+
-    '<div class="appt-util-head"><span class="appt-util-title">📈 Booking Utilization <span style="font-weight:400;color:var(--text2);font-size:.78rem">· '+periodLbl+'</span></span>'+
+    '<div class="appt-util-head"><span class="appt-util-title">'+icon('trending-up')+' Booking Utilization <span style="font-weight:400;color:var(--text2);font-size:.78rem">· '+periodLbl+'</span></span>'+
       '<span class="appt-util-summary">'+pct+'% · <b>'+totBk+'</b> booked / '+totCap+' capacity · <b style="color:#70AD47">'+open+'</b> open</span></div>'+
     '<div class="appt-util-bar"><div class="appt-util-bar-fill" style="width:'+pct+'%;background:'+barCol(pct)+'"></div></div>'+
     '<details class="appt-util-acts-wrap"><summary class="appt-util-acts-sum">Per-activator breakdown</summary>'+actHtml+'</details>'+
@@ -8467,9 +8471,9 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
         '<div class="field" style="grid-column:1/-1"><label>When</label>'+
           '<div class="abm-seg">'+
             '<button type="button" class="abm-seg-btn" id="abm-seg-soonest" onclick="_abmSetWhen(\'soonest\')">⚡ Soonest available</button>'+
-            '<button type="button" class="abm-seg-btn" id="abm-seg-date" onclick="_abmSetWhen(\'date\')">📅 Pick a date</button>'+
+            '<button type="button" class="abm-seg-btn" id="abm-seg-date" onclick="_abmSetWhen(\'date\')">'+icon('appointments')+' Pick a date</button>'+
           '</div>'+
-          (_apptCanSameDay() ? '<label class="appt-chk abm-inline-chk abm-sameday-chk"><input type="checkbox" id="abm-sameday" onchange="_abmSameDayToggle()"> ⚠ Include same-day <span class="appt-nextmode-hint">override — normally earliest is tomorrow</span></label>' : '')+
+          (_apptCanSameDay() ? '<label class="appt-chk abm-inline-chk abm-sameday-chk"><input type="checkbox" id="abm-sameday" onchange="_abmSameDayToggle()"> '+icon('issues')+' Include same-day <span class="appt-nextmode-hint">override — normally earliest is tomorrow</span></label>' : '')+
           '<div id="abm-when-body" style="margin-top:12px"></div>'+
         '</div>'+
       '</div>'+
@@ -8565,7 +8569,7 @@ function _abmFindSoonest() {
   var win=_apptWindow(sameday);
   var dates=[], d=new Date(win.min+'T12:00:00'), end=new Date(win.max+'T12:00:00');
   while(d<=end){ dates.push(_apptDateStr(d)); d.setDate(d.getDate()+1); }
-  chip.innerHTML='<span class="abm-chip-muted">⏳ Finding the soonest opening…</span>';
+  chip.innerHTML='<span class="abm-chip-muted">'+icon('clock')+' Finding the soonest opening…</span>';
   var reqs=dates.map(function(ds){
     var req = act==='__next__' ? {action:'getNextAvailableSlots',officeId:CFG.officeId,date:ds,role:role}
                                : {action:'getAvailableSlots',activatorEmail:act,date:ds,role:role};
@@ -8884,7 +8888,7 @@ function _renderSchedModal(sched) {
       '<div class="sc-bookable-hint">When on, you appear in the booking pool + Next Available Agent. '+(SESSION.role==='master-admin'?'Master-admins are off by default — turn this on only if you take appointments.':'Turn off if you temporarily aren’t taking appointments.')+'</div>'+
     '</div>'+
     '<div style="border:1px solid rgba(var(--blue2-rgb),.35);background:rgba(var(--blue2-rgb),.08);border-radius:10px;padding:12px 14px;margin-bottom:16px">'+
-      '<div style="font-weight:700;margin-bottom:4px">📅 Link your Google Calendar <span style="font-weight:400;color:var(--text2);font-size:.82rem">— recommended</span></div>'+
+      '<div style="font-weight:700;margin-bottom:4px">'+icon('appointments')+' Link your Google Calendar <span style="font-weight:400;color:var(--text2);font-size:.82rem">— recommended</span></div>'+
       '<div style="font-size:.84rem;color:var(--text);line-height:1.5">'+
         'So the system automatically <b>blocks the times you’re busy</b> and adds <b>booked appointments onto your calendar</b>, share your calendar once:'+
         '<ol style="margin:8px 0 6px 18px;padding:0;font-size:.83rem;color:var(--text2);line-height:1.65">'+
