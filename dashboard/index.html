@@ -230,6 +230,13 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .empty-msg{font-size:.95rem;font-weight:600;color:var(--text)}
 .empty-sub{font-size:.82rem;color:var(--text2);margin-top:5px;line-height:1.45;max-width:340px;margin-left:auto;margin-right:auto}
 .empty-action{margin-top:16px}
+/* A11y (V2): a visible keyboard-focus ring (office-accent) — shows only on keyboard
+   focus via :focus-visible, so mouse/touch interaction is visually unchanged. */
+:focus-visible{outline:2px solid var(--blue2);outline-offset:2px;border-radius:5px}
+/* Respect reduced-motion: neutralize the shimmer/fade/slide animations + transitions. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
 
 /* ── CALL TABLE ── */
 .call-table-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 260px)}
@@ -1352,7 +1359,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
         </div>
         <div class="topbar-actions">
           <span id="last-updated" style="font-size:.75rem;color:var(--text2)"></span>
-          <button class="refresh-btn" id="theme-toggle" onclick="_toggleTheme()" title="Switch to light" style="display:none"><span class="ico"><svg><use href="#i-sun"></use></svg></span></button>
+          <button class="refresh-btn" id="theme-toggle" onclick="_toggleTheme()" title="Switch to light" aria-label="Toggle light or dark theme" style="display:none"><span class="ico"><svg><use href="#i-sun"></use></svg></span></button>
           <button class="refresh-btn" onclick="refreshData()"><span class="ico"><svg><use href="#i-refresh"></use></svg></span> Refresh</button>
           <div class="office-dd-wrap" id="office-dd-wrap" style="display:none">
             <button class="office-dd-btn" id="office-dd-btn" onclick="toggleOfficeDropdown(event)">
@@ -8089,9 +8096,9 @@ function _apptBuildView() {
     _apptMetricsPanel(appts)+
     '<div class="appt-controls">'+
       '<div class="appt-nav">'+
-        '<button class="appt-nav-btn" onclick="_apptNav(-1)">'+icon('chev-left')+'</button>'+
+        '<button class="appt-nav-btn" aria-label="Previous week" onclick="_apptNav(-1)">'+icon('chev-left')+'</button>'+
         '<span class="appt-week-label">'+esc(label)+'</span>'+
-        '<button class="appt-nav-btn" onclick="_apptNav(1)">'+icon('chev-right')+'</button>'+
+        '<button class="appt-nav-btn" aria-label="Next week" onclick="_apptNav(1)">'+icon('chev-right')+'</button>'+
       '</div>'+
       '<div class="appt-view-toggle">'+vbtn('week','Week')+vbtn('day','Day')+vbtn('all','All-Activators')+'</div>'+
       '<div class="appt-filter-row">'+
@@ -8258,14 +8265,14 @@ function _apptUpcomingTable(appts) {
     var actions='';
     if (ok) {   // notes reference the customer → only for viewers who can see them
       var _nN=(a.notes?a.notes.length:0)+(a.customerNote?1:0);
-      actions+='<button class="appt-resched-btn" title="Notes" onclick="openApptNotes(\''+esc(a.appointmentId)+'\')">'+icon('edit')+(_nN?' '+_nN:'')+'</button>';
+      actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openApptNotes(\''+esc(a.appointmentId)+'\')">'+icon('edit')+(_nN?' '+_nN:'')+'</button>';
     }
     if (canX && !cancelled && !terminal)
       actions+='<button class="appt-resched-btn" onclick="rescheduleApptUI(\''+esc(a.appointmentId)+'\')">Reschedule</button>';
     if (canX && !cancelled)
       actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>';
     if (SESSION.role==='master-admin')
-      actions+='<button class="appt-del-btn" title="Delete permanently (master-admin)" onclick="deleteApptUI(\''+esc(a.appointmentId)+'\')">'+icon('trash')+'</button>';
+      actions+='<button class="appt-del-btn" title="Delete permanently (master-admin)" aria-label="Delete appointment" onclick="deleteApptUI(\''+esc(a.appointmentId)+'\')">'+icon('trash')+'</button>';
     var dsiCell = ok && a.customerDSI
       ? '<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>'
       : (ok?'—':'••••');
