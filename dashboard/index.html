@@ -18,6 +18,7 @@
   --gray:#aaa;--gray2:#2e2e2e;
   --bg:#111111;--surface:#242424;--surface2:#2c2c2c;--sidebar-bg:#111827;
   --border:rgba(255,255,255,.10);
+  --field-bg:#1e1e1e;--field-border:#3a3a3a;--control-bg:#2a2a2a;--inset-bg:#1a1a1a;/* O2 semantic control surfaces (dark defaults; light theme overrides below) */
   --text:#e2e2e2;--text2:#b3b3b3;
   --sidebar:240px;
 }
@@ -28,18 +29,14 @@ html[data-theme="light"]{
   --bg:#e9ecf1; --surface:#f5f6f9; --surface2:#eceff4;
   --border:rgba(15,23,42,.18);
   --text:#1b2433; --text2:#5b6675;
+  --field-bg:#ffffff; --field-border:#cfd6e0; --control-bg:#eef1f5; --inset-bg:#e8edf3;
 }
-html[data-theme="light"] .field input,
-html[data-theme="light"] .ar-select,
-html[data-theme="light"] .nm-textarea, html[data-theme="light"] .nm-history,
-html[data-theme="light"] .nm-lines-btn, html[data-theme="light"] .nm-lines-input,
-html[data-theme="light"] .dr-date-sel,
-html[data-theme="light"] .appt-select, html[data-theme="light"] .appt-outcome-sel,
-html[data-theme="light"] .appt-form-input, html[data-theme="light"] .appt-time-inp,
+/* ps-* inputs keep a pure-white fill in light mode (they pop off the off-white page);
+   all other form controls now auto-theme via --field-bg/--field-border. */
 html[data-theme="light"] .ps-input, html[data-theme="light"] .ps-textarea,
 html[data-theme="light"] .ps-select, html[data-theme="light"] .ps-qty-input,
 html[data-theme="light"] .pse-notes-ro{
-  background:#ffffff; border-color:#cfd6e0; color:var(--text);
+  background:#ffffff; border-color:#cfd6e0;
 }
 html[data-theme="light"] .office-dd-panel{ background:#fff; border-color:#d6dce5; }
 /* the office switcher button + its panel rows hardcode dark surfaces — light-mode them */
@@ -80,7 +77,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 #login-office-name{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:6px}
 .field{margin-bottom:16px}
 .field label{display:block;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:6px}
-.field input{width:100%;padding:10px 12px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.95rem;outline:none;transition:border .15s;background:#1e1e1e;color:var(--text)}
+.field input{width:100%;padding:10px 12px;border:1.5px solid var(--field-border);border-radius:6px;font-size:.95rem;outline:none;transition:border .15s;background:var(--field-bg);color:var(--text)}
 .field input:focus{border-color:var(--blue2)}
 .btn{width:100%;padding:11px;background:var(--blue);color:var(--blueText);border:none;border-radius:6px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s}
 .btn:hover{background:var(--blueHover)}
@@ -259,7 +256,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 /* .call-table td sets color:var(--text) which beats .ar-grand-rep — keep the grand-total
    row its accent color inside call-tables too (so AR + Churn totals match). */
 .call-table .ar-grand-rep{color:var(--blue2)}
-.ar-select{padding:7px 10px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.84rem;background:#1e1e1e;color:var(--text);cursor:pointer;margin-right:8px}
+.ar-select{padding:7px 10px;border:1.5px solid var(--field-border);border-radius:6px;font-size:.84rem;background:var(--field-bg);color:var(--text);cursor:pointer;margin-right:8px}
 .ar-select:focus{outline:none;border-color:var(--blue2)}
 .dd-filter{position:relative;display:inline-block}
 .dd-btn{padding:7px 14px;border:1.5px solid rgba(255,255,255,.1);border-radius:6px;font-size:.84rem;background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;transition:border-color .15s,color .15s}
@@ -399,7 +396,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .nm-dsi{font-size:1.1rem;font-weight:700;color:var(--blue2);margin-bottom:2px}
 .nm-sub{font-size:.82rem;color:var(--text2);margin-bottom:16px}
 .nm-section-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:8px}
-.nm-history{min-height:60px;max-height:200px;overflow-y:auto;background:#1e1e1e;border-radius:6px;padding:10px 12px;margin-bottom:16px}
+.nm-history{min-height:60px;max-height:200px;overflow-y:auto;background:var(--field-bg);border-radius:6px;padding:10px 12px;margin-bottom:16px}
 .nm-empty{font-size:.82rem;color:var(--text2);font-style:italic}
 .nm-note{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:.83rem}
 .nm-note:last-child{border-bottom:none}
@@ -414,7 +411,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .nm-r-btn.active-3{background:#3a2c00;color:#f0b429;border-color:#7a6000}
 .nm-r-btn.active-4{background:#1a3a1a;color:#6abf7a;border-color:#2a6a2a}
 .nm-r-btn.active-5{background:#1a4a2a;color:#4caf7d;border-color:#2a7a4a}
-.nm-textarea{width:100%;padding:9px 12px;border:1.5px solid #3a3a3a;border-radius:6px;font-size:.86rem;font-family:inherit;resize:vertical;min-height:80px;outline:none;margin-bottom:12px;background:#1e1e1e;color:var(--text)}
+.nm-textarea{width:100%;padding:9px 12px;border:1.5px solid var(--field-border);border-radius:6px;font-size:.86rem;font-family:inherit;resize:vertical;min-height:80px;outline:none;margin-bottom:12px;background:var(--field-bg);color:var(--text)}
 .nm-textarea:focus{border-color:var(--blue2)}
 .nm-actions{display:flex;gap:8px}
 .nm-act-label{color:var(--blue2)}
@@ -423,10 +420,10 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .nm-lines-row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding:9px 11px;background:rgba(var(--blue2-rgb),.06);border:1px solid rgba(var(--blue2-rgb),.22);border-radius:7px}
 .nm-lines-label{font-size:.78rem;font-weight:700;color:var(--blue2);letter-spacing:.01em}
 .nm-lines-btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.nm-lines-btn{min-width:34px;padding:6px 0;background:#1e1e1e;border:1.5px solid #3a3a3a;border-radius:6px;color:var(--text2);font-size:.86rem;font-weight:700;cursor:pointer;transition:all .12s}
+.nm-lines-btn{min-width:34px;padding:6px 0;background:var(--field-bg);border:1.5px solid var(--field-border);border-radius:6px;color:var(--text2);font-size:.86rem;font-weight:700;cursor:pointer;transition:all .12s}
 .nm-lines-btn:hover{border-color:var(--blue2)}
 .nm-lines-btn.active{background:var(--blue2);border-color:var(--blue2);color:var(--on-accent)}
-.nm-lines-input{width:64px;padding:6px 8px;background:#1e1e1e;border:1.5px solid #3a3a3a;border-radius:6px;color:var(--text);font-size:.86rem;font-weight:700;outline:none;margin-left:4px}
+.nm-lines-input{width:64px;padding:6px 8px;background:var(--field-bg);border:1.5px solid var(--field-border);border-radius:6px;color:var(--text);font-size:.86rem;font-weight:700;outline:none;margin-left:4px}
 .nm-lines-input:focus{border-color:var(--blue2)}
 .nm-lines-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;background:rgba(82,199,133,.16);color:#52c785;font-size:.7rem;font-weight:700}
 .ao-label{display:block;font-size:.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
@@ -472,7 +469,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .dr-title{font-weight:700;font-size:.95rem;letter-spacing:.02em}
 .dr-daylabel{font-size:.86rem;font-weight:600;color:#9fb4c7}
 .dr-controls{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
-.dr-date-sel{background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;padding:.3rem .55rem;font-size:.82rem;cursor:pointer}
+.dr-date-sel{background:var(--field-bg);color:var(--text);border:1.5px solid var(--field-border);border-radius:6px;padding:.3rem .55rem;font-size:.82rem;cursor:pointer}
 .dr-date-sel:focus{outline:none;border-color:var(--blue2)}
 .dr-refresh-btn{padding:.3rem .75rem;background:var(--blue2);color:var(--on-accent);border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;transition:opacity .15s}
 .dr-refresh-btn:hover{opacity:.85}
@@ -869,16 +866,16 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-tz-note{font-size:.78rem;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:16px}
 .appt-tz-note strong{color:var(--text)}
 .appt-nav{display:flex;align-items:center;gap:10px}
-.appt-nav-btn{padding:6px 12px;background:#2a2a2a;color:var(--blue2);border:1px solid #3a3a3a;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .15s}
+.appt-nav-btn{padding:6px 12px;background:var(--control-bg);color:var(--blue2);border:1px solid var(--field-border);border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .15s}
 .appt-nav-btn:hover{border-color:var(--blue2)}
 .appt-week-label{font-size:.92rem;font-weight:700;color:var(--text);min-width:200px;text-align:center}
 .appt-filter-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.appt-select{padding:7px 12px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.85rem;cursor:pointer}
+.appt-select{padding:7px 12px;background:var(--field-bg);color:var(--text);border:1.5px solid var(--field-border);border-radius:6px;font-size:.85rem;cursor:pointer}
 .appt-select:focus{border-color:var(--blue2);outline:none}
 .appt-book-btn{padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap}
 .appt-book-btn:hover{background:#2563a8}
 .appt-book-btn:disabled{opacity:.45;cursor:not-allowed}
-.appt-manage-btn{padding:7px 14px;background:#2a2a2a;color:var(--text2);border:1px solid #3a3a3a;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
+.appt-manage-btn{padding:7px 14px;background:var(--control-bg);color:var(--text2);border:1px solid var(--field-border);border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
 .appt-manage-btn:hover{border-color:var(--blue2);color:var(--blue2)}
 .appt-do-cancel-btn{padding:5px 10px;background:transparent;color:var(--red);border:1px solid var(--red);border-radius:5px;font-size:.75rem;cursor:pointer;transition:all .15s}
 .appt-do-cancel-btn:hover{background:rgba(231,76,60,.1)}
@@ -927,7 +924,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-outcome-rescheduled{background:rgba(237,125,49,.16);color:#f0995a}
 .appt-outcome-noshow{background:rgba(231,76,60,.16);color:#e9756a}
 .appt-outcome-canceled{background:rgba(231,76,60,.12);color:#cf6b62;text-decoration:line-through}
-.appt-outcome-sel{padding:4px 6px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:5px;font-size:.74rem;cursor:pointer}
+.appt-outcome-sel{padding:4px 6px;background:var(--field-bg);color:var(--text);border:1.5px solid var(--field-border);border-radius:5px;font-size:.74rem;cursor:pointer}
 .appt-outcome-sel:focus{border-color:var(--blue2);outline:none}
 .appt-resched-btn{padding:5px 10px;background:transparent;color:var(--blue2);border:1px solid var(--blue2);border-radius:5px;font-size:.75rem;cursor:pointer;transition:all .15s;margin-right:6px}
 .appt-resched-btn:hover{background:rgba(var(--blue2-rgb),.12)}
@@ -1044,7 +1041,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .wb-dot{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer;transition:all .2s}
 .wb-dot-on{background:var(--blue2);transform:scale(1.25)}
 .appt-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.appt-form-input{width:100%;padding:9px 12px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.88rem}
+.appt-form-input{width:100%;padding:9px 12px;background:var(--field-bg);color:var(--text);border:1.5px solid var(--field-border);border-radius:6px;font-size:.88rem}
 .appt-form-input:focus{border-color:var(--blue2);outline:none}
 .appt-checkbox-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
 .appt-chk{display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--text);cursor:pointer}
@@ -1058,7 +1055,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .abm-inline-chk{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:.82rem;color:var(--text)}
 .abm-inline-chk input{accent-color:var(--blue2)}
 .abm-sameday-chk input{accent-color:#ED7D31}
-.abm-seg{display:flex;gap:6px;background:#1a1a1a;border:1px solid #3a3a3a;border-radius:8px;padding:4px}
+.abm-seg{display:flex;gap:6px;background:var(--inset-bg);border:1px solid var(--field-border);border-radius:8px;padding:4px}
 .abm-seg-btn{flex:1;padding:9px 14px;border:none;border-radius:6px;background:transparent;color:var(--text2);font-size:.84rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
 .abm-seg-btn:hover{color:var(--text)}
 .abm-seg-btn.active{background:var(--blue2);color:var(--on-accent)}
@@ -1072,11 +1069,11 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 #appt-booking-modal .modal-close{font-size:1.15rem}
 #appt-booking-modal .appt-form-grid{gap:14px 16px}
 #appt-booking-modal .field{margin-bottom:0}
-#appt-booking-modal .appt-form-input{padding:11px 13px;border-radius:8px;background:#1c1c1c;border-color:#383838;font-size:.9rem;transition:border-color .15s,box-shadow .15s}
+#appt-booking-modal .appt-form-input{padding:11px 13px;border-radius:8px;background:var(--field-bg);border-color:var(--field-border);font-size:.9rem;transition:border-color .15s,box-shadow .15s}
 #appt-booking-modal .appt-form-input:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(var(--blue2-rgb),.16)}
 #appt-booking-modal select.appt-form-input{cursor:pointer}
 /* custom checkboxes — replace the raw white browser boxes */
-#appt-booking-modal input[type=checkbox]{appearance:none;-webkit-appearance:none;width:19px;height:19px;border:1.5px solid #4a4a4a;border-radius:6px;background:#1c1c1c;cursor:pointer;position:relative;flex-shrink:0;margin:0;transition:all .15s}
+#appt-booking-modal input[type=checkbox]{appearance:none;-webkit-appearance:none;width:19px;height:19px;border:1.5px solid #4a4a4a;border-radius:6px;background:var(--field-bg);cursor:pointer;position:relative;flex-shrink:0;margin:0;transition:all .15s}
 #appt-booking-modal input[type=checkbox]:hover{border-color:var(--blue2)}
 #appt-booking-modal input[type=checkbox]:checked{background:var(--blue2);border-color:var(--blue2)}
 #appt-booking-modal input[type=checkbox]:checked::after{content:'';position:absolute;left:5.5px;top:2px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
@@ -1086,12 +1083,12 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 #appt-booking-modal .abm-act-hint{align-items:center;gap:7px;margin-top:10px;padding:8px 12px;font-size:.8rem;font-weight:600;color:#7db4e6;background:rgba(var(--blue2-rgb),.1);border:1px solid rgba(var(--blue2-rgb),.25);border-radius:8px}
 /* service options as selectable pills */
 #appt-booking-modal .appt-checkbox-row{gap:10px}
-#appt-booking-modal .appt-checkbox-row .appt-chk{padding:9px 14px;border:1.5px solid #383838;border-radius:9px;background:#1c1c1c;transition:all .15s}
+#appt-booking-modal .appt-checkbox-row .appt-chk{padding:9px 14px;border:1.5px solid var(--field-border);border-radius:9px;background:var(--field-bg);transition:all .15s}
 #appt-booking-modal .appt-checkbox-row .appt-chk:hover{border-color:var(--blue2)}
 #appt-booking-modal .appt-checkbox-row .appt-chk:has(input:checked){border-color:var(--blue2);background:rgba(var(--blue2-rgb),.12)}
 /* per-product quantity picker (mirrors the customer booking page) */
 #appt-booking-modal .abm-prod-list{display:flex;flex-direction:column;gap:9px;margin-top:6px}
-#appt-booking-modal .abm-prod{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1c1c1c;border:1.5px solid #383838;border-radius:9px;padding:10px 13px;transition:all .15s}
+#appt-booking-modal .abm-prod{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--field-bg);border:1.5px solid var(--field-border);border-radius:9px;padding:10px 13px;transition:all .15s}
 #appt-booking-modal .abm-prod.on{border-color:var(--blue2);background:rgba(var(--blue2-rgb),.12)}
 #appt-booking-modal .abm-prod-tap{display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;flex:1;min-width:0}
 #appt-booking-modal .abm-prod-box{width:19px;height:19px;border-radius:5px;border:1.5px solid var(--text2);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;transition:.12s}
@@ -1100,7 +1097,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 #appt-booking-modal .abm-prod.on .abm-prod-name{color:var(--blue2)}
 #appt-booking-modal .abm-qty{display:flex;align-items:center;gap:0;flex:0 0 auto}
 #appt-booking-modal .abm-qty.hidden{display:none}
-#appt-booking-modal .abm-qty button{width:30px;height:30px;border-radius:7px;border:1px solid #383838;background:#161616;color:var(--text);font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+#appt-booking-modal .abm-qty button{width:30px;height:30px;border-radius:7px;border:1px solid var(--field-border);background:var(--inset-bg);color:var(--text);font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
 #appt-booking-modal .abm-qty button:hover{border-color:var(--blue2)}
 #appt-booking-modal .abm-qty .abm-n{min-width:32px;text-align:center;font-size:.92rem;font-weight:700}
 /* same-day override: subtle amber callout box */
@@ -1158,7 +1155,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-sched-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .appt-day-toggle{display:flex;align-items:center;gap:7px;min-width:110px;font-size:.85rem;cursor:pointer}
 .appt-day-times{display:flex;align-items:center;gap:8px}
-.appt-time-inp{padding:6px 10px;background:#1e1e1e;color:var(--text);border:1.5px solid #3a3a3a;border-radius:6px;font-size:.85rem;width:100px}
+.appt-time-inp{padding:6px 10px;background:var(--field-bg);color:var(--text);border:1.5px solid var(--field-border);border-radius:6px;font-size:.85rem;width:100px}
 .appt-time-inp:focus{border-color:var(--blue2);outline:none}
 .appt-block-add-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding:10px;background:var(--surface2);border-radius:6px}
 .appt-block-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.82rem}
