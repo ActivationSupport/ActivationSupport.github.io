@@ -8496,7 +8496,10 @@ function _apptUtilStrip(appts, acts, mode, ws, dStr){
     acts.forEach(function(a){
       var sc=_apptDaySched(a.schedule,dk); if(!sc) return;
       slots.forEach(function(slot){
-        if(!_apptSlotInSched(slot,sc.start,sc.end)) return;
+        // slot is office-tz; the activator's schedule (sc) is in the activator's own tz —
+        // convert before checking, matching _apptAllActStrip / the grid. (O4: was comparing
+        // office-tz slots to an activator-tz window → capacity off for cross-tz activators.)
+        if(!_apptSlotInSched(_apptToAct(ds,slot,a.email),sc.start,sc.end)) return;
         perAct[a.email].cap++; totCap++;
         if(bMap[a.email+'|'+ds+'|'+slot]){ perAct[a.email].bk++; totBk++; }
       });
