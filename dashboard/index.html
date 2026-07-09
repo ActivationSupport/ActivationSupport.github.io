@@ -2222,6 +2222,8 @@ function medalSvg(rank) {
 function buildNav() {
   var role = SESSION.role || 'client-rep';
   var nav = document.getElementById('sidebar-nav');
+  nav.setAttribute('role', 'navigation');
+  nav.setAttribute('aria-label', 'Primary');
   nav.innerHTML = '';
   var lastGroup = null;
   TABS.forEach(function(t) {
@@ -2236,8 +2238,13 @@ function buildNav() {
     var el = document.createElement('div');
     el.className = 'nav-item' + (t.id === CURRENT_TAB ? ' active' : '');
     el.dataset.tab = t.id;
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('aria-label', t.label);
+    el.setAttribute('aria-current', t.id === CURRENT_TAB ? 'page' : 'false');
     el.innerHTML = '<span class="nav-icon"><svg><use href="#i-' + t.id + '"></use></svg></span><span>' + t.label + '</span>';
     el.onclick = function() { switchTab(t.id); };
+    el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchTab(t.id); } };
     nav.appendChild(el);
   });
 }
@@ -2246,7 +2253,9 @@ function switchTab(id) {
   CURRENT_TAB = id;
   closeDrawer();
   document.querySelectorAll('.nav-item').forEach(function(el) {
-    el.classList.toggle('active', el.dataset.tab === id);
+    var on = el.dataset.tab === id;
+    el.classList.toggle('active', on);
+    el.setAttribute('aria-current', on ? 'page' : 'false');
   });
   var tab = TABS.find(function(t) { return t.id === id; });
   document.getElementById('page-title').textContent = tab ? tab.label : id;
@@ -5931,6 +5940,49 @@ function closeModal() {
   }
 }
 document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+// ── V2 a11y slice 2: keyboard support for every .modal-bg dialog (generic + additive) ──
+// Esc closes the open modal (clicks its .modal-close so the correct teardown runs); Tab is
+// trapped inside the dialog; focus moves into the dialog on open and restores on close.
+// The wallboard (#wallboard, not a .modal-bg) keeps its own Esc/arrow handler — no overlap.
+(function () {
+  var _modalPrevFocus = null;
+  function openModalEl() { return document.querySelector('.modal-bg.open'); }
+  function focusable(c) {
+    return Array.prototype.slice.call(c.querySelectorAll(
+      'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+    )).filter(function (el) { return el.offsetParent !== null; });
+  }
+  document.addEventListener('keydown', function (e) {
+    var m = openModalEl(); if (!m) return;
+    if (e.key === 'Escape') {
+      var x = m.querySelector('.modal-close');
+      if (x) { e.preventDefault(); x.click(); }
+    } else if (e.key === 'Tab') {
+      var f = focusable(m); if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (!m.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.modal-bg'), function (m) {
+    var inner = m.querySelector('.modal');
+    if (inner) { inner.setAttribute('role', 'dialog'); inner.setAttribute('aria-modal', 'true'); inner.setAttribute('tabindex', '-1'); }
+    new MutationObserver(function () {
+      var isOpen = m.classList.contains('open');
+      if (isOpen && !m._a11yOpen) {
+        m._a11yOpen = true;
+        _modalPrevFocus = document.activeElement;
+        setTimeout(function () { try { (inner || m).focus(); } catch (_) {} }, 0);
+      } else if (!isOpen && m._a11yOpen) {
+        m._a11yOpen = false;
+        if (_modalPrevFocus && _modalPrevFocus.focus) { try { _modalPrevFocus.focus(); } catch (_) {} }
+        _modalPrevFocus = null;
+      }
+    }).observe(m, { attributes: true, attributeFilter: ['class'] });
+  });
+})();
 
 // ── POST SALE ─────────────────────────────────────────────────────────────
 var _PS_STEP = 1;
