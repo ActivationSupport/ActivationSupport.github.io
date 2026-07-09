@@ -66,6 +66,24 @@ html[data-theme="light"] .dr-table tbody tr:nth-child(even):not(.dr-total-row) t
 html[data-theme="light"] .dr-table tbody tr:hover td{ background:rgba(15,23,42,.05); }
 html[data-theme="light"] .card{ box-shadow:0 2px 10px rgba(15,23,42,.08); }
 html[data-theme="light"] .modal{ box-shadow:0 16px 48px rgba(15,23,42,.22); }
+/* ── Status badges / pills / rating chips ── dark uses a deep tint + light text;
+   light mode needs the inverse: a soft tint fill + saturated dark text of the same
+   hue. Grouped by hue (the 1-5 rating scale reads red→yellow→green). Dark untouched. */
+html[data-theme="light"] .badge-red,
+html[data-theme="light"] .rp-1, html[data-theme="light"] .rp-2,
+html[data-theme="light"] .nm-r-btn.active-1, html[data-theme="light"] .nm-r-btn.active-2,
+html[data-theme="light"] .pill-31-60, html[data-theme="light"] .dr-na-badge{ background:#fbe0dc; color:#b3261e; border-color:#eaa9a2; }
+html[data-theme="light"] .pill-15-30{ background:#fce6d5; color:#b5541a; }
+html[data-theme="light"] .badge-yellow,
+html[data-theme="light"] .rp-3, html[data-theme="light"] .nm-r-btn.active-3,
+html[data-theme="light"] .pill-8-14{ background:#f6ecc2; color:#7a5c00; border-color:#dcc77e; }
+html[data-theme="light"] .badge-green,
+html[data-theme="light"] .rp-4, html[data-theme="light"] .rp-5,
+html[data-theme="light"] .nm-r-btn.active-4, html[data-theme="light"] .nm-r-btn.active-5,
+html[data-theme="light"] .pill-0-7{ background:#d6efdd; color:#1a7a44; border-color:#a9d9b8; }
+html[data-theme="light"] .badge-blue{ background:#dcebfb; color:#1a4e78; }
+html[data-theme="light"] .badge-gray,
+html[data-theme="light"] .rp-na, html[data-theme="light"] .nm-r-btn.active-na{ background:#e4e8ee; color:#5b6675; border-color:#cfd6e0; }
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;height:100vh;overflow:hidden}
 
 /* ── LOGIN ── */
@@ -403,7 +421,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .nm-note-meta{font-size:.72rem;color:var(--text2);margin-bottom:2px}
 .nm-note-text{color:var(--text)}
 .nm-rating-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
-.nm-r-btn{padding:5px 12px;border-radius:12px;border:1.5px solid #3a3a3a;background:#2a2a2a;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--text2);transition:all .15s}
+.nm-r-btn{padding:5px 12px;border-radius:12px;border:1.5px solid var(--field-border);background:var(--control-bg);font-size:.78rem;font-weight:700;cursor:pointer;color:var(--text2);transition:all .15s}
 .nm-r-btn:hover{border-color:var(--blue2)}
 .nm-r-btn.active-na{background:#2e2e2e;color:#aaa;border-color:#555}
 .nm-r-btn.active-1{background:#3d1010;color:#e87070;border-color:#7a3030}
@@ -429,7 +447,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .ao-label{display:block;font-size:.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
 .nm-add-btn{flex:1;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;transition:background .15s}
 .nm-add-btn:hover{background:#2563a8}
-.nm-close-btn{padding:10px 20px;border:1.5px solid #3a3a3a;background:#2a2a2a;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;color:var(--text2);transition:border-color .15s,color .15s}
+.nm-close-btn{padding:10px 20px;border:1.5px solid var(--field-border);background:var(--control-bg);border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;color:var(--text2);transition:border-color .15s,color .15s}
 .nm-close-btn:hover{border-color:#666;color:var(--text)}
 .add-note-row input:focus{border-color:var(--blue2)}
 .add-note-row button{padding:7px 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
