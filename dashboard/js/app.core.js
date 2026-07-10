@@ -5,43 +5,74 @@ var APPT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDy8ZMiho7BL5U1-
 // "unable to open the file" glitch). Per-office link = this + ?office=<id>. (Booking step 2c.)
 var CUSTOMER_BOOKING_URL = 'https://activationsupport.github.io/book.html';
 var API_KEY = 'activation-dash-2026-secret';
-var OFFICE_NAMES  = { midspire:'Midspire', viridian:'Viridian', elevate:'Elevate', vanguard:'Vanguard', bayview:'Bayview Horizons', leadsphere:'LeadSphere Solutions' };
-// Per-office accent (sampled from each office's logo; see memory
-// reference-office-branding). Viridian's accent is GOLD (its green is used as a
-// fill/band color via OFFICE_THEME); the others use their brand color.
-var OFFICE_COLORS = { midspire:'#0E7BD4', viridian:'#C9A23C', elevate:'#0B2E9C', vanguard:'#D81F1F', bayview:'#CDAB5A', leadsphere:'#2B6AFF' };
-// Richer per-office theme, used to recolor the whole UI at load (applyOfficeTheme):
-//  btn    = primary button fill (--blue)       accent = bright accent on dark (--blue2)
-//  dark   = subtle dark accent (--blue3)        hover  = button hover (--blueHover)
-//  glow   = login-screen background glow center
-//  band   = colored header background           onBand = text on the band
-var OFFICE_THEME = {
-  elevate:  { btn:'#0A1FFF', accent:'#3D5BFF', dark:'#14224a', hover:'#0816cc', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
-  midspire: { btn:'#4FB0FF', accent:'#4FB0FF', dark:'#0f2f44', hover:'#2e97ec', glow:'#0f3f5e', band:'#0E7BD4', onBand:'#ffffff', sidebar:'#0c1d2e' },
-  viridian: { btn:'#16382A', accent:'#D9C87E', dark:'#16281e', hover:'#0e2a1f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A', lightInk:'#7a6a2e' },
-  // Vanguard = charcoal structure (band/sidebar/buttons) + BLUE app accent
-  // (nav/links/highlights), with RED on the login + logo + office badge. Their
-  // tri-color logo (red/blue/black) carries both colors throughout.
-  vanguard: { btn:'#1C1C1C', accent:'#3D67E8', accent2b:'#D81F1F', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' },
-  // Bayview = NAVY structure (band/sidebar/buttons) + GOLD accent (links/highlights/
-  // login title). Sampled from their logo (navy #0F2439 + gold #CDAB5A). Gold-filled
-  // controls take navy text (onAccent). Mirrors Viridian's gold-on-dark pattern.
-  bayview:  { btn:'#0F2439', accent:'#CDAB5A', dark:'#15233a', hover:'#0a1a2c', glow:'#173a63', band:'#0F2439', onBand:'#ffffff', sidebar:'#0d1a29', loginAccent:'#CDAB5A', onAccent:'#0F2439', lightInk:'#8C6E22' },
-  // LeadSphere = NAVY structure (band/sidebar) + BRIGHT-BLUE buttons/accent. Sampled
-  // from their site CSS (--primary #0A2540, --accent #2B6AFF). White logo on dark chrome.
-  leadsphere: { btn:'#2B6AFF', accent:'#2B6AFF', dark:'#132a45', hover:'#1B4EC4', glow:'#173a63', band:'#0A2540', onBand:'#ffffff', sidebar:'#0b1a2b' }
+// ── OFFICE CONFIG — single source of truth (O1) ─────────────────────────────
+// One object per office holds everything the FRONT END needs; the legacy per-map
+// views below are DERIVED from it, so onboarding/editing an office is a single edit
+// here (all downstream code is unchanged). Backend maps (Code.gs / the Scheduler /
+// Customer Booking) still mirror these — keep in sync; see _private/OFFICE_ONBOARDING.md.
+// ⚠ Key ORDER matters: OFFICE_NAMES is iterated for the office switcher + the People
+// permission checkboxes, so keep this order (midspire, viridian, elevate, …).
+// Fields: name; color (accent sampled from the logo); theme (applyOfficeTheme: btn=
+// primary fill/--blue, accent=bright accent/--blue2, dark/--blue3, hover, glow=login
+// glow, band/onBand=header; gold offices add lightInk for legible light-mode accent
+// text; loginAccent/onAccent/btnText/accent2b optional); reportBrand (Daily-Report
+// EMAIL brand, mirror of Code.gs OFFICE_BRAND); logos ({full,emblem,sidebarH?,loginH?,
+// logoBg?} — files must exist in dashboard/assets/); bookTint + bookLogo (booking UI).
+var OFFICE_CONFIG = {
+  midspire: {
+    name:'Midspire', color:'#0E7BD4',
+    theme:{ btn:'#4FB0FF', accent:'#4FB0FF', dark:'#0f2f44', hover:'#2e97ec', glow:'#0f3f5e', band:'#0E7BD4', onBand:'#ffffff', sidebar:'#0c1d2e' },
+    reportBrand:{ band:'#0c1d2e', headerText:'#ffffff', headerSub:'#a8c8e4', accent:'#4FB0FF', accentText:'#4FB0FF', logo:'midspire-logo-full.png', logoH:38 },
+    logos:{ full:'assets/midspire-logo-full.png', emblem:'assets/midspire-logo-symbol.png' },
+    bookTint:'#4FB0FF', bookLogo:'midspire-logo-symbol.png'
+  },
+  viridian: {
+    // Accent is GOLD (#C9A23C); the green is the fill/band. lightInk keeps gold accent text legible in light mode.
+    name:'Viridian', color:'#C9A23C',
+    theme:{ btn:'#16382A', accent:'#D9C87E', dark:'#16281e', hover:'#0e2a1f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A', lightInk:'#7a6a2e' },
+    reportBrand:{ band:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png', logoH:54 },
+    logos:{ full:'assets/viridian-logo-full.png', emblem:'assets/viridian-logo-full.png', sidebarH:68 },
+    bookTint:'#2E7A4E', bookLogo:'viridian-logo-full.png'
+  },
+  elevate: {
+    name:'Elevate', color:'#0B2E9C',
+    theme:{ btn:'#0A1FFF', accent:'#3D5BFF', dark:'#14224a', hover:'#0816cc', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
+    reportBrand:{ band:'#111827', headerText:'#ffffff', headerSub:'#aab8d6', accent:'#0A1FFF', accentText:'#0A1FFF', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
+    logos:{ full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
+    bookTint:'#3D5BFF', bookLogo:'elevate-logo-symbol-only-blue.png'
+  },
+  vanguard: {
+    // Charcoal structure + BLUE app accent; RED (accent2b) on login/logo/badge; btnText white.
+    name:'Vanguard', color:'#D81F1F',
+    theme:{ btn:'#1C1C1C', accent:'#3D67E8', accent2b:'#D81F1F', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' },
+    reportBrand:{ band:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png', logoH:40 },
+    logos:{ full:'assets/vanguard-logo-full-reverse.png', emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 },
+    bookTint:'#2652D7', bookLogo:'vanguard-logo-symbol.png'
+  },
+  bayview: {
+    // NAVY structure + GOLD accent; gold fills take navy text (onAccent); lightInk for light mode. logoBg = gold panel behind the navy logo.
+    name:'Bayview Horizons', color:'#CDAB5A',
+    theme:{ btn:'#0F2439', accent:'#CDAB5A', dark:'#15233a', hover:'#0a1a2c', glow:'#173a63', band:'#0F2439', onBand:'#ffffff', sidebar:'#0d1a29', loginAccent:'#CDAB5A', onAccent:'#0F2439', lightInk:'#8C6E22' },
+    reportBrand:{ band:'#0F2439', headerText:'#ffffff', headerSub:'#c9b58a', accent:'#CDAB5A', accentText:'#8C6E22', logo:'bayview-logo-full.png', logoH:48 },
+    logos:{ full:'assets/bayview-logo-full.png', emblem:'assets/bayview-logo-symbol.png', sidebarH:78, loginH:92, logoBg:'#D3B364' },
+    bookTint:'#1E4D7B', bookLogo:'bayview-logo-symbol.png'
+  },
+  leadsphere: {
+    // NAVY structure + BRIGHT-BLUE buttons/accent. White logo on dark chrome.
+    name:'LeadSphere Solutions', color:'#2B6AFF',
+    theme:{ btn:'#2B6AFF', accent:'#2B6AFF', dark:'#132a45', hover:'#1B4EC4', glow:'#173a63', band:'#0A2540', onBand:'#ffffff', sidebar:'#0b1a2b' },
+    reportBrand:{ band:'#0A2540', headerText:'#ffffff', headerSub:'#9db4d8', accent:'#2B6AFF', accentText:'#2B6AFF', logo:'leadsphere-logo-full-reverse.png', logoH:42 },
+    logos:{ full:'assets/leadsphere-logo-full-reverse.png', emblem:'assets/leadsphere-logo-symbol.png', sidebarH:40 },
+    bookTint:'#2B6AFF', bookLogo:'leadsphere-logo-symbol.png'
+  }
 };
-// Light-email Daily Report branding — MIRROR of Code.gs OFFICE_BRAND so the
-// "Copy for Email" export matches the automated 6pm email exactly. (Keep in sync.)
+// Legacy per-map views, DERIVED from OFFICE_CONFIG (downstream code + key order unchanged).
+function _ocfg(field){ var o={}; for (var k in OFFICE_CONFIG) o[k] = OFFICE_CONFIG[k][field]; return o; }
+var OFFICE_NAMES        = _ocfg('name');
+var OFFICE_COLORS       = _ocfg('color');
+var OFFICE_THEME        = _ocfg('theme');
+var OFFICE_REPORT_BRAND = _ocfg('reportBrand');
 var DR_ASSET_BASE = 'https://activationsupport.github.io/dashboard/assets/';
-var OFFICE_REPORT_BRAND = {
-  elevate:  { band:'#111827', headerText:'#ffffff', headerSub:'#aab8d6', accent:'#0A1FFF', accentText:'#0A1FFF', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
-  midspire: { band:'#0c1d2e', headerText:'#ffffff', headerSub:'#a8c8e4', accent:'#4FB0FF', accentText:'#4FB0FF', logo:'midspire-logo-full.png',           logoH:38 },
-  viridian: { band:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png',           logoH:54 },
-  vanguard: { band:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png',   logoH:40 },
-  bayview:  { band:'#0F2439', headerText:'#ffffff', headerSub:'#c9b58a', accent:'#CDAB5A', accentText:'#8C6E22', logo:'bayview-logo-full.png',           logoH:48 },
-  leadsphere:{ band:'#0A2540', headerText:'#ffffff', headerSub:'#9db4d8', accent:'#2B6AFF', accentText:'#2B6AFF', logo:'leadsphere-logo-full-reverse.png', logoH:42 }
-};
 function _drReportBrand(officeId) {
   return OFFICE_REPORT_BRAND[officeId] ||
     { band:'#0f2740', headerText:'#ffffff', headerSub:'#9fb4c7', accent:'#0f2740', accentText:'#0f2740', logo:'', logoH:40 };
@@ -85,17 +116,7 @@ function _hexToRgbTriplet(hex) {
   var n = parseInt(hex, 16);
   return ((n>>16)&255)+','+((n>>8)&255)+','+(n&255);
 }
-// .full = wordmark for the dark UI (offices whose wordmark is dark use a white
-// "reverse" version so it stays legible). .emblem = small symbol for switcher.
-var OFFICE_LOGOS  = {
-  elevate:  { full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
-  midspire: { full:'assets/midspire-logo-full.png',              emblem:'assets/midspire-logo-symbol.png' },
-  viridian: { full:'assets/viridian-logo-full.png',              emblem:'assets/viridian-logo-full.png', sidebarH:68 },
-  vanguard: { full:'assets/vanguard-logo-full-reverse.png',      emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 },
-  // logoBg = gold panel rendered BEHIND the (unchanged) navy logo so it reads on the dark UI.
-  bayview:  { full:'assets/bayview-logo-full.png',               emblem:'assets/bayview-logo-symbol.png', sidebarH:78, loginH:92, logoBg:'#D3B364' },
-  leadsphere:{ full:'assets/leadsphere-logo-full-reverse.png',    emblem:'assets/leadsphere-logo-symbol.png', sidebarH:40 }
-};
+var OFFICE_LOGOS = _ocfg('logos');   // derived from OFFICE_CONFIG (see top of file)
 
 var CFG = {};
 var SESSION = {};

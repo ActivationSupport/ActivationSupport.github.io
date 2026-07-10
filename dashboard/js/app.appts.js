@@ -9,8 +9,8 @@ function _apptBlocked(email, ds, slot){ var m=_APPT.blocked[email+'|'+ds]; retur
 // Cross-office cell styling: each booking office's brand color + small logo
 // (per-office tint, e.g. Viridian = their green). Parsed from the "Booked — <Office>"
 // label; calendar/manual blocks have no office → generic red-hatch 🔒.
-var OFFICE_BOOK_TINT = { elevate:'#3D5BFF', midspire:'#4FB0FF', viridian:'#2E7A4E', vanguard:'#2652D7', bayview:'#1E4D7B', leadsphere:'#2B6AFF' };
-var OFFICE_BOOK_LOGO = { elevate:'elevate-logo-symbol-only-blue.png', midspire:'midspire-logo-symbol.png', viridian:'viridian-logo-full.png', vanguard:'vanguard-logo-symbol.png', bayview:'bayview-logo-symbol.png', leadsphere:'leadsphere-logo-symbol.png' };
+var OFFICE_BOOK_TINT = _ocfg('bookTint');   // derived from OFFICE_CONFIG in app.core.js
+var OFFICE_BOOK_LOGO = _ocfg('bookLogo');
 function _apptBlockOffice(label){
   if(!label || label.indexOf('Booked')!==0) return '';
   var p=label.split('—'); if(p.length<2) return '';
