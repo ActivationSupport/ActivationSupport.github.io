@@ -732,6 +732,7 @@ function _lstWeeksTbl(leaders, reps) {
     var s = new Date(ws.getTime() - i * 7 * DAY);
     var m = s.getMonth() + 1, d = s.getDate();
     return { start: s, end: new Date(s.getTime() + 7 * DAY),
+      wk: i === 0 ? 'This Week' : 'Week ' + (5 - i),
       label: (m < 10 ? '0' : '') + m + '/' + (d < 10 ? '0' : '') + d };
   });
   var wAgg = {}, roster = DATA.roster || {};
@@ -763,7 +764,7 @@ function _lstWeeksTbl(leaders, reps) {
 
   var medals = [medalSvg(0),medalSvg(1),medalSvg(2)];
   var h = '<thead><tr><th style="width:36px">#</th><th class="ll" style="min-width:160px">NAME</th>';
-  weeks.forEach(function(w) { h += '<th colspan="2">' + w.label + '</th>'; });
+  weeks.forEach(function(w) { h += '<th colspan="2">' + w.wk + '<span class="lst-wk-date">' + w.label + '</span></th>'; });
   h += '</tr><tr><th></th><th></th>';
   weeks.forEach(function() { h += '<th>ORD</th><th>UNITS</th>'; });
   h += '</tr></thead><tbody>';
