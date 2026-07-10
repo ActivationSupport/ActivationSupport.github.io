@@ -384,11 +384,9 @@
                 <h1>Activation Support</h1>
                 <p>
                     The staff portal and customer-booking platform behind every
-                    AT&amp;T activation — backed by Google Apps Script services
-                    and a nightly Tableau data sync.
+                    AT&amp;T activation.
                 </p>
                 <div class="chips">
-                    <span class="chip"><b>5</b>&nbsp; Offices</span>
                     <span class="chip">Staff Portal</span>
                     <span class="chip">Customer Booking</span>
                     <span class="chip">Daily Reporting</span>
@@ -409,119 +407,22 @@
                     <div class="colcard">
                         <div class="section-label">Staff Portal</div>
                         <p>
-                            Per-office dashboard at
-                            <code>/dashboard/index.html?office=&lt;id&gt;</code>.
-                            Master Tracker, the call lists (Day-After, Delivered,
-                            Order Issues, No Answer, Escalations, Completed),
-                            Appointments, Activation Rates, Churn, People, Teams,
-                            Training, and the Daily Report. Access is by private
-                            per-office link + PIN.
+                            A private, per-office dashboard for the activation
+                            team — order tracking, call lists, appointments,
+                            activation rates, churn, people &amp; teams,
+                            training, and the daily report. Access is by private
+                            per-office link and PIN.
                         </p>
                     </div>
                     <div class="colcard">
                         <div class="section-label">Customer Booking</div>
                         <p>
-                            Public per-office page at
-                            <code>/book.html?office=&lt;id&gt;</code>. Customers
-                            choose an activator and time; the confirmation email
-                            carries self-service
-                            <code>/cancel.html</code> and
-                            <code>/reschedule.html</code> links.
+                            A public per-office page where customers choose an
+                            activator and time. The confirmation email carries
+                            self-service reschedule and cancel links.
                         </p>
                     </div>
                 </div>
-            </div>
-
-            <!-- ── What's In This Repo ──────────────────────────────── -->
-            <div class="card">
-                <span class="eyebrow-s">Repository</span>
-                <h2>What's In This Repo</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>File / Folder</th>
-                            <th>Role</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>Code.gs</code></td>
-                            <td>Staff portal backend (Apps Script web app)</td>
-                        </tr>
-                        <tr>
-                            <td><code>dashboard/index.html</code></td>
-                            <td>Staff portal frontend (served by GitHub Pages)</td>
-                        </tr>
-                        <tr>
-                            <td><code>Appointment&nbsp;Scheduler/</code></td>
-                            <td>
-                                Booking backend (runs as the bookings account;
-                                two-way Google Calendar sync)
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><code>Customer&nbsp;Booking/</code></td>
-                            <td>
-                                Public booking proxy — keeps the backend API key
-                                server-side
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <code>book.html</code> /
-                                <code>cancel.html</code> /
-                                <code>reschedule.html</code>
-                            </td>
-                            <td>Public booking pages (GitHub Pages)</td>
-                        </tr>
-                        <tr>
-                            <td><code>TableauSync.gs</code></td>
-                            <td>Pulls Tableau reports → Google Sheet (nightly)</td>
-                        </tr>
-                        <tr>
-                            <td><code>archive/</code></td>
-                            <td>
-                                Retired legacy code (old CallList trackers +
-                                single-project scheduler) — kept for reference
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- ── Data Pipeline ────────────────────────────────────── -->
-            <div class="card">
-                <span class="eyebrow-s">Data Flow</span>
-                <h2>The Data Pipeline</h2>
-                <ul class="step-list">
-                    <li>
-                        <span class="step-num">1</span>
-                        <div>
-                            <strong>TableauSync — nightly (~1 AM)</strong>Pulls
-                            the B2B Order Log, AOR, Churn, and Activation Rates
-                            from Tableau into the data sheet.
-                        </div>
-                    </li>
-                    <li>
-                        <span class="step-num">2</span>
-                        <div>
-                            <strong>Distribute to offices</strong>Writes the
-                            <code>_TableauOrderLog</code>,
-                            <code>_TableauAOR</code>,
-                            <code>_TableauActivationRates</code>, and
-                            <code>_TableauChurnReport</code> tabs the portal
-                            reads.
-                        </div>
-                    </li>
-                    <li>
-                        <span class="step-num">3</span>
-                        <div>
-                            <strong>Portal reads on login</strong>Each office's
-                            dashboard filters those tabs down to its own orders
-                            by owner / office.
-                        </div>
-                    </li>
-                </ul>
             </div>
 
             <!-- ── Ratings & Buckets Reference ──────────────────────── -->
