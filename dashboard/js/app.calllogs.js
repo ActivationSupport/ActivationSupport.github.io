@@ -824,12 +824,6 @@ function _asProdLabelFE(p){
   if(l.indexOf('internet')!==-1) return 'Internet';
   return s;
 }
-function _asStatusColorFE(st){
-  var l=String(st||'').toLowerCase();
-  if(l==='active'||l==='posted') return '#1f8a4c';
-  if(l.indexOf('cancel')!==-1||l.indexOf('disco')!==-1) return '#c0392b';
-  return '#b8791a';
-}
 // Per-line pairs. Uses the backend o.lines when present; otherwise (pre-redeploy) synthesizes
 // from productCounts/statusCounts so the drill-down still renders live — self-corrects once
 // Code.gs is redeployed with the real per-line pairing.
@@ -842,23 +836,6 @@ function _asLinesOf(o){
   var n=Math.max(prods.length,stats.length), out=[];
   for(var i=0;i<n;i++) out.push({ product:prods[i%prods.length], status:stats[i%stats.length] });
   return out;
-}
-// orders -> { date:{ rep:{ product:{ status:{count,dsis{}} } } } }
-function _asTree(orders, includeDone){
-  var tree={};
-  (orders||[]).forEach(function(o){
-    var date=o.orderDate||'Unknown', rep=o.rep||'Unknown';
-    _asLinesOf(o).forEach(function(ln){
-      if(!includeDone && _asIsDone(ln.status)) return;
-      var prod=_asProdLabelFE(ln.product), st=String(ln.status||'Null').trim()||'Null';
-      if(!tree[rep]) tree[rep]={};
-      if(!tree[rep][date]) tree[rep][date]={};
-      if(!tree[rep][date][prod]) tree[rep][date][prod]={};
-      if(!tree[rep][date][prod][st]) tree[rep][date][prod][st]={count:0,dsis:{}};
-      var cell=tree[rep][date][prod][st]; cell.count++; if(o.dsi) cell.dsis[o.dsi]=true;
-    });
-  });
-  return tree;
 }
 function _asSum(node){
   if(node && typeof node.count==='number' && node.dsis) return node.count;
@@ -878,23 +855,6 @@ function _asDetails(headBg, title, meta, innerHtml, open){
     '</summary>'+
     '<div style="padding:2px 10px 8px">'+innerHtml+'</div>'+
   '</details>';
-}
-function _asStatusRows(statusMap){
-  return Object.keys(statusMap).sort().map(function(st){
-    var cell=statusMap[st], dsis=Object.keys(cell.dsis);
-    return '<tr>'+
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-weight:600;color:'+_asStatusColorFE(st)+'">'+esc(st)+'</td>'+
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:center;font-weight:700;width:56px">'+cell.count+'</td>'+
-      '<td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--text2);font-size:.76rem;word-break:break-word">'+esc(dsis.join(', '))+'</td>'+
-    '</tr>';
-  }).join('');
-}
-function _asRenderProducts(prodMap){
-  return Object.keys(prodMap).sort().map(function(prod){
-    var n=_asSum(prodMap[prod]);
-    var inner='<table style="width:100%;border-collapse:collapse;font-size:.82rem"><tbody>'+_asStatusRows(prodMap[prod])+'</tbody></table>';
-    return _asDetails('var(--surface)', prod, n+' line'+(n===1?'':'s'), inner, false);
-  }).join('');
 }
 // orders → { rep: [ {date, dsi, product, status}, … ] } — one entry per line.
 function _asLineRows(orders, includeDone){

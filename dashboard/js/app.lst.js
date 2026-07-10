@@ -242,14 +242,6 @@ function _lstBuild() {
     '</div>';
 }
 
-function _lstWeekBar(ord, uni) {
-  return '<div class="lst-week-bar">' +
-    '<div class="lst-week-stat"><div class="lst-wk-lbl">WEEK ORDERS</div><div class="lst-wk-num">' + ord + '</div></div>' +
-    '<div class="lst-week-div"></div>' +
-    '<div class="lst-week-stat"><div class="lst-wk-lbl">WEEK UNITS</div><div class="lst-wk-num blue">' + uni + '</div></div>' +
-    '</div>';
-}
-
 // ── WALLBOARD / TV MODE ───────────────────────────────────────
 // Full-screen, big-type, auto-cycling office display for a TV. Reuses the LST
 // data (_LST_SALES), office-wide. Panels: This Week (KPIs) → Top Performers → Teams.
