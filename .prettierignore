@@ -1,0 +1,5 @@
+# This repository is hand-authored and does NOT use Prettier.
+# Ignoring everything stops editor "format on save" (and `prettier --write`)
+# from silently rewriting files — e.g. the dashboard HTML/CSS/JS.
+# Deleting this file re-enables Prettier reformatting, so leave it in place.
+*
