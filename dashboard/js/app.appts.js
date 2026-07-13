@@ -1490,15 +1490,67 @@ function _myApptDualCell(a){
   return '<div class="appt-dtime"><div class="appt-dtime-cust"><span class="appt-dtime-tag">Customer</span>'+esc(_apptFmt12(custSlot)+(cA?' '+cA:''))+'</div>'+
     '<div class="appt-dtime-act"><span class="appt-dtime-tag">You call</span>'+esc(_apptFmt12(stored)+(aA?' '+aA:''))+'</div></div>';
 }
+// Filter bar + (separately rendered) table so typing in a text filter doesn't lose
+// focus. Filters live in _MYAPPT.filters; only #myappt-tbody-wrap re-renders on change.
 function _myApptBuildView(){
-  var appts=_MYAPPT.appointments||[], isMaster=SESSION.role==='master-admin';
+  var appts=_MYAPPT.appointments||[], isMaster=SESSION.role==='master-admin', f=_MYAPPT.filters||{};
+  var offSet={}, actSet={};
+  appts.forEach(function(a){ if(a.office) offSet[a.office]=1; if(a.activatorEmail) actSet[a.activatorEmail]=_myApptActName(a.activatorEmail); });
+  var officeOpts='<option value="">All offices</option>'+Object.keys(offSet).sort().map(function(o){
+    return '<option value="'+esc(o)+'"'+(f.office===o?' selected':'')+'>'+esc((typeof OFFICE_NAMES!=='undefined'&&OFFICE_NAMES[o])||o)+'</option>'; }).join('');
+  var actOpts='<option value="">All activators</option>'+Object.keys(actSet).sort(function(a,b){return actSet[a]<actSet[b]?-1:1;}).map(function(e){
+    return '<option value="'+esc(e)+'"'+(f.activator===e?' selected':'')+'>'+esc(actSet[e])+'</option>'; }).join('');
+  var langOpts=[['','All languages'],['english','English'],['spanish','Spanish']].map(function(l){
+    return '<option value="'+l[0]+'"'+(f.language===l[0]?' selected':'')+'>'+l[1]+'</option>'; }).join('');
+  var outOpts=[['','All outcomes'],['__none__','No outcome yet'],['completed','Completed'],['rescheduled','Rescheduled'],['no-show','No-Show'],['canceled','Canceled']].map(function(o){
+    return '<option value="'+o[0]+'"'+(f.outcome===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+  var fi='padding:7px 9px;border:1.5px solid var(--field-border);border-radius:8px;background:var(--field-bg);color:var(--text);font:inherit;font-size:.85rem';
+  var bar='<div class="card" style="margin-bottom:14px"><div class="card-body">'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+
+      '<input type="date" id="maf-date" style="'+fi+'" value="'+esc(f.date||'')+'" onchange="_myApptFilter()" title="Filter by date">'+
+      '<select id="maf-office" style="'+fi+'" onchange="_myApptFilter()">'+officeOpts+'</select>'+
+      (isMaster?'<select id="maf-act" style="'+fi+'" onchange="_myApptFilter()">'+actOpts+'</select>':'')+
+      '<select id="maf-lang" style="'+fi+'" onchange="_myApptFilter()">'+langOpts+'</select>'+
+      '<select id="maf-outcome" style="'+fi+'" onchange="_myApptFilter()">'+outOpts+'</select>'+
+      '<input type="text" id="maf-customer" style="'+fi+';width:130px" placeholder="Customer" value="'+esc(f.customer||'')+'" oninput="_myApptFilter()">'+
+      '<input type="text" id="maf-dsi" style="'+fi+';width:100px" placeholder="DSI" value="'+esc(f.dsi||'')+'" oninput="_myApptFilter()">'+
+      '<input type="text" id="maf-services" style="'+fi+';width:130px" placeholder="Services" value="'+esc(f.services||'')+'" oninput="_myApptFilter()">'+
+      '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="_myApptClearFilters()">Clear</button>'+
+    '</div>'+
+  '</div></div>';
+  return bar+'<div id="myappt-tbody-wrap">'+_myApptTableHtml()+'</div>';
+}
+function _myApptMatch(a,f){
+  if(!f) return true;
+  if(f.date && a.date!==f.date) return false;
+  if(f.office && String(a.office)!==f.office) return false;
+  if(f.activator && String(a.activatorEmail||'').toLowerCase()!==String(f.activator).toLowerCase()) return false;
+  if(f.language && (a.language||'english')!==f.language) return false;
+  if(f.outcome){ if(f.outcome==='__none__'){ if(a.outcome) return false; } else if(String(a.outcome)!==f.outcome) return false; }
+  if(f.customer && String(a.customerName||'').toLowerCase().indexOf(f.customer.toLowerCase())===-1) return false;
+  if(f.dsi && String(a.customerDSI||'').toLowerCase().indexOf(f.dsi.toLowerCase())===-1) return false;
+  if(f.services && String(a.services||'').toLowerCase().indexOf(f.services.toLowerCase())===-1) return false;
+  return true;
+}
+function _myApptFilter(){
+  var g=function(id){var e=document.getElementById(id);return e?String(e.value||''):'';};
+  _MYAPPT.filters={ date:g('maf-date'), office:g('maf-office'), activator:g('maf-act'),
+    language:g('maf-lang'), outcome:g('maf-outcome'),
+    customer:g('maf-customer').trim(), dsi:g('maf-dsi').trim(), services:g('maf-services').trim() };
+  var w=document.getElementById('myappt-tbody-wrap'); if(w) w.innerHTML=_myApptTableHtml();
+}
+function _myApptClearFilters(){
+  _MYAPPT.filters={};
+  var c=document.getElementById('main-content'); if(c) c.innerHTML=_myApptBuildView();
+}
+function _myApptTableHtml(){
+  var appts=_MYAPPT.appointments||[], isMaster=SESSION.role==='master-admin', f=_MYAPPT.filters||{};
   var today=_apptDateStr(new Date());
-  var floor=new Date(); floor.setDate(floor.getDate()-7); floor=_apptDateStr(floor);
-  var rows=appts.filter(function(a){return a.date>=floor;})
-    .sort(function(a,b){return a.date!==b.date?a.date.localeCompare(b.date):String(a.timeSlot).localeCompare(String(b.timeSlot));});
+  var rows=appts.filter(function(a){return _myApptMatch(a,f);})
+    .sort(function(a,b){return a.date!==b.date?b.date.localeCompare(a.date):String(b.timeSlot).localeCompare(String(a.timeSlot));});   // newest → oldest
   var title=isMaster?'All Appointments — every office':'My Appointments — every office';
-  var head='<div class="card"><div class="card-header dark">'+title+'</div>';
-  if(!rows.length) return head+'<div class="card-body"><div class="empty">'+icon('appointments')+' No appointments in the last 7 days or upcoming.</div></div></div>';
+  var head='<div class="card"><div class="card-header dark">'+title+' <span style="font-weight:400;color:var(--text2);font-size:.8rem">· '+rows.length+' shown</span></div>';
+  if(!rows.length) return head+'<div class="card-body"><div class="empty">'+icon('appointments')+' No appointments match these filters.</div></div></div>';
   var badgeStyle='display:inline-block;padding:2px 8px;border-radius:10px;background:var(--inset-bg,rgba(127,127,127,.14));font-size:.72rem;font-weight:600';
   var h=head+'<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
     '<th>Date</th><th>Time</th><th>Office</th>'+(isMaster?'<th>Activator</th>':'')+'<th>Customer</th><th>DSI</th><th>Lang</th><th>Services</th><th>Status</th><th>Outcome</th><th>Actions</th>'+
