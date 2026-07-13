@@ -78,7 +78,7 @@ function initTicketApp() {
 function renderTicketTab(id) {
   var c = document.getElementById('main-content');
   if (!c) return;
-  if (id === 'tickets')        c.innerHTML = _ticketScaffold('Ticket Queue', 'Every ticket the Order works — searchable, filterable, sortable. Open one to see its full thread.', 'Coming in Slice 4.');
+  if (id === 'tickets')        renderTicketQueue();
   else if (id === 'newticket') renderNewTicket();
   else if (id === 'followups') c.innerHTML = _ticketScaffold('Follow-Ups', 'Tickets marked “Follow-up / Need Response,” aged by how long they have waited. This feeds the 6:00 AM reminder.', 'Coming in Slice 6.');
   else                          c.innerHTML = _ticketScaffold('Sales Support', 'Select a screen from the sidebar.', '');
@@ -229,6 +229,181 @@ function _ticketRememberLocal(p) {
     if (!exists) lk.specificCat.push({ value:p.specificCategory, parent:p.generalCategory });
   }
 }
+
+// ── TICKET QUEUE (Slice 4) ──────────────────────────────────────────────────
+function renderTicketQueue() {
+  var c = document.getElementById('main-content'); if (!c) return;
+  if (!TICKET_SCRIPT_URL) { c.innerHTML = _ticketScaffold('Ticket Queue', 'Backend not connected in this preview.', ''); return; }
+  if (!_TICKETS.sort || !_TICKETS.sort.key) _TICKETS.sort = { key:'created', dir:'desc' };   // newest first
+  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2><p class="ss-sub">Loading tickets…</p></div>';
+  Promise.all([
+    _ticketGet({ action:'getTickets' }),
+    _ticketGet({ action:'getLookups' }),
+    _ticketGet({ action:'getAgents' })
+  ]).then(function(r) {
+    _TICKETS.list = (r[0] && r[0].tickets) || [];
+    if (r[1] && r[1].lookups) _TICKETS.lookups = r[1].lookups;
+    if (r[2] && r[2].agents)  _TICKETS.agents  = r[2].agents;
+    c.innerHTML = _ticketQueueView();
+  }).catch(function(e) {
+    c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2><p class="ss-sub" style="color:var(--red)">Could not load tickets: ' + esc(e.message) + '</p></div>';
+  });
+}
+
+// Filter bar (its own card) + a #ticket-tbody-wrap that alone re-renders on filter/sort,
+// so typing in the search box never loses focus (same trick as My Appointments).
+function _ticketQueueView() {
+  var f = _TICKETS.filters || (_TICKETS.filters = {});
+  function sel(id, cur, list, anyLabel, valOf, labOf) {
+    return '<select id="' + id + '" class="ps-select ss-qf" onchange="_ticketQueueFilter()"><option value="">' + anyLabel + '</option>' +
+      list.map(function(x){ var v = valOf ? valOf(x) : x; var l = labOf ? labOf(x) : x; return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('') + '</select>';
+  }
+  var statusSel = '<select id="tq-status" class="ps-select ss-qf" onchange="_ticketQueueFilter()"><option value="">All statuses</option>' +
+    TICKET_STATUS.map(function(s){ return '<option value="' + s.code + '"' + (s.code === f.status ? ' selected' : '') + '>' + esc(s.label) + '</option>'; }).join('') + '</select>';
+  return '<div class="card ss-card"><div class="ss-rule"></div>' +
+    '<div class="ss-qbar">' +
+      '<input id="tq-q" class="ps-input ss-qf ss-qf-search" placeholder="Search ticket, rep, subject, office, DSI…" value="' + esc(f.q || '') + '" oninput="_ticketQueueFilter()">' +
+      statusSel +
+      sel('tq-assignee', f.assignee, _TICKETS.agents || [], 'All agents', function(a){ return a.email; }, function(a){ return a.name || a.email; }) +
+      sel('tq-office', f.office, _TICKETS.lookups.office || [], 'All offices') +
+      sel('tq-general', f.general, _TICKETS.lookups.generalCat || [], 'All categories') +
+      sel('tq-channel', f.channel, TICKET_CHANNELS, 'Any channel') +
+      '<span class="ss-qf-dates">From <input type="date" id="tq-from" class="ps-input ss-qf-date" value="' + esc(f.from || '') + '" onchange="_ticketQueueFilter()"> to <input type="date" id="tq-to" class="ps-input ss-qf-date" value="' + esc(f.to || '') + '" onchange="_ticketQueueFilter()"></span>' +
+      '<button class="ps-btn secondary ss-qf-btn" onclick="renderTicketQueue()">Refresh</button>' +
+    '</div></div>' +
+    '<div id="ticket-tbody-wrap">' + _ticketTableHtml() + '</div>';
+}
+
+function _ticketQueueFilter() {
+  var f = _TICKETS.filters;
+  f.q = _ntVal('tq-q'); f.status = _ntVal('tq-status'); f.assignee = _ntVal('tq-assignee');
+  f.office = _ntVal('tq-office'); f.general = _ntVal('tq-general'); f.channel = _ntVal('tq-channel');
+  f.from = _ntVal('tq-from'); f.to = _ntVal('tq-to');
+  var wrap = document.getElementById('ticket-tbody-wrap'); if (wrap) wrap.innerHTML = _ticketTableHtml();
+}
+
+function _ticketMatch(t, f) {
+  if (f.status && String(t.status) !== f.status) return false;
+  if (f.assignee && String(t.assignee) !== f.assignee) return false;
+  if (f.office && String(t.office) !== f.office) return false;
+  if (f.general && String(t.generalCategory) !== f.general) return false;
+  if (f.channel && String(t.channel) !== f.channel) return false;
+  var created = String(t.created || '').slice(0, 10);
+  if (f.from && created && created < f.from) return false;
+  if (f.to && created && created > f.to) return false;
+  if (f.q) {
+    var hay = [t.ticketId, t.requester, t.subject, t.office, t.dsi, t.specificCategory, t.generalCategory, t.assigneeName].join(' ').toLowerCase();
+    if (hay.indexOf(f.q.toLowerCase()) === -1) return false;
+  }
+  return true;
+}
+
+function _ticketSortVal(t, key) {
+  if (key === 'ticketId') { var m = String(t.ticketId || '').match(/(\d+)/); return m ? parseInt(m[1], 10) : 0; }
+  if (key === 'created' || key === 'lastUpdated') return String(t[key] || '');
+  return String(t[key] || '').toLowerCase();
+}
+function _ticketSort(key) {
+  var s = _TICKETS.sort;
+  if (s.key === key) s.dir = (s.dir === 'asc' ? 'desc' : 'asc');
+  else { s.key = key; s.dir = (key === 'created' || key === 'lastUpdated' || key === 'ticketId') ? 'desc' : 'asc'; }
+  var wrap = document.getElementById('ticket-tbody-wrap'); if (wrap) wrap.innerHTML = _ticketTableHtml();
+}
+function _ticketTh(label, key) {
+  var s = _TICKETS.sort; var ind = s.key === key ? (s.dir === 'asc' ? ' ▲' : ' ▼') : '';
+  return '<th onclick="_ticketSort(\'' + key + '\')" style="cursor:pointer;white-space:nowrap">' + esc(label) + ind + '</th>';
+}
+
+function _ticketStatusLabel(code) {
+  for (var i = 0; i < TICKET_STATUS.length; i++) if (TICKET_STATUS[i].code === code) return TICKET_STATUS[i].label;
+  return code || '—';
+}
+function _ticketStatusColor(code) { return { pending:'var(--blue2)', followup:'#e0a838', solved:'var(--green)' }[code] || 'var(--text2)'; }
+function _ticketStatusBadge(code) {
+  var col = _ticketStatusColor(code);
+  return '<span class="ss-badge" style="color:' + col + ';border-color:' + col + '">' + esc(_ticketStatusLabel(code)) + '</span>';
+}
+function _ticketCat(t) {
+  var g = t.generalCategory || '', sp = t.specificCategory || '';
+  if (g && sp) return esc(g) + ' <span style="opacity:.55">›</span> ' + esc(sp);
+  return esc(g || sp || '—');
+}
+
+function _ticketTableHtml() {
+  var f = _TICKETS.filters, s = _TICKETS.sort;
+  var rows = (_TICKETS.list || []).filter(function(t){ return _ticketMatch(t, f); });
+  rows.sort(function(a, b){ var av = _ticketSortVal(a, s.key), bv = _ticketSortVal(b, s.key); var r = av < bv ? -1 : (av > bv ? 1 : 0); return s.dir === 'asc' ? r : -r; });
+  if (!rows.length) return '<div class="card ss-card"><p class="ss-sub" style="margin:0">No tickets match your filters. ' + (_TICKETS.list.length ? '' : 'Create one from <strong>New Ticket</strong>.') + '</p></div>';
+  var head = '<tr>' + _ticketTh('Ticket','ticketId') + _ticketTh('Created','created') + _ticketTh('Agent','assigneeName') +
+    _ticketTh('Rep','requester') + _ticketTh('Office','office') + '<th>Category</th>' + _ticketTh('Subject','subject') + _ticketTh('Status','status') + '</tr>';
+  var body = rows.map(function(t){
+    return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
+      '<td style="font-weight:700;color:var(--blue2);white-space:nowrap">' + esc(t.ticketId) + '</td>' +
+      '<td style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
+      '<td>' + esc(t.assigneeName || t.assignee || '—') + '</td>' +
+      '<td>' + esc(t.requester || '—') + '</td>' +
+      '<td>' + esc(t.office || '—') + '</td>' +
+      '<td>' + _ticketCat(t) + '</td>' +
+      '<td>' + esc(t.subject || '—') + '</td>' +
+      '<td>' + _ticketStatusBadge(t.status) + '</td>' +
+    '</tr>';
+  }).join('');
+  return '<div class="card ss-card ss-tablewrap"><table class="tbl ss-table">' + head + body + '</table>' +
+    '<p class="ss-sub" style="margin:10px 0 0">' + rows.length + ' of ' + _TICKETS.list.length + ' ticket' + (_TICKETS.list.length === 1 ? '' : 's') + '</p></div>';
+}
+
+function _ticketFmtDate(iso) {
+  if (!iso) return '—';
+  var d = new Date(iso); if (isNaN(d.getTime())) return String(iso);
+  return (d.getMonth() + 1) + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(2) + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+}
+
+// ── Ticket detail (read-only in Slice 4; Slice 5 adds note / status / reassign) ──
+function openTicketDetail(id) {
+  var modal = document.getElementById('ticket-modal'); if (!modal) return;
+  var body = document.getElementById('ticket-modal-body'), title = document.getElementById('ticket-modal-title');
+  if (title) title.textContent = 'Ticket ' + id;
+  if (body) body.innerHTML = '<p class="ss-sub">Loading…</p>';
+  modal.classList.add('open');
+  _ticketGet({ action:'getTicket', ticketId:id }).then(function(res){
+    if (!res || !res.ticket) { body.innerHTML = '<p style="color:var(--red)">Could not load ticket.</p>'; return; }
+    body.innerHTML = _ticketDetailHtml(res.ticket, res.notes || []);
+  }).catch(function(e){ body.innerHTML = '<p style="color:var(--red)">Error: ' + esc(e.message) + '</p>'; });
+}
+function closeTicketModal() {
+  var m = document.getElementById('ticket-modal'); if (m) m.classList.remove('open');
+}
+function _dt(label, valHtml) { return '<div class="ss-dt"><span class="ss-lbl">' + esc(label) + '</span><span>' + (valHtml || '—') + '</span></div>'; }
+function _ticketDetailHtml(t, notes) {
+  var subj = t.subject ? '<h4 class="ss-dsubj">' + esc(t.subject) + '</h4>' : '';
+  var meta = '<div class="ss-dl">' +
+    _dt('Status', _ticketStatusBadge(t.status)) +
+    _dt('Requester (Rep)', esc(t.requester)) +
+    _dt('Office', esc(t.office)) +
+    _dt('Channel', esc(t.channel)) +
+    _dt('Phone', esc(t.phone)) +
+    _dt('Category', _ticketCat(t)) +
+    _dt('Sara Plus', esc(t.saraPlus)) +
+    _dt('DSI / Account', esc(t.dsi)) +
+    _dt('Assignee', esc(t.assigneeName || t.assignee)) +
+    _dt('Opened by', esc(t.createdByName || t.createdBy)) +
+    _dt('Created', esc(_ticketFmtDate(t.created))) +
+    _dt('Tags', esc(t.tags)) +
+    _dt('Called Back', t.calledBack ? 'Yes' : 'No') +
+    _dt('Review Approval', t.reviewApproval ? 'Yes' : 'No') +
+  '</div>';
+  var thread = '<div class="ss-thread"><div class="ss-lbl" style="margin:16px 0 8px">Notes</div>' +
+    (notes.length ? notes.map(function(n){
+      return '<div class="ss-note"><div class="ss-note-hd">' + esc(n.authorName || n.author) + ' · ' + esc(_ticketFmtDate(n.timestamp)) + '</div><div>' + esc(n.body) + '</div></div>';
+    }).join('') : '<p class="ss-sub" style="margin:0">No notes yet.</p>') + '</div>';
+  return subj + meta + thread + '<p class="ss-sub" style="opacity:.6;margin:16px 0 0">Add-note, status change &amp; reassign arrive in the next slice.</p>';
+}
+
+// Close the ticket modal on backdrop click (registered once; harmless for other offices).
+(function(){
+  var m = document.getElementById('ticket-modal');
+  if (m) m.addEventListener('click', function(e){ if (e.target === this) closeTicketModal(); });
+})();
 
 // A themed placeholder card — deep-space panel, lightsaber-blue title, green accent
 // rule, small Jedi flourish. Purely a scaffold marker; replaced screen-by-screen.

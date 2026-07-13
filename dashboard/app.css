@@ -46,7 +46,27 @@ html[data-office="salessupport"]{
 .ss-chk{ display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px;cursor:pointer }
 .ss-actions{ display:flex;align-items:center;gap:16px;margin-top:18px }
 .ss-status{ font-size:13px }
-@media (max-width:640px){ .ss-grid{ grid-template-columns:1fr } }
+/* queue filter bar */
+.ss-qbar{ display:flex;flex-wrap:wrap;gap:10px;align-items:center }
+.ss-qf{ height:36px }
+.ss-qf-search{ flex:1;min-width:220px }
+.ss-qf-dates{ display:flex;align-items:center;gap:6px;color:var(--text2);font-size:12px }
+.ss-qf-date{ height:36px;padding:4px 8px;width:auto }
+.ss-qf-btn{ height:36px;padding:0 18px }
+/* status pill */
+.ss-badge{ display:inline-block;padding:2px 9px;border:1px solid;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;background:transparent;white-space:nowrap }
+/* queue table */
+.ss-tablewrap{ overflow-x:auto }
+.ss-table{ width:100% }
+.ss-row{ cursor:pointer }
+.ss-row:hover td{ background:var(--blue2-faint) }
+/* ticket detail */
+.ss-dsubj{ color:var(--text);margin:0 0 12px;font-size:16px }
+.ss-dl{ display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin:6px 0 4px }
+.ss-dt{ display:flex;flex-direction:column;gap:3px;font-size:14px }
+.ss-note{ background:var(--inset-bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:14px }
+.ss-note-hd{ color:var(--text2);font-size:12px;margin-bottom:4px }
+@media (max-width:640px){ .ss-grid{ grid-template-columns:1fr } .ss-dl{ grid-template-columns:1fr } }
 /* ps-* inputs keep a pure-white fill in light mode (they pop off the off-white page);
    all other form controls now auto-theme via --field-bg/--field-border. */
 html[data-theme="light"] .ps-input, html[data-theme="light"] .ps-textarea,
