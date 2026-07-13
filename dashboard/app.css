@@ -33,6 +33,20 @@ html[data-office="salessupport"]{
   --field-bg:#0e1526; --field-border:#26375c; --control-bg:#111a30; --inset-bg:#0a1020; --panel2-bg:#0d1526; --panel2-border:#1e2c4a;
   --text:#e7eeff; --text2:#9fb2d6;
 }
+/* ── SALES SUPPORT — ticket UI (Slice 3+) ── */
+.ss-card{ margin-bottom:18px }
+.ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--accent2b));margin:-2px 0 16px }
+.ss-h2{ color:var(--blue2);margin:0 0 4px;font-size:20px }
+.ss-sub{ color:var(--text2);margin:0 0 18px;font-size:13px }
+.ss-grid{ display:grid;grid-template-columns:1fr 1fr;gap:14px 18px }
+.ss-fld{ display:flex;flex-direction:column;gap:5px }
+.ss-fld--full{ grid-column:1 / -1 }
+.ss-lbl{ font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2) }
+.ss-checks{ display:flex;gap:22px;margin:16px 0 4px;flex-wrap:wrap }
+.ss-chk{ display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px;cursor:pointer }
+.ss-actions{ display:flex;align-items:center;gap:16px;margin-top:18px }
+.ss-status{ font-size:13px }
+@media (max-width:640px){ .ss-grid{ grid-template-columns:1fr } }
 /* ps-* inputs keep a pure-white fill in light mode (they pop off the off-white page);
    all other form controls now auto-theme via --field-bg/--field-border. */
 html[data-theme="light"] .ps-input, html[data-theme="light"] .ps-textarea,
