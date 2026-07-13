@@ -116,8 +116,13 @@
   <!-- Booking form -->
   <div class="card" id="form">
     <div class="step">
-      <div class="step-label"><span class="step-num">1</span> Choose your activator</div>
+      <div class="step-label"><span class="step-num">1</span> Language &amp; activator</div>
+      <select id="language" style="margin-bottom:10px">
+        <option value="english">English</option>
+        <option value="spanish">Spanish / Español</option>
+      </select>
       <select id="activator"><option value="__next__">Next available activator</option></select>
+      <div class="note" id="langnote" style="display:none;margin-top:8px"></div>
     </div>
 
     <div class="step">
@@ -176,7 +181,7 @@
   var OFFICE_NAMES = { elevate:"Elevate", midspire:"Midspire", viridian:"Viridian", vanguard:"Vanguard", bayview:"Bayview Horizons", leadsphere:"LeadSphere Solutions" };
   var PRODUCTS = ["Wireless", "Air", "Fiber - Self Install"];
   var qty = {};
-  var win = null, selectedSlot = "", loadingSlots = false;
+  var win = null, selectedSlot = "", loadingSlots = false, ACTS = [];
 
   function $(id){ return document.getElementById(id); }
 
@@ -258,7 +263,8 @@
 
     apiGet("activators", { office:OFFICE }).then(function(res){
       var sel = $("activator");
-      (res.activators || []).forEach(function(a){
+      ACTS = res.activators || [];
+      ACTS.forEach(function(a){
         var o = document.createElement("option"); o.value = a.id; o.textContent = a.name; sel.appendChild(o);
       });
     }).catch(function(){});
@@ -268,11 +274,32 @@
       var d = $("date"); d.min = win.min; d.max = win.max; d.value = win.min; loadSlots();
     }).catch(function(){});
 
+    $("language").addEventListener("change", onLangChange);
     $("activator").addEventListener("change", loadSlots);
     $("date").addEventListener("change", loadSlots);
     $("submit").addEventListener("click", submit);
     $("svcs").addEventListener("click", onSvcsClick);
     renderSvcs();
+  }
+
+  // Item 1: Spanish locks the activator to the bilingual one (flagged server-side) and
+  // shows only their availability; English unlocks the picker. The scheduler backend
+  // enforces the same rule as a safety net.
+  function onLangChange(){
+    var lang = $("language").value, sel = $("activator"), note = $("langnote");
+    if(lang === "spanish"){
+      var sp = ACTS.filter(function(a){ return a.spanish; })[0];
+      if(sp){
+        sel.value = sp.id; sel.disabled = true;
+        note.style.display = "block"; note.textContent = "Spanish appointments are booked with " + sp.name + ".";
+      } else {
+        sel.disabled = true;
+        note.style.display = "block"; note.textContent = "Sorry, no Spanish-speaking activator is available for this office — please choose English.";
+      }
+    } else {
+      sel.disabled = false; note.style.display = "none";
+    }
+    loadSlots();
   }
 
   function loadSlots(){
@@ -331,6 +358,7 @@
     var btn = $("submit"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Booking…';
     apiPost({
       action:"book", office:OFFICE, activatorId:act, date:date, timeSlot:selectedSlot,
+      language:$("language").value,
       customerName:name, customerPhone:phone, customerEmail:email,
       customerNote:note, services:svcs, deviceCount:devices, hp:$("hp").value
     }).then(function(res){
@@ -363,6 +391,7 @@
       case "duplicate":        return "It looks like you already have an appointment that day.";
       case "rate_limited":     return "We're getting a lot of bookings right now — please try again in a few minutes.";
       case "missing customer fields": return "Please fill in all your details.";
+      case "spanish_needs_bilingual": return "No Spanish-speaking activator is available for this office. Please choose English or contact your rep.";
       default: return "We couldn't complete your booking. Please try again.";
     }
   }
