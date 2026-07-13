@@ -358,7 +358,9 @@ function _ticketFmtDate(iso) {
   return (d.getMonth() + 1) + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(2) + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
 }
 
-// ── Ticket detail (read-only in Slice 4; Slice 5 adds note / status / reassign) ──
+// ── Ticket detail (Slice 5: interactive — status / reassign / toggles / note thread) ──
+// The open ticket + its notes live in _TICKETS.open; every action posts to the backend,
+// then updates that state + the queue row in place (no full refetch).
 function openTicketDetail(id) {
   var modal = document.getElementById('ticket-modal'); if (!modal) return;
   var body = document.getElementById('ticket-modal-body'), title = document.getElementById('ticket-modal-title');
@@ -367,17 +369,28 @@ function openTicketDetail(id) {
   modal.classList.add('open');
   _ticketGet({ action:'getTicket', ticketId:id }).then(function(res){
     if (!res || !res.ticket) { body.innerHTML = '<p style="color:var(--red)">Could not load ticket.</p>'; return; }
-    body.innerHTML = _ticketDetailHtml(res.ticket, res.notes || []);
+    _TICKETS.open = { ticket:res.ticket, notes:res.notes || [] };
+    _renderTicketDetail();
   }).catch(function(e){ body.innerHTML = '<p style="color:var(--red)">Error: ' + esc(e.message) + '</p>'; });
 }
 function closeTicketModal() {
   var m = document.getElementById('ticket-modal'); if (m) m.classList.remove('open');
+  _TICKETS.open = null;
+}
+function _renderTicketDetail() {
+  var body = document.getElementById('ticket-modal-body');
+  if (body && _TICKETS.open) body.innerHTML = _ticketDetailHtml(_TICKETS.open.ticket, _TICKETS.open.notes);
 }
 function _dt(label, valHtml) { return '<div class="ss-dt"><span class="ss-lbl">' + esc(label) + '</span><span>' + (valHtml || '—') + '</span></div>'; }
 function _ticketDetailHtml(t, notes) {
+  var agents = (_TICKETS.agents && _TICKETS.agents.length) ? _TICKETS.agents : (t.assignee ? [{ email:t.assignee, name:t.assigneeName || t.assignee }] : []);
+  var statusSel = '<select class="ps-select" onchange="_ticketSetStatus(this.value)">' +
+    TICKET_STATUS.map(function(s){ return '<option value="' + s.code + '"' + (s.code === t.status ? ' selected' : '') + '>' + esc(s.label) + '</option>'; }).join('') + '</select>';
+  var asgSel = '<select class="ps-select" onchange="_ticketReassign(this.value)">' +
+    agents.map(function(a){ return '<option value="' + esc(a.email) + '"' + (a.email === t.assignee ? ' selected' : '') + '>' + esc(a.name || a.email) + '</option>'; }).join('') + '</select>';
   var subj = t.subject ? '<h4 class="ss-dsubj">' + esc(t.subject) + '</h4>' : '';
+  var controls = '<div class="ss-dl" style="margin-bottom:12px">' + _dt('Status', statusSel) + _dt('Assignee', asgSel) + '</div>';
   var meta = '<div class="ss-dl">' +
-    _dt('Status', _ticketStatusBadge(t.status)) +
     _dt('Requester (Rep)', esc(t.requester)) +
     _dt('Office', esc(t.office)) +
     _dt('Channel', esc(t.channel)) +
@@ -385,18 +398,67 @@ function _ticketDetailHtml(t, notes) {
     _dt('Category', _ticketCat(t)) +
     _dt('Sara Plus', esc(t.saraPlus)) +
     _dt('DSI / Account', esc(t.dsi)) +
-    _dt('Assignee', esc(t.assigneeName || t.assignee)) +
+    _dt('Tags', esc(t.tags)) +
     _dt('Opened by', esc(t.createdByName || t.createdBy)) +
     _dt('Created', esc(_ticketFmtDate(t.created))) +
-    _dt('Tags', esc(t.tags)) +
-    _dt('Called Back', t.calledBack ? 'Yes' : 'No') +
-    _dt('Review Approval', t.reviewApproval ? 'Yes' : 'No') +
   '</div>';
-  var thread = '<div class="ss-thread"><div class="ss-lbl" style="margin:16px 0 8px">Notes</div>' +
+  var checks = '<div class="ss-checks">' +
+    '<label class="ss-chk"><input type="checkbox" ' + (t.calledBack ? 'checked' : '') + ' onchange="_ticketToggle(\'calledBack\',this.checked)"> Called Back</label>' +
+    '<label class="ss-chk"><input type="checkbox" ' + (t.reviewApproval ? 'checked' : '') + ' onchange="_ticketToggle(\'reviewApproval\',this.checked)"> Review Approval</label>' +
+  '</div>';
+  var thread = '<div class="ss-thread"><div class="ss-lbl" style="margin:18px 0 8px">Notes</div>' +
     (notes.length ? notes.map(function(n){
-      return '<div class="ss-note"><div class="ss-note-hd">' + esc(n.authorName || n.author) + ' · ' + esc(_ticketFmtDate(n.timestamp)) + '</div><div>' + esc(n.body) + '</div></div>';
-    }).join('') : '<p class="ss-sub" style="margin:0">No notes yet.</p>') + '</div>';
-  return subj + meta + thread + '<p class="ss-sub" style="opacity:.6;margin:16px 0 0">Add-note, status change &amp; reassign arrive in the next slice.</p>';
+      return '<div class="ss-note"><div class="ss-note-hd">' + esc(n.authorName || n.author) + ' · ' + esc(_ticketFmtDate(n.timestamp)) + '</div><div>' + esc(n.body).replace(/\n/g, '<br>') + '</div></div>';
+    }).join('') : '<p class="ss-sub" style="margin:0 0 6px">No notes yet.</p>') +
+    '<textarea id="td-note" class="ps-textarea" rows="3" placeholder="Add a note to the thread…"></textarea>' +
+    '<div class="ss-actions"><button class="ps-btn" onclick="_ticketAddNote()">Add Note</button><span id="td-status" class="ss-status"></span></div>' +
+  '</div>';
+  return subj + controls + meta + checks + thread;
+}
+
+// ── Detail actions (in-place; every agent can modify any ticket) ──
+function _tdStatus(msg, isErr) { var el = document.getElementById('td-status'); if (el) { el.textContent = msg || ''; el.style.color = isErr ? 'var(--red)' : 'var(--text2)'; } }
+function _ticketSyncListRow(u) {
+  if (!u) return;
+  for (var i = 0; i < (_TICKETS.list || []).length; i++) { if (_TICKETS.list[i].ticketId === u.ticketId) { _TICKETS.list[i] = u; break; } }
+  var wrap = document.getElementById('ticket-tbody-wrap'); if (wrap) wrap.innerHTML = _ticketTableHtml();   // keep the queue live
+}
+function _ticketOpenId() { return _TICKETS.open && _TICKETS.open.ticket ? _TICKETS.open.ticket.ticketId : null; }
+function _ticketSetStatus(code) {
+  var id = _ticketOpenId(); if (!id) return; _tdStatus('Saving…');
+  _ticketPost({ action:'setTicketStatus', ticketId:id, status:code }).then(function(res){
+    if (res && res.ok && res.ticket) { _TICKETS.open.ticket = res.ticket; _ticketSyncListRow(res.ticket); _renderTicketDetail(); }
+    else _tdStatus((res && res.error) || 'Could not update status.', true);
+  }).catch(function(e){ _tdStatus('Error: ' + e.message, true); });
+}
+function _ticketReassign(email) {
+  var id = _ticketOpenId(); if (!id) return; _tdStatus('Saving…');
+  _ticketPost({ action:'reassignTicket', ticketId:id, assignee:email }).then(function(res){
+    if (res && res.ok && res.ticket) { _TICKETS.open.ticket = res.ticket; _ticketSyncListRow(res.ticket); _renderTicketDetail(); }
+    else _tdStatus((res && res.error) || 'Could not reassign.', true);
+  }).catch(function(e){ _tdStatus('Error: ' + e.message, true); });
+}
+function _ticketToggle(field, checked) {
+  var id = _ticketOpenId(); if (!id) return; _tdStatus('Saving…');
+  var body = { action:'updateTicket', ticketId:id }; body[field] = checked;
+  _ticketPost(body).then(function(res){
+    if (res && res.ok && res.ticket) { _TICKETS.open.ticket = res.ticket; _ticketSyncListRow(res.ticket); _tdStatus('Saved.'); }
+    else _tdStatus((res && res.error) || 'Could not save.', true);
+  }).catch(function(e){ _tdStatus('Error: ' + e.message, true); });
+}
+function _ticketAddNote() {
+  var id = _ticketOpenId(); if (!id) return;
+  var ta = document.getElementById('td-note'); var text = ta ? ta.value.trim() : '';
+  if (!text) { _tdStatus('Write a note first.', true); return; }
+  _tdStatus('Adding…');
+  _ticketPost({ action:'addTicketNote', ticketId:id, note:text }).then(function(res){
+    if (res && res.ok && res.note) {
+      _TICKETS.open.notes.push(res.note);
+      _TICKETS.open.ticket.lastUpdated = res.note.timestamp;
+      _ticketSyncListRow(_TICKETS.open.ticket);
+      _renderTicketDetail();
+    } else _tdStatus((res && res.error) || 'Could not add note.', true);
+  }).catch(function(e){ _tdStatus('Error: ' + e.message, true); });
 }
 
 // Close the ticket modal on backdrop click (registered once; harmless for other offices).
