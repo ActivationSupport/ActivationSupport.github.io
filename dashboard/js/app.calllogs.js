@@ -249,6 +249,8 @@ function ensureTableauNames(cb) {
 
 // ── NOTES MODAL ───────────────────────────────────────────────────────────
 var _modalDsi = '';
+var _modalOffice = '';   // office the modal's notes belong to (cross-office dashboard support)
+var _modalApptId = '';   // set when opened from an appointment → note adds route via addAppointmentNote
 
 function _noteItemHtml(n) {
   var la=Math.max(0,parseInt(n.linesActivated,10)||0);
@@ -256,9 +258,13 @@ function _noteItemHtml(n) {
   return '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(n.ts)+' &mdash; '+esc(n.authorName)+badge+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
 }
 
-function openNotesModal(dsi, customer, rep) {
+function openNotesModal(dsi, customer, rep, opts) {
+  opts = opts || {};
   _modalDsi = dsi;
-  var notes = (DATA.notes||{})[dsi] || [];
+  _modalOffice = opts.office || CFG.officeId;
+  _modalApptId = opts.appointmentId || '';
+  var _cross = !!_modalApptId && _modalOffice !== CFG.officeId;
+  var notes = _cross ? (opts.notes || []) : ((DATA.notes||{})[dsi] || opts.notes || []);
   var rating = (DATA.ratings||{})[dsi] || '';
   var role = SESSION.role || 'client-rep';
   var canAddActivation = role==='master-admin' || role==='activator';
@@ -297,8 +303,9 @@ function openNotesModal(dsi, customer, rep) {
     '<div class="nm-section-label nm-rep-label" style="margin-top:8px">Rep Notes</div>' +
     '<div class="nm-history" id="nm-rep-hist">'+repHistHtml+'</div>' +
     (canAddRep ? '<textarea class="nm-textarea" id="nm-rep-input" placeholder="Add rep note…"></textarea><button class="nm-add-btn nm-rep-add-btn" onclick="modalAddNote(\'rep\')" style="margin-bottom:14px">ADD REP NOTE</button>' : '') +
-    '<div class="nm-section-label" style="margin-top:8px">Rating</div>' +
-    '<div class="nm-rating-row" id="nm-rating-row">'+ratingHtml+'</div>' +
+    (_cross ? '' :
+      '<div class="nm-section-label" style="margin-top:8px">Rating</div>' +
+      '<div class="nm-rating-row" id="nm-rating-row">'+ratingHtml+'</div>') +
     '<div class="nm-actions"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
 
   document.getElementById('detail-modal').classList.add('open');
@@ -370,21 +377,32 @@ function modalAddNote(noteType) {
   if (noteType === 'activation') _linesSet('modal-body', 0);
   var now = new Date().toISOString();
   var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text, noteType:noteType, linesActivated:lines };
-  if (!DATA.notes) DATA.notes = {};
-  if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
-  DATA.notes[_modalDsi].push(entry);
+  // Optimistic in-modal append — only the note list updates, never a full reload.
   var hist = document.getElementById(histId);
   if (hist) {
     hist.querySelectorAll('.nm-empty').forEach(function(e) { e.remove(); });
     hist.innerHTML += _noteItemHtml(entry);
     hist.scrollTop = hist.scrollHeight;
   }
-  var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
-  if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
   _noteAddFlight = true;
-  apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, linesActivated:lines, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
-    .then(function() { input.disabled = false; _noteAddFlight = false; })
-    .catch(function() { input.disabled = false; _noteAddFlight = false; });
+  var _done = function() { input.disabled = false; _noteAddFlight = false; };
+  if (_modalApptId && _modalOffice !== CFG.officeId) {
+    // Cross-office (activator dashboard): route to the appointment's own office via the
+    // scheduler; update the dashboard's cached notes + count badge (not DATA.notes).
+    if (typeof _MYAPPT !== 'undefined' && _MYAPPT.appointments) {
+      var ap = _MYAPPT.appointments.filter(function(x){ return x.appointmentId === _modalApptId; })[0];
+      if (ap) { ap.notes = ap.notes || []; ap.notes.push(entry);
+        var mb = document.getElementById('manote-' + _modalApptId); if (mb) mb.textContent = ' ' + ap.notes.length; }
+    }
+    _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:text, noteType:noteType, linesActivated:lines, email:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
+  } else {
+    if (!DATA.notes) DATA.notes = {};
+    if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
+    DATA.notes[_modalDsi].push(entry);
+    var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
+    if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
+    apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, linesActivated:lines, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
+  }
 }
 
 // ── CALL TABLE ────────────────────────────────────────────────────────────

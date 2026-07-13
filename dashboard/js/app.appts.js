@@ -1077,7 +1077,7 @@ function addApptNoteUI(id){
 function cancelAppt(id) {
   if (!confirm('Cancel this appointment?')) return;
   _apptPost({action:'cancelAppointment',appointmentId:id,role:SESSION.role,email:SESSION.email}).then(function(res){
-    if(res.ok){_APPT.appointments=null;_MYAPPT.appointments=null;_apptRefreshCurrent();}
+    if(res.ok){ var ap=_apptFindAppt(id); if(ap) ap.status='cancelled'; _apptRerender(); }   // in-place, no refetch
     else alert(res.error||'Cancel failed.');
   });
 }
@@ -1098,7 +1098,7 @@ function deleteApptUI(id) {
 function _apptRerender() {
   var c=document.getElementById('main-content'); if(!c) return;
   if(CURRENT_TAB==='appointments'){ c.innerHTML=_apptBuildView(); _apptBindEvents(); }
-  else if(CURRENT_TAB==='myappts' && _MYAPPT.appointments){ c.innerHTML=_myApptBuildView(); }
+  else if(CURRENT_TAB==='myappts' && _MYAPPT.appointments){ var w=document.getElementById('myappt-tbody-wrap'); if(w){ w.innerHTML=_myApptTableHtml(); } else { c.innerHTML=_myApptBuildView(); } }
 }
 
 // ── Outcome (manual marking by the activator) ─────────────────
@@ -1146,7 +1146,16 @@ function submitApptOutcome() {
   document.getElementById('appt-outcome-modal').classList.remove('open');
   _apptPost({action:'setApptOutcome',appointmentId:id,outcome:outcome,note:note,linesActivated:lines,dsi:dsi,
     role:SESSION.role,email:SESSION.email}).then(function(res){
-    if(res.ok){ _APPT.appointments=null; _MYAPPT.appointments=null; _apptRefreshCurrent(); }
+    if(res.ok){
+      // Update just this appointment in cache + re-render from cache (no full refetch).
+      var ap=_apptFindAppt(id);
+      if(ap){
+        ap.outcome=outcome; ap.outcomeNote=note; ap.outcomeBy=SESSION.email; ap.outcomeAt=new Date().toISOString();
+        if(dsi && !String(ap.customerDSI||'').trim()) ap.customerDSI=dsi;
+        if(note||lines){ ap.notes=ap.notes||[]; ap.notes.push({ts:new Date().toISOString(),authorName:SESSION.name||SESSION.email,noteText:(note||('Activated '+lines+' line'+(lines===1?'':'s')+' during appointment.')),noteType:'activation',linesActivated:lines}); }
+      }
+      _apptRerender();
+    }
     else { alert(res.error||'Failed to set outcome.'); _apptRerender(); }
   }).catch(function(){ alert('Connection error.'); _apptRerender(); });
 }
@@ -1261,36 +1270,19 @@ function _scLoadCalStatus(){
 // Item 4 notes section: an appointment's ORDER notes (the universal call-logs Notes for
 // its DSI, office-correct — served by getActivatorAppointments). Activators/master-admins
 // add an activation note + lines here; it writes to _Notes_<office> via addAppointmentNote.
+// Item 5 (universal): the dashboard's Notes button opens the SAME call-logs Notes modal
+// as everywhere else — office-aware for this appointment (its order's _Notes_<office>).
+// No-DSI bookings can't attach notes yet, so show the lightweight guidance instead.
 function openDashNotes(id){
   var a=_apptFindAppt(id); if(!a) return;
   var dsi=String(a.customerDSI||'').trim();
-  var canAdd=SESSION.role==='master-admin'||SESSION.role==='activator';
-  var notes=a.notes||[];
-  var hist=notes.length ? notes.map(function(n){
-    var la=Math.max(0,parseInt(n.linesActivated,10)||0);
-    var badge=la?' <span style="background:rgba(var(--blue2-rgb),.15);color:var(--blue2);border-radius:6px;padding:0 6px;font-size:.7rem;font-weight:700">'+la+' line'+(la===1?'':'s')+'</span>':'';
-    return '<div style="border-bottom:1px solid var(--border);padding:8px 0">'+
-      '<div style="font-size:.74rem;color:var(--text2)">'+esc(n.authorName||'')+' · '+esc(fmtDate(n.ts))+badge+'</div>'+
-      '<div style="margin-top:2px;white-space:pre-wrap">'+esc(n.noteText)+'</div></div>';
-  }).join('') : '<div class="nm-empty">No notes yet.</div>';
-  var addUi = !canAdd ? '' : (dsi
-    ? '<textarea id="dash-note-input" class="nm-textarea" placeholder="Add an activation note…" style="margin-top:10px"></textarea>'+
-      _linesFieldHtml('modal-body',icon('zap')+' Lines activated on this order')+
-      '<button class="nm-add-btn" style="margin-top:8px" onclick="submitDashNote(\''+esc(id)+'\')">ADD NOTE</button>'
-    : '<div class="sc-bookable-hint" style="margin-top:10px">No DSI on this booking yet — mark its outcome and enter the DSI first to attach notes to the order.</div>');
-  document.getElementById('modal-title').innerHTML='<div class="nm-dsi">Notes — '+esc(a.customerName||'')+(dsi?' · DSI '+esc(dsi):'')+'</div>';
-  document.getElementById('modal-body').innerHTML='<div class="nm-history">'+hist+'</div>'+addUi+
-    '<div class="nm-actions" style="margin-top:14px"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
-  document.getElementById('detail-modal').classList.add('open');
-}
-function submitDashNote(id){
-  var inp=document.getElementById('dash-note-input'); var txt=inp?inp.value.trim():'';
-  var lines=_linesGet('modal-body');
-  if(!txt && !lines) return;
-  _apptPost({action:'addAppointmentNote',appointmentId:id,noteText:txt,linesActivated:lines,email:SESSION.email,authorName:SESSION.name}).then(function(res){
-    if(res&&res.ok){ _MYAPPT.appointments=null; if(typeof closeModal==='function')closeModal(); renderMyAppointments(); }
-    else alert((res&&res.error==='no_dsi')?'This booking has no DSI yet — mark its outcome and enter the DSI first.':((res&&res.error)||'Could not add note.'));
-  }).catch(function(){ alert('Connection error.'); });
+  if(!dsi){
+    document.getElementById('modal-title').innerHTML='<div class="nm-dsi">Notes — '+esc(a.customerName||'')+'</div>';
+    document.getElementById('modal-body').innerHTML=_apptNotesNoDsiBody(a);
+    document.getElementById('detail-modal').classList.add('open'); return;
+  }
+  openNotesModal(dsi, a.customerName||'', 'Appointment · '+_apptActName(a.activatorEmail),
+    { office:a.office, notes:a.notes||[], appointmentId:a.appointmentId });
 }
 function _copyCalShareEmail() {
   var e = APPT_CAL_SHARE_EMAIL;
@@ -1623,7 +1615,7 @@ function _myApptTableHtml(){
     var offName=(typeof OFFICE_NAMES!=='undefined'&&OFFICE_NAMES[a.office])||a.office;
     var notesN=(a.notes&&a.notes.length)?(' '+a.notes.length):'';
     var actions='';
-    if(canX) actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openDashNotes(\''+esc(a.appointmentId)+'\')">'+icon('edit')+' Notes'+notesN+'</button>';
+    if(canX) actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openDashNotes(\''+esc(a.appointmentId)+'\')">'+icon('edit')+' Notes<span id="manote-'+esc(a.appointmentId)+'">'+notesN+'</span></button>';
     if(canX&&!cancelled) actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>';
     h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
       '<td>'+esc(_apptFmtDate(a.date))+'</td>'+
