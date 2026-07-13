@@ -80,7 +80,7 @@ function renderTicketTab(id) {
   if (!c) return;
   if (id === 'tickets')        renderTicketQueue();
   else if (id === 'newticket') renderNewTicket();
-  else if (id === 'followups') c.innerHTML = _ticketScaffold('Follow-Ups', 'Tickets marked “Follow-up / Need Response,” aged by how long they have waited. This feeds the 6:00 AM reminder.', 'Coming in Slice 6.');
+  else if (id === 'followups') renderTicketFollowups();
   else                          c.innerHTML = _ticketScaffold('Sales Support', 'Select a screen from the sidebar.', '');
 }
 
@@ -244,6 +244,7 @@ function renderTicketQueue() {
     _TICKETS.list = (r[0] && r[0].tickets) || [];
     if (r[1] && r[1].lookups) _TICKETS.lookups = r[1].lookups;
     if (r[2] && r[2].agents)  _TICKETS.agents  = r[2].agents;
+    _TICKETS.render = _ticketTableHtml;   // which table the in-place sync re-renders
     c.innerHTML = _ticketQueueView();
   }).catch(function(e) {
     c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2><p class="ss-sub" style="color:var(--red)">Could not load tickets: ' + esc(e.message) + '</p></div>';
@@ -358,6 +359,51 @@ function _ticketFmtDate(iso) {
   return (d.getMonth() + 1) + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(2) + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
 }
 
+// ── FOLLOW-UPS (Slice 6) ────────────────────────────────────────────────────
+// The queue pre-filtered to status=followup, oldest-first (most overdue on top) with an
+// age column. Same tickets the daily 06:00-PT reminder emails. Reuses openTicketDetail;
+// marking one Solved in the modal drops it from this list in place (via _TICKETS.render).
+function renderTicketFollowups() {
+  var c = document.getElementById('main-content'); if (!c) return;
+  if (!TICKET_SCRIPT_URL) { c.innerHTML = _ticketScaffold('Follow-Ups', 'Backend not connected in this preview.', ''); return; }
+  var hdr = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2>' +
+    '<p class="ss-sub">Tickets marked “Follow-up (Need Response),” oldest first. These feed the daily 6:00 AM reminder.</p></div>';
+  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2><p class="ss-sub">Loading…</p></div>';
+  Promise.all([ _ticketGet({ action:'getTickets' }), _ticketGet({ action:'getAgents' }) ]).then(function(r) {
+    _TICKETS.list = (r[0] && r[0].tickets) || [];
+    if (r[1] && r[1].agents) _TICKETS.agents = r[1].agents;
+    _TICKETS.render = _followupTableHtml;
+    c.innerHTML = hdr + '<div id="ticket-tbody-wrap">' + _followupTableHtml() + '</div>';
+  }).catch(function(e) {
+    c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2><p class="ss-sub" style="color:var(--red)">Could not load: ' + esc(e.message) + '</p></div>';
+  });
+}
+function _ageDays(iso) {
+  if (!iso) return 0;
+  var t = new Date(iso).getTime(); if (isNaN(t)) return 0;
+  return Math.max(0, Math.floor((Date.now() - t) / 86400000));
+}
+function _followupTableHtml() {
+  var rows = (_TICKETS.list || []).filter(function(t){ return String(t.status) === 'followup'; });
+  rows.sort(function(a, b){ var av = String(a.lastUpdated || a.created || ''), bv = String(b.lastUpdated || b.created || ''); return av < bv ? -1 : (av > bv ? 1 : 0); });   // oldest first
+  if (!rows.length) return '<div class="card ss-card"><p class="ss-sub" style="margin:0">No open follow-ups. The Order rests. ✦</p></div>';
+  var head = '<tr><th>Ticket</th><th>Age</th><th>Rep</th><th>Office</th><th>Subject</th><th>Assignee</th></tr>';
+  var body = rows.map(function(t){
+    var age = _ageDays(t.lastUpdated || t.created);
+    var col = age >= 2 ? '#e0a838' : 'var(--text2)';
+    return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
+      '<td style="font-weight:700;color:var(--blue2);white-space:nowrap">' + esc(t.ticketId) + '</td>' +
+      '<td style="white-space:nowrap;color:' + col + '">' + age + 'd</td>' +
+      '<td>' + esc(t.requester || '—') + '</td>' +
+      '<td>' + esc(t.office || '—') + '</td>' +
+      '<td>' + esc(t.subject || '—') + '</td>' +
+      '<td>' + esc(t.assigneeName || t.assignee || '—') + '</td>' +
+    '</tr>';
+  }).join('');
+  return '<div class="card ss-card ss-tablewrap"><table class="tbl ss-table">' + head + body + '</table>' +
+    '<p class="ss-sub" style="margin:10px 0 0">' + rows.length + ' open follow-up' + (rows.length === 1 ? '' : 's') + '</p></div>';
+}
+
 // ── Ticket detail (Slice 5: interactive — status / reassign / toggles / note thread) ──
 // The open ticket + its notes live in _TICKETS.open; every action posts to the backend,
 // then updates that state + the queue row in place (no full refetch).
@@ -421,7 +467,7 @@ function _tdStatus(msg, isErr) { var el = document.getElementById('td-status'); 
 function _ticketSyncListRow(u) {
   if (!u) return;
   for (var i = 0; i < (_TICKETS.list || []).length; i++) { if (_TICKETS.list[i].ticketId === u.ticketId) { _TICKETS.list[i] = u; break; } }
-  var wrap = document.getElementById('ticket-tbody-wrap'); if (wrap) wrap.innerHTML = _ticketTableHtml();   // keep the queue live
+  var wrap = document.getElementById('ticket-tbody-wrap'); if (wrap) wrap.innerHTML = (_TICKETS.render || _ticketTableHtml)();   // keep the active list (queue or follow-ups) live
 }
 function _ticketOpenId() { return _TICKETS.open && _TICKETS.open.ticket ? _TICKETS.open.ticket.ticketId : null; }
 function _ticketSetStatus(code) {
