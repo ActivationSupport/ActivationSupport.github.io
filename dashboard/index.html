@@ -6,7 +6,7 @@
 <title>Activation Support</title>
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="app.css?v=20260713">
+<link rel="stylesheet" href="app.css?v=20260713g">
 </head>
 <body>
 
@@ -291,14 +291,24 @@
   </div>
 </div>
 
-<script src="js/app.core.js?v=20260713"></script>
-<script src="js/app.data.js?v=20260713"></script>
+<!-- SALES SUPPORT — TICKET MODAL (new-ticket / detail thread; app.tickets.js) -->
+<div class="modal-bg" id="ticket-modal">
+  <div class="modal" style="max-width:680px;width:95%">
+    <span class="modal-close" onclick="closeModal()"><span class="ico"><svg><use href="#i-x"></use></svg></span></span>
+    <h3 id="ticket-modal-title">Ticket</h3>
+    <div id="ticket-modal-body"></div>
+  </div>
+</div>
+
+<script src="js/app.core.js?v=20260713g"></script>
+<script src="js/app.data.js?v=20260713g"></script>
 <script src="js/app.calllogs.js?v=20260713e"></script>
 <script src="js/app.reports.js?v=20260709"></script>
 <script src="js/app.people.js?v=20260709"></script>
 <script src="js/app.sales.js?v=20260709"></script>
 <script src="js/app.lst.js?v=20260710"></script>
 <script src="js/app.appts.js?v=20260713f"></script>
+<script src="js/app.tickets.js?v=20260713g"></script>
 <script src="js/app.boot.js?v=20260709"></script>
 </body>
 </html>

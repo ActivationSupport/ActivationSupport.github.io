@@ -23,6 +23,16 @@ html[data-theme="light"]{
   --text:#1b2433; --text2:#5b6675;
   --field-bg:#ffffff; --field-border:#cfd6e0; --control-bg:#eef1f5; --inset-bg:#e8edf3; --panel2-bg:#eef2f7; --panel2-border:#c4cedb;
 }
+/* ── SALES SUPPORT — Jedi "deep-space" palette (office-scoped; locked dark) ──
+   Only the neutral SURFACE/bg/text/border vars live here; the blue+green "lightsaber"
+   ACCENTS are injected inline by applyOfficeTheme() from OFFICE_CONFIG.salessupport.theme.
+   Placed after the light block so it wins the bg/surface vars even if a light class lingers. */
+html[data-office="salessupport"]{
+  --bg:#05070f; --surface:#0c1122; --surface2:#141c34; --sidebar-bg:#080c18;
+  --border:rgba(120,170,255,.14);
+  --field-bg:#0e1526; --field-border:#26375c; --control-bg:#111a30; --inset-bg:#0a1020; --panel2-bg:#0d1526; --panel2-border:#1e2c4a;
+  --text:#e7eeff; --text2:#9fb2d6;
+}
 /* ps-* inputs keep a pure-white fill in light mode (they pop off the off-white page);
    all other form controls now auto-theme via --field-bg/--field-border. */
 html[data-theme="light"] .ps-input, html[data-theme="light"] .ps-textarea,

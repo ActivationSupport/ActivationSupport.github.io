@@ -64,6 +64,18 @@ var OFFICE_CONFIG = {
     reportBrand:{ band:'#0A2540', headerText:'#ffffff', headerSub:'#9db4d8', accent:'#2B6AFF', accentText:'#2B6AFF', logo:'leadsphere-logo-full-reverse.png', logoH:42 },
     logos:{ full:'assets/leadsphere-logo-full-reverse.png', emblem:'assets/leadsphere-logo-symbol.png', sidebarH:40 },
     bookTint:'#2B6AFF', bookLogo:'leadsphere-logo-symbol.png'
+  },
+  // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
+  // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
+  // dark is FORCED (see _applyTheme + the html[data-office="salessupport"] block in
+  // app.css); the blue+green "lightsaber" accents come from theme.accent (blue) +
+  // theme.accent2b (green). No logo yet → the login/sidebar fall back to the name text.
+  salessupport: {
+    name:'Sales Support', color:'#5AB0FF',
+    theme:{ btn:'#1C55D4', accent:'#57ABFF', accent2b:'#38E08A', dark:'#0f1b3a', hover:'#1746b8', glow:'#12305f', band:'#0a1330', onBand:'#eaf2ff', sidebar:'#080c18', loginAccent:'#57ABFF', onAccent:'#ffffff', btnText:'#ffffff' },
+    reportBrand:{ band:'#0a1330', headerText:'#ffffff', headerSub:'#9db4d8', accent:'#57ABFF', accentText:'#57ABFF', logo:'', logoH:40 },
+    logos:{ full:'', emblem:'' },
+    bookTint:'#57ABFF', bookLogo:''
   }
 };
 // Legacy per-map views, DERIVED from OFFICE_CONFIG (downstream code + key order unchanged).
@@ -146,6 +158,7 @@ function loadConfig() {
     return false;
   }
   CFG = { officeId: officeId, officeName: OFFICE_NAMES[officeId] };
+  document.documentElement.setAttribute('data-office', officeId);   // scopes the per-office CSS block (e.g. Sales Support deep-space palette)
   document.title = CFG.officeName + ' Dashboard';
   var _lg = OFFICE_LOGOS[officeId];
   if (_lg && _lg.full) {
@@ -561,10 +574,12 @@ function _applyTheme() {
   if (!allowed) theme = 'dark';                                 // (reserved) force dark if a role is ever disallowed
   else if (pref === 'light' || pref === 'dark') theme = pref;   // an explicit toggle choice wins
   else theme = ((SESSION.role || '').toLowerCase() === 'owner') ? 'light' : 'dark';  // default: owner = light, everyone else dark
+  var _ssOffice = (typeof CFG !== 'undefined' && CFG && CFG.officeId === 'salessupport');
+  if (_ssOffice) theme = 'dark';   // Sales Support is locked to its deep-space dark theme
   document.documentElement.setAttribute('data-theme', theme);
   var tg = document.getElementById('theme-toggle');
   if (tg) {
-    tg.style.display = allowed ? '' : 'none';
+    tg.style.display = (allowed && !_ssOffice) ? '' : 'none';
     tg.innerHTML = theme === 'light' ? icon('moon') : icon('sun');
     tg.title = theme === 'light' ? 'Switch to dark' : 'Switch to light';
   }
@@ -582,17 +597,20 @@ function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   _applyTheme();   // master-admin/activator forced dark; others honor their saved choice
+  var _ssApp = (CFG.officeId === 'salessupport');   // ticketing office → its own screens, no main-data blob
   // On phones/tablets, land new sessions on Post Sale (reps log sales in the field).
   // Only runs at session entry — Refresh and office-switch go through loadData (not
   // showApp), so they keep whatever tab the user is on. loadData's role guard still
   // redirects any role that can't access Post Sale to its first allowed tab.
-  if (window.innerWidth <= 768) CURRENT_TAB = 'postsale';
+  if (window.innerWidth <= 768) CURRENT_TAB = _ssApp ? 'tickets' : 'postsale';
+  if (_ssApp && (!window.SALESSUPPORT_TABS || !window.SALESSUPPORT_TABS.some(function(t){ return t.id === CURRENT_TAB; }))) CURRENT_TAB = 'tickets';
   _setSidebarOfficeLogo(CFG.officeId);
   buildOfficeSwitcher();
   buildNav();
-  loadData();
+  if (_ssApp && typeof initTicketApp === 'function') { initTicketApp(); }   // ticketing UI (app.tickets.js)
+  else { loadData(); }
   _startInactivityWatcher();
-  _startBgRefresh();
+  if (!_ssApp) _startBgRefresh();   // Sales Support has no main-data blob to poll
 }
 
 
@@ -788,6 +806,13 @@ function medalSvg(rank) {
     '</svg></span>';
 }
 
+// Sales Support runs a different set of screens (app.tickets.js) — swap the tab set.
+// Every other office is unchanged (returns TABS).
+function _activeTabs() {
+  if (typeof CFG !== 'undefined' && CFG && CFG.officeId === 'salessupport' && window.SALESSUPPORT_TABS) return window.SALESSUPPORT_TABS;
+  return TABS;
+}
+
 function buildNav() {
   var role = SESSION.role || 'client-rep';
   var nav = document.getElementById('sidebar-nav');
@@ -795,8 +820,9 @@ function buildNav() {
   nav.setAttribute('aria-label', 'Primary');
   nav.innerHTML = '';
   var lastGroup = null;
-  TABS.forEach(function(t) {
-    if (!t.roles.includes(role)) return;
+  var _ss = (typeof CFG !== 'undefined' && CFG && CFG.officeId === 'salessupport');
+  _activeTabs().forEach(function(t) {
+    if (!_ss && !t.roles.includes(role)) return;   // Sales Support is roster-gated → show all its tabs
     if (t.group && t.group !== lastGroup) {
       var lbl = document.createElement('div');
       lbl.className = 'nav-group-label';
@@ -811,7 +837,7 @@ function buildNav() {
     el.setAttribute('tabindex', '0');
     el.setAttribute('aria-label', t.label);
     el.setAttribute('aria-current', t.id === CURRENT_TAB ? 'page' : 'false');
-    el.innerHTML = '<span class="nav-icon"><svg><use href="#i-' + t.id + '"></use></svg></span><span>' + t.label + '</span>';
+    el.innerHTML = '<span class="nav-icon"><svg><use href="#i-' + (t.icon || t.id) + '"></use></svg></span><span>' + t.label + '</span>';
     el.onclick = function() { switchTab(t.id); };
     el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchTab(t.id); } };
     nav.appendChild(el);
@@ -826,7 +852,7 @@ function switchTab(id) {
     el.classList.toggle('active', on);
     el.setAttribute('aria-current', on ? 'page' : 'false');
   });
-  var tab = TABS.find(function(t) { return t.id === id; });
+  var tab = _activeTabs().find(function(t) { return t.id === id; });
   document.getElementById('page-title').textContent = tab ? tab.label : id;
   document.getElementById('page-subtitle').textContent = tab && tab.sub ? tab.sub : '';
   renderTab(id);

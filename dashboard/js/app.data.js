@@ -486,6 +486,8 @@ function within29Days(orders) {
 // ── RENDER TABS ───────────────────────────────────────────────────────────
 function renderTab(id) {
   var c = document.getElementById('main-content');
+  // Sales Support ticketing office → its own screens (app.tickets.js); every other office unchanged.
+  if (typeof CFG !== 'undefined' && CFG && CFG.officeId === 'salessupport' && typeof renderTicketTab === 'function') { renderTicketTab(id); return; }
   if (id === 'people') {
     c.innerHTML = skelLoader();
     ensureTableauNames(function() { c.innerHTML = renderPeople(); bindFilters(); });
