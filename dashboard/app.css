@@ -906,6 +906,12 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-cell-booked-multi{background:rgba(31,78,120,.22);flex-direction:column;gap:2px;cursor:default}
 .appt-cell-closed{background:var(--bg);color:#303030;cursor:default;font-size:1rem}
 .appt-cell-name{font-weight:700;color:var(--text);font-size:.75rem;line-height:1.2}
+/* Item 3 — dual-time (customer/office time over the activator call time) on cross-tz bookings */
+.appt-dtime{display:flex;flex-direction:column;gap:2px;line-height:1.25}
+.appt-dtime-cust{font-weight:600}
+.appt-dtime-act{color:var(--text2);font-size:.82em}
+.appt-dtime-tag{display:inline-block;font-size:.6rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;color:var(--text2);background:var(--inset-bg,rgba(127,127,127,.14));border-radius:4px;padding:0 5px;margin-right:6px;vertical-align:middle}
+.appt-dtime-act .appt-dtime-tag{color:var(--blue2,#4FB0FF)}
 .appt-cell-svc{font-size:.65rem;color:var(--text2);line-height:1.2;margin-top:2px}
 .appt-cell-act-tag{font-size:.68rem;background:rgba(var(--blue2-rgb),.15);color:var(--blue2);padding:1px 5px;border-radius:8px;font-weight:600}
 .appt-cell-more{font-size:.65rem;color:var(--text2)}

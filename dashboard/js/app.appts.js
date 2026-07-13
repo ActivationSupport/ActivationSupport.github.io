@@ -147,6 +147,33 @@ function _apptActTz(email){
 function _apptToOffice(dateStr, slot, email){ return _tzConvertClock(dateStr, slot, _apptActTz(email), _apptOfficeTzId()); }
 // office-TZ slot -> activator-stored slot (check an activator's schedule/blocks at an office slot)
 function _apptToAct(dateStr, slot, email){ return _tzConvertClock(dateStr, slot, _apptOfficeTzId(), _apptActTz(email)); }
+// ── Item 3: dual-time display — customer (office) time + activator (call) time ──
+// A booking's stored slot is the activator's local clock. Staff surfaces show the
+// OFFICE (customer) time; when the activator works a DIFFERENT timezone we ALSO show
+// their local time — "the time you'll actually be on the phone". When the activator's
+// zone == the office zone (the normal case) these return just the one office time, so
+// same-zone surfaces stay byte-identical.
+function _apptDualParts(dateStr, storedSlot, email){
+  var oTz=_apptOfficeTzId(), aTz=_apptActTz(email);
+  return { same: (!aTz || aTz===oTz),
+           custLbl:_apptFmt12(_apptToOffice(dateStr, storedSlot, email)), custAbbr:_tzAbbr(oTz),
+           actLbl: _apptFmt12(storedSlot),                                actAbbr:_tzAbbr(aTz) };
+}
+// Compact one-liner: "2:00 PM CT · call 12:00 PM PT" (or just "2:00 PM" when same-tz).
+function _apptDualInline(dateStr, storedSlot, email){
+  var d=_apptDualParts(dateStr, storedSlot, email);
+  if (d.same) return d.custLbl;
+  return d.custLbl+(d.custAbbr?' '+d.custAbbr:'')+' · call '+d.actLbl+(d.actAbbr?' '+d.actAbbr:'');
+}
+// Stacked HTML for a table/card cell (customer time over the activator call time).
+function _apptDualCell(dateStr, storedSlot, email){
+  var d=_apptDualParts(dateStr, storedSlot, email);
+  if (d.same) return esc(d.custLbl);
+  return '<div class="appt-dtime">'+
+    '<div class="appt-dtime-cust"><span class="appt-dtime-tag">Customer</span>'+esc(d.custLbl+(d.custAbbr?' '+d.custAbbr:''))+'</div>'+
+    '<div class="appt-dtime-act"><span class="appt-dtime-tag">You call</span>'+esc(d.actLbl+(d.actAbbr?' '+d.actAbbr:''))+'</div>'+
+  '</div>';
+}
 // Default booking hours — mirrors the backend AppointmentScheduler.gs DEFAULT_HOURS
 // (Mon–Fri 10:00–17:00 in the office/activator home TZ; weekends closed unless set).
 var _APPT_DEFAULT_HOURS = { start:'10:00', end:'17:00', days:['mon','tue','wed','thu','fri'] };
@@ -433,7 +460,8 @@ function _apptCalGrid(appts, acts, ws) {
         if (mine) {
           var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||mine.bookerEmail===SESSION.email;
           var col=_apptActColor(fe);
-          html+='<div class="appt-cal-cell appt-cell-booked" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(mine.customerName):'Booked')+' · '+esc(mine.services||'')+' ×'+(mine.deviceCount||1)+'">'+
+          var _ct=_apptDualParts(mine.date,mine.timeSlot,mine.activatorEmail);
+          html+='<div class="appt-cal-cell appt-cell-booked" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(mine.customerName):'Booked')+' · '+esc(mine.services||'')+' ×'+(mine.deviceCount||1)+(_ct.same?'':' · call '+esc(_ct.actLbl+(_ct.actAbbr?' '+_ct.actAbbr:'')))+'">'+
             '<div class="appt-cell-name">'+_apptOutcomeGlyph(mine)+(ok?esc(mine.customerName):'••••••')+_apptSrcBadge(mine)+'</div>'+
             '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(mine.services)+'<span class="appt-dev-badge">×'+(mine.deviceCount||1)+'</span></div></div>';
         } else if(offWin){
@@ -531,7 +559,7 @@ function _apptUpcomingTable(appts) {
       ? '<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>'
       : (ok?'—':'••••');
     h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
-      '<td>'+esc(_apptFmtDate(a.date))+'</td><td>'+esc(_apptFmt12(_apptToOffice(a.date,a.timeSlot,a.activatorEmail)))+'</td>'+
+      '<td>'+esc(_apptFmtDate(a.date))+'</td><td>'+_apptDualCell(a.date,a.timeSlot,a.activatorEmail)+'</td>'+
       '<td>'+esc(_apptActName(a.activatorEmail))+'</td>'+
       '<td>'+(ok?esc(a.customerName):'••••••')+_apptSrcBadge(a)+'</td>'+
       '<td>'+dsiCell+'</td>'+
@@ -875,7 +903,7 @@ function _abmFindSoonest() {
         _ABM.soonest={date:results[i].date, slot:_ss};
         // Submit value stays canonical (act-tz for a specific activator, office-tz for __next__);
         // only the displayed label converts to office tz for a specific cross-zone activator.
-        var _lbl=(act && act!=='__next__') ? _apptFmt12(_tzConvertClock(results[i].date,_ss,_apptActTz(act),_apptOfficeTzId())) : _apptFmt12(_ss);
+        var _lbl=(act && act!=='__next__') ? _apptDualInline(results[i].date,_ss,act) : _apptFmt12(_ss);
         chip.innerHTML='<span class="abm-chip-ok">Earliest opening: <b>'+esc(_abmNiceDate(_ABM.soonest.date))+' · '+esc(_lbl)+'</b></span>';
         return;
       }
@@ -901,7 +929,7 @@ function _abmLoadSlots(preselect) {
     // Specific activator: stored slots are activator-TZ; show office-TZ labels (value stays canonical).
     var _conv = (email && email!=='__next__');
     sel.innerHTML='<option value="">Select a time…</option>'+slots.map(function(s){
-      var lbl=_conv ? _apptFmt12(_tzConvertClock(date,s,_apptActTz(email),_apptOfficeTzId())) : _apptFmt12(s);
+      var lbl=_conv ? _apptDualInline(date,s,email) : _apptFmt12(s);
       return '<option value="'+esc(s)+'"'+(s===preselect?' selected':'')+'>'+lbl+'</option>';
     }).join('');
   }).catch(function(){if(sel)sel.innerHTML='<option value="">Error loading slots</option>';});
