@@ -1458,7 +1458,7 @@ function closeApptSchedModal() { document.getElementById('appt-sched-modal').cla
 // Marking an outcome routes the note/lines to the appointment's office notes (the
 // scheduler uses the row's office), and a DSI entered for a customer self-booking is
 // backfilled onto the row (Item 5 keeps notes universal — the call-logs Notes store).
-var _MYAPPT = { appointments:null, actByEmail:null };
+var _MYAPPT = { appointments:null, actByEmail:null, filters:null, sort:null };
 function _apptRefreshCurrent(){ if (CURRENT_TAB==='myappts') renderMyAppointments(); else renderAppointmentsTab(); }
 function _apptFindAppt(id){
   var a=(_APPT.appointments||[]).find(function(x){return x.appointmentId===id;});
@@ -1507,7 +1507,9 @@ function _myApptBuildView(){
   var fi='padding:7px 9px;border:1.5px solid var(--field-border);border-radius:8px;background:var(--field-bg);color:var(--text);font:inherit;font-size:.85rem';
   var bar='<div class="card" style="margin-bottom:14px"><div class="card-body">'+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+
-      '<input type="date" id="maf-date" style="'+fi+'" value="'+esc(f.date||'')+'" onchange="_myApptFilter()" title="Filter by date">'+
+      '<input type="date" id="maf-datefrom" style="'+fi+'" value="'+esc(f.dateFrom||'')+'" onchange="_myApptFilter()" title="From date">'+
+      '<span style="color:var(--text2);font-size:.82rem">to</span>'+
+      '<input type="date" id="maf-dateto" style="'+fi+'" value="'+esc(f.dateTo||'')+'" onchange="_myApptFilter()" title="To date">'+
       '<select id="maf-office" style="'+fi+'" onchange="_myApptFilter()">'+officeOpts+'</select>'+
       (isMaster?'<select id="maf-act" style="'+fi+'" onchange="_myApptFilter()">'+actOpts+'</select>':'')+
       '<select id="maf-lang" style="'+fi+'" onchange="_myApptFilter()">'+langOpts+'</select>'+
@@ -1516,13 +1518,15 @@ function _myApptBuildView(){
       '<input type="text" id="maf-dsi" style="'+fi+';width:100px" placeholder="DSI" value="'+esc(f.dsi||'')+'" oninput="_myApptFilter()">'+
       '<input type="text" id="maf-services" style="'+fi+';width:130px" placeholder="Services" value="'+esc(f.services||'')+'" oninput="_myApptFilter()">'+
       '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="_myApptClearFilters()">Clear</button>'+
+      (isMaster?'<button class="appt-book-btn" style="padding:7px 12px;font-size:.82rem;margin-left:auto" onclick="openCalOverview()">'+icon('appointments')+' Calendar links</button>':'')+
     '</div>'+
   '</div></div>';
   return bar+'<div id="myappt-tbody-wrap">'+_myApptTableHtml()+'</div>';
 }
 function _myApptMatch(a,f){
   if(!f) return true;
-  if(f.date && a.date!==f.date) return false;
+  if(f.dateFrom && a.date < f.dateFrom) return false;
+  if(f.dateTo   && a.date > f.dateTo)   return false;
   if(f.office && String(a.office)!==f.office) return false;
   if(f.activator && String(a.activatorEmail||'').toLowerCase()!==String(f.activator).toLowerCase()) return false;
   if(f.language && (a.language||'english')!==f.language) return false;
@@ -1534,10 +1538,60 @@ function _myApptMatch(a,f){
 }
 function _myApptFilter(){
   var g=function(id){var e=document.getElementById(id);return e?String(e.value||''):'';};
-  _MYAPPT.filters={ date:g('maf-date'), office:g('maf-office'), activator:g('maf-act'),
+  _MYAPPT.filters={ dateFrom:g('maf-datefrom'), dateTo:g('maf-dateto'), office:g('maf-office'), activator:g('maf-act'),
     language:g('maf-lang'), outcome:g('maf-outcome'),
     customer:g('maf-customer').trim(), dsi:g('maf-dsi').trim(), services:g('maf-services').trim() };
   var w=document.getElementById('myappt-tbody-wrap'); if(w) w.innerHTML=_myApptTableHtml();
+}
+// Column-header sorting for the dashboard table (default: date, newest first).
+function _myApptGetSort(){ return _MYAPPT.sort || {key:'date',dir:'desc'}; }
+function _myApptSort(key){
+  var s=_myApptGetSort();
+  _MYAPPT.sort = (s.key===key) ? {key:key,dir:s.dir==='asc'?'desc':'asc'} : {key:key,dir:(key==='date'?'desc':'asc')};
+  var w=document.getElementById('myappt-tbody-wrap'); if(w) w.innerHTML=_myApptTableHtml();
+}
+function _myApptSortVal(a,key){
+  switch(key){
+    case 'date':      return a.date+'|'+String(a.timeSlot||'');
+    case 'time':      return String(a.timeSlot||'');
+    case 'office':    return String((typeof OFFICE_NAMES!=='undefined'&&OFFICE_NAMES[a.office])||a.office||'').toLowerCase();
+    case 'activator': return String(_myApptActName(a.activatorEmail)||'').toLowerCase();
+    case 'customer':  return String(a.customerName||'').toLowerCase();
+    case 'dsi':       return String(a.customerDSI||'').toLowerCase();
+    case 'lang':      return String(a.language||'english');
+    case 'services':  return String(a.services||'').toLowerCase();
+    case 'status':    return String(a.status||'').toLowerCase();
+    case 'outcome':   return String(a.outcome||'').toLowerCase();
+    default:          return '';
+  }
+}
+function _myApptTh(label,key){
+  var s=_myApptGetSort();
+  var ind=s.key===key?(s.dir==='asc'?' ▲':' ▼'):'';
+  return '<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="_myApptSort(\''+key+'\')">'+label+ind+'</th>';
+}
+// Master-admin overview: which activators' Google Calendars are linked (across all
+// offices). Uses getCalendarLinkStatus with no email/office → the whole booking pool.
+function openCalOverview(){
+  document.getElementById('modal-title').innerHTML='<div class="nm-dsi">Calendar links — all activators</div>';
+  document.getElementById('modal-body').innerHTML='<div class="empty">'+icon('clock')+' Checking calendars…</div>';
+  document.getElementById('detail-modal').classList.add('open');
+  _apptGet({action:'getCalendarLinkStatus'}).then(function(res){
+    var st=(res.statuses||[]).slice().sort(function(a,b){
+      if(a.linked!==b.linked) return a.linked?1:-1;   // not-linked first (needs action)
+      return String(a.name||a.email).toLowerCase()<String(b.name||b.email).toLowerCase()?-1:1;
+    });
+    var nNot=st.filter(function(s){return !s.linked;}).length;
+    var dot=function(on){return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(on?'var(--green)':'var(--red)')+'"></span>';};
+    var rows=st.length?st.map(function(s){
+      return '<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border)">'+dot(s.linked)+
+        '<b>'+esc(s.name||s.email)+'</b><span style="color:var(--text2);font-size:.78rem">'+esc(s.email)+'</span>'+
+        '<span style="margin-left:auto;font-weight:700;font-size:.82rem;color:'+(s.linked?'var(--green)':'var(--red)')+'">'+(s.linked?'Linked':'Not linked')+'</span></div>';
+    }).join(''):'<div class="nm-empty">No activators found.</div>';
+    document.getElementById('modal-body').innerHTML=
+      (nNot?'<div class="sc-bookable-hint" style="margin-bottom:12px">'+nNot+' activator'+(nNot===1?'':'s')+' need to re-share their calendar with <code style="background:var(--surface2);padding:2px 6px;border-radius:5px">'+esc(APPT_CAL_SHARE_EMAIL)+'</code> (Make changes to events).</div>':'<div class="sc-bookable-hint" style="margin-bottom:12px">All activators are linked.</div>')+
+      rows+'<div class="nm-actions" style="margin-top:14px"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
+  }).catch(function(){ document.getElementById('modal-body').innerHTML='<div class="empty">Couldn’t load calendar status. Try again.</div>'; });
 }
 function _myApptClearFilters(){
   _MYAPPT.filters={};
@@ -1546,14 +1600,17 @@ function _myApptClearFilters(){
 function _myApptTableHtml(){
   var appts=_MYAPPT.appointments||[], isMaster=SESSION.role==='master-admin', f=_MYAPPT.filters||{};
   var today=_apptDateStr(new Date());
-  var rows=appts.filter(function(a){return _myApptMatch(a,f);})
-    .sort(function(a,b){return a.date!==b.date?b.date.localeCompare(a.date):String(b.timeSlot).localeCompare(String(a.timeSlot));});   // newest → oldest
+  var s=_myApptGetSort();
+  var rows=appts.filter(function(a){return _myApptMatch(a,f);}).sort(function(a,b){
+    var va=_myApptSortVal(a,s.key), vb=_myApptSortVal(b,s.key), c=va<vb?-1:(va>vb?1:0);
+    return s.dir==='asc'?c:-c;
+  });
   var title=isMaster?'All Appointments — every office':'My Appointments — every office';
   var head='<div class="card"><div class="card-header dark">'+title+' <span style="font-weight:400;color:var(--text2);font-size:.8rem">· '+rows.length+' shown</span></div>';
   if(!rows.length) return head+'<div class="card-body"><div class="empty">'+icon('appointments')+' No appointments match these filters.</div></div></div>';
   var badgeStyle='display:inline-block;padding:2px 8px;border-radius:10px;background:var(--inset-bg,rgba(127,127,127,.14));font-size:.72rem;font-weight:600';
   var h=head+'<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
-    '<th>Date</th><th>Time</th><th>Office</th>'+(isMaster?'<th>Activator</th>':'')+'<th>Customer</th><th>DSI</th><th>Lang</th><th>Services</th><th>Status</th><th>Outcome</th><th>Actions</th>'+
+    _myApptTh('Date','date')+_myApptTh('Time','time')+_myApptTh('Office','office')+(isMaster?_myApptTh('Activator','activator'):'')+_myApptTh('Customer','customer')+_myApptTh('DSI','dsi')+_myApptTh('Lang','lang')+_myApptTh('Services','services')+_myApptTh('Status','status')+_myApptTh('Outcome','outcome')+'<th>Actions</th>'+
     '</tr></thead><tbody>';
   rows.forEach(function(a){
     var cancelled=a.status==='cancelled', occurred=a.date<=today;
