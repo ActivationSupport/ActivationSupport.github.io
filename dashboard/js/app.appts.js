@@ -295,9 +295,13 @@ function _apptFetchAll() {
     if (office !== CFG.officeId) { _APPT.loading = false; _apptFlight = null; return false; }
     if (res[0].activators) _APPT.activators = res[0].activators;
     _APPT.appointments = res[1].appointments || [];
-    // Refresh cross-office / calendar block state for the opening view.
+    // Refresh cross-office / calendar block state for the opening view. Load it in the
+    // BACKGROUND + re-render when ready — do NOT gate the appointments render on it: an
+    // out-of-window view fetches no blocks (resolves false) and that must never read as
+    // a load failure (was the "Failed to load" on week nav).
     _APPT.blocked = {}; _APPT.blockedLoaded = {};
-    return _apptFetchBlocks(_apptViewDates());
+    _apptFetchBlocks(_apptViewDates()).then(function(did){ if(did && CURRENT_TAB==='appointments') _apptRerender(); });
+    return true;
   }).then(function(r) {
     _APPT.loading = false; _apptFlight = null; return r;
   }).catch(function() {
@@ -576,7 +580,9 @@ function _apptUpcomingTable(appts) {
   return h+'</tbody></table></div></div>';
 }
 
-function _apptNavWeek(dir) { _APPT.weekOffset+=dir; _APPT.appointments=null; renderAppointmentsTab(); }
+// Week step = pure client re-render (appointments are office-wide, not week-scoped) +
+// lazily load block state for the new week. No refetch → no spurious "Failed to load".
+function _apptNavWeek(dir) { _APPT.weekOffset+=dir; _apptRerender(); _apptLoadBlocks(_apptViewDates()); }
 function _apptFilter(email) { _APPT.filterEmail=email; var c=document.getElementById('main-content'); if(c) c.innerHTML=_apptBuildView(); _apptBindEvents(); }
 function _apptBindEvents() { var s=document.getElementById('appt-act-filter'); if(s) s.value=_APPT.filterEmail; }
 
@@ -584,7 +590,7 @@ function _apptBindEvents() { var s=document.getElementById('appt-act-filter'); i
 // (_apptRerender is defined once, further down, with a CURRENT_TAB guard.)
 function _apptSetView(m){ _APPT.viewMode=m; _apptRerender(); }
 function _apptNav(dir){
-  if ((_APPT.viewMode||'week')==='week'){ _apptNavWeek(dir); }   // week step refetches (existing behavior)
+  if ((_APPT.viewMode||'week')==='week'){ _apptNavWeek(dir); }   // week step: re-render + lazy block load
   else { _APPT.dayOffset+=dir; _apptRerender(); }                // day/all step is a pure client re-render
 }
 
