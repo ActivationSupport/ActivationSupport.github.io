@@ -102,6 +102,10 @@ var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', e
 // Scheduler's deploy-owner) to enable two-way sync. One constant → shown in the
 // "My Schedule" linking step; update here if the backend's owner account changes.
 var APPT_CAL_SHARE_EMAIL = 'gavonfuller2024@gmail.com';
+// Item 1: bilingual activators — a Spanish booking locks the picker to this pool and
+// shows only their availability (mirrors the backend SPANISH_ACTIVATORS). Add emails
+// here as more bilingual activators join.
+var APPT_SPANISH_ACTIVATORS = ['angelmilan1206@gmail.com'];
 var _TZ_ABBR = { 'America/Chicago':'CT', 'America/Los_Angeles':'PT', 'America/New_York':'ET', 'America/Denver':'MT', 'America/Anchorage':'AKT', 'Pacific/Honolulu':'HT' };
 function _tzAbbr(tz){ return _TZ_ABBR[tz] || ''; }
 // "Elevate time (PT)" — for the current office (or a given one).
@@ -784,6 +788,13 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
     '<div class="abm-section">'+
       '<div class="abm-section-title">Appointment</div>'+
       '<div class="appt-form-grid">'+
+        '<div class="field" style="grid-column:1/-1"><label>Language</label>'+
+          '<select class="appt-form-input" id="abm-lang" onchange="_abmLangChange()">'+
+            '<option value="english">English</option>'+
+            '<option value="spanish">Spanish</option>'+
+          '</select>'+
+          '<div class="abm-act-hint" id="abm-lang-hint" style="display:none"></div>'+
+        '</div>'+
         '<div class="field" style="grid-column:1/-1"><label>Activator</label>'+
           '<select class="appt-form-input" id="abm-act" onchange="_abmActChange()">'+actOpts+'</select>'+
           '<div class="abm-act-hint" id="abm-balance-row" style="display:none">⚖ Balanced — assigns the least-busy activator</div>'+
@@ -863,6 +874,31 @@ function _abmActChange() {
   var brow=document.getElementById('abm-balance-row');
   if(brow) brow.style.display = (email==='__next__') ? 'flex' : 'none';   // hint only; balancing is automatic
   if(_ABM.when==='soonest') _abmFindSoonest(); else _abmLoadSlots();
+}
+
+// Item 1: language → Spanish locks the activator to the bilingual pool (Angel) and
+// shows only their availability; English unlocks the picker. The backend enforces the
+// same rule as a safety net (rejects Spanish → non-bilingual activator).
+function _abmLangChange() {
+  var lang=(document.getElementById('abm-lang')||{}).value||'english';
+  var actSel=document.getElementById('abm-act');
+  var hint=document.getElementById('abm-lang-hint');
+  var brow=document.getElementById('abm-balance-row');
+  if (lang==='spanish') {
+    var sp=(_APPT.activators||[]).find(function(a){ return APPT_SPANISH_ACTIVATORS.indexOf(a.email)!==-1; });
+    if (sp) {
+      if(actSel){ actSel.value=sp.email; actSel.disabled=true; }
+      if(hint){ hint.style.display='block'; hint.innerHTML=icon('issues')+' Spanish appointments are booked with <b>'+esc(sp.name)+'</b>.'; }
+    } else {
+      if(actSel){ actSel.value=''; actSel.disabled=true; }
+      if(hint){ hint.style.display='block'; hint.textContent='No Spanish-speaking activator is available for this office.'; }
+    }
+    if(brow) brow.style.display='none';
+  } else {
+    if(actSel){ actSel.disabled=false; }
+    if(hint){ hint.style.display='none'; }
+  }
+  _abmActChange();   // refresh soonest/slots for the (now locked) activator
 }
 
 // Same-day override: affects both modes (soonest search floor + date min).
@@ -959,6 +995,7 @@ function submitApptBooking() {
   var devices=products.reduce(function(s,p){return s+p.qty;},0);
   var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
   var nextMode='balance';   // Next Available Agent always balances the load (backend only uses this for __next__)
+  var lang=(document.getElementById('abm-lang')||{}).value||'english';   // Item 1: booking language
   var errEl=document.getElementById('abm-error');
   if (!actEmail){errEl.textContent='Please choose an activator.';errEl.style.display='block';return;}
   if (_ABM.when==='soonest' && !slot){errEl.textContent='No opening found yet — try “Pick a date”.';errEl.style.display='block';return;}
@@ -970,7 +1007,7 @@ function submitApptBooking() {
   _apptPost({action:'bookAppointment',bookerEmail:SESSION.email,activatorEmail:actEmail,
     date:date,timeSlot:slot,customerName:name,customerDSI:dsi,customerPhone:phone,
     customerEmail:email,customerNote:note,services:svcs,deviceCount:devices,office:CFG.officeId,
-    nextMode:nextMode, role:(sameday?SESSION.role:'')   // role sent only on explicit same-day opt-in
+    language:lang, nextMode:nextMode, role:(sameday?SESSION.role:'')   // role sent only on explicit same-day opt-in
   }).then(function(res){
     if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
     if(res.ok){closeApptModal();_APPT.appointments=null;renderAppointmentsTab();}
