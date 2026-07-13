@@ -47,7 +47,7 @@ var TICKET_SARA = ['Pre', 'During', 'Post'];
 // Mirror of app.appts.js _apptGet/_apptPost: carry the shared key + portal session
 // token, follow redirects, text/plain body (no CORS preflight), route auth-expiry
 // back to login via _authIntercept.
-var TICKET_SCRIPT_URL = '';   // ⏳ Slice 2: paste the new ticketing /exec URL here
+var TICKET_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDYl69QuAHVlTBLSiNujtgA-e4cm686cnJ-90ZctjqZz-8FDAUWYZboaCETi3Rvfqk/exec';   // standalone Sales Support Ticketing backend
 function _ticketGet(params) {
   var p = Object.assign({}, params, { key: API_KEY, officeId: CFG.officeId });
   if (SESSION && SESSION.token) p.token = SESSION.token;
