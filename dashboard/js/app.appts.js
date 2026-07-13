@@ -1038,12 +1038,31 @@ function _apptNotesBody(a){
     '<textarea id="appt-note-input" class="nm-textarea" rows="2" placeholder="Add an internal note…" style="margin-top:10px"></textarea>'+
     '<div class="nm-actions"><button class="nm-add-btn" onclick="addApptNoteUI(\''+esc(a.appointmentId)+'\')">ADD NOTE</button><button class="nm-close-btn" onclick="closeModal()">CLOSE</button></div>';
 }
+// Item 5: the appointment "notes" button opens the SAME universal call-logs Notes
+// modal (Activation + Rep notes, rating, lines-activated) keyed on the customer's DSI
+// — no more separate appointment-only thread. When a customer self-booking has no DSI
+// matched yet, show the booking note + point them to the outcome flow to add the DSI.
 function openApptNotes(id){
-  var a=((window._APPT&&_APPT.appointments)||[]).filter(function(x){return x.appointmentId===id;})[0];
-  if(!a) return;
-  document.getElementById('modal-title').innerHTML='<div class="nm-dsi">Appointment Notes — '+esc(a.customerName||'')+'</div>';
-  document.getElementById('modal-body').innerHTML=_apptNotesBody(a);
+  var a=_apptFindAppt(id); if(!a) return;
+  var dsi=String(a.customerDSI||'').trim();
+  if(dsi && typeof openNotesModal==='function'){
+    openNotesModal(dsi, a.customerName||'', 'Appointment · '+_apptActName(a.activatorEmail));
+    return;
+  }
+  document.getElementById('modal-title').innerHTML='<div class="nm-dsi">Appointment — '+esc(a.customerName||'')+'</div>';
+  document.getElementById('modal-body').innerHTML=_apptNotesNoDsiBody(a);
   document.getElementById('detail-modal').classList.add('open');
+}
+function _apptNotesNoDsiBody(a){
+  var cust = a.customerNote
+    ? '<div style="background:rgba(var(--blue2-rgb),.1);border:1px solid rgba(var(--blue2-rgb),.25);border-radius:8px;padding:10px 12px;margin-bottom:14px">'+
+        '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:3px">Customer note</div>'+
+        '<div style="white-space:pre-wrap">'+esc(a.customerNote)+'</div></div>'
+    : '';
+  return cust+
+    '<div style="color:var(--text2);font-size:.85rem;padding:6px 0;line-height:1.5">This booking isn’t linked to an order yet (no DSI). '+
+    'Mark the appointment’s outcome and enter the DSI there — the note and lines activated will then save into that order’s Notes.</div>'+
+    '<div class="nm-actions"><button class="nm-close-btn" onclick="closeModal()">CLOSE</button></div>';
 }
 function addApptNoteUI(id){
   var inp=document.getElementById('appt-note-input'); var txt=(inp?inp.value:'').trim().slice(0,1000); if(!txt) return;
@@ -1058,7 +1077,7 @@ function addApptNoteUI(id){
 function cancelAppt(id) {
   if (!confirm('Cancel this appointment?')) return;
   _apptPost({action:'cancelAppointment',appointmentId:id,role:SESSION.role,email:SESSION.email}).then(function(res){
-    if(res.ok){_APPT.appointments=null;renderAppointmentsTab();}
+    if(res.ok){_APPT.appointments=null;_MYAPPT.appointments=null;_apptRefreshCurrent();}
     else alert(res.error||'Cancel failed.');
   });
 }
@@ -1077,8 +1096,9 @@ function deleteApptUI(id) {
 // Rebuild the appointments view from cached data (no refetch) — used to revert
 // an outcome <select> when the activator backs out of the note prompt.
 function _apptRerender() {
-  var c=document.getElementById('main-content');
-  if(c&&CURRENT_TAB==='appointments'){ c.innerHTML=_apptBuildView(); _apptBindEvents(); }
+  var c=document.getElementById('main-content'); if(!c) return;
+  if(CURRENT_TAB==='appointments'){ c.innerHTML=_apptBuildView(); _apptBindEvents(); }
+  else if(CURRENT_TAB==='myappts' && _MYAPPT.appointments){ c.innerHTML=_myApptBuildView(); }
 }
 
 // ── Outcome (manual marking by the activator) ─────────────────
@@ -1087,12 +1107,21 @@ var _OUTCOME_LABELS = { completed:'✓ Completed','no-show':'✗ No-Show', resch
 function setApptOutcomeUI(id, outcome) {
   if (!outcome) return;
   _APPT_OUTCOME = { id:id, outcome:outcome };
+  var a = _apptFindAppt(id);
   var canActivate = SESSION.role==='master-admin' || SESSION.role==='activator';
   // Lines-activated only makes sense when the appointment actually happened.
   var showLines = canActivate && outcome==='completed';
   var linesField = showLines ? _linesFieldHtml('appt-outcome-body',icon('zap')+' Lines activated during this appointment') : '';
+  // Item 4: a customer self-booking has no DSI until the activator matches the order —
+  // let them enter it here so the activation note lands on the right order (backfilled).
+  var needDsi = canActivate && a && !String(a.customerDSI||'').trim();
+  var dsiField = needDsi
+    ? '<label class="ao-label">DSI # <span style="font-weight:400;color:var(--text2)">— this booking has none yet</span></label>'+
+      '<input id="appt-outcome-dsi" class="nm-textarea" style="margin-bottom:10px" placeholder="Enter the DSI for this order">'
+    : '';
   document.getElementById('appt-outcome-title').textContent = 'Mark Outcome — '+(_OUTCOME_LABELS[outcome]||outcome);
   document.getElementById('appt-outcome-body').innerHTML =
+    dsiField+
     '<label class="ao-label">Note '+(showLines?'':'(optional)')+'</label>'+
     '<textarea id="appt-outcome-note" class="nm-textarea" placeholder="Activation note for this appointment (saved to the customer’s notes)…" style="margin-bottom:10px"></textarea>'+
     linesField+
@@ -1112,10 +1141,12 @@ function submitApptOutcome() {
   var noteEl=document.getElementById('appt-outcome-note');
   var note=noteEl?noteEl.value.trim():'';
   var lines=_linesGet('appt-outcome-body');
+  var dsiEl=document.getElementById('appt-outcome-dsi');
+  var dsi=dsiEl?dsiEl.value.trim():'';
   document.getElementById('appt-outcome-modal').classList.remove('open');
-  _apptPost({action:'setApptOutcome',appointmentId:id,outcome:outcome,note:note,linesActivated:lines,
+  _apptPost({action:'setApptOutcome',appointmentId:id,outcome:outcome,note:note,linesActivated:lines,dsi:dsi,
     role:SESSION.role,email:SESSION.email}).then(function(res){
-    if(res.ok){ _APPT.appointments=null; renderAppointmentsTab(); }
+    if(res.ok){ _APPT.appointments=null; _MYAPPT.appointments=null; _apptRefreshCurrent(); }
     else { alert(res.error||'Failed to set outcome.'); _apptRerender(); }
   }).catch(function(){ alert('Connection error.'); _apptRerender(); });
 }
@@ -1365,4 +1396,83 @@ function saveApptSched() {
 }
 
 function closeApptSchedModal() { document.getElementById('appt-sched-modal').classList.remove('open'); }
+
+// ── Item 4: Activator dashboard — appointments across ALL offices ─────────────
+// Activators see their own; master-admins see everyone's (backend-enforced too).
+// Rows span offices, so times use the appointment's OWN office tz + the activator's
+// tz (from an email→{name,tz} map built from getActivators), not the current office.
+// Marking an outcome routes the note/lines to the appointment's office notes (the
+// scheduler uses the row's office), and a DSI entered for a customer self-booking is
+// backfilled onto the row (Item 5 keeps notes universal — the call-logs Notes store).
+var _MYAPPT = { appointments:null, actByEmail:null };
+function _apptRefreshCurrent(){ if (CURRENT_TAB==='myappts') renderMyAppointments(); else renderAppointmentsTab(); }
+function _apptFindAppt(id){
+  var a=(_APPT.appointments||[]).find(function(x){return x.appointmentId===id;});
+  if(!a) a=(_MYAPPT.appointments||[]).find(function(x){return x.appointmentId===id;});
+  return a;
+}
+function renderMyAppointments(){
+  var c=document.getElementById('main-content'); if(!c) return;
+  c.innerHTML='<div class="empty">'+icon('clock')+' Loading your appointments…</div>';
+  var isMaster=SESSION.role==='master-admin';
+  Promise.all([
+    _apptGet({action:'getActivatorAppointments', email:(isMaster?'':SESSION.email)}),
+    _apptGet({action:'getActivators'})   // all offices → email→{name,tz} for cross-office times/labels
+  ]).then(function(res){
+    _MYAPPT.appointments=((res[0]||{}).appointments)||[];
+    var m={}; (((res[1]||{}).activators)||[]).forEach(function(a){ m[a.email]={name:a.name,tz:a.timezone||''}; });
+    _MYAPPT.actByEmail=m;
+    if(CURRENT_TAB==='myappts') c.innerHTML=_myApptBuildView();
+  }).catch(function(){ if(CURRENT_TAB==='myappts') c.innerHTML='<div class="empty">Couldn’t load appointments. Try again.</div>'; });
+}
+function _myApptActTz(email){ var e=_MYAPPT.actByEmail&&_MYAPPT.actByEmail[email]; return (e&&e.tz)||''; }
+function _myApptActName(email){ var e=_MYAPPT.actByEmail&&_MYAPPT.actByEmail[email]; return (e&&e.name)||email; }
+// Office-aware dual-time (dashboard rows span offices → can't use the current-office helper).
+function _myApptDualCell(a){
+  var oTz=APPT_OFFICE_TZ[a.office]||'', aTz=_myApptActTz(a.activatorEmail)||oTz, stored=a.timeSlot;
+  var custSlot=(oTz&&aTz&&oTz!==aTz)?_tzConvertClock(a.date,stored,aTz,oTz):stored;
+  var cA=_tzAbbr(oTz), aA=_tzAbbr(aTz);
+  if(!aTz||aTz===oTz) return esc(_apptFmt12(custSlot)+(cA?' '+cA:''));
+  return '<div class="appt-dtime"><div class="appt-dtime-cust"><span class="appt-dtime-tag">Customer</span>'+esc(_apptFmt12(custSlot)+(cA?' '+cA:''))+'</div>'+
+    '<div class="appt-dtime-act"><span class="appt-dtime-tag">You call</span>'+esc(_apptFmt12(stored)+(aA?' '+aA:''))+'</div></div>';
+}
+function _myApptBuildView(){
+  var appts=_MYAPPT.appointments||[], isMaster=SESSION.role==='master-admin';
+  var today=_apptDateStr(new Date());
+  var floor=new Date(); floor.setDate(floor.getDate()-7); floor=_apptDateStr(floor);
+  var rows=appts.filter(function(a){return a.date>=floor;})
+    .sort(function(a,b){return a.date!==b.date?a.date.localeCompare(b.date):String(a.timeSlot).localeCompare(String(b.timeSlot));});
+  var title=isMaster?'All Appointments — every office':'My Appointments — every office';
+  var head='<div class="card"><div class="card-header dark">'+title+'</div>';
+  if(!rows.length) return head+'<div class="card-body"><div class="empty">'+icon('appointments')+' No appointments in the last 7 days or upcoming.</div></div></div>';
+  var badgeStyle='display:inline-block;padding:2px 8px;border-radius:10px;background:var(--inset-bg,rgba(127,127,127,.14));font-size:.72rem;font-weight:600';
+  var h=head+'<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
+    '<th>Date</th><th>Time</th><th>Office</th>'+(isMaster?'<th>Activator</th>':'')+'<th>Customer</th><th>DSI</th><th>Lang</th><th>Services</th><th>Status</th><th>Outcome</th><th>Actions</th>'+
+    '</tr></thead><tbody>';
+  rows.forEach(function(a){
+    var cancelled=a.status==='cancelled', occurred=a.date<=today;
+    var canX=isMaster||a.activatorEmail===SESSION.email||a.bookerEmail===SESSION.email;
+    var outcomeCell=cancelled?'<span class="appt-outcome appt-outcome-canceled">Canceled</span>'
+      :(occurred&&canX?_apptOutcomeSelect(a):(a.outcome?_apptOutcomeBadge(a.outcome):'—'));
+    var dsi=String(a.customerDSI||'').trim();
+    var dsiCell=dsi?'<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>':'<span style="color:var(--text2)">—</span>';
+    var lang=(a.language==='spanish')?'<span style="display:inline-block;padding:1px 6px;border-radius:6px;background:rgba(217,150,60,.18);color:#c8892e;font-size:.68rem;font-weight:700">ES</span>':'<span style="color:var(--text2);font-size:.72rem">EN</span>';
+    var offName=(typeof OFFICE_NAMES!=='undefined'&&OFFICE_NAMES[a.office])||a.office;
+    var actions=(canX&&!cancelled)?'<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>':'';
+    h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
+      '<td>'+esc(_apptFmtDate(a.date))+'</td>'+
+      '<td>'+_myApptDualCell(a)+'</td>'+
+      '<td><span style="'+badgeStyle+'">'+esc(offName)+'</span></td>'+
+      (isMaster?'<td>'+esc(_myApptActName(a.activatorEmail))+'</td>':'')+
+      '<td>'+esc(a.customerName||'—')+'</td>'+
+      '<td>'+dsiCell+'</td>'+
+      '<td>'+lang+'</td>'+
+      '<td style="font-size:.78rem">'+esc(a.services||'—')+'</td>'+
+      '<td><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span></td>'+
+      '<td>'+outcomeCell+'</td>'+
+      '<td style="white-space:nowrap">'+(actions||'—')+'</td>'+
+    '</tr>';
+  });
+  return h+'</tbody></table></div></div>';
+}
 
