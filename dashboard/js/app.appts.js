@@ -1235,9 +1235,62 @@ function openApptSchedModal() {
   document.getElementById('appt-sched-modal').classList.add('open');
   _apptGet({action:'getActivatorSchedule',email:SESSION.email}).then(function(res){
     _renderSchedModal(res.schedule||{});
+    _scLoadCalStatus();
   }).catch(function(){
     document.getElementById('appt-sched-body').innerHTML='<div class="empty">Failed to load. Close and try again.</div>';
   });
+}
+// Calendar-link self-check for My Schedule: tells the activator whether their Google
+// Calendar is actually shared with the deploy owner. (The 2026-07 owner-account switch
+// orphaned old shares — this surfaces a broken link so they know to re-share.)
+function _scLoadCalStatus(){
+  var el=document.getElementById('sc-cal-status'); if(!el) return;
+  el.innerHTML='<span style="color:var(--text2)">Checking your calendar link…</span>';
+  _apptGet({action:'getCalendarLinkStatus',email:SESSION.email}).then(function(res){
+    var el2=document.getElementById('sc-cal-status'); if(!el2) return;
+    var s=(res.statuses||[])[0];
+    if(s&&s.linked){
+      el2.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle"></span>'+
+        '<b style="color:var(--green)">Your calendar is linked</b> <span style="color:var(--text2)">— busy times auto-block and booked appointments appear on it.</span>';
+    } else {
+      el2.innerHTML='<b style="color:var(--red)">'+icon('issues')+' Your calendar isn’t linked</b> <span style="color:var(--text2)">— share it with the address below (the July setup change broke older shares, so re-share even if you did this before).</span>';
+    }
+  }).catch(function(){ var el2=document.getElementById('sc-cal-status'); if(el2) el2.innerHTML=''; });
+}
+
+// Item 4 notes section: an appointment's ORDER notes (the universal call-logs Notes for
+// its DSI, office-correct — served by getActivatorAppointments). Activators/master-admins
+// add an activation note + lines here; it writes to _Notes_<office> via addAppointmentNote.
+function openDashNotes(id){
+  var a=_apptFindAppt(id); if(!a) return;
+  var dsi=String(a.customerDSI||'').trim();
+  var canAdd=SESSION.role==='master-admin'||SESSION.role==='activator';
+  var notes=a.notes||[];
+  var hist=notes.length ? notes.map(function(n){
+    var la=Math.max(0,parseInt(n.linesActivated,10)||0);
+    var badge=la?' <span style="background:rgba(var(--blue2-rgb),.15);color:var(--blue2);border-radius:6px;padding:0 6px;font-size:.7rem;font-weight:700">'+la+' line'+(la===1?'':'s')+'</span>':'';
+    return '<div style="border-bottom:1px solid var(--border);padding:8px 0">'+
+      '<div style="font-size:.74rem;color:var(--text2)">'+esc(n.authorName||'')+' · '+esc(fmtDate(n.ts))+badge+'</div>'+
+      '<div style="margin-top:2px;white-space:pre-wrap">'+esc(n.noteText)+'</div></div>';
+  }).join('') : '<div class="nm-empty">No notes yet.</div>';
+  var addUi = !canAdd ? '' : (dsi
+    ? '<textarea id="dash-note-input" class="nm-textarea" placeholder="Add an activation note…" style="margin-top:10px"></textarea>'+
+      _linesFieldHtml('modal-body',icon('zap')+' Lines activated on this order')+
+      '<button class="nm-add-btn" style="margin-top:8px" onclick="submitDashNote(\''+esc(id)+'\')">ADD NOTE</button>'
+    : '<div class="sc-bookable-hint" style="margin-top:10px">No DSI on this booking yet — mark its outcome and enter the DSI first to attach notes to the order.</div>');
+  document.getElementById('modal-title').innerHTML='<div class="nm-dsi">Notes — '+esc(a.customerName||'')+(dsi?' · DSI '+esc(dsi):'')+'</div>';
+  document.getElementById('modal-body').innerHTML='<div class="nm-history">'+hist+'</div>'+addUi+
+    '<div class="nm-actions" style="margin-top:14px"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
+  document.getElementById('detail-modal').classList.add('open');
+}
+function submitDashNote(id){
+  var inp=document.getElementById('dash-note-input'); var txt=inp?inp.value.trim():'';
+  var lines=_linesGet('modal-body');
+  if(!txt && !lines) return;
+  _apptPost({action:'addAppointmentNote',appointmentId:id,noteText:txt,linesActivated:lines,email:SESSION.email,authorName:SESSION.name}).then(function(res){
+    if(res&&res.ok){ _MYAPPT.appointments=null; if(typeof closeModal==='function')closeModal(); renderMyAppointments(); }
+    else alert((res&&res.error==='no_dsi')?'This booking has no DSI yet — mark its outcome and enter the DSI first.':((res&&res.error)||'Could not add note.'));
+  }).catch(function(){ alert('Connection error.'); });
 }
 function _copyCalShareEmail() {
   var e = APPT_CAL_SHARE_EMAIL;
@@ -1277,6 +1330,7 @@ function _renderSchedModal(sched) {
     '</div>'+
     '<div style="border:1px solid rgba(var(--blue2-rgb),.35);background:rgba(var(--blue2-rgb),.08);border-radius:10px;padding:12px 14px;margin-bottom:16px">'+
       '<div style="font-weight:700;margin-bottom:4px">'+icon('appointments')+' Link your Google Calendar <span style="font-weight:400;color:var(--text2);font-size:.82rem">— recommended</span></div>'+
+      '<div id="sc-cal-status" style="margin:4px 0 8px;font-size:.83rem;line-height:1.45"></div>'+
       '<div style="font-size:.84rem;color:var(--text);line-height:1.5">'+
         'So the system automatically <b>blocks the times you’re busy</b> and adds <b>booked appointments onto your calendar</b>, share your calendar once:'+
         '<ol style="margin:8px 0 6px 18px;padding:0;font-size:.83rem;color:var(--text2);line-height:1.65">'+
@@ -1458,7 +1512,10 @@ function _myApptBuildView(){
     var dsiCell=dsi?'<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>':'<span style="color:var(--text2)">—</span>';
     var lang=(a.language==='spanish')?'<span style="display:inline-block;padding:1px 6px;border-radius:6px;background:rgba(217,150,60,.18);color:#c8892e;font-size:.68rem;font-weight:700">ES</span>':'<span style="color:var(--text2);font-size:.72rem">EN</span>';
     var offName=(typeof OFFICE_NAMES!=='undefined'&&OFFICE_NAMES[a.office])||a.office;
-    var actions=(canX&&!cancelled)?'<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>':'';
+    var notesN=(a.notes&&a.notes.length)?(' '+a.notes.length):'';
+    var actions='';
+    if(canX) actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openDashNotes(\''+esc(a.appointmentId)+'\')">'+icon('edit')+' Notes'+notesN+'</button>';
+    if(canX&&!cancelled) actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>';
     h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
       '<td>'+esc(_apptFmtDate(a.date))+'</td>'+
       '<td>'+_myApptDualCell(a)+'</td>'+
