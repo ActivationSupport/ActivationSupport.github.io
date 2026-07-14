@@ -340,7 +340,7 @@ function renderTicketQueue() {
   var c = document.getElementById('main-content'); if (!c) return;
   if (!TICKET_SCRIPT_URL) { c.innerHTML = _ticketScaffold('Ticket Queue', 'Backend not connected in this preview.', ''); return; }
   if (!_TICKETS.sort || !_TICKETS.sort.key) _TICKETS.sort = { key:'created', dir:'desc' };   // newest first
-  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2><p class="ss-sub">Loading tickets…</p></div>';
+  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2>' + _ssLoading('Loading tickets…') + '</div>';
   Promise.all([
     _ticketGet({ action:'getTickets' }),
     _ticketGet({ action:'getLookups' }),
@@ -450,6 +450,9 @@ function _ssEmpty(sym, title, sub) {
   return '<div class="ss-empty"><svg class="ss-empty-svg" viewBox="0 0 24 24"><use href="#i-' + sym + '"></use></svg>' +
     '<div class="ss-empty-t">' + esc(title) + '</div>' + (sub ? '<div class="ss-empty-s">' + esc(sub) + '</div>' : '') + '</div>';
 }
+function _ssLoading(label) {   // console scanning bar + label
+  return '<div class="ss-loading"><div class="ss-loading-bar"></div><div class="ss-loading-lbl">' + esc(label || 'Loading…') + '</div></div>';
+}
 
 function _ticketTableHtml() {
   var f = _TICKETS.filters, s = _TICKETS.sort;
@@ -491,7 +494,7 @@ function renderTicketFollowups() {
   if (!TICKET_SCRIPT_URL) { c.innerHTML = _ticketScaffold('Follow-Ups', 'Backend not connected in this preview.', ''); return; }
   var hdr = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2>' +
     '<p class="ss-sub">Tickets marked “Follow-up (Need Response),” oldest first. These feed the daily 6:00 AM reminder.</p></div>';
-  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2><p class="ss-sub">Loading…</p></div>';
+  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2>' + _ssLoading('Loading…') + '</div>';
   Promise.all([ _ticketGet({ action:'getTickets' }), _ticketGet({ action:'getAgents' }) ]).then(function(r) {
     _TICKETS.list = (r[0] && r[0].tickets) || [];
     if (r[1] && r[1].agents) _TICKETS.agents = r[1].agents;
@@ -534,7 +537,7 @@ function openTicketDetail(id) {
   var modal = document.getElementById('ticket-modal'); if (!modal) return;
   var body = document.getElementById('ticket-modal-body'), title = document.getElementById('ticket-modal-title');
   if (title) title.textContent = 'Ticket ' + id;
-  if (body) body.innerHTML = '<p class="ss-sub">Loading…</p>';
+  if (body) body.innerHTML = _ssLoading('Loading…');
   modal.classList.add('open');
   _ticketGet({ action:'getTicket', ticketId:id }).then(function(res){
     if (!res || !res.ticket) { body.innerHTML = '<p style="color:var(--red)">Could not load ticket.</p>'; return; }
