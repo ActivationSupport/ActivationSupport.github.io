@@ -124,6 +124,12 @@ html[data-office="salessupport"] #ticket-modal .modal::after{ bottom:10px; right
 .ss-loading-bar{ height:2px; border-radius:2px; background:linear-gradient(90deg, transparent, var(--blue2), transparent); background-size:40% 100%; background-repeat:no-repeat; box-shadow:0 0 8px rgba(79,168,255,.4); animation:ss-scan 1.1s linear infinite }
 .ss-loading-lbl{ color:var(--text2); font-size:13px; margin-top:9px; letter-spacing:.5px }
 @keyframes ss-scan{ 0%{ background-position:-40% 0 } 100%{ background-position:140% 0 } }
+/* ── STAR WARS console skin — Pass 5: form sections / office switcher ── */
+.ss-form-sec{ margin-bottom:20px }
+.ss-form-sec:last-child{ margin-bottom:0 }
+.ss-form-seclabel{ font-family:Orbitron,'Arial Black',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--blue2); margin:0 0 12px; padding-bottom:6px; border-bottom:1px solid rgba(79,168,255,.15) }
+html[data-office="salessupport"] .office-dd-panel{ border:1px solid rgba(79,168,255,.3); box-shadow:0 0 0 1px rgba(79,168,255,.1), 0 14px 34px rgba(0,0,0,.6) }
+html[data-office="salessupport"] .office-dd-item:hover{ background:rgba(79,168,255,.1) }
 /* ── SALES SUPPORT — ticket UI (Slice 3+) ── */
 .ss-card{ margin-bottom:18px }
 .ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--ss-gold,var(--accent2b)));margin:-2px 0 16px }

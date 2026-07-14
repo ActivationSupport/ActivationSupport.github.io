@@ -150,6 +150,7 @@ function renderNewTicket() {
 function _ntField(label, controlHtml, cls) {
   return '<label class="ss-fld' + (cls ? ' ' + cls : '') + '"><span class="ss-lbl">' + esc(label) + '</span>' + controlHtml + '</label>';
 }
+function _ntSec(title) { return '<div class="ss-form-seclabel">' + esc(title) + '</div>'; }
 function _newTicketFormHtml() {
   var chan = '<select id="nt-channel" class="ps-select"><option value="">—</option>' +
     TICKET_CHANNELS.map(function(x){ return '<option>' + esc(x) + '</option>'; }).join('') + '</select>';
@@ -162,24 +163,34 @@ function _newTicketFormHtml() {
     '<div class="ss-rule"></div>' +
     '<h2 class="ss-h2">New Ticket</h2>' +
     '<p class="ss-sub">Log a rep call or text. Rep, office, subject and categories remember what you type — pick an existing one or create a new one inline.</p>' +
-    '<div class="ss-grid">' +
-      _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; } })) +
-      _ntField('Office', _comboField('nt-office', { placeholder:'Office', options:function(){ return _TICKETS.lookups.office || []; } })) +
-      _ntField('Channel', chan) +
-      _ntField('Phone #', '<input id="nt-phone" class="ps-input" autocomplete="off" placeholder="Called / texted in from">') +
-      _ntField('Subject', _comboField('nt-subject', { placeholder:'Short summary', options:function(){ return _TICKETS.lookups.subject || []; } }), 'ss-fld--full') +
-      _ntField('General Category', _comboField('nt-general', { placeholder:'e.g. Escalations', options:function(){ return _TICKETS.lookups.generalCat || []; } })) +
-      _ntField('Specific Category', _comboField('nt-specific', { placeholder:'e.g. Fraud Support', options:_ticketSpecificOptions })) +
-      _ntField('Sara Plus', sara) +
-      _ntField('DSI / Account', '<input id="nt-dsi" class="ps-input" autocomplete="off" placeholder="DSI or account info">') +
-      _ntField('Assignee', assignee) +
-      _ntField('Tags', '<input id="nt-tags" class="ps-input" autocomplete="off" placeholder="comma, separated">') +
+    '<div class="ss-form-sec">' + _ntSec('Contact') +
+      '<div class="ss-grid">' +
+        _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; } })) +
+        _ntField('Office', _comboField('nt-office', { placeholder:'Office', options:function(){ return _TICKETS.lookups.office || []; } })) +
+        _ntField('Channel', chan) +
+        _ntField('Phone #', '<input id="nt-phone" class="ps-input" autocomplete="off" placeholder="Called / texted in from">') +
+      '</div>' +
     '</div>' +
-    '<div class="ss-checks">' +
-      '<label class="ss-chk"><input type="checkbox" id="nt-calledback"> Called Back</label>' +
-      '<label class="ss-chk"><input type="checkbox" id="nt-review"> Review Approval</label>' +
+    '<div class="ss-form-sec">' + _ntSec('Classification') +
+      '<div class="ss-grid">' +
+        _ntField('General Category', _comboField('nt-general', { placeholder:'e.g. Escalations', options:function(){ return _TICKETS.lookups.generalCat || []; } })) +
+        _ntField('Specific Category', _comboField('nt-specific', { placeholder:'e.g. Fraud Support', options:_ticketSpecificOptions })) +
+        _ntField('Sara Plus', sara) +
+        _ntField('DSI / Account', '<input id="nt-dsi" class="ps-input" autocomplete="off" placeholder="DSI or account info">') +
+      '</div>' +
     '</div>' +
-    _ntField('Notes', '<textarea id="nt-note" class="ps-textarea" rows="4" placeholder="What happened / what’s needed"></textarea>') +
+    '<div class="ss-form-sec">' + _ntSec('Ticket') +
+      '<div class="ss-grid">' +
+        _ntField('Subject', _comboField('nt-subject', { placeholder:'Short summary', options:function(){ return _TICKETS.lookups.subject || []; } }), 'ss-fld--full') +
+        _ntField('Assignee', assignee) +
+        _ntField('Tags', '<input id="nt-tags" class="ps-input" autocomplete="off" placeholder="comma, separated">') +
+      '</div>' +
+      '<div class="ss-checks">' +
+        '<label class="ss-chk"><input type="checkbox" id="nt-calledback"> Called Back</label>' +
+        '<label class="ss-chk"><input type="checkbox" id="nt-review"> Review Approval</label>' +
+      '</div>' +
+      _ntField('Notes', '<textarea id="nt-note" class="ps-textarea" rows="4" placeholder="What happened / what’s needed"></textarea>') +
+    '</div>' +
     '<div class="ss-actions">' +
       '<button id="nt-submit" class="ps-btn" onclick="_ticketCreate(event)">Create Ticket</button>' +
       '<span id="nt-status" class="ss-status"></span>' +
