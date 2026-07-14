@@ -110,7 +110,12 @@ function _ssLogoSvg(h, filled) {
 function _ssApplyBranding(officeId) {
   if (officeId !== 'salessupport') return;
   var logo = document.getElementById('login-office-logo');
-  if (logo) { logo.innerHTML = _ssLogoSvg(120); logo.style.display = 'block'; logo.style.filter = 'drop-shadow(0 0 14px rgba(244,194,27,.28))'; }
+  if (logo) {
+    logo.innerHTML = _ssLogoSvg(120);   // outline wordmark
+    logo.style.cssText = 'display:block;width:100%;filter:drop-shadow(0 0 14px rgba(244,194,27,.28))';
+    var lsvg = logo.querySelector('svg');   // fit the card width instead of a fixed height (no overflow/clipping)
+    if (lsvg) { lsvg.style.width = '100%'; lsvg.style.height = 'auto'; lsvg.style.maxWidth = '100%'; lsvg.style.display = 'block'; lsvg.style.margin = '0 auto'; }
+  }
   var nm = document.getElementById('login-office-name'); if (nm) nm.style.display = 'none';
   var ls = document.getElementById('login-screen');
   if (ls) {
