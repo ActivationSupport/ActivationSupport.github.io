@@ -70,7 +70,8 @@ function _ticketPost(body) {
 function initTicketApp() {
   var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(40, true);   // filled (readable small) sidebar wordmark
   var nameEl = document.getElementById('sb-user-name');
-  if (nameEl) nameEl.textContent = (SESSION.name || SESSION.email || '') + (SESSION.role ? ' · ' + SESSION.role : '');
+  if (nameEl) nameEl.innerHTML = '<div class="ss-sb-role">' + esc(SESSION.role || 'agent') + '</div>' +
+    '<div class="ss-sb-email" title="' + esc(SESSION.email || '') + '">' + esc(SESSION.email || '') + '</div>';
   switchTab(CURRENT_TAB || 'tickets');
 }
 
@@ -83,7 +84,7 @@ function _ssLoadFont() {
   if (document.getElementById('ss-orbitron')) return;
   var l = document.createElement('link');
   l.id = 'ss-orbitron'; l.rel = 'stylesheet';
-  l.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap';
+  l.href = 'https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap';
   document.head.appendChild(l);
 }
 function _ssLogoSvg(h, filled) {

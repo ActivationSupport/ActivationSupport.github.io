@@ -184,6 +184,27 @@ html[data-office="salessupport"] #login-screen::after{
 html[data-office="salessupport"] .login-card{ z-index:1 }
 /* monospace data readouts */
 .ss-mono{ font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; letter-spacing:.3px }
+/* ── STAR WARS console skin — Pass 8: readable SW font + top bar + sidebar header ── */
+/* readable sci-fi body font (Exo 2); Orbitron headers + mono readouts keep their own fonts */
+html[data-office="salessupport"] body,
+html[data-office="salessupport"] input,
+html[data-office="salessupport"] select,
+html[data-office="salessupport"] textarea,
+html[data-office="salessupport"] button{ font-family:'Exo 2','Segoe UI',system-ui,sans-serif }
+/* top bar console header */
+html[data-office="salessupport"] .topbar{ position:relative }
+html[data-office="salessupport"] .topbar-title{ position:relative; padding-left:14px }
+html[data-office="salessupport"] .topbar-title::before{ content:''; position:absolute; left:0; top:4px; bottom:4px; width:3px; border-radius:2px; background:linear-gradient(var(--blue2), var(--ss-gold)); box-shadow:0 0 8px rgba(79,168,255,.5) }
+html[data-office="salessupport"] #page-title{ font-family:Orbitron,'Arial Black',sans-serif; text-transform:uppercase; letter-spacing:2px; font-size:14px; color:#cfe0ff; text-shadow:0 0 12px rgba(79,168,255,.3) }
+html[data-office="salessupport"] .topbar::after{ content:''; position:absolute; left:0; right:0; bottom:0; height:1px; pointer-events:none; background:linear-gradient(90deg, transparent 0%, var(--blue2) 18%, transparent 40%); background-size:250% 100%; animation:ss-topscan 5s linear infinite }
+@keyframes ss-topscan{ from{ background-position:250% 0 } to{ background-position:-50% 0 } }
+/* sidebar header block */
+html[data-office="salessupport"] .sidebar-header{ position:relative; padding-bottom:14px; border-bottom:1px solid rgba(79,168,255,.14) }
+html[data-office="salessupport"] .sidebar-office{ display:none }
+html[data-office="salessupport"] .sidebar-user{ margin-top:9px }
+html[data-office="salessupport"] .ss-sb-role{ font-family:Orbitron,'Arial Black',sans-serif; font-size:9px; text-transform:uppercase; letter-spacing:1.5px; color:var(--blue2) }
+html[data-office="salessupport"] .ss-sb-role::before{ content:'●'; color:var(--green); margin-right:6px; font-size:8px; text-shadow:0 0 6px var(--green); vertical-align:middle }
+html[data-office="salessupport"] .ss-sb-email{ font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-size:11px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:3px }
 /* ── SALES SUPPORT — ticket UI (Slice 3+) ── */
 .ss-card{ margin-bottom:18px }
 .ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--ss-gold,var(--accent2b)));margin:-2px 0 16px }
