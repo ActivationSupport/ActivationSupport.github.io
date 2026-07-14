@@ -486,32 +486,39 @@ function _ticketDetailHtml(t, notes) {
     TICKET_STATUS.map(function(s){ return '<option value="' + s.code + '"' + (s.code === t.status ? ' selected' : '') + '>' + esc(s.label) + '</option>'; }).join('') + '</select>';
   var asgSel = '<select class="ps-select" onchange="_ticketReassign(this.value)">' +
     agents.map(function(a){ return '<option value="' + esc(a.email) + '"' + (a.email === t.assignee ? ' selected' : '') + '>' + esc(a.name || a.email) + '</option>'; }).join('') + '</select>';
-  var subj = t.subject ? '<h4 class="ss-dsubj">' + esc(t.subject) + '</h4>' : '';
-  var controls = '<div class="ss-dl" style="margin-bottom:12px">' + _dt('Status', statusSel) + _dt('Assignee', asgSel) + '</div>';
-  var meta = '<div class="ss-dl">' +
-    _dt('Requester (Rep)', esc(t.requester)) +
-    _dt('Office', esc(t.office)) +
-    _dt('Channel', esc(t.channel)) +
-    _dt('Phone', esc(t.phone)) +
-    _dt('Category', _ticketCat(t)) +
-    _dt('Sara Plus', esc(t.saraPlus)) +
-    _dt('DSI / Account', esc(t.dsi)) +
-    _dt('Tags', esc(t.tags)) +
-    _dt('Opened by', esc(t.createdByName || t.createdBy)) +
-    _dt('Created', esc(_ticketFmtDate(t.created))) +
+  var header = '<div class="ss-td-head">' +
+    '<div class="ss-td-headmain">' +
+      '<h4 class="ss-dsubj">' + (t.subject ? esc(t.subject) : '<span style="opacity:.55">(no subject)</span>') + '</h4>' +
+      '<div class="ss-td-sub">' + esc(t.ticketId) + ' · opened by ' + esc(t.createdByName || t.createdBy || '—') + ' · ' + esc(_ticketFmtDate(t.created)) + '</div>' +
+    '</div>' + _ticketStatusBadge(t.status) +
   '</div>';
-  var checks = '<div class="ss-checks">' +
-    '<label class="ss-chk"><input type="checkbox" ' + (t.calledBack ? 'checked' : '') + ' onchange="_ticketToggle(\'calledBack\',this.checked)"> Called Back</label>' +
-    '<label class="ss-chk"><input type="checkbox" ' + (t.reviewApproval ? 'checked' : '') + ' onchange="_ticketToggle(\'reviewApproval\',this.checked)"> Review Approval</label>' +
-  '</div>';
-  var thread = '<div class="ss-thread"><div class="ss-lbl" style="margin:18px 0 8px">Notes</div>' +
-    (notes.length ? notes.map(function(n){
+  var notesHtml = notes.length ? notes.map(function(n){
       return '<div class="ss-note"><div class="ss-note-hd">' + esc(n.authorName || n.author) + ' · ' + esc(_ticketFmtDate(n.timestamp)) + '</div><div>' + esc(n.body).replace(/\n/g, '<br>') + '</div></div>';
-    }).join('') : '<p class="ss-sub" style="margin:0 0 6px">No notes yet.</p>') +
+    }).join('') : '<p class="ss-sub" style="margin:0 0 6px">No notes yet — add the first one below.</p>';
+  var main = '<div class="ss-td-main">' +
+    '<div class="ss-lbl" style="margin-bottom:8px">Conversation</div>' +
+    '<div class="ss-td-thread">' + notesHtml + '</div>' +
     '<textarea id="td-note" class="ps-textarea" rows="3" placeholder="Add a note to the thread…"></textarea>' +
     '<div class="ss-actions"><button class="ps-btn" onclick="_ticketAddNote()">Add Note</button><span id="td-status" class="ss-status"></span></div>' +
   '</div>';
-  return subj + controls + meta + checks + thread;
+  var side = '<div class="ss-td-side">' +
+    '<div class="ss-side-grp">' + _dt('Status', statusSel) + _dt('Assignee', asgSel) + '</div>' +
+    '<div class="ss-side-grp">' +
+      _dt('Requester (Rep)', esc(t.requester)) +
+      _dt('Office', esc(t.office)) +
+      _dt('Channel', esc(t.channel)) +
+      _dt('Phone', esc(t.phone)) +
+      _dt('Category', _ticketCat(t)) +
+      _dt('Sara Plus', esc(t.saraPlus)) +
+      _dt('DSI / Account', esc(t.dsi)) +
+      _dt('Tags', esc(t.tags)) +
+    '</div>' +
+    '<div class="ss-side-grp">' +
+      '<label class="ss-chk"><input type="checkbox" ' + (t.calledBack ? 'checked' : '') + ' onchange="_ticketToggle(\'calledBack\',this.checked)"> Called Back</label>' +
+      '<label class="ss-chk"><input type="checkbox" ' + (t.reviewApproval ? 'checked' : '') + ' onchange="_ticketToggle(\'reviewApproval\',this.checked)"> Review Approval</label>' +
+    '</div>' +
+  '</div>';
+  return header + '<div class="ss-td-grid">' + main + side + '</div>';
 }
 
 // ── Detail actions (in-place; every agent can modify any ticket) ──

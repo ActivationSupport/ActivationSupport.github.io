@@ -66,6 +66,18 @@ html[data-office="salessupport"]{
 .ss-dt{ display:flex;flex-direction:column;gap:3px;font-size:14px }
 .ss-note{ background:var(--inset-bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:14px }
 .ss-note-hd{ color:var(--text2);font-size:12px;margin-bottom:4px }
+/* 2-column detail (conversation + properties side panel) */
+.ss-td-head{ display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px }
+.ss-td-headmain{ min-width:0 }
+.ss-td-sub{ color:var(--text2);font-size:12px;margin-top:3px }
+.ss-td-grid{ display:grid;grid-template-columns:1fr 290px;gap:20px;align-items:start }
+.ss-td-main{ min-width:0 }
+.ss-td-thread{ max-height:320px;overflow-y:auto;margin-bottom:12px;padding-right:4px }
+.ss-td-side{ display:flex;flex-direction:column;gap:14px;background:var(--inset-bg);border:1px solid var(--border);border-radius:10px;padding:14px }
+.ss-td-side .ps-select{ width:100% }
+.ss-side-grp{ display:flex;flex-direction:column;gap:12px }
+.ss-side-grp:not(:last-child){ padding-bottom:14px;border-bottom:1px solid var(--border) }
+@media (max-width:720px){ .ss-td-grid{ grid-template-columns:1fr } }
 /* creatable combobox (Zendesk-style) */
 html[data-office="salessupport"] .ss-form-card{ overflow:visible }   /* let the dropdown escape the card */
 .ss-combo{ position:relative }
