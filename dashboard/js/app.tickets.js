@@ -68,30 +68,34 @@ function _ticketPost(body) {
 // We also set the sidebar username here because salessupport skips loadData/_applyMainData
 // (where every other office sets it).
 function initTicketApp() {
-  var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(24, true);   // Jedi wordmark in the sidebar
+  var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(40);   // Jedi wordmark in the sidebar
   var nameEl = document.getElementById('sb-user-name');
   if (nameEl) nameEl.textContent = (SESSION.name || SESSION.email || '') + (SESSION.role ? ' · ' + SESSION.role : '');
   switchTab(CURRENT_TAB || 'tickets');
 }
 
 // ── "Star Wars"-inspired gold wordmark (our own SVG — NOT the trademarked logo) ──
-// The Star-Wars feel comes from two heavy words justified to the SAME width (textLength +
-// lengthAdjust) with a gold gradient. `oneLine` = a single-row "SALES SUPPORT" for the sidebar.
-function _ssLogoSvg(h, oneLine) {
-  h = h || 90;
-  var gid = oneLine ? 'ssGold1' : 'ssGold2';
-  var grad = '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
-    '<stop offset="0" stop-color="#FFE9A8"/><stop offset="0.45" stop-color="#F4C21B"/><stop offset="1" stop-color="#C88F05"/></linearGradient></defs>';
-  var fill = 'url(#' + gid + ')';
-  var font = 'font-family="\'Arial Black\',Impact,\'Helvetica Neue\',sans-serif" font-weight="900"';
-  if (oneLine) {
-    return '<svg viewBox="0 0 560 118" style="height:' + h + 'px;width:auto;display:inline-block;vertical-align:middle" role="img" aria-label="Sales Support">' + grad +
-      '<text x="280" y="92" text-anchor="middle" textLength="548" lengthAdjust="spacingAndGlyphs" font-size="98" letter-spacing="-4" ' + font + ' fill="' + fill + '">SALES SUPPORT</text></svg>';
-  }
-  return '<svg viewBox="0 0 340 158" style="height:' + h + 'px;width:auto;display:inline-block" role="img" aria-label="Sales Support">' + grad +
-    '<g text-anchor="middle" letter-spacing="-2" ' + font + ' fill="' + fill + '">' +
-      '<text x="170" y="70" textLength="332" lengthAdjust="spacingAndGlyphs" font-size="82">SALES</text>' +
-      '<text x="170" y="148" textLength="332" lengthAdjust="spacingAndGlyphs" font-size="82">SUPPORT</text>' +
+// Geometric sci-fi feel from Orbitron (Google Fonts, SIL OFL) + a gold gradient with a thin
+// darker edge, floating on the starfield. NO glyph stretching (that distorted the letters);
+// the two words are just centered and stacked. Unique gradient id per call (avoids dup IDs).
+var _ssLogoN = 0;
+function _ssLoadFont() {
+  if (document.getElementById('ss-orbitron')) return;
+  var l = document.createElement('link');
+  l.id = 'ss-orbitron'; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap';
+  document.head.appendChild(l);
+}
+function _ssLogoSvg(h) {
+  h = h || 96;
+  _ssLoadFont();
+  var gid = 'ssGold' + (++_ssLogoN);
+  return '<svg viewBox="0 0 700 184" style="height:' + h + 'px;width:auto;display:inline-block" role="img" aria-label="Sales Support">' +
+    '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0" stop-color="#FFEAA3"/><stop offset="0.5" stop-color="#F4C21B"/><stop offset="1" stop-color="#D29B00"/></linearGradient></defs>' +
+    '<g text-anchor="middle" font-family="Orbitron,\'Arial Black\',sans-serif" font-weight="900" letter-spacing="3" fill="url(#' + gid + ')" stroke="#7c5600" stroke-width="0.8">' +
+      '<text x="350" y="76" font-size="66">SALES</text>' +
+      '<text x="350" y="166" font-size="66">SUPPORT</text>' +
     '</g></svg>';
 }
 
@@ -100,7 +104,7 @@ function _ssLogoSvg(h, oneLine) {
 function _ssApplyBranding(officeId) {
   if (officeId !== 'salessupport') return;
   var logo = document.getElementById('login-office-logo');
-  if (logo) { logo.innerHTML = _ssLogoSvg(104); logo.style.display = 'block'; }
+  if (logo) { logo.innerHTML = _ssLogoSvg(120); logo.style.display = 'block'; logo.style.filter = 'drop-shadow(0 0 14px rgba(244,194,27,.28))'; }
   var nm = document.getElementById('login-office-name'); if (nm) nm.style.display = 'none';
   var ls = document.getElementById('login-screen');
   if (ls) {
