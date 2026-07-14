@@ -122,7 +122,7 @@ function _ssApplyBranding(officeId) {
   var ls = document.getElementById('login-screen');
   if (ls) {
     // central glow + Jedi green & gold light-leaks; the drifting/twinkling starfield is the animated CSS ::before/::after.
-    ls.style.background = 'radial-gradient(ellipse at 50% 28%, #14345f 0%, rgba(10,8,6,0) 60%), radial-gradient(680px 520px at 14% 86%, rgba(56,224,138,.08), transparent 60%), radial-gradient(560px 460px at 88% 12%, rgba(244,194,27,.08), transparent 60%), #0a0806';
+    ls.style.background = 'radial-gradient(ellipse at 50% 28%, #12305f 0%, rgba(5,7,15,0) 60%), radial-gradient(680px 520px at 14% 86%, rgba(56,224,138,.09), transparent 60%), radial-gradient(560px 460px at 88% 12%, rgba(244,194,27,.06), transparent 60%), #05070f';
   }
 }
 

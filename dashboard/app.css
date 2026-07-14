@@ -28,11 +28,10 @@ html[data-theme="light"]{
    ACCENTS are injected inline by applyOfficeTheme() from OFFICE_CONFIG.salessupport.theme.
    Placed after the light block so it wins the bg/surface vars even if a light class lingers. */
 html[data-office="salessupport"]{
-  /* Jedi-robes warm neutrals (brown/bronze/cream) under cool saber accents */
-  --bg:#0a0806; --surface:#15110a; --surface2:#1e1710; --sidebar-bg:#0c0906;
-  --border:rgba(205,165,90,.16);
-  --field-bg:#14100a; --field-border:#43351d; --control-bg:#191309; --inset-bg:#0f0b06; --panel2-bg:#14100a; --panel2-border:#33280f;
-  --text:#f2e9d6; --text2:#c0a97f;
+  --bg:#05070f; --surface:#0c1122; --surface2:#141c34; --sidebar-bg:#080c18;
+  --border:rgba(120,170,255,.14);
+  --field-bg:#0e1526; --field-border:#26375c; --control-bg:#111a30; --inset-bg:#0a1020; --panel2-bg:#0d1526; --panel2-border:#1e2c4a;
+  --text:#e7eeff; --text2:#9fb2d6;
   --ss-gold:#F4C21B;   /* Jedi gold — wordmark + accent rule */
   --ss-green:#38E08A;  /* Jedi green saber */
 }
@@ -140,21 +139,21 @@ html[data-office="salessupport"] .content{
     radial-gradient(720px 480px at 12% 16%, rgba(46,140,255,.15), transparent 62%),
     radial-gradient(600px 540px at 86% 82%, rgba(56,224,138,.11), transparent 60%),
     radial-gradient(560px 460px at 66% 0%, rgba(244,194,27,.08), transparent 60%),
-    linear-gradient(rgba(210,170,90,.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(210,170,90,.03) 1px, transparent 1px);
+    linear-gradient(rgba(79,168,255,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79,168,255,.028) 1px, transparent 1px);
   background-size:auto,auto,auto,42px 42px,42px 42px;
   background-attachment:fixed,fixed,fixed,fixed,fixed;
 }
 /* frosted-glass panels floating over the orbs (rim-light top edge) */
 html[data-office="salessupport"] .ss-card{
-  background:rgba(30,22,12,.58);
+  background:rgba(18,25,46,.6);
   -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
-  border:1px solid rgba(205,165,90,.18);
-  box-shadow:0 10px 34px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,238,200,.06);
+  border:1px solid rgba(140,180,255,.16);
+  box-shadow:0 10px 34px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.06);
 }
 html[data-office="salessupport"] #ticket-modal.modal-bg{ -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px) }
-html[data-office="salessupport"] #ticket-modal .modal{ background:rgba(24,18,10,.86); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px) }
-html[data-office="salessupport"] .login-card{ background:rgba(24,18,10,.74); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px) }
+html[data-office="salessupport"] #ticket-modal .modal{ background:rgba(16,22,42,.85); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px) }
+html[data-office="salessupport"] .login-card{ background:rgba(16,22,42,.72); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px) }
 /* ── STAR WARS console skin — Pass 7: animated starfield + data readouts ── */
 html[data-office="salessupport"] #login-screen{ overflow:hidden }
 html[data-office="salessupport"] #login-screen::before,
