@@ -374,26 +374,44 @@ function _ticketStatusLabel(code) {
 function _ticketStatusColor(code) { return { pending:'var(--blue2)', followup:'#e0a838', solved:'var(--green)' }[code] || 'var(--text2)'; }
 function _ticketStatusBadge(code) {
   var col = _ticketStatusColor(code);
-  return '<span class="ss-badge" style="color:' + col + ';border-color:' + col + '">' + esc(_ticketStatusLabel(code)) + '</span>';
+  return '<span class="ss-badge" style="color:' + col + ';border-color:' + col + '"><span class="ss-badge-dot" style="background:' + col + '"></span>' + esc(_ticketStatusLabel(code)) + '</span>';
 }
 function _ticketCat(t) {
   var g = t.generalCategory || '', sp = t.specificCategory || '';
   if (g && sp) return esc(g) + ' <span style="opacity:.55">›</span> ' + esc(sp);
   return esc(g || sp || '—');
 }
+// ── Shared UI bits (Pass 2 polish) ──
+function _ssInitials(name) {
+  var s = String(name || '').trim(); if (!s) return '?';
+  var p = s.split(/\s+/);
+  return ((p[0].charAt(0) || '') + (p.length > 1 ? p[p.length - 1].charAt(0) : '')).toUpperCase();
+}
+function _ssAvatar(name) {   // deterministic muted-color circle with initials
+  var str = String(name || ''), h = 0, i;
+  for (i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return '<span class="ss-av" style="background:hsl(' + (h % 360) + ',42%,34%)">' + esc(_ssInitials(name)) + '</span>';
+}
+function _ssAgentCell(name) { return '<span class="ss-agentcell">' + _ssAvatar(name) + '<span>' + esc(name || '—') + '</span></span>'; }
+function _ssEmpty(sym, title, sub) {
+  return '<div class="ss-empty"><svg class="ss-empty-svg" viewBox="0 0 24 24"><use href="#i-' + sym + '"></use></svg>' +
+    '<div class="ss-empty-t">' + esc(title) + '</div>' + (sub ? '<div class="ss-empty-s">' + esc(sub) + '</div>' : '') + '</div>';
+}
 
 function _ticketTableHtml() {
   var f = _TICKETS.filters, s = _TICKETS.sort;
   var rows = (_TICKETS.list || []).filter(function(t){ return _ticketMatch(t, f); });
   rows.sort(function(a, b){ var av = _ticketSortVal(a, s.key), bv = _ticketSortVal(b, s.key); var r = av < bv ? -1 : (av > bv ? 1 : 0); return s.dir === 'asc' ? r : -r; });
-  if (!rows.length) return '<div class="card ss-card"><p class="ss-sub" style="margin:0">No tickets match your filters. ' + (_TICKETS.list.length ? '' : 'Create one from <strong>New Ticket</strong>.') + '</p></div>';
+  if (!rows.length) return '<div class="card ss-card">' + (_TICKETS.list.length
+    ? '<p class="ss-sub" style="margin:0">No tickets match your filters.</p>'
+    : _ssEmpty('postedsales', 'No tickets yet', 'Log the first one from New Ticket.')) + '</div>';
   var head = '<tr>' + _ticketTh('Ticket','ticketId') + _ticketTh('Created','created') + _ticketTh('Agent','assigneeName') +
     _ticketTh('Rep','requester') + _ticketTh('Office','office') + '<th>Category</th>' + _ticketTh('Subject','subject') + _ticketTh('Status','status') + '</tr>';
   var body = rows.map(function(t){
     return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
       '<td style="font-weight:700;color:var(--blue2);white-space:nowrap">' + esc(t.ticketId) + '</td>' +
       '<td style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
-      '<td>' + esc(t.assigneeName || t.assignee || '—') + '</td>' +
+      '<td>' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
       '<td>' + esc(t.requester || '—') + '</td>' +
       '<td>' + esc(t.office || '—') + '</td>' +
       '<td>' + _ticketCat(t) + '</td>' +
@@ -438,7 +456,7 @@ function _ageDays(iso) {
 function _followupTableHtml() {
   var rows = (_TICKETS.list || []).filter(function(t){ return String(t.status) === 'followup'; });
   rows.sort(function(a, b){ var av = String(a.lastUpdated || a.created || ''), bv = String(b.lastUpdated || b.created || ''); return av < bv ? -1 : (av > bv ? 1 : 0); });   // oldest first
-  if (!rows.length) return '<div class="card ss-card"><p class="ss-sub" style="margin:0">No open follow-ups. The Order rests. ✦</p></div>';
+  if (!rows.length) return '<div class="card ss-card">' + _ssEmpty('completed', 'No open follow-ups', 'The Order rests. ✦') + '</div>';
   var head = '<tr><th>Ticket</th><th>Age</th><th>Rep</th><th>Office</th><th>Subject</th><th>Assignee</th></tr>';
   var body = rows.map(function(t){
     var age = _ageDays(t.lastUpdated || t.created);
@@ -449,7 +467,7 @@ function _followupTableHtml() {
       '<td>' + esc(t.requester || '—') + '</td>' +
       '<td>' + esc(t.office || '—') + '</td>' +
       '<td>' + esc(t.subject || '—') + '</td>' +
-      '<td>' + esc(t.assigneeName || t.assignee || '—') + '</td>' +
+      '<td>' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
     '</tr>';
   }).join('');
   return '<div class="card ss-card ss-tablewrap"><table class="tbl ss-table">' + head + body + '</table>' +
@@ -493,7 +511,8 @@ function _ticketDetailHtml(t, notes) {
     '</div>' + _ticketStatusBadge(t.status) +
   '</div>';
   var notesHtml = notes.length ? notes.map(function(n){
-      return '<div class="ss-note"><div class="ss-note-hd">' + esc(n.authorName || n.author) + ' · ' + esc(_ticketFmtDate(n.timestamp)) + '</div><div>' + esc(n.body).replace(/\n/g, '<br>') + '</div></div>';
+      var who = n.authorName || n.author;
+      return '<div class="ss-note"><div class="ss-note-hd">' + _ssAvatar(who) + '<span>' + esc(who) + ' · ' + esc(_ticketFmtDate(n.timestamp)) + '</span></div><div class="ss-note-body">' + esc(n.body).replace(/\n/g, '<br>') + '</div></div>';
     }).join('') : '<p class="ss-sub" style="margin:0 0 6px">No notes yet — add the first one below.</p>';
   var main = '<div class="ss-td-main">' +
     '<div class="ss-lbl" style="margin-bottom:8px">Conversation</div>' +
