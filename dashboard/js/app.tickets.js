@@ -25,6 +25,14 @@ var SALESSUPPORT_TABS = [
   { id:'followups', label:'Follow-Ups',   group:'Support', sub:'Tickets awaiting a response',           icon:'escalations' },
 ];
 
+// Who may see the "Sales Support" office in the top-bar office switcher (from ANY office they're
+// on). Everyone else — including other master-admins — never sees it. Keep in sync with the
+// _Roster_salessupport agents.
+var SALESSUPPORT_AGENTS = [
+  'gavonfuller2024@gmail.com', 'ryan.turner.50@gmail.com', 'amb3ranastasia@gmail.com',
+  'jadwil893@gmail.com', 'kambrynchaisson@gmail.com'
+];
+
 // Module state (grows with each slice). lookups drive the save-as-you-go datalists;
 // agents drive the Assignee picker; list/filters/sort are for the queue (Slice 4).
 var _TICKETS = {

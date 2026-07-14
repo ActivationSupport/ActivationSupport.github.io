@@ -642,6 +642,13 @@ function updateOfficeDropdown() {
   var permitted = SESSION.role === 'master-admin'
     ? Object.keys(OFFICE_NAMES)
     : (SESSION.permissions || CFG.officeId).split(',').map(function(o){ return o.trim(); }).filter(function(o){ return OFFICE_NAMES[o]; });
+  // Sales Support is switcher-visible ONLY to its own people (allowlist email OR 'salessupport'
+  // in permissions) — never to other master-admins — but for them it shows from ANY office.
+  var _ssEmail = String(SESSION.email || '').toLowerCase();
+  var _ssPerms = String(SESSION.permissions || '').toLowerCase().split(',').map(function(o){ return o.trim(); });
+  var _ssAllowed = ((typeof SALESSUPPORT_AGENTS !== 'undefined' ? SALESSUPPORT_AGENTS : []).indexOf(_ssEmail) !== -1) || (_ssPerms.indexOf('salessupport') !== -1);
+  permitted = permitted.filter(function(o){ return o !== 'salessupport'; });
+  if (_ssAllowed && OFFICE_NAMES['salessupport']) permitted.push('salessupport');
   if (permitted.length <= 1) { wrap.style.display = 'none'; return; }
   wrap.style.display = 'inline-block';
   var _ddLbl = document.getElementById('office-dd-label');
