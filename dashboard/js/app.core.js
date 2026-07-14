@@ -603,8 +603,8 @@ function showApp() {
   // Only runs at session entry — Refresh and office-switch go through loadData (not
   // showApp), so they keep whatever tab the user is on. loadData's role guard still
   // redirects any role that can't access Post Sale to its first allowed tab.
-  if (window.innerWidth <= 768) CURRENT_TAB = _ssApp ? 'tickets' : 'postsale';
-  if (_ssApp && (!window.SALESSUPPORT_TABS || !window.SALESSUPPORT_TABS.some(function(t){ return t.id === CURRENT_TAB; }))) CURRENT_TAB = 'tickets';
+  if (window.innerWidth <= 768) CURRENT_TAB = _ssApp ? 'newticket' : 'postsale';
+  if (_ssApp && (!window.SALESSUPPORT_TABS || !window.SALESSUPPORT_TABS.some(function(t){ return t.id === CURRENT_TAB; }))) CURRENT_TAB = 'newticket';   // sign-in lands on New Ticket
   _setSidebarOfficeLogo(CFG.officeId);
   buildOfficeSwitcher();
   buildNav();

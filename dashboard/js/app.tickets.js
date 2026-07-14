@@ -20,8 +20,8 @@
 // in the polish slice (buildNav renders #i-<icon||id>). No `roles` needed — access is
 // gated by who is in the _Roster_salessupport roster, so buildNav shows all tabs here.
 var SALESSUPPORT_TABS = [
-  { id:'tickets',   label:'Ticket Queue', group:'Support', sub:'Every Sales Support ticket',            icon:'postedsales' },
   { id:'newticket', label:'New Ticket',   group:'Support', sub:'Log a rep call or text',                icon:'postsale' },
+  { id:'tickets',   label:'Ticket Queue', group:'Support', sub:'Every Sales Support ticket',            icon:'postedsales' },
   { id:'followups', label:'Follow-Ups',   group:'Support', sub:'Tickets awaiting a response',           icon:'escalations' },
 ];
 
@@ -80,7 +80,7 @@ function initTicketApp() {
   var nameEl = document.getElementById('sb-user-name');
   if (nameEl) nameEl.innerHTML = '<div class="ss-sb-role">' + esc(SESSION.role || 'agent') + '</div>' +
     '<div class="ss-sb-email" title="' + esc(SESSION.email || '') + '">' + esc(SESSION.email || '') + '</div>';
-  switchTab(CURRENT_TAB || 'tickets');
+  switchTab(CURRENT_TAB || 'newticket');
 }
 
 // ── "Star Wars"-inspired gold wordmark (our own SVG — NOT the trademarked logo) ──
@@ -173,7 +173,7 @@ function _newTicketFormHtml() {
     '<p class="ss-sub">Log a rep call or text. Rep, office, subject and categories remember what you type — pick an existing one or create a new one inline.</p>' +
     '<div class="ss-form-sec">' + _ntSec('Contact') +
       '<div class="ss-grid">' +
-        _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; } })) +
+        _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:_ntAutofillPhone })) +
         _ntField('Office', _comboField('nt-office', { placeholder:'Office', options:function(){ return _TICKETS.lookups.office || []; } })) +
         _ntField('Channel', chan) +
         _ntField('Phone #', '<input id="nt-phone" class="ps-input" autocomplete="off" placeholder="Called / texted in from">') +
@@ -212,13 +212,33 @@ function _ticketLoadFormData() {
   if (!TICKET_SCRIPT_URL) { _ntStatus('Preview mode — backend not connected yet (dropdowns fill once it is).', false); return; }
   Promise.all([
     _ticketGet({ action:'getLookups' }),
-    _ticketGet({ action:'getAgents' })
+    _ticketGet({ action:'getAgents' }),
+    _ticketGet({ action:'getTickets' })   // for the rep→last-phone map
   ]).then(function(r) {
     if (r[0] && r[0].lookups) _TICKETS.lookups = r[0].lookups;
     if (r[1] && r[1].agents)  _TICKETS.agents  = r[1].agents;
+    if (r[2] && r[2].tickets) { _TICKETS.list = r[2].tickets; _ticketBuildRepPhone(); }
     _TICKETS._loaded = true;
     _ticketFillAgents();
   }).catch(function(){ /* leave the form usable with empty lists */ });
+}
+// Build { rep(lowercased) -> the phone# from that rep's most recent ticket }.
+function _ticketBuildRepPhone() {
+  var byRep = {};
+  (_TICKETS.list || []).forEach(function(t) {
+    var rep = String(t.requester || '').trim().toLowerCase(), ph = String(t.phone || '').trim(), ts = String(t.created || '');
+    if (!rep || !ph) return;
+    if (!byRep[rep] || ts > byRep[rep].ts) byRep[rep] = { phone: ph, ts: ts };
+  });
+  _TICKETS._repPhone = {};
+  Object.keys(byRep).forEach(function(rk){ _TICKETS._repPhone[rk] = byRep[rk].phone; });
+}
+// On picking a Rep, auto-fill Phone with the number they last called/texted in from.
+function _ntAutofillPhone() {
+  var rep = _ntVal('nt-requester').toLowerCase();
+  var phone = (_TICKETS._repPhone || {})[rep];
+  var el = document.getElementById('nt-phone');
+  if (el && phone) el.value = phone;
 }
 function _ticketFillAgents() {
   var sel = document.getElementById('nt-assignee'); if (!sel || !_TICKETS.agents.length) return;
@@ -245,7 +265,7 @@ function _ticketSpecificOptions() {
 // highlight, Esc closes. `cfg = { placeholder, options: ()=>[strings] }`.
 var _COMBO = {};
 function _comboField(id, cfg) {
-  _COMBO[id] = { opts: cfg.options, items: [], hi: -1 };
+  _COMBO[id] = { opts: cfg.options, onChange: cfg.onChange || null, items: [], hi: -1 };
   return '<div class="ss-combo">' +
     '<input id="' + id + '" class="ps-input ss-combo-input" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="' + esc(cfg.placeholder || '') + '" ' +
       'onfocus="_comboOpen(\'' + id + '\')" oninput="_comboOpen(\'' + id + '\')" onkeydown="_comboKey(\'' + id + '\',event)" onblur="_comboBlur(\'' + id + '\')">' +
@@ -294,6 +314,7 @@ function _comboPick(id, i) {
   if (!st || !input || !st.items[i]) return;
   input.value = st.items[i].val;
   _comboClose(id);
+  if (st.onChange) st.onChange(input.value);
 }
 function _comboKey(id, e) {
   var st = _COMBO[id]; if (!st) return;
