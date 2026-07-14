@@ -68,7 +68,7 @@ function _ticketPost(body) {
 // We also set the sidebar username here because salessupport skips loadData/_applyMainData
 // (where every other office sets it).
 function initTicketApp() {
-  var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(40);   // Jedi wordmark in the sidebar
+  var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(40, true);   // filled (readable small) sidebar wordmark
   var nameEl = document.getElementById('sb-user-name');
   if (nameEl) nameEl.textContent = (SESSION.name || SESSION.email || '') + (SESSION.role ? ' · ' + SESSION.role : '');
   switchTab(CURRENT_TAB || 'tickets');
@@ -86,17 +86,23 @@ function _ssLoadFont() {
   l.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap';
   document.head.appendChild(l);
 }
-function _ssLogoSvg(h) {
+function _ssLogoSvg(h, filled) {
   h = h || 96;
   _ssLoadFont();
-  var gid = 'ssGold' + (++_ssLogoN);
-  return '<svg viewBox="0 0 700 184" style="height:' + h + 'px;width:auto;display:inline-block" role="img" aria-label="Sales Support">' +
-    '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
-      '<stop offset="0" stop-color="#FFEAA3"/><stop offset="0.5" stop-color="#F4C21B"/><stop offset="1" stop-color="#D29B00"/></linearGradient></defs>' +
-    '<g text-anchor="middle" font-family="Orbitron,\'Arial Black\',sans-serif" font-weight="900" letter-spacing="3" fill="url(#' + gid + ')" stroke="#7c5600" stroke-width="0.8">' +
-      '<text x="350" y="76" font-size="66">SALES</text>' +
-      '<text x="350" y="166" font-size="66">SUPPORT</text>' +
-    '</g></svg>';
+  // Two words justified to the SAME width via lengthAdjust="spacing" (adjusts letter spacing
+  // only — NEVER the glyph shapes), stacked tight like the Star Wars mark. `filled` = a solid
+  // gold version for the small sidebar (an outline gets too thin to read there).
+  var common = 'text-anchor="middle" font-family="Orbitron,\'Arial Black\',sans-serif" font-weight="900"';
+  var l1 = '<text x="340" y="70" font-size="56" textLength="600" lengthAdjust="spacing">SALES</text>';
+  var l2 = '<text x="340" y="148" font-size="56" textLength="600" lengthAdjust="spacing">SUPPORT</text>';
+  if (filled) {
+    var gid = 'ssGold' + (++_ssLogoN);
+    return '<svg viewBox="0 0 680 172" style="height:' + h + 'px;width:auto;display:inline-block" role="img" aria-label="Sales Support">' +
+      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFEAA3"/><stop offset="0.5" stop-color="#F4C21B"/><stop offset="1" stop-color="#D29B00"/></linearGradient></defs>' +
+      '<g ' + common + ' fill="url(#' + gid + ')">' + l1 + l2 + '</g></svg>';
+  }
+  return '<svg viewBox="0 0 680 172" style="height:' + h + 'px;width:auto;display:inline-block" role="img" aria-label="Sales Support">' +
+    '<g ' + common + ' fill="none" stroke="#F4D014" stroke-width="2.4" stroke-linejoin="round">' + l1 + l2 + '</g></svg>';
 }
 
 // Login-screen branding for the ticketing office: swap the plain name for the gold wordmark
