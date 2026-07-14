@@ -174,22 +174,22 @@ function _newTicketFormHtml() {
     '<div class="ss-form-sec">' + _ntSec('Contact') +
       '<div class="ss-grid">' +
         _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:_ntAutofillRep, onAdd:function(t){ _ssRepAddPopup(t); } })) +
-        _ntField('Office', _comboField('nt-office', { placeholder:'Office', options:function(){ return _TICKETS.lookups.office || []; }, addTitle:'Add Office' })) +
+        _ntField('Office', _comboField('nt-office', { placeholder:'Office', options:function(){ return _TICKETS.lookups.office || []; }, addTitle:'Add Office', lookupType:'office' })) +
         _ntField('Channel', chan) +
         _ntField('Phone #', '<input id="nt-phone" class="ps-input" autocomplete="off" placeholder="Called / texted in from">') +
       '</div>' +
     '</div>' +
     '<div class="ss-form-sec">' + _ntSec('Classification') +
       '<div class="ss-grid">' +
-        _ntField('General Category', _comboField('nt-general', { placeholder:'e.g. Escalations', options:function(){ return _TICKETS.lookups.generalCat || []; }, addTitle:'Add General Category' })) +
-        _ntField('Specific Category', _comboField('nt-specific', { placeholder:'e.g. Fraud Support', options:_ticketSpecificOptions, addTitle:'Add Specific Category' })) +
+        _ntField('General Category', _comboField('nt-general', { placeholder:'e.g. Escalations', options:function(){ return _TICKETS.lookups.generalCat || []; }, addTitle:'Add General Category', lookupType:'generalCat' })) +
+        _ntField('Specific Category', _comboField('nt-specific', { placeholder:'e.g. Fraud Support', options:_ticketSpecificOptions, addTitle:'Add Specific Category', lookupType:'specificCat', lookupParent:function(){ return _ntVal('nt-general'); } })) +
         _ntField('Sara Plus', sara) +
         _ntField('DSI / Account', '<input id="nt-dsi" class="ps-input" autocomplete="off" placeholder="DSI or account info">') +
       '</div>' +
     '</div>' +
     '<div class="ss-form-sec">' + _ntSec('Ticket') +
       '<div class="ss-grid">' +
-        _ntField('Subject', _comboField('nt-subject', { placeholder:'Short summary', options:function(){ return _TICKETS.lookups.subject || []; }, addTitle:'Add Subject' }), 'ss-fld--full') +
+        _ntField('Subject', _comboField('nt-subject', { placeholder:'Short summary', options:function(){ return _TICKETS.lookups.subject || []; }, addTitle:'Add Subject', lookupType:'subject' }), 'ss-fld--full') +
         _ntField('Assignee', assignee) +
         _ntField('Tags', '<input id="nt-tags" class="ps-input" autocomplete="off" placeholder="comma, separated">') +
       '</div>' +
@@ -268,7 +268,7 @@ function _ticketSpecificOptions() {
 // highlight, Esc closes. `cfg = { placeholder, options: ()=>[strings] }`.
 var _COMBO = {};
 function _comboField(id, cfg) {
-  _COMBO[id] = { opts: cfg.options, onChange: cfg.onChange || null, onAdd: cfg.onAdd || null, addTitle: cfg.addTitle || 'Add new', items: [], hi: -1 };
+  _COMBO[id] = { opts: cfg.options, onChange: cfg.onChange || null, onAdd: cfg.onAdd || null, addTitle: cfg.addTitle || 'Add new', lookupType: cfg.lookupType || '', lookupParent: cfg.lookupParent || null, items: [], hi: -1 };
   return '<div class="ss-combo">' +
     '<input id="' + id + '" class="ps-input ss-combo-input" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="' + esc(cfg.placeholder || '') + '" ' +
       'onfocus="_comboOpen(\'' + id + '\')" oninput="_comboOpen(\'' + id + '\')" onkeydown="_comboKey(\'' + id + '\',event)" onblur="_comboBlur(\'' + id + '\')">' +
@@ -281,28 +281,20 @@ function _comboRender(id) {
   var q = String(input.value || '').trim(), ql = q.toLowerCase();
   var all = (st.opts && st.opts()) || [];
   var matches = all.filter(function(o){ return String(o).toLowerCase().indexOf(ql) !== -1; });
-  var exact = all.some(function(o){ return String(o).toLowerCase() === ql; });
-  var canCreate = !!q && !exact;
-  var items = matches.map(function(o){ return { val: String(o), create: false }; });
-  if (canCreate) items.push({ val: q, create: true });   // create item index = matches.length
-  st.items = items;
-  if (st.hi >= items.length) st.hi = items.length - 1;
+  st.items = matches.map(function(o){ return { val: String(o) }; });   // pickable options (the add row is separate)
+  if (st.hi >= st.items.length) st.hi = st.items.length - 1;
   var html = matches.map(function(o, i){
     return '<div class="ss-combo-opt' + (i === st.hi ? ' hi' : '') + '" role="option" data-i="' + i + '">' + esc(String(o)) + '</div>';
   }).join('');
-  // Always show a visible add affordance: "+ Add "<typed>"" when there's a new value, else a prompt.
-  if (canCreate) {
-    var ci = matches.length;
-    html += '<div class="ss-combo-add' + (ci === st.hi ? ' hi' : '') + '" role="option" data-i="' + ci + '">+ Add &ldquo;' + esc(q) + '&rdquo;</div>';
-  } else {
-    html += '<div class="ss-combo-addhint">+ Type to add a new one</div>';
-  }
+  // ALWAYS a clickable "+ Add" action (opens the add popup), whether or not anything is typed.
+  html += '<div class="ss-combo-add" role="button" data-add="1">' + (q ? '+ Add &ldquo;' + esc(q) + '&rdquo;' : '+ Add new&hellip;') + '</div>';
   menu.innerHTML = html;
   menu.onmousedown = function(e){
-    var el = e.target && e.target.closest ? e.target.closest('.ss-combo-opt, .ss-combo-add') : null;
-    if (!el) return;
-    e.preventDefault();   // fire before the input's blur so the pick registers
-    _comboPick(id, parseInt(el.getAttribute('data-i'), 10));
+    e.preventDefault();   // keep focus / fire before the input's blur
+    var t = e.target;
+    if (t && t.closest && t.closest('.ss-combo-add')) { _comboAdd(id); return; }
+    var opt = t && t.closest ? t.closest('.ss-combo-opt') : null;
+    if (opt) _comboPick(id, parseInt(opt.getAttribute('data-i'), 10));
   };
 }
 function _comboOpen(id) {
@@ -320,7 +312,6 @@ function _comboBlur(id) { setTimeout(function(){ _comboClose(id); }, 140); }   /
 function _comboPick(id, i) {
   var st = _COMBO[id], input = document.getElementById(id);
   if (!st || !input || !st.items[i]) return;
-  if (st.items[i].create) { _comboAdd(id); return; }   // "+ Add …" → open the add popup
   input.value = st.items[i].val;
   _comboClose(id);
   if (st.onChange) st.onChange(input.value);
@@ -331,12 +322,28 @@ function _comboAdd(id) {
   var st = _COMBO[id], input = document.getElementById(id);
   var typed = input ? String(input.value || '').trim() : '';
   _comboClose(id);
-  if (st && st.onAdd) { st.onAdd(typed); return; }
+  if (st && st.onAdd) { st.onAdd(typed); return; }   // rep → its own name/phone/office popup
   _ssAddPopup((st && st.addTitle) || 'Add new', [{ id:'val', label:'New value', value:typed }], function(v){
-    if (!v.val || !input) return;
-    input.value = v.val;
+    if (!v.val) return;
+    if (input) input.value = v.val;
+    _ticketRememberValue(st && st.lookupType, v.val, st && st.lookupParent ? st.lookupParent() : '');
     if (st && st.onChange) st.onChange(v.val);
   });
+}
+// Add a value to the dropdown NOW: update the local list (so it shows immediately) + persist it
+// via the backend addLookup so it's there for everyone next time.
+function _ticketRememberValue(type, value, parent) {
+  type = String(type || '').trim(); value = String(value || '').trim(); parent = String(parent || '').trim();
+  if (!type || !value) return;
+  var lk = _TICKETS.lookups;
+  if (type === 'specificCat') {
+    lk.specificCat = lk.specificCat || [];
+    if (!lk.specificCat.some(function(s){ return String(s.value).toLowerCase() === value.toLowerCase(); })) lk.specificCat.push({ value: value, parent: parent });
+  } else {
+    lk[type] = lk[type] || [];
+    if (lk[type].indexOf(value) === -1) lk[type].push(value);
+  }
+  if (TICKET_SCRIPT_URL) { try { _ticketPost({ action: 'addLookup', type: type, value: value, parent: parent }); } catch (e) {} }
 }
 function _ntSetVal(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; }
 // A small console-styled popup: fields[{id,label,value}] → onSave({id:value,…}).
@@ -370,9 +377,17 @@ function _ssRepAddPopup(typed) {
     { id:'phone', label:'Phone number', value:'' },
     { id:'office', label:'Office', value:'' }
   ], function(v){
+    if (!v.name) return;
     _ntSetVal('nt-requester', v.name);
     _ntSetVal('nt-phone', v.phone);
     _ntSetVal('nt-office', v.office);
+    // persist the rep + office to the dropdowns, and link rep→phone/office locally so re-picking
+    // fills them even before a ticket is saved (across sessions the link comes from ticket history).
+    _ticketRememberValue('rep', v.name, '');
+    if (v.office) _ticketRememberValue('office', v.office, '');
+    var rk = v.name.toLowerCase();
+    _TICKETS._repProfile = _TICKETS._repProfile || {};
+    _TICKETS._repProfile[rk] = { phone: v.phone, office: v.office };
   });
 }
 function _comboKey(id, e) {
@@ -380,7 +395,7 @@ function _comboKey(id, e) {
   var menuOpen = (document.getElementById(id + '-menu') || {}).classList && document.getElementById(id + '-menu').classList.contains('open');
   if (e.key === 'ArrowDown')      { e.preventDefault(); if (!menuOpen) { _comboOpen(id); return; } st.hi = Math.min(st.hi + 1, st.items.length - 1); _comboRender(id); }
   else if (e.key === 'ArrowUp')   { e.preventDefault(); st.hi = Math.max(st.hi - 1, 0); _comboRender(id); }
-  else if (e.key === 'Enter')     { if (st.hi >= 0 && st.items[st.hi]) { e.preventDefault(); _comboPick(id, st.hi); } else { _comboClose(id); } }
+  else if (e.key === 'Enter')     { e.preventDefault(); if (st.hi >= 0 && st.items[st.hi]) _comboPick(id, st.hi); else _comboAdd(id); }
   else if (e.key === 'Escape')    { _comboClose(id); }
 }
 
