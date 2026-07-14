@@ -193,9 +193,12 @@ function _newTicketFormHtml() {
         _ntField('Assignee', assignee) +
         _ntField('Tags', '<input id="nt-tags" class="ps-input" autocomplete="off" placeholder="comma, separated">') +
       '</div>' +
-      '<div class="ss-checks">' +
-        '<label class="ss-chk"><input type="checkbox" id="nt-calledback"> Called Back</label>' +
-        '<label class="ss-chk"><input type="checkbox" id="nt-review"> Review Approval</label>' +
+      '<div class="ss-fld ss-fld--full" style="margin:16px 0 4px">' +
+        '<span class="ss-lbl">Submission Type</span>' +
+        '<div class="ss-checks">' +
+          '<label class="ss-chk"><input type="radio" name="nt-subtype" value="solved" checked> Solved</label>' +
+          '<label class="ss-chk"><input type="radio" name="nt-subtype" value="followup"> Follow-up / Response Needed</label>' +
+        '</div>' +
       '</div>' +
       _ntField('Notes', '<textarea id="nt-note" class="ps-textarea" rows="4" placeholder="What happened / what’s needed"></textarea>') +
     '</div>' +
@@ -401,6 +404,8 @@ function _comboKey(id, e) {
 
 function _ntVal(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
 function _ntChk(id) { var el = document.getElementById(id); return !!(el && el.checked); }
+// Submission type = the ticket's starting status: 'solved' or 'followup' (defaults to solved).
+function _ntSubType() { var el = document.querySelector('input[name="nt-subtype"]:checked'); return (el && el.value) || 'solved'; }
 function _ntStatus(msg, isError) {
   var el = document.getElementById('nt-status'); if (!el) return;
   el.textContent = msg || '';
@@ -408,17 +413,16 @@ function _ntStatus(msg, isError) {
 }
 function _ticketResetForm() {
   ['nt-requester','nt-office','nt-phone','nt-subject','nt-general','nt-specific','nt-dsi','nt-tags','nt-note','nt-channel','nt-sara'].forEach(function(id){ var el=document.getElementById(id); if (el) el.value=''; });
-  ['nt-calledback','nt-review'].forEach(function(id){ var el=document.getElementById(id); if (el) el.checked=false; });
+  var st = document.querySelector('input[name="nt-subtype"][value="solved"]'); if (st) st.checked = true;
 }
 function _ticketCreate(ev) {
   if (ev && ev.preventDefault) ev.preventDefault();
   var payload = {
-    action:'createTicket', status:'pending',
+    action:'createTicket', status:_ntSubType(),
     requester:_ntVal('nt-requester'), office:_ntVal('nt-office'), channel:_ntVal('nt-channel'),
     phone:_ntVal('nt-phone'), subject:_ntVal('nt-subject'), generalCategory:_ntVal('nt-general'),
     specificCategory:_ntVal('nt-specific'), saraPlus:_ntVal('nt-sara'), dsi:_ntVal('nt-dsi'),
-    assignee:_ntVal('nt-assignee'), tags:_ntVal('nt-tags'),
-    calledBack:_ntChk('nt-calledback'), reviewApproval:_ntChk('nt-review'), note:_ntVal('nt-note')
+    assignee:_ntVal('nt-assignee'), tags:_ntVal('nt-tags'), note:_ntVal('nt-note')
   };
   if (!payload.requester && !payload.subject && !payload.generalCategory) { _ntStatus('Add at least a rep, a subject, or a category.', true); return; }
   var btn = document.getElementById('nt-submit');
@@ -702,10 +706,6 @@ function _ticketDetailHtml(t, notes) {
       _dt('DSI / Account', esc(t.dsi)) +
       _dt('Tags', esc(t.tags)) +
     '</div>' +
-    '<div class="ss-side-grp">' +
-      '<label class="ss-chk"><input type="checkbox" ' + (t.calledBack ? 'checked' : '') + ' onchange="_ticketToggle(\'calledBack\',this.checked)"> Called Back</label>' +
-      '<label class="ss-chk"><input type="checkbox" ' + (t.reviewApproval ? 'checked' : '') + ' onchange="_ticketToggle(\'reviewApproval\',this.checked)"> Review Approval</label>' +
-    '</div>' +
   '</div>';
   return header + '<div class="ss-td-grid">' + main + side + '</div>';
 }
@@ -730,14 +730,6 @@ function _ticketReassign(email) {
   _ticketPost({ action:'reassignTicket', ticketId:id, assignee:email }).then(function(res){
     if (res && res.ok && res.ticket) { _TICKETS.open.ticket = res.ticket; _ticketSyncListRow(res.ticket); _renderTicketDetail(); }
     else _tdStatus((res && res.error) || 'Could not reassign.', true);
-  }).catch(function(e){ _tdStatus('Error: ' + e.message, true); });
-}
-function _ticketToggle(field, checked) {
-  var id = _ticketOpenId(); if (!id) return; _tdStatus('Saving…');
-  var body = { action:'updateTicket', ticketId:id }; body[field] = checked;
-  _ticketPost(body).then(function(res){
-    if (res && res.ok && res.ticket) { _TICKETS.open.ticket = res.ticket; _ticketSyncListRow(res.ticket); _tdStatus('Saved.'); }
-    else _tdStatus((res && res.error) || 'Could not save.', true);
   }).catch(function(e){ _tdStatus('Error: ' + e.message, true); });
 }
 function _ticketAddNote() {
