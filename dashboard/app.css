@@ -58,6 +58,30 @@ html[data-office="salessupport"] .ss-h2{
 }
 /* monospace gold ticket id (data readout) */
 .ss-tid{ font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; color:var(--ss-gold); font-weight:700; letter-spacing:.5px }
+/* ── STAR WARS console skin — Pass 2: sidebar / buttons / glow / backdrop / login ── */
+/* command sidebar */
+html[data-office="salessupport"] .nav-group-label{ font-family:Orbitron,'Arial Black',sans-serif; letter-spacing:1.6px; color:rgba(159,178,214,.5) }
+html[data-office="salessupport"] .nav-item{ color:rgba(220,232,255,.62) }
+html[data-office="salessupport"] .nav-item:hover{ background:rgba(79,168,255,.08); color:#eaf3ff }
+html[data-office="salessupport"] .nav-item.active{ background:linear-gradient(90deg, rgba(79,168,255,.18), rgba(79,168,255,0)); color:#eaf3ff; border-left-color:var(--blue2); box-shadow:inset 0 0 20px rgba(79,168,255,.12), inset 3px 0 0 var(--blue2) }
+html[data-office="salessupport"] .nav-item.active .nav-icon{ color:var(--blue2); filter:drop-shadow(0 0 6px rgba(79,168,255,.6)) }
+/* angular glowing buttons */
+html[data-office="salessupport"] .ps-btn{ border-radius:4px; background:linear-gradient(180deg,#3f80ec,#1c55d4); color:#fff; text-transform:uppercase; letter-spacing:1px; box-shadow:0 0 0 1px rgba(79,168,255,.45), 0 4px 16px rgba(28,85,212,.35); transition:box-shadow .15s, filter .15s }
+html[data-office="salessupport"] .ps-btn:hover{ filter:brightness(1.08); box-shadow:0 0 0 1px var(--blue2), 0 0 20px rgba(79,168,255,.5) }
+html[data-office="salessupport"] .ps-btn.secondary{ background:transparent; color:var(--text2); box-shadow:inset 0 0 0 1px var(--field-border) }
+html[data-office="salessupport"] .ps-btn.secondary:hover{ background:transparent; box-shadow:inset 0 0 0 1px var(--blue2); color:#eaf3ff }
+html[data-office="salessupport"] .btn{ text-transform:uppercase; letter-spacing:1px; border-radius:4px; box-shadow:0 0 0 1px rgba(79,168,255,.4), 0 4px 16px rgba(28,85,212,.35) }
+html[data-office="salessupport"] .btn:hover{ box-shadow:0 0 0 1px var(--blue2), 0 0 20px rgba(79,168,255,.5) }
+/* status pill glow */
+html[data-office="salessupport"] .ss-badge{ box-shadow:0 0 12px -3px currentColor }
+/* faint console grid behind the content */
+html[data-office="salessupport"] .content{ background-image:linear-gradient(rgba(79,168,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(79,168,255,.03) 1px, transparent 1px); background-size:42px 42px }
+/* login card as a console panel */
+html[data-office="salessupport"] .login-card{ position:relative; border:1px solid rgba(79,168,255,.28); border-top:2px solid var(--blue2); background:linear-gradient(180deg, rgba(20,28,52,.55), var(--surface)); box-shadow:0 0 46px rgba(79,168,255,.1), 0 12px 44px rgba(0,0,0,.6) }
+html[data-office="salessupport"] .login-card::before,
+html[data-office="salessupport"] .login-card::after{ content:''; position:absolute; width:14px; height:14px; pointer-events:none }
+html[data-office="salessupport"] .login-card::before{ top:9px; left:9px; border-top:2px solid var(--blue2); border-left:2px solid var(--blue2); opacity:.8 }
+html[data-office="salessupport"] .login-card::after{ bottom:9px; right:9px; border-bottom:2px solid var(--ss-gold); border-right:2px solid var(--ss-gold); opacity:.6 }
 /* ── SALES SUPPORT — ticket UI (Slice 3+) ── */
 .ss-card{ margin-bottom:18px }
 .ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--ss-gold,var(--accent2b)));margin:-2px 0 16px }
