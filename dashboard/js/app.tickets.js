@@ -120,9 +120,8 @@ function _ssApplyBranding(officeId) {
   var brand = document.querySelector('.login-card h1'); if (brand) brand.style.display = 'none';   // hide "Activation Support" on the ticketing login
   var ls = document.getElementById('login-screen');
   if (ls) {
-    var pts = [[8,16],[21,60],[34,28],[47,78],[59,14],[69,48],[81,70],[90,26],[15,86],[54,38],[74,9],[92,54],[29,70],[63,88],[41,50]];
-    var stars = pts.map(function(p, i){ var c = i % 3 === 0 ? '#ffffff' : (i % 3 === 1 ? '#bcd3ff' : '#9fb2d6'); return 'radial-gradient(1.4px 1.4px at ' + p[0] + '% ' + p[1] + '%, ' + c + ', transparent)'; }).join(', ');
-    ls.style.background = 'radial-gradient(ellipse at 50% 30%, #12305f 0%, rgba(5,7,15,0) 62%), ' + stars + ', #05070f';
+    // glow + an ambient teal light-leak; the drifting/twinkling starfield is the animated CSS ::before/::after.
+    ls.style.background = 'radial-gradient(ellipse at 50% 28%, #12305f 0%, rgba(5,7,15,0) 60%), radial-gradient(700px 520px at 16% 84%, rgba(30,180,200,.10), transparent 60%), #05070f';
   }
 }
 
@@ -477,7 +476,7 @@ function _ticketTableHtml() {
   var body = rows.map(function(t){
     return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
       '<td class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
-      '<td style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
+      '<td class="ss-mono" style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
       '<td>' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
       '<td>' + esc(t.requester || '—') + '</td>' +
       '<td>' + esc(t.office || '—') + '</td>' +
@@ -530,7 +529,7 @@ function _followupTableHtml() {
     var col = age >= 2 ? '#e0a838' : 'var(--text2)';
     return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
       '<td class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
-      '<td style="white-space:nowrap;color:' + col + '">' + age + 'd</td>' +
+      '<td class="ss-mono" style="white-space:nowrap;color:' + col + '">' + age + 'd</td>' +
       '<td>' + esc(t.requester || '—') + '</td>' +
       '<td>' + esc(t.office || '—') + '</td>' +
       '<td>' + esc(t.subject || '—') + '</td>' +

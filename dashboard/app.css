@@ -153,6 +153,37 @@ html[data-office="salessupport"] .ss-card{
 html[data-office="salessupport"] #ticket-modal.modal-bg{ -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px) }
 html[data-office="salessupport"] #ticket-modal .modal{ background:rgba(16,22,42,.85); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px) }
 html[data-office="salessupport"] .login-card{ background:rgba(16,22,42,.72); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px) }
+/* ── STAR WARS console skin — Pass 7: animated starfield + data readouts ── */
+html[data-office="salessupport"] #login-screen{ overflow:hidden }
+html[data-office="salessupport"] #login-screen::before,
+html[data-office="salessupport"] #login-screen::after{ content:''; position:absolute; inset:0; pointer-events:none; z-index:0 }
+html[data-office="salessupport"] #login-screen::before{
+  background-image:
+    radial-gradient(1.5px 1.5px at 30px 40px, #ffffff, transparent),
+    radial-gradient(1.5px 1.5px at 120px 90px, #cbd5e1, transparent),
+    radial-gradient(1px 1px at 200px 30px, #9fb2d6, transparent),
+    radial-gradient(1px 1px at 70px 170px, #ffffff, transparent),
+    radial-gradient(1.5px 1.5px at 180px 205px, #bcd3ff, transparent),
+    radial-gradient(1px 1px at 225px 135px, #9fb2d6, transparent);
+  background-size:240px 240px;
+  animation:ss-stardrift 90s linear infinite, ss-twinkleA 5s ease-in-out infinite alternate;
+}
+html[data-office="salessupport"] #login-screen::after{
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, #ffffff, transparent),
+    radial-gradient(1px 1px at 90px 70px, #bcd3ff, transparent),
+    radial-gradient(1px 1px at 140px 120px, #9fb2d6, transparent),
+    radial-gradient(1px 1px at 50px 145px, #ffffff, transparent);
+  background-size:170px 170px;
+  animation:ss-stardrift2 62s linear infinite, ss-twinkleB 3.6s ease-in-out infinite alternate;
+}
+@keyframes ss-stardrift{ from{ background-position:0 0 } to{ background-position:-240px -240px } }
+@keyframes ss-stardrift2{ from{ background-position:0 0 } to{ background-position:170px 255px } }
+@keyframes ss-twinkleA{ from{ opacity:.45 } to{ opacity:.9 } }
+@keyframes ss-twinkleB{ from{ opacity:.25 } to{ opacity:.6 } }
+html[data-office="salessupport"] .login-card{ z-index:1 }
+/* monospace data readouts */
+.ss-mono{ font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; letter-spacing:.3px }
 /* ── SALES SUPPORT — ticket UI (Slice 3+) ── */
 .ss-card{ margin-bottom:18px }
 .ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--ss-gold,var(--accent2b)));margin:-2px 0 16px }
