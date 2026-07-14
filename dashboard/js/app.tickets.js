@@ -92,9 +92,9 @@ function _ssLogoSvg(h, filled) {
   // Two words justified to the SAME width via lengthAdjust="spacing" (adjusts letter spacing
   // only — NEVER the glyph shapes), stacked tight like the Star Wars mark. `filled` = a solid
   // gold version for the small sidebar (an outline gets too thin to read there).
-  var common = 'text-anchor="middle" font-family="Orbitron,\'Arial Black\',sans-serif" font-weight="900"';
-  var l1 = '<text x="340" y="70" font-size="56" textLength="600" lengthAdjust="spacing">SALES</text>';
-  var l2 = '<text x="340" y="148" font-size="56" textLength="600" lengthAdjust="spacing">SUPPORT</text>';
+  var common = 'text-anchor="middle" font-family="Orbitron,\'Arial Black\',sans-serif" font-weight="900" letter-spacing="1"';
+  var l1 = '<text x="340" y="72" font-size="62">SALES</text>';
+  var l2 = '<text x="340" y="150" font-size="62">SUPPORT</text>';
   if (filled) {
     var gid = 'ssGold' + (++_ssLogoN);
     return '<svg viewBox="0 0 680 172" style="height:' + h + 'px;width:auto;display:inline-block" role="img" aria-label="Sales Support">' +
@@ -117,6 +117,7 @@ function _ssApplyBranding(officeId) {
     if (lsvg) { lsvg.style.width = '100%'; lsvg.style.height = 'auto'; lsvg.style.maxWidth = '100%'; lsvg.style.display = 'block'; lsvg.style.margin = '0 auto'; }
   }
   var nm = document.getElementById('login-office-name'); if (nm) nm.style.display = 'none';
+  var brand = document.querySelector('.login-card h1'); if (brand) brand.style.display = 'none';   // hide "Activation Support" on the ticketing login
   var ls = document.getElementById('login-screen');
   if (ls) {
     var pts = [[8,16],[21,60],[34,28],[47,78],[59,14],[69,48],[81,70],[90,26],[15,86],[54,38],[74,9],[92,54],[29,70],[63,88],[41,50]];
