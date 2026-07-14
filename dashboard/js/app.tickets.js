@@ -68,9 +68,46 @@ function _ticketPost(body) {
 // We also set the sidebar username here because salessupport skips loadData/_applyMainData
 // (where every other office sets it).
 function initTicketApp() {
+  var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(24, true);   // Jedi wordmark in the sidebar
   var nameEl = document.getElementById('sb-user-name');
   if (nameEl) nameEl.textContent = (SESSION.name || SESSION.email || '') + (SESSION.role ? ' · ' + SESSION.role : '');
   switchTab(CURRENT_TAB || 'tickets');
+}
+
+// ── "Star Wars"-inspired gold wordmark (our own SVG — NOT the trademarked logo) ──
+// The Star-Wars feel comes from two heavy words justified to the SAME width (textLength +
+// lengthAdjust) with a gold gradient. `oneLine` = a single-row "SALES SUPPORT" for the sidebar.
+function _ssLogoSvg(h, oneLine) {
+  h = h || 90;
+  var gid = oneLine ? 'ssGold1' : 'ssGold2';
+  var grad = '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0" stop-color="#FFE9A8"/><stop offset="0.45" stop-color="#F4C21B"/><stop offset="1" stop-color="#C88F05"/></linearGradient></defs>';
+  var fill = 'url(#' + gid + ')';
+  var font = 'font-family="\'Arial Black\',Impact,\'Helvetica Neue\',sans-serif" font-weight="900"';
+  if (oneLine) {
+    return '<svg viewBox="0 0 560 118" style="height:' + h + 'px;width:auto;display:inline-block;vertical-align:middle" role="img" aria-label="Sales Support">' + grad +
+      '<text x="280" y="92" text-anchor="middle" textLength="548" lengthAdjust="spacingAndGlyphs" font-size="98" letter-spacing="-4" ' + font + ' fill="' + fill + '">SALES SUPPORT</text></svg>';
+  }
+  return '<svg viewBox="0 0 340 158" style="height:' + h + 'px;width:auto;display:inline-block" role="img" aria-label="Sales Support">' + grad +
+    '<g text-anchor="middle" letter-spacing="-2" ' + font + ' fill="' + fill + '">' +
+      '<text x="170" y="70" textLength="332" lengthAdjust="spacingAndGlyphs" font-size="82">SALES</text>' +
+      '<text x="170" y="148" textLength="332" lengthAdjust="spacingAndGlyphs" font-size="82">SUPPORT</text>' +
+    '</g></svg>';
+}
+
+// Login-screen branding for the ticketing office: swap the plain name for the gold wordmark
+// and lay a subtle starfield behind the deep-space glow. Called from loadConfig (before login).
+function _ssApplyBranding(officeId) {
+  if (officeId !== 'salessupport') return;
+  var logo = document.getElementById('login-office-logo');
+  if (logo) { logo.innerHTML = _ssLogoSvg(104); logo.style.display = 'block'; }
+  var nm = document.getElementById('login-office-name'); if (nm) nm.style.display = 'none';
+  var ls = document.getElementById('login-screen');
+  if (ls) {
+    var pts = [[8,16],[21,60],[34,28],[47,78],[59,14],[69,48],[81,70],[90,26],[15,86],[54,38],[74,9],[92,54],[29,70],[63,88],[41,50]];
+    var stars = pts.map(function(p, i){ var c = i % 3 === 0 ? '#ffffff' : (i % 3 === 1 ? '#bcd3ff' : '#9fb2d6'); return 'radial-gradient(1.4px 1.4px at ' + p[0] + '% ' + p[1] + '%, ' + c + ', transparent)'; }).join(', ');
+    ls.style.background = 'radial-gradient(ellipse at 50% 30%, #12305f 0%, rgba(5,7,15,0) 62%), ' + stars + ', #05070f';
+  }
 }
 
 // Router for the three screens (called from app.data.js renderTab when the office is

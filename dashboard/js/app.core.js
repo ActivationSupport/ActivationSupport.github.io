@@ -175,6 +175,7 @@ function loadConfig() {
   }
   // Recolor the whole portal (buttons, accents, login glow) to this office.
   applyOfficeTheme(officeId);
+  if (typeof _ssApplyBranding === 'function') _ssApplyBranding(officeId);   // Sales Support: Jedi wordmark + starfield login
   return true;
 }
 
@@ -679,6 +680,9 @@ function selectOffice(officeId) {
 
 function switchOffice(newOfficeId) {
   if (!OFFICE_NAMES[newOfficeId] || newOfficeId === CFG.officeId) return;
+  // Sales Support runs a different app (ticketing, no main-data blob) — switching in or
+  // out needs a clean re-init, so do a full reload rather than the in-place office swap.
+  if (newOfficeId === 'salessupport' || CFG.officeId === 'salessupport') { window.location.href = window.location.pathname + '?office=' + newOfficeId; return; }
   CFG.officeId = newOfficeId;
   CFG.officeName = OFFICE_NAMES[newOfficeId];
   applyOfficeTheme(newOfficeId);   // recolor the UI to the new office

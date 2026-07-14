@@ -32,10 +32,11 @@ html[data-office="salessupport"]{
   --border:rgba(120,170,255,.14);
   --field-bg:#0e1526; --field-border:#26375c; --control-bg:#111a30; --inset-bg:#0a1020; --panel2-bg:#0d1526; --panel2-border:#1e2c4a;
   --text:#e7eeff; --text2:#9fb2d6;
+  --ss-gold:#F4C21B;   /* Jedi gold — wordmark + accent rule */
 }
 /* ── SALES SUPPORT — ticket UI (Slice 3+) ── */
 .ss-card{ margin-bottom:18px }
-.ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--accent2b));margin:-2px 0 16px }
+.ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--ss-gold,var(--accent2b)));margin:-2px 0 16px }
 .ss-h2{ color:var(--blue2);margin:0 0 4px;font-size:20px }
 .ss-sub{ color:var(--text2);margin:0 0 18px;font-size:13px }
 .ss-grid{ display:grid;grid-template-columns:1fr 1fr;gap:14px 18px }
