@@ -33,6 +33,7 @@ html[data-office="salessupport"]{
   --field-bg:#0e1526; --field-border:#26375c; --control-bg:#111a30; --inset-bg:#0a1020; --panel2-bg:#0d1526; --panel2-border:#1e2c4a;
   --text:#e7eeff; --text2:#9fb2d6;
   --ss-gold:#F4C21B;   /* Jedi gold — wordmark + accent rule */
+  --ss-green:#38E08A;  /* Jedi green saber */
 }
 /* ── STAR WARS "console" skin — Pass 1: panels + readout headers ── */
 html[data-office="salessupport"] .ss-card{
@@ -43,8 +44,8 @@ html[data-office="salessupport"] .ss-card{
 /* glowing top accent bar, bled to the panel edges */
 html[data-office="salessupport"] .ss-rule{
   height:2px; border-radius:0; margin:-22px -22px 18px;
-  background:linear-gradient(90deg, transparent, var(--blue2) 12%, var(--ss-gold) 88%, transparent);
-  box-shadow:0 0 10px rgba(79,168,255,.45);
+  background:linear-gradient(90deg, transparent, var(--blue2) 8%, var(--ss-green) 50%, var(--ss-gold) 92%, transparent);
+  box-shadow:0 0 10px rgba(79,168,255,.4);
 }
 /* HUD corner brackets (blue top-left, gold bottom-right) */
 html[data-office="salessupport"] .ss-card::before,
@@ -135,9 +136,9 @@ html[data-office="salessupport"] .office-dd-item:hover{ background:rgba(79,168,2
 html[data-office="salessupport"] .content{
   background-color:var(--bg);
   background-image:
-    radial-gradient(720px 480px at 12% 16%, rgba(40,120,255,.16), transparent 62%),
-    radial-gradient(600px 540px at 88% 80%, rgba(30,180,200,.10), transparent 60%),
-    radial-gradient(540px 440px at 64% 2%, rgba(244,194,27,.05), transparent 60%),
+    radial-gradient(720px 480px at 12% 16%, rgba(46,140,255,.15), transparent 62%),
+    radial-gradient(600px 540px at 86% 82%, rgba(56,224,138,.11), transparent 60%),
+    radial-gradient(560px 460px at 66% 0%, rgba(244,194,27,.08), transparent 60%),
     linear-gradient(rgba(79,168,255,.028) 1px, transparent 1px),
     linear-gradient(90deg, rgba(79,168,255,.028) 1px, transparent 1px);
   background-size:auto,auto,auto,42px 42px,42px 42px;

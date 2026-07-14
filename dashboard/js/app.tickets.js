@@ -121,8 +121,8 @@ function _ssApplyBranding(officeId) {
   var brand = document.querySelector('.login-card h1'); if (brand) brand.style.display = 'none';   // hide "Activation Support" on the ticketing login
   var ls = document.getElementById('login-screen');
   if (ls) {
-    // glow + an ambient teal light-leak; the drifting/twinkling starfield is the animated CSS ::before/::after.
-    ls.style.background = 'radial-gradient(ellipse at 50% 28%, #12305f 0%, rgba(5,7,15,0) 60%), radial-gradient(700px 520px at 16% 84%, rgba(30,180,200,.10), transparent 60%), #05070f';
+    // central glow + Jedi green & gold light-leaks; the drifting/twinkling starfield is the animated CSS ::before/::after.
+    ls.style.background = 'radial-gradient(ellipse at 50% 28%, #12305f 0%, rgba(5,7,15,0) 60%), radial-gradient(680px 520px at 14% 86%, rgba(56,224,138,.09), transparent 60%), radial-gradient(560px 460px at 88% 12%, rgba(244,194,27,.06), transparent 60%), #05070f';
   }
 }
 
