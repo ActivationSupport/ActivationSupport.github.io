@@ -279,18 +279,24 @@ function _comboRender(id) {
   var all = (st.opts && st.opts()) || [];
   var matches = all.filter(function(o){ return String(o).toLowerCase().indexOf(ql) !== -1; });
   var exact = all.some(function(o){ return String(o).toLowerCase() === ql; });
+  var canCreate = !!q && !exact;
   var items = matches.map(function(o){ return { val: String(o), create: false }; });
-  if (q && !exact) items.push({ val: q, create: true });
+  if (canCreate) items.push({ val: q, create: true });   // create item index = matches.length
   st.items = items;
   if (st.hi >= items.length) st.hi = items.length - 1;
-  menu.innerHTML = items.length
-    ? items.map(function(it, i){
-        var cls = 'ss-combo-opt' + (it.create ? ' ss-combo-create' : '') + (i === st.hi ? ' hi' : '');
-        return '<div class="' + cls + '" role="option" data-i="' + i + '">' + (it.create ? '+ Create “' + esc(it.val) + '”' : esc(it.val)) + '</div>';
-      }).join('')
-    : '<div class="ss-combo-empty">No matches</div>';
+  var html = matches.map(function(o, i){
+    return '<div class="ss-combo-opt' + (i === st.hi ? ' hi' : '') + '" role="option" data-i="' + i + '">' + esc(String(o)) + '</div>';
+  }).join('');
+  // Always show a visible add affordance: "+ Add "<typed>"" when there's a new value, else a prompt.
+  if (canCreate) {
+    var ci = matches.length;
+    html += '<div class="ss-combo-add' + (ci === st.hi ? ' hi' : '') + '" role="option" data-i="' + ci + '">+ Add &ldquo;' + esc(q) + '&rdquo;</div>';
+  } else {
+    html += '<div class="ss-combo-addhint">+ Type to add a new one</div>';
+  }
+  menu.innerHTML = html;
   menu.onmousedown = function(e){
-    var el = e.target && e.target.closest ? e.target.closest('.ss-combo-opt') : null;
+    var el = e.target && e.target.closest ? e.target.closest('.ss-combo-opt, .ss-combo-add') : null;
     if (!el) return;
     e.preventDefault();   // fire before the input's blur so the pick registers
     _comboPick(id, parseInt(el.getAttribute('data-i'), 10));
@@ -299,8 +305,7 @@ function _comboRender(id) {
 function _comboOpen(id) {
   var menu = document.getElementById(id + '-menu'), input = document.getElementById(id); if (!menu || !input) return;
   _comboRender(id);
-  if (_COMBO[id] && _COMBO[id].items.length) { menu.classList.add('open'); input.setAttribute('aria-expanded', 'true'); }
-  else { menu.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); }   // nothing to suggest (e.g. empty Subject) → no menu
+  menu.classList.add('open'); input.setAttribute('aria-expanded', 'true');   // always open (options + a visible add row)
 }
 function _comboClose(id) {
   var menu = document.getElementById(id + '-menu'), input = document.getElementById(id);

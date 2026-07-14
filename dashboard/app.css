@@ -276,6 +276,9 @@ html[data-office="salessupport"] .ss-form-card{ overflow:visible }   /* let the 
 .ss-combo-opt:hover,.ss-combo-opt.hi{ background:var(--blue2-fade) }
 .ss-combo-create{ color:var(--accent2b);font-weight:600 }
 .ss-combo-empty{ padding:8px 10px;font-size:13px;color:var(--text2) }
+.ss-combo-add{ padding:9px 10px;border-radius:6px;font-size:14px;font-weight:700;color:var(--ss-green,#38E08A);cursor:pointer;border-top:1px solid var(--field-border);margin-top:4px }
+.ss-combo-add:hover,.ss-combo-add.hi{ background:rgba(56,224,138,.14) }
+.ss-combo-addhint{ padding:9px 10px;font-size:12px;color:var(--text2);border-top:1px solid var(--field-border);margin-top:4px;opacity:.85 }
 @media (max-width:640px){ .ss-grid{ grid-template-columns:1fr } .ss-dl{ grid-template-columns:1fr } }
 /* ps-* inputs keep a pure-white fill in light mode (they pop off the off-white page);
    all other form controls now auto-theme via --field-bg/--field-border. */
