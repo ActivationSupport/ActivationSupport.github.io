@@ -462,7 +462,7 @@ function _ticketTableHtml() {
     _ticketTh('Rep','requester') + _ticketTh('Office','office') + '<th>Category</th>' + _ticketTh('Subject','subject') + _ticketTh('Status','status') + '</tr>';
   var body = rows.map(function(t){
     return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
-      '<td style="font-weight:700;color:var(--blue2);white-space:nowrap">' + esc(t.ticketId) + '</td>' +
+      '<td class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
       '<td style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
       '<td>' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
       '<td>' + esc(t.requester || '—') + '</td>' +
@@ -515,7 +515,7 @@ function _followupTableHtml() {
     var age = _ageDays(t.lastUpdated || t.created);
     var col = age >= 2 ? '#e0a838' : 'var(--text2)';
     return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
-      '<td style="font-weight:700;color:var(--blue2);white-space:nowrap">' + esc(t.ticketId) + '</td>' +
+      '<td class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
       '<td style="white-space:nowrap;color:' + col + '">' + age + 'd</td>' +
       '<td>' + esc(t.requester || '—') + '</td>' +
       '<td>' + esc(t.office || '—') + '</td>' +
@@ -560,7 +560,7 @@ function _ticketDetailHtml(t, notes) {
   var header = '<div class="ss-td-head">' +
     '<div class="ss-td-headmain">' +
       '<h4 class="ss-dsubj">' + (t.subject ? esc(t.subject) : '<span style="opacity:.55">(no subject)</span>') + '</h4>' +
-      '<div class="ss-td-sub">' + esc(t.ticketId) + ' · opened by ' + esc(t.createdByName || t.createdBy || '—') + ' · ' + esc(_ticketFmtDate(t.created)) + '</div>' +
+      '<div class="ss-td-sub"><span class="ss-tid">' + esc(t.ticketId) + '</span> · opened by ' + esc(t.createdByName || t.createdBy || '—') + ' · ' + esc(_ticketFmtDate(t.created)) + '</div>' +
     '</div>' + _ticketStatusBadge(t.status) +
   '</div>';
   var notesHtml = notes.length ? notes.map(function(n){

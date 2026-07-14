@@ -34,6 +34,30 @@ html[data-office="salessupport"]{
   --text:#e7eeff; --text2:#9fb2d6;
   --ss-gold:#F4C21B;   /* Jedi gold — wordmark + accent rule */
 }
+/* ── STAR WARS "console" skin — Pass 1: panels + readout headers ── */
+html[data-office="salessupport"] .ss-card{
+  position:relative; padding:22px; border:1px solid rgba(79,168,255,.22); border-radius:6px;
+  background:linear-gradient(180deg, rgba(23,32,58,.5), var(--surface));
+  box-shadow:0 10px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(79,168,255,.08);
+}
+/* glowing top accent bar, bled to the panel edges */
+html[data-office="salessupport"] .ss-rule{
+  height:2px; border-radius:0; margin:-22px -22px 18px;
+  background:linear-gradient(90deg, transparent, var(--blue2) 12%, var(--ss-gold) 88%, transparent);
+  box-shadow:0 0 10px rgba(79,168,255,.45);
+}
+/* HUD corner brackets (blue top-left, gold bottom-right) */
+html[data-office="salessupport"] .ss-card::before,
+html[data-office="salessupport"] .ss-card::after{ content:''; position:absolute; width:12px; height:12px; pointer-events:none }
+html[data-office="salessupport"] .ss-card::before{ top:8px; left:8px; border-top:2px solid var(--blue2); border-left:2px solid var(--blue2); opacity:.75 }
+html[data-office="salessupport"] .ss-card::after{ bottom:8px; right:8px; border-bottom:2px solid var(--ss-gold); border-right:2px solid var(--ss-gold); opacity:.55 }
+/* readout headers — geometric Orbitron caps with a blue glow */
+html[data-office="salessupport"] .ss-h2{
+  font-family:Orbitron,'Arial Black',sans-serif; font-weight:900; text-transform:uppercase;
+  letter-spacing:2.5px; font-size:16px; color:#eaf3ff; text-shadow:0 0 14px rgba(79,168,255,.35);
+}
+/* monospace gold ticket id (data readout) */
+.ss-tid{ font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; color:var(--ss-gold); font-weight:700; letter-spacing:.5px }
 /* ── SALES SUPPORT — ticket UI (Slice 3+) ── */
 .ss-card{ margin-bottom:18px }
 .ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--ss-gold,var(--accent2b)));margin:-2px 0 16px }
