@@ -66,6 +66,15 @@ html[data-office="salessupport"]{
 .ss-dt{ display:flex;flex-direction:column;gap:3px;font-size:14px }
 .ss-note{ background:var(--inset-bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:14px }
 .ss-note-hd{ color:var(--text2);font-size:12px;margin-bottom:4px }
+/* creatable combobox (Zendesk-style) */
+html[data-office="salessupport"] .ss-form-card{ overflow:visible }   /* let the dropdown escape the card */
+.ss-combo{ position:relative }
+.ss-combo-menu{ position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:50;display:none;background:var(--surface2);border:1px solid var(--field-border);border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,.55);max-height:240px;overflow-y:auto;padding:4px }
+.ss-combo-menu.open{ display:block }
+.ss-combo-opt{ padding:8px 10px;border-radius:6px;font-size:14px;color:var(--text);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+.ss-combo-opt:hover,.ss-combo-opt.hi{ background:var(--blue2-fade) }
+.ss-combo-create{ color:var(--accent2b);font-weight:600 }
+.ss-combo-empty{ padding:8px 10px;font-size:13px;color:var(--text2) }
 @media (max-width:640px){ .ss-grid{ grid-template-columns:1fr } .ss-dl{ grid-template-columns:1fr } }
 /* ps-* inputs keep a pure-white fill in light mode (they pop off the off-white page);
    all other form controls now auto-theme via --field-bg/--field-border. */

@@ -105,18 +105,18 @@ function _newTicketFormHtml() {
   var me = (SESSION && (SESSION.name || SESSION.email)) || '';
   var assignee = '<select id="nt-assignee" class="ps-select"><option value="' + esc((SESSION&&SESSION.email)||'') + '" selected>' + esc(me || 'Me') + '</option></select>';
   return '' +
-  '<div class="card ss-card" style="max-width:860px">' +
+  '<div class="card ss-card ss-form-card" style="max-width:860px">' +
     '<div class="ss-rule"></div>' +
     '<h2 class="ss-h2">New Ticket</h2>' +
-    '<p class="ss-sub">Log a rep call or text. Office, rep, and categories remember what you type.</p>' +
+    '<p class="ss-sub">Log a rep call or text. Rep, office, subject and categories remember what you type — pick an existing one or create a new one inline.</p>' +
     '<div class="ss-grid">' +
-      _ntField('Requester (Rep)', '<input id="nt-requester" class="ps-input" list="nt-reps" autocomplete="off" placeholder="Rep name"><datalist id="nt-reps"></datalist>') +
-      _ntField('Office', '<input id="nt-office" class="ps-input" list="nt-offices" autocomplete="off" placeholder="Office"><datalist id="nt-offices"></datalist>') +
+      _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; } })) +
+      _ntField('Office', _comboField('nt-office', { placeholder:'Office', options:function(){ return _TICKETS.lookups.office || []; } })) +
       _ntField('Channel', chan) +
       _ntField('Phone #', '<input id="nt-phone" class="ps-input" autocomplete="off" placeholder="Called / texted in from">') +
-      _ntField('Subject', '<input id="nt-subject" class="ps-input" autocomplete="off" placeholder="Short summary">', 'ss-fld--full') +
-      _ntField('General Category', '<input id="nt-general" class="ps-input" list="nt-gencats" autocomplete="off" oninput="_ticketOnGeneralChange()" placeholder="e.g. Escalations"><datalist id="nt-gencats"></datalist>') +
-      _ntField('Specific Category', '<input id="nt-specific" class="ps-input" list="nt-speccats" autocomplete="off" placeholder="e.g. Fraud Support"><datalist id="nt-speccats"></datalist>') +
+      _ntField('Subject', _comboField('nt-subject', { placeholder:'Short summary', options:function(){ return _TICKETS.lookups.subject || []; } }), 'ss-fld--full') +
+      _ntField('General Category', _comboField('nt-general', { placeholder:'e.g. Escalations', options:function(){ return _TICKETS.lookups.generalCat || []; } })) +
+      _ntField('Specific Category', _comboField('nt-specific', { placeholder:'e.g. Fraud Support', options:_ticketSpecificOptions })) +
       _ntField('Sara Plus', sara) +
       _ntField('DSI / Account', '<input id="nt-dsi" class="ps-input" autocomplete="off" placeholder="DSI or account info">') +
       _ntField('Assignee', assignee) +
@@ -134,10 +134,9 @@ function _newTicketFormHtml() {
   '</div>';
 }
 
-// Fetch the save-as-you-go lists + agents (once), then fill the controls. Safe no-op
-// (and a gentle hint) while TICKET_SCRIPT_URL is still empty in the preview.
+// Fetch the save-as-you-go lists + agents (once). The comboboxes read their options
+// live from _TICKETS.lookups, so there's nothing to "fill" — just the Assignee <select>.
 function _ticketLoadFormData() {
-  _ticketFillLookups();   // paint whatever we already have cached
   if (!TICKET_SCRIPT_URL) { _ntStatus('Preview mode — backend not connected yet (dropdowns fill once it is).', false); return; }
   Promise.all([
     _ticketGet({ action:'getLookups' }),
@@ -146,20 +145,8 @@ function _ticketLoadFormData() {
     if (r[0] && r[0].lookups) _TICKETS.lookups = r[0].lookups;
     if (r[1] && r[1].agents)  _TICKETS.agents  = r[1].agents;
     _TICKETS._loaded = true;
-    _ticketFillLookups();
     _ticketFillAgents();
   }).catch(function(){ /* leave the form usable with empty lists */ });
-}
-function _ticketFillDatalist(id, values) {
-  var dl = document.getElementById(id); if (!dl) return;
-  dl.innerHTML = (values || []).map(function(v){ return '<option value="' + esc(v) + '">'; }).join('');
-}
-function _ticketFillLookups() {
-  var lk = _TICKETS.lookups || {};
-  _ticketFillDatalist('nt-reps', lk.rep || []);
-  _ticketFillDatalist('nt-offices', lk.office || []);
-  _ticketFillDatalist('nt-gencats', lk.generalCat || []);
-  _ticketOnGeneralChange();   // specifics depend on the chosen general
 }
 function _ticketFillAgents() {
   var sel = document.getElementById('nt-assignee'); if (!sel || !_TICKETS.agents.length) return;
@@ -168,15 +155,81 @@ function _ticketFillAgents() {
     return '<option value="' + esc(a.email) + '"' + (a.email === mine ? ' selected' : '') + '>' + esc(a.name || a.email) + '</option>';
   }).join('');
 }
-// Specific-category datalist shows the specifics under the currently-typed general
-// (case-insensitive); with no/unknown general it shows all specifics. Free-type still allowed.
-function _ticketOnGeneralChange() {
-  var gen = (document.getElementById('nt-general') || {}).value || '';
-  gen = String(gen).trim().toLowerCase();
-  var specs = (_TICKETS.lookups.specificCat || []);
-  var filtered = specs.filter(function(s){ return !gen || String(s.parent||'').trim().toLowerCase() === gen; });
-  if (!filtered.length) filtered = specs;   // unknown general → don't hide everything
-  _ticketFillDatalist('nt-speccats', filtered.map(function(s){ return s.value; }));
+// Specific-category options = specifics under the currently-typed General (case-insensitive);
+// unknown/empty General shows all. Free-type/create still allowed.
+function _ticketSpecificOptions() {
+  var gen = String((document.getElementById('nt-general') || {}).value || '').trim().toLowerCase();
+  var specs = _TICKETS.lookups.specificCat || [];
+  var filtered = specs.filter(function(s){ return !gen || String(s.parent || '').trim().toLowerCase() === gen; });
+  if (!filtered.length) filtered = specs;
+  return filtered.map(function(s){ return s.value; });
+}
+
+// ── Creatable combobox (Zendesk-Garden style) ───────────────────────────────
+// An input + a filtering listbox. Type to narrow existing values; if what you typed
+// isn't already an option, a "+ Create …" row lets you add it inline. Single-select;
+// the value lives in the input (so _ntVal reads it), and brand-new values are persisted
+// by the backend save-as-you-go on ticket create. Keyboard: ↑/↓ move, Enter picks the
+// highlight, Esc closes. `cfg = { placeholder, options: ()=>[strings] }`.
+var _COMBO = {};
+function _comboField(id, cfg) {
+  _COMBO[id] = { opts: cfg.options, items: [], hi: -1 };
+  return '<div class="ss-combo">' +
+    '<input id="' + id + '" class="ps-input ss-combo-input" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="' + esc(cfg.placeholder || '') + '" ' +
+      'onfocus="_comboOpen(\'' + id + '\')" oninput="_comboOpen(\'' + id + '\')" onkeydown="_comboKey(\'' + id + '\',event)" onblur="_comboBlur(\'' + id + '\')">' +
+    '<div class="ss-combo-menu" id="' + id + '-menu" role="listbox"></div>' +
+  '</div>';
+}
+function _comboRender(id) {
+  var input = document.getElementById(id), menu = document.getElementById(id + '-menu'), st = _COMBO[id];
+  if (!input || !menu || !st) return;
+  var q = String(input.value || '').trim(), ql = q.toLowerCase();
+  var all = (st.opts && st.opts()) || [];
+  var matches = all.filter(function(o){ return String(o).toLowerCase().indexOf(ql) !== -1; });
+  var exact = all.some(function(o){ return String(o).toLowerCase() === ql; });
+  var items = matches.map(function(o){ return { val: String(o), create: false }; });
+  if (q && !exact) items.push({ val: q, create: true });
+  st.items = items;
+  if (st.hi >= items.length) st.hi = items.length - 1;
+  menu.innerHTML = items.length
+    ? items.map(function(it, i){
+        var cls = 'ss-combo-opt' + (it.create ? ' ss-combo-create' : '') + (i === st.hi ? ' hi' : '');
+        return '<div class="' + cls + '" role="option" data-i="' + i + '">' + (it.create ? '+ Create “' + esc(it.val) + '”' : esc(it.val)) + '</div>';
+      }).join('')
+    : '<div class="ss-combo-empty">No matches</div>';
+  menu.onmousedown = function(e){
+    var el = e.target && e.target.closest ? e.target.closest('.ss-combo-opt') : null;
+    if (!el) return;
+    e.preventDefault();   // fire before the input's blur so the pick registers
+    _comboPick(id, parseInt(el.getAttribute('data-i'), 10));
+  };
+}
+function _comboOpen(id) {
+  var menu = document.getElementById(id + '-menu'), input = document.getElementById(id); if (!menu || !input) return;
+  _comboRender(id);
+  if (_COMBO[id] && _COMBO[id].items.length) { menu.classList.add('open'); input.setAttribute('aria-expanded', 'true'); }
+  else { menu.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); }   // nothing to suggest (e.g. empty Subject) → no menu
+}
+function _comboClose(id) {
+  var menu = document.getElementById(id + '-menu'), input = document.getElementById(id);
+  if (menu) menu.classList.remove('open');
+  if (input) input.setAttribute('aria-expanded', 'false');
+  if (_COMBO[id]) _COMBO[id].hi = -1;
+}
+function _comboBlur(id) { setTimeout(function(){ _comboClose(id); }, 140); }   // delay so a click can register
+function _comboPick(id, i) {
+  var st = _COMBO[id], input = document.getElementById(id);
+  if (!st || !input || !st.items[i]) return;
+  input.value = st.items[i].val;
+  _comboClose(id);
+}
+function _comboKey(id, e) {
+  var st = _COMBO[id]; if (!st) return;
+  var menuOpen = (document.getElementById(id + '-menu') || {}).classList && document.getElementById(id + '-menu').classList.contains('open');
+  if (e.key === 'ArrowDown')      { e.preventDefault(); if (!menuOpen) { _comboOpen(id); return; } st.hi = Math.min(st.hi + 1, st.items.length - 1); _comboRender(id); }
+  else if (e.key === 'ArrowUp')   { e.preventDefault(); st.hi = Math.max(st.hi - 1, 0); _comboRender(id); }
+  else if (e.key === 'Enter')     { if (st.hi >= 0 && st.items[st.hi]) { e.preventDefault(); _comboPick(id, st.hi); } else { _comboClose(id); } }
+  else if (e.key === 'Escape')    { _comboClose(id); }
 }
 
 function _ntVal(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
@@ -189,7 +242,6 @@ function _ntStatus(msg, isError) {
 function _ticketResetForm() {
   ['nt-requester','nt-office','nt-phone','nt-subject','nt-general','nt-specific','nt-dsi','nt-tags','nt-note','nt-channel','nt-sara'].forEach(function(id){ var el=document.getElementById(id); if (el) el.value=''; });
   ['nt-calledback','nt-review'].forEach(function(id){ var el=document.getElementById(id); if (el) el.checked=false; });
-  _ticketOnGeneralChange();
 }
 function _ticketCreate(ev) {
   if (ev && ev.preventDefault) ev.preventDefault();
