@@ -82,6 +82,32 @@ html[data-office="salessupport"] .login-card::before,
 html[data-office="salessupport"] .login-card::after{ content:''; position:absolute; width:14px; height:14px; pointer-events:none }
 html[data-office="salessupport"] .login-card::before{ top:9px; left:9px; border-top:2px solid var(--blue2); border-left:2px solid var(--blue2); opacity:.8 }
 html[data-office="salessupport"] .login-card::after{ bottom:9px; right:9px; border-bottom:2px solid var(--ss-gold); border-right:2px solid var(--ss-gold); opacity:.6 }
+/* ── STAR WARS console skin — Pass 3: fields / inputs / rows / notes / scrollbars ── */
+/* form fields glow on focus */
+html[data-office="salessupport"] .ps-input,
+html[data-office="salessupport"] .ps-select,
+html[data-office="salessupport"] .ps-textarea{ border-radius:4px; transition:border-color .15s, box-shadow .15s }
+html[data-office="salessupport"] .ps-input:focus,
+html[data-office="salessupport"] .ps-select:focus,
+html[data-office="salessupport"] .ps-textarea:focus,
+html[data-office="salessupport"] #login-email:focus{ outline:none; border-color:var(--blue2); box-shadow:0 0 0 1px var(--blue2), 0 0 14px rgba(79,168,255,.22) }
+/* combobox menu — holographic frame */
+html[data-office="salessupport"] .ss-combo-menu{ border-color:rgba(79,168,255,.3); box-shadow:0 0 0 1px rgba(79,168,255,.12), 0 14px 34px rgba(0,0,0,.6) }
+/* table row hover — glowing left edge */
+html[data-office="salessupport"] .ss-row:hover td{ background:rgba(79,168,255,.09) }
+html[data-office="salessupport"] .ss-row:hover td:first-child{ box-shadow:inset 3px 0 0 var(--blue2) }
+/* note thread entries — log-line accent */
+html[data-office="salessupport"] .ss-note{ border-left:2px solid rgba(79,168,255,.4); border-radius:4px }
+/* detail side panel + avatar ring */
+html[data-office="salessupport"] .ss-td-side{ border-color:rgba(79,168,255,.18) }
+html[data-office="salessupport"] .ss-av{ box-shadow:0 0 0 1px rgba(255,255,255,.14) }
+/* empty-state icon glow */
+html[data-office="salessupport"] .ss-empty-svg{ stroke:var(--blue2); opacity:.7; filter:drop-shadow(0 0 10px rgba(79,168,255,.4)) }
+/* thin console scrollbars */
+html[data-office="salessupport"] ::-webkit-scrollbar{ width:8px; height:8px }
+html[data-office="salessupport"] ::-webkit-scrollbar-thumb{ background:rgba(79,168,255,.3); border-radius:4px }
+html[data-office="salessupport"] ::-webkit-scrollbar-thumb:hover{ background:rgba(79,168,255,.5) }
+html[data-office="salessupport"] ::-webkit-scrollbar-track{ background:transparent }
 /* ── SALES SUPPORT — ticket UI (Slice 3+) ── */
 .ss-card{ margin-bottom:18px }
 .ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--ss-gold,var(--accent2b)));margin:-2px 0 16px }
