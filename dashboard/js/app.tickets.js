@@ -173,23 +173,23 @@ function _newTicketFormHtml() {
     '<p class="ss-sub">Log a rep call or text. Rep, office, subject and categories remember what you type — pick an existing one or create a new one inline.</p>' +
     '<div class="ss-form-sec">' + _ntSec('Contact') +
       '<div class="ss-grid">' +
-        _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:_ntAutofillPhone })) +
-        _ntField('Office', _comboField('nt-office', { placeholder:'Office', options:function(){ return _TICKETS.lookups.office || []; } })) +
+        _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:_ntAutofillRep, onAdd:function(t){ _ssRepAddPopup(t); } })) +
+        _ntField('Office', _comboField('nt-office', { placeholder:'Office', options:function(){ return _TICKETS.lookups.office || []; }, addTitle:'Add Office' })) +
         _ntField('Channel', chan) +
         _ntField('Phone #', '<input id="nt-phone" class="ps-input" autocomplete="off" placeholder="Called / texted in from">') +
       '</div>' +
     '</div>' +
     '<div class="ss-form-sec">' + _ntSec('Classification') +
       '<div class="ss-grid">' +
-        _ntField('General Category', _comboField('nt-general', { placeholder:'e.g. Escalations', options:function(){ return _TICKETS.lookups.generalCat || []; } })) +
-        _ntField('Specific Category', _comboField('nt-specific', { placeholder:'e.g. Fraud Support', options:_ticketSpecificOptions })) +
+        _ntField('General Category', _comboField('nt-general', { placeholder:'e.g. Escalations', options:function(){ return _TICKETS.lookups.generalCat || []; }, addTitle:'Add General Category' })) +
+        _ntField('Specific Category', _comboField('nt-specific', { placeholder:'e.g. Fraud Support', options:_ticketSpecificOptions, addTitle:'Add Specific Category' })) +
         _ntField('Sara Plus', sara) +
         _ntField('DSI / Account', '<input id="nt-dsi" class="ps-input" autocomplete="off" placeholder="DSI or account info">') +
       '</div>' +
     '</div>' +
     '<div class="ss-form-sec">' + _ntSec('Ticket') +
       '<div class="ss-grid">' +
-        _ntField('Subject', _comboField('nt-subject', { placeholder:'Short summary', options:function(){ return _TICKETS.lookups.subject || []; } }), 'ss-fld--full') +
+        _ntField('Subject', _comboField('nt-subject', { placeholder:'Short summary', options:function(){ return _TICKETS.lookups.subject || []; }, addTitle:'Add Subject' }), 'ss-fld--full') +
         _ntField('Assignee', assignee) +
         _ntField('Tags', '<input id="nt-tags" class="ps-input" autocomplete="off" placeholder="comma, separated">') +
       '</div>' +
@@ -217,28 +217,31 @@ function _ticketLoadFormData() {
   ]).then(function(r) {
     if (r[0] && r[0].lookups) _TICKETS.lookups = r[0].lookups;
     if (r[1] && r[1].agents)  _TICKETS.agents  = r[1].agents;
-    if (r[2] && r[2].tickets) { _TICKETS.list = r[2].tickets; _ticketBuildRepPhone(); }
+    if (r[2] && r[2].tickets) { _TICKETS.list = r[2].tickets; _ticketBuildRepProfiles(); }
     _TICKETS._loaded = true;
     _ticketFillAgents();
   }).catch(function(){ /* leave the form usable with empty lists */ });
 }
-// Build { rep(lowercased) -> the phone# from that rep's most recent ticket }.
-function _ticketBuildRepPhone() {
+// Build { rep(lc) -> {phone, office} } from each rep's most recent ticket that HAS each value.
+function _ticketBuildRepProfiles() {
   var byRep = {};
   (_TICKETS.list || []).forEach(function(t) {
-    var rep = String(t.requester || '').trim().toLowerCase(), ph = String(t.phone || '').trim(), ts = String(t.created || '');
-    if (!rep || !ph) return;
-    if (!byRep[rep] || ts > byRep[rep].ts) byRep[rep] = { phone: ph, ts: ts };
+    var rep = String(t.requester || '').trim().toLowerCase(), ts = String(t.created || '');
+    if (!rep) return;
+    var r = byRep[rep] || (byRep[rep] = { phone:'', phoneTs:'', office:'', officeTs:'' });
+    var ph = String(t.phone || '').trim(), of = String(t.office || '').trim();
+    if (ph && ts >= r.phoneTs) { r.phone = ph; r.phoneTs = ts; }
+    if (of && ts >= r.officeTs) { r.office = of; r.officeTs = ts; }
   });
-  _TICKETS._repPhone = {};
-  Object.keys(byRep).forEach(function(rk){ _TICKETS._repPhone[rk] = byRep[rk].phone; });
+  _TICKETS._repProfile = {};
+  Object.keys(byRep).forEach(function(rk){ _TICKETS._repProfile[rk] = { phone: byRep[rk].phone, office: byRep[rk].office }; });
 }
-// On picking a Rep, auto-fill Phone with the number they last called/texted in from.
-function _ntAutofillPhone() {
+// On picking an existing Rep, auto-fill Phone + Office from their history (each still editable).
+function _ntAutofillRep() {
   var rep = _ntVal('nt-requester').toLowerCase();
-  var phone = (_TICKETS._repPhone || {})[rep];
-  var el = document.getElementById('nt-phone');
-  if (el && phone) el.value = phone;
+  var p = (_TICKETS._repProfile || {})[rep]; if (!p) return;
+  if (p.phone) _ntSetVal('nt-phone', p.phone);
+  if (p.office) _ntSetVal('nt-office', p.office);
 }
 function _ticketFillAgents() {
   var sel = document.getElementById('nt-assignee'); if (!sel || !_TICKETS.agents.length) return;
@@ -265,7 +268,7 @@ function _ticketSpecificOptions() {
 // highlight, Esc closes. `cfg = { placeholder, options: ()=>[strings] }`.
 var _COMBO = {};
 function _comboField(id, cfg) {
-  _COMBO[id] = { opts: cfg.options, onChange: cfg.onChange || null, items: [], hi: -1 };
+  _COMBO[id] = { opts: cfg.options, onChange: cfg.onChange || null, onAdd: cfg.onAdd || null, addTitle: cfg.addTitle || 'Add new', items: [], hi: -1 };
   return '<div class="ss-combo">' +
     '<input id="' + id + '" class="ps-input ss-combo-input" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="' + esc(cfg.placeholder || '') + '" ' +
       'onfocus="_comboOpen(\'' + id + '\')" oninput="_comboOpen(\'' + id + '\')" onkeydown="_comboKey(\'' + id + '\',event)" onblur="_comboBlur(\'' + id + '\')">' +
@@ -317,9 +320,60 @@ function _comboBlur(id) { setTimeout(function(){ _comboClose(id); }, 140); }   /
 function _comboPick(id, i) {
   var st = _COMBO[id], input = document.getElementById(id);
   if (!st || !input || !st.items[i]) return;
+  if (st.items[i].create) { _comboAdd(id); return; }   // "+ Add …" → open the add popup
   input.value = st.items[i].val;
   _comboClose(id);
   if (st.onChange) st.onChange(input.value);
+}
+// Clicking "+ Add" opens a popup for the new value. Rep uses a 3-field popup (name/phone/office);
+// every other field uses a single-value popup that fills that combobox.
+function _comboAdd(id) {
+  var st = _COMBO[id], input = document.getElementById(id);
+  var typed = input ? String(input.value || '').trim() : '';
+  _comboClose(id);
+  if (st && st.onAdd) { st.onAdd(typed); return; }
+  _ssAddPopup((st && st.addTitle) || 'Add new', [{ id:'val', label:'New value', value:typed }], function(v){
+    if (!v.val || !input) return;
+    input.value = v.val;
+    if (st && st.onChange) st.onChange(v.val);
+  });
+}
+function _ntSetVal(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; }
+// A small console-styled popup: fields[{id,label,value}] → onSave({id:value,…}).
+function _ssAddPopup(title, fields, onSave) {
+  var old = document.getElementById('ss-addpop'); if (old && old.parentNode) old.parentNode.removeChild(old);
+  var wrap = document.createElement('div'); wrap.id = 'ss-addpop'; wrap.className = 'ss-addpop-bg';
+  var fieldsHtml = fields.map(function(f){
+    return '<label class="ss-fld"><span class="ss-lbl">' + esc(f.label) + '</span>' +
+      '<input class="ps-input" id="ssap-' + f.id + '" autocomplete="off" value="' + esc(f.value || '') + '"></label>';
+  }).join('');
+  wrap.innerHTML = '<div class="ss-addpop card ss-card"><div class="ss-rule"></div>' +
+    '<h3 class="ss-h2" style="font-size:15px;margin:0 0 14px">' + esc(title) + '</h3>' +
+    '<div class="ss-addpop-fields">' + fieldsHtml + '</div>' +
+    '<div class="ss-actions"><button class="ps-btn" id="ssap-save">Add</button>' +
+    '<button class="ps-btn secondary" id="ssap-cancel">Cancel</button></div></div>';
+  document.body.appendChild(wrap);
+  var close = function(){ if (wrap.parentNode) wrap.parentNode.removeChild(wrap); };
+  wrap.addEventListener('mousedown', function(e){ if (e.target === wrap) close(); });
+  wrap.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+  document.getElementById('ssap-cancel').onclick = close;
+  document.getElementById('ssap-save').onclick = function(){
+    var vals = {}; fields.forEach(function(f){ var el = document.getElementById('ssap-' + f.id); vals[f.id] = el ? el.value.trim() : ''; });
+    onSave(vals); close();
+  };
+  var first = document.getElementById('ssap-' + fields[0].id); if (first) first.focus();
+}
+// Add-a-rep popup: captures name + phone + office; fills the three ticket fields (each still editable).
+function _ssRepAddPopup(typed) {
+  _ssAddPopup('Add Rep', [
+    { id:'name', label:'Rep name', value:typed },
+    { id:'phone', label:'Phone number', value:'' },
+    { id:'office', label:'Office', value:'' }
+  ], function(v){
+    _ntSetVal('nt-requester', v.name);
+    _ntSetVal('nt-phone', v.phone);
+    _ntSetVal('nt-office', v.office);
+  });
 }
 function _comboKey(id, e) {
   var st = _COMBO[id]; if (!st) return;
