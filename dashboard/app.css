@@ -130,6 +130,29 @@ html[data-office="salessupport"] #ticket-modal .modal::after{ bottom:10px; right
 .ss-form-seclabel{ font-family:Orbitron,'Arial Black',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--blue2); margin:0 0 12px; padding-bottom:6px; border-bottom:1px solid rgba(79,168,255,.15) }
 html[data-office="salessupport"] .office-dd-panel{ border:1px solid rgba(79,168,255,.3); box-shadow:0 0 0 1px rgba(79,168,255,.1), 0 14px 34px rgba(0,0,0,.6) }
 html[data-office="salessupport"] .office-dd-item:hover{ background:rgba(79,168,255,.1) }
+/* ── STAR WARS console skin — Pass 6: premium glass depth (ambient orbs + frosted panels) ── */
+/* ambient "light-leak" orbs + grid behind the content, fixed for a parallax-depth feel */
+html[data-office="salessupport"] .content{
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(720px 480px at 12% 16%, rgba(40,120,255,.16), transparent 62%),
+    radial-gradient(600px 540px at 88% 80%, rgba(30,180,200,.10), transparent 60%),
+    radial-gradient(540px 440px at 64% 2%, rgba(244,194,27,.05), transparent 60%),
+    linear-gradient(rgba(79,168,255,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79,168,255,.028) 1px, transparent 1px);
+  background-size:auto,auto,auto,42px 42px,42px 42px;
+  background-attachment:fixed,fixed,fixed,fixed,fixed;
+}
+/* frosted-glass panels floating over the orbs (rim-light top edge) */
+html[data-office="salessupport"] .ss-card{
+  background:rgba(18,25,46,.6);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  border:1px solid rgba(140,180,255,.16);
+  box-shadow:0 10px 34px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.06);
+}
+html[data-office="salessupport"] #ticket-modal.modal-bg{ -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px) }
+html[data-office="salessupport"] #ticket-modal .modal{ background:rgba(16,22,42,.85); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px) }
+html[data-office="salessupport"] .login-card{ background:rgba(16,22,42,.72); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px) }
 /* ── SALES SUPPORT — ticket UI (Slice 3+) ── */
 .ss-card{ margin-bottom:18px }
 .ss-rule{ height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue2),var(--ss-gold,var(--accent2b)));margin:-2px 0 16px }
