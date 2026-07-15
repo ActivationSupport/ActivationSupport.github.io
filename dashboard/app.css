@@ -358,9 +358,25 @@ html[data-office="salessupport"] #app .content::after{
 @keyframes ss-stardrift{ from{ background-position:0 0 } to{ background-position:400px 400px } }
 @keyframes ss-startwinkle{ from{ opacity:.84 } to{ opacity:1 } }
 @media (prefers-reduced-motion: reduce){ html[data-office="salessupport"] #app .content::before{ animation:none; opacity:.95 } }
-/* the side console + overhead panel are the cockpit HULL — keep them opaque above the fixed windscreen */
-html[data-office="salessupport"] #app .sidebar{ position:relative; z-index:2 }
-html[data-office="salessupport"] #app .topbar{ z-index:2 }
+/* the side console + overhead panel are the cockpit HULL — keep them opaque above the fixed windscreen.
+   DESKTOP ONLY: on mobile the sidebar must stay the position:fixed off-canvas drawer (this #app-scoped
+   rule would otherwise out-specify the @media(max-width:768px) drawer and pin the sidebar in-flow). */
+@media (min-width:769px){
+  html[data-office="salessupport"] #app .sidebar{ position:relative; z-index:2 }
+  html[data-office="salessupport"] #app .topbar{ z-index:2 }
+}
+/* MOBILE Sales Support: the cockpit windscreen (metal canopy + planet) is far too busy on a phone —
+   drop the canopy + planet + nebula and leave just the drifting starfield (like the login) on deep space. */
+@media (max-width:768px){
+  html[data-office="salessupport"] #app .content::after{ display:none }          /* no metal canopy */
+  html[data-office="salessupport"] #app .content{ background-image:none }         /* no planet/nebula — starfield (::before) + deep space only */
+  /* ticket detail modal (lives OUTSIDE #app, so scope to #ticket-modal): wrap the header status badge,
+     force the 2-col properties grid to a single column, and clip so it never causes horizontal page scroll */
+  html[data-office="salessupport"] #ticket-modal .modal{ overflow-x:hidden }
+  html[data-office="salessupport"] #ticket-modal .ss-td-head{ flex-wrap:wrap; gap:8px }
+  html[data-office="salessupport"] #ticket-modal .ss-td-grid{ grid-template-columns:minmax(0,1fr) }
+  html[data-office="salessupport"] #ticket-modal .ss-note-body{ overflow-wrap:anywhere }
+}
 
 /* ── console panels: brushed gunmetal instead of blue frosted glass ── */
 html[data-office="salessupport"] #app .ss-card,
