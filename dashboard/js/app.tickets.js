@@ -751,14 +751,17 @@ function _renderTicketDetail() {
 }
 function _dt(label, valHtml) { return '<div class="ss-dt"><span class="ss-lbl">' + esc(label) + '</span><span>' + (valHtml || '—') + '</span></div>'; }
 function _ticketDetailHtml(t, notes) {
+  var editing = !!(_TICKETS.open && _TICKETS.open.editing);
   var agents = (_TICKETS.agents && _TICKETS.agents.length) ? _TICKETS.agents : (t.assignee ? [{ email:t.assignee, name:t.assigneeName || t.assignee }] : []);
   var statusSel = '<select class="ps-select" onchange="_ticketSetStatus(this.value)">' +
     TICKET_STATUS.map(function(s){ return '<option value="' + s.code + '"' + (s.code === t.status ? ' selected' : '') + '>' + esc(s.label) + '</option>'; }).join('') + '</select>';
   var asgSel = '<select class="ps-select" onchange="_ticketReassign(this.value)">' +
     agents.map(function(a){ return '<option value="' + esc(a.email) + '"' + (a.email === t.assignee ? ' selected' : '') + '>' + esc(a.name || a.email) + '</option>'; }).join('') + '</select>';
+  var subjEl = editing
+    ? '<input id="ted-subject" class="ps-input ss-ted-inp" value="' + esc(t.subject||'') + '" placeholder="Subject">'
+    : '<h4 class="ss-dsubj">' + (t.subject ? esc(t.subject) : '<span style="opacity:.55">(no subject)</span>') + '</h4>';
   var header = '<div class="ss-td-head">' +
-    '<div class="ss-td-headmain">' +
-      '<h4 class="ss-dsubj">' + (t.subject ? esc(t.subject) : '<span style="opacity:.55">(no subject)</span>') + '</h4>' +
+    '<div class="ss-td-headmain">' + subjEl +
       '<div class="ss-td-sub"><span class="ss-tid">' + esc(t.ticketId) + '</span> · opened by ' + esc(t.createdByName || t.createdBy || '—') + ' · ' + esc(_ticketFmtDate(t.created)) + '</div>' +
     '</div>' + _ticketStatusBadge(t.status) +
   '</div>';
@@ -772,9 +775,30 @@ function _ticketDetailHtml(t, notes) {
     '<textarea id="td-note" class="ps-textarea" rows="3" placeholder="Add a note to the thread…"></textarea>' +
     '<div class="ss-actions"><button class="ps-btn" onclick="_ticketAddNote()">Add Note</button><span id="td-status" class="ss-status"></span></div>' +
   '</div>';
-  var side = '<div class="ss-td-side">' +
-    '<div class="ss-side-grp">' + _dt('Status', statusSel) + _dt('Assignee', asgSel) + '</div>' +
-    '<div class="ss-side-grp">' +
+  // Properties: read-only + an "Edit" button, OR editable inputs + Save/Cancel (all agents may edit any ticket).
+  var propGrp;
+  if (editing) {
+    var inp = function(id, val){ return '<input id="' + id + '" class="ps-input ss-ted-inp" value="' + esc(val || '') + '">'; };
+    var chanSel = '<select id="ted-channel" class="ps-select"><option value="">—</option>' +
+      TICKET_CHANNELS.map(function(x){ return '<option' + (x === t.channel ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>';
+    var saraSel = '<select id="ted-sara" class="ps-select"><option value="">—</option>' +
+      TICKET_SARA.map(function(x){ return '<option' + (x === t.saraPlus ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>';
+    propGrp = '<div class="ss-side-grp">' +
+      _dt('Requester (Rep)', inp('ted-requester', t.requester)) +
+      _dt('Office', inp('ted-office', t.office)) +
+      _dt('Channel', chanSel) +
+      _dt('Phone', inp('ted-phone', t.phone)) +
+      _dt('General Category', inp('ted-general', t.generalCategory)) +
+      _dt('Specific Category', inp('ted-specific', t.specificCategory)) +
+      _dt('Sara Plus', saraSel) +
+      _dt('DSI / Account', inp('ted-dsi', t.dsi)) +
+      _dt('Tags', inp('ted-tags', t.tags)) +
+    '</div>' +
+    '<div class="ss-actions"><button class="ps-btn" onclick="_ticketSaveEdit()">Save Changes</button>' +
+      '<button class="ps-btn secondary" onclick="_ticketToggleEdit()">Cancel</button>' +
+      '<span id="ted-status" class="ss-status"></span></div>';
+  } else {
+    propGrp = '<div class="ss-side-grp">' +
       _dt('Requester (Rep)', esc(t.requester)) +
       _dt('Office', esc(t.office)) +
       _dt('Channel', esc(t.channel)) +
@@ -784,8 +808,34 @@ function _ticketDetailHtml(t, notes) {
       _dt('DSI / Account', esc(t.dsi)) +
       _dt('Tags', esc(t.tags)) +
     '</div>' +
+    '<button class="ps-btn secondary ss-ted-edit" onclick="_ticketToggleEdit()">Edit ticket details</button>';
+  }
+  var side = '<div class="ss-td-side">' +
+    '<div class="ss-side-grp">' + _dt('Status', statusSel) + _dt('Assignee', asgSel) + '</div>' +
+    propGrp +
   '</div>';
   return header + '<div class="ss-td-grid">' + main + side + '</div>';
+}
+// Toggle the detail modal between read-only + edit; Save posts the whole property set to updateTicket.
+function _ticketToggleEdit() {
+  if (!_TICKETS.open) return;
+  _TICKETS.open.editing = !_TICKETS.open.editing;
+  _renderTicketDetail();
+}
+function _ticketSaveEdit() {
+  var id = _ticketOpenId(); if (!id) return;
+  var v = function(x){ var e = document.getElementById(x); return e ? String(e.value || '').trim() : undefined; };
+  var st = document.getElementById('ted-status'); if (st) { st.textContent = 'Saving…'; st.style.color = 'var(--text2)'; }
+  _ticketPost({ action:'updateTicket', ticketId:id,
+    subject:v('ted-subject'), requester:v('ted-requester'), office:v('ted-office'), channel:v('ted-channel'),
+    phone:v('ted-phone'), generalCategory:v('ted-general'), specificCategory:v('ted-specific'),
+    saraPlus:v('ted-sara'), dsi:v('ted-dsi'), tags:v('ted-tags')
+  }).then(function(res){
+    if (res && res.ok && res.ticket) {
+      _TICKETS.open.ticket = res.ticket; _TICKETS.open.editing = false;
+      _ticketSyncListRow(res.ticket); _renderTicketDetail();
+    } else if (st) { st.textContent = (res && res.error) || 'Could not save.'; st.style.color = 'var(--red)'; }
+  }).catch(function(e){ if (st) { st.textContent = 'Error: ' + e.message; st.style.color = 'var(--red)'; } });
 }
 
 // ── Detail actions (in-place; every agent can modify any ticket) ──
