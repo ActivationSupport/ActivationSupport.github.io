@@ -373,10 +373,20 @@ html[data-office="salessupport"] #app .content::after{
   html[data-office="salessupport"] #app .content::after{ display:none }          /* no metal canopy */
   html[data-office="salessupport"] #app .content{ background-image:none }         /* no planet/nebula — starfield (::before) + deep space only */
   /* ⚠ iOS Safari bug: backdrop-filter + overflow:auto on the SAME element kills scrolling. Drop the blur
-     on the scrollable panels for mobile so the wide queue table + the tall detail modal scroll freely. */
+     on mobile panels so the tall detail modal scrolls freely. */
   html[data-office="salessupport"] #app .ss-card,
   html[data-office="salessupport"] #ticket-modal .modal{ -webkit-backdrop-filter:none; backdrop-filter:none }
-  html[data-office="salessupport"] #app .ss-tablewrap{ -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain }
+  /* wide data tables (queue + follow-ups) → STACKED CARDS on mobile: no sideways scroll, every field shown
+     as a label:value row with long values wrapping (nested horizontal touch-scroll is unreliable on phones). */
+  html[data-office="salessupport"] #app .ss-tablewrap{ overflow:visible }
+  html[data-office="salessupport"] #app .ss-table,
+  html[data-office="salessupport"] #app .ss-table tbody{ display:block }
+  html[data-office="salessupport"] #app .ss-table tr:not(.ss-row){ display:none }        /* hide the header row */
+  html[data-office="salessupport"] #app .ss-table tr.ss-row{ display:block; margin:0 0 12px; padding:11px 14px; border:1px solid var(--border); border-radius:8px; background:var(--inset-bg) }
+  html[data-office="salessupport"] #app .ss-table tr.ss-row:last-child{ margin-bottom:0 }
+  html[data-office="salessupport"] #app .ss-table tr.ss-row:hover td{ background:transparent }
+  html[data-office="salessupport"] #app .ss-table td{ display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding:5px 0 !important; border:none !important; white-space:normal !important; text-align:right; overflow-wrap:anywhere; min-width:0 }
+  html[data-office="salessupport"] #app .ss-table td::before{ content:attr(data-label); flex:0 0 auto; color:var(--text2); font-size:11px; text-transform:uppercase; letter-spacing:.5px; font-weight:600; text-align:left; padding-top:1px }
   /* ticket detail modal (lives OUTSIDE #app, so scope to #ticket-modal): wrap the header status badge,
      force the 2-col properties grid to a single column, and clip so it never causes horizontal page scroll */
   html[data-office="salessupport"] #ticket-modal .modal{ overflow-x:hidden }

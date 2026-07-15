@@ -661,14 +661,14 @@ function _ticketTableHtml() {
     _ticketTh('Rep','requester') + _ticketTh('Office','office') + '<th>Category</th>' + _ticketTh('Subject','subject') + _ticketTh('Status','status') + '</tr>';
   var body = rows.map(function(t){
     return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
-      '<td class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
-      '<td class="ss-mono" style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
-      '<td>' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
-      '<td>' + esc(t.requester || '—') + '</td>' +
-      '<td>' + esc(t.office || '—') + '</td>' +
-      '<td>' + _ticketCat(t) + '</td>' +
-      '<td>' + esc(t.subject || '—') + '</td>' +
-      '<td>' + _ticketStatusBadge(t.status) + '</td>' +
+      '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
+      '<td data-label="Created" class="ss-mono" style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
+      '<td data-label="Agent">' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
+      '<td data-label="Rep">' + esc(t.requester || '—') + '</td>' +
+      '<td data-label="Office">' + esc(t.office || '—') + '</td>' +
+      '<td data-label="Category">' + _ticketCat(t) + '</td>' +
+      '<td data-label="Subject">' + esc(t.subject || '—') + '</td>' +
+      '<td data-label="Status">' + _ticketStatusBadge(t.status) + '</td>' +
     '</tr>';
   }).join('');
   return '<div class="card ss-card ss-tablewrap"><table class="tbl ss-table">' + head + body + '</table>' +
@@ -714,12 +714,12 @@ function _followupTableHtml() {
     var age = _ageDays(t.lastUpdated || t.created);
     var col = age >= 2 ? '#e0a838' : 'var(--text2)';
     return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
-      '<td class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
-      '<td class="ss-mono" style="white-space:nowrap;color:' + col + '">' + age + 'd</td>' +
-      '<td>' + esc(t.requester || '—') + '</td>' +
-      '<td>' + esc(t.office || '—') + '</td>' +
-      '<td>' + esc(t.subject || '—') + '</td>' +
-      '<td>' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
+      '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
+      '<td data-label="Age" class="ss-mono" style="white-space:nowrap;color:' + col + '">' + age + 'd</td>' +
+      '<td data-label="Rep">' + esc(t.requester || '—') + '</td>' +
+      '<td data-label="Office">' + esc(t.office || '—') + '</td>' +
+      '<td data-label="Subject">' + esc(t.subject || '—') + '</td>' +
+      '<td data-label="Assignee">' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
     '</tr>';
   }).join('');
   return '<div class="card ss-card ss-tablewrap"><table class="tbl ss-table">' + head + body + '</table>' +
