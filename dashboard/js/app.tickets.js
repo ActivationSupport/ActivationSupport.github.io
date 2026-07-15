@@ -32,12 +32,20 @@ var SALESSUPPORT_AGENTS = [
   'gavonfuller2024@gmail.com', 'ryan.turner.50@gmail.com', 'amb3ranastasia@gmail.com',
   'jadwil893@gmail.com', 'kambrynchaisson@gmail.com'
 ];
+// Each agent's home timezone → the "You" side of the office dual-clock.
+// Gavon/Ryan/Amber = Pacific · Jada (New England) = Eastern · Cammy (Louisiana) = Central.
+var SALESSUPPORT_AGENT_TZ = {
+  'gavonfuller2024@gmail.com':'America/Los_Angeles', 'ryan.turner.50@gmail.com':'America/Los_Angeles',
+  'amb3ranastasia@gmail.com':'America/Los_Angeles', 'jadwil893@gmail.com':'America/New_York',
+  'kambrynchaisson@gmail.com':'America/Chicago'
+};
 
 // Module state (grows with each slice). lookups drive the save-as-you-go datalists;
 // agents drive the Assignee picker; list/filters/sort are for the queue (Slice 4).
 var _TICKETS = {
   lookups: { office:[], rep:[], generalCat:[], specificCat:[] },
   agents: [],
+  offices: [], _officeLabels: [], _officeByLabel: {}, _officesLoaded: false, _officesLoading: false, _clockTimer: null,
   list: [], filters: {}, sort: {},
   _loaded: false
 };
@@ -81,6 +89,8 @@ function initTicketApp() {
   if (nameEl) nameEl.innerHTML = '<div class="ss-sb-role">' + esc(SESSION.role || 'agent') + '</div>' +
     '<div class="ss-sb-email" title="' + esc(SESSION.email || '') + '">' + esc(SESSION.email || '') + '</div>';
   _ssInstallCanopy();
+  _ssLoadOffices();                                                                       // pre-load the office directory (once)
+  if (!_TICKETS._clockTimer) _TICKETS._clockTimer = setInterval(_ssTickClocks, 20000);    // keep every office/you clock live
   switchTab(CURRENT_TAB || 'newticket');
 }
 // The Millennium-Falcon DOME windscreen frame — our own SVG (crisp; gradient-drawn CSS moires), handed to
@@ -252,10 +262,11 @@ function _newTicketFormHtml() {
     '<div class="ss-form-sec">' + _ntSec('Contact') +
       '<div class="ss-grid">' +
         _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:_ntAutofillRep, onAdd:function(t){ _ssRepAddPopup(t); } })) +
-        _ntField('Office', _comboField('nt-office', { placeholder:'Office', options:function(){ return _TICKETS.lookups.office || []; }, addTitle:'Add Office', lookupType:'office' })) +
+        _ntField('Office', _comboField('nt-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:_ntOfficeChange, onAdd:function(t){ _ssOfficeAddPopup(t); } })) +
         _ntField('Channel', chan) +
         _ntField('Phone #', '<input id="nt-phone" class="ps-input" autocomplete="off" placeholder="Called / texted in from">') +
       '</div>' +
+      '<div id="nt-clock" class="ss-clock-strip"></div>' +
     '</div>' +
     '<div class="ss-form-sec">' + _ntSec('Classification') +
       '<div class="ss-grid">' +
@@ -322,7 +333,7 @@ function _ntAutofillRep() {
   var rep = _ntVal('nt-requester').toLowerCase();
   var p = (_TICKETS._repProfile || {})[rep]; if (!p) return;
   if (p.phone) _ntSetVal('nt-phone', p.phone);
-  if (p.office) _ntSetVal('nt-office', p.office);
+  if (p.office) { _ntSetVal('nt-office', p.office); _ntOfficeChange(); }
 }
 function _ticketFillAgents() {
   var sel = document.getElementById('nt-assignee'); if (!sel || !_TICKETS.agents.length) return;
@@ -339,6 +350,93 @@ function _ticketSpecificOptions() {
   var filtered = specs.filter(function(s){ return !gen || String(s.parent || '').trim().toLowerCase() === gen; });
   if (!filtered.length) filtered = specs;
   return filtered.map(function(s){ return s.value; });
+}
+
+// ── Office directory + timezones ─────────────────────────────────────────────
+// The Office field is a picklist of "Owner — Company" from a pre-loaded ICD directory;
+// picking one shows a live "their time vs your time" clock. New offices are added inline
+// (with City/State so we can derive their timezone) and persist to the backend.
+var _SS_STATE_TZ = { CA:'PT',WA:'PT',OR:'PT',NV:'PT', CO:'MT',UT:'MT',NM:'MT',ID:'MT',WY:'MT',MT:'MT', AZ:'AZ',
+  TX:'CT',LA:'CT',IL:'CT',KS:'CT',AL:'CT',MO:'CT',AR:'CT',WI:'CT',OK:'CT',MN:'CT',IA:'CT',MS:'CT',ND:'CT',SD:'CT',NE:'CT',
+  FL:'ET',NC:'ET',SC:'ET',GA:'ET',VA:'ET',OH:'ET',MI:'ET',PA:'ET',NY:'ET',MA:'ET',CT:'ET',RI:'ET',NJ:'ET',NH:'ET',
+  MD:'ET',DE:'ET',ME:'ET',VT:'ET',WV:'ET',DC:'ET',KY:'ET',IN:'ET',TN:'CT' };
+var _SS_CITY_TZ = { 'TX|el paso':'MT','TN|knoxville':'ET','TN|chattanooga':'ET','TN|johnson city':'ET','TN|kingsport':'ET','TN|bristol':'ET','TN|oak ridge':'ET' };
+var _SS_TZ_IANA = { PT:'America/Los_Angeles', MT:'America/Denver', AZ:'America/Phoenix', CT:'America/Chicago', ET:'America/New_York' };
+var _SS_IANA_LABEL = { 'America/Los_Angeles':'PT','America/Denver':'MT','America/Phoenix':'MST','America/Chicago':'CT','America/New_York':'ET' };
+// Resolve a {token,iana,label} timezone from state (+ split-state city overrides).
+function _ssTzForStateCity(state, city) {
+  var st = String(state||'').replace(/\s+/g,'').toUpperCase(), c = String(city||'').trim().toLowerCase();
+  var tok = _SS_CITY_TZ[st + '|' + c] || _SS_STATE_TZ[st] || '';
+  return { token:tok, iana:_SS_TZ_IANA[tok] || '', label: tok === 'AZ' ? 'MST' : (tok || '?') };
+}
+function _ssTzLabel(iana) { return _SS_IANA_LABEL[iana] || String(iana||'').split('/').pop().replace(/_/g,' '); }
+function _ssTimeInZone(iana) {
+  try { return new Intl.DateTimeFormat('en-US', { timeZone:iana, hour:'numeric', minute:'2-digit' }).format(new Date()); }
+  catch (e) { return '—'; }
+}
+function _ssYourIana() {
+  var e = String((SESSION && SESSION.email) || '').toLowerCase();
+  return SALESSUPPORT_AGENT_TZ[e] || (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'America/Los_Angeles';
+}
+function _ssOfficeLabel(o) { o = o || {}; return (o.owner ? o.owner + ' — ' : '') + (o.company || ''); }
+function _ssSetOffices(list) {
+  _TICKETS.offices = list || [];
+  var byLabel = {}, labels = [];
+  _TICKETS.offices.forEach(function(o){ var lb = _ssOfficeLabel(o); if (!lb) return; byLabel[lb.toLowerCase()] = o; labels.push(lb); });
+  labels.sort(function(a, b){ return a.localeCompare(b); });
+  _TICKETS._officeByLabel = byLabel; _TICKETS._officeLabels = labels; _TICKETS._officesLoaded = true;
+}
+function _ssLoadOffices() {
+  if (_TICKETS._officesLoaded || _TICKETS._officesLoading || !TICKET_SCRIPT_URL) return;
+  _TICKETS._officesLoading = true;
+  _ticketGet({ action:'getOffices' }).then(function(r){ _ssSetOffices((r && r.offices) || []); })
+    .catch(function(){}).then(function(){ _TICKETS._officesLoading = false; });
+}
+function _ssOfficeMeta(officeStr) { return (_TICKETS._officeByLabel || {})[String(officeStr||'').trim().toLowerCase()] || null; }
+// A live clock chip; the shared 20s timer (_ssTickClocks) refreshes every .ss-clock on the page.
+function _ssClockChip(who, iana, label, sub) {
+  return '<span class="ss-clock" data-iana="' + esc(iana) + '"><span class="ss-clock-who">' + esc(who) + '</span>' +
+    '<span class="ss-clock-time">' + esc(_ssTimeInZone(iana)) + '</span> <span class="ss-clock-tz">' + esc(label) + '</span>' +
+    (sub ? '<span class="ss-clock-sub">' + esc(sub) + '</span>' : '') + '</span>';
+}
+function _ssClockPairHtml(meta) {
+  if (!meta || !meta.iana) return '';
+  var you = _ssYourIana(), where = (meta.city || '') + (meta.state ? ', ' + meta.state : '');
+  return '<span class="ss-clockpair">' +
+    _ssClockChip('Them', meta.iana, meta.tz || _ssTzLabel(meta.iana), where) +
+    _ssClockChip('You', you, _ssTzLabel(you), '') + '</span>';
+}
+function _ssTickClocks() {
+  var els = document.querySelectorAll('.ss-clock');
+  for (var i = 0; i < els.length; i++) { var t = els[i].querySelector('.ss-clock-time'); if (t) t.textContent = _ssTimeInZone(els[i].getAttribute('data-iana')); }
+}
+// New Ticket: refresh the office clock strip when the office changes.
+function _ntOfficeChange() {
+  var el = document.getElementById('nt-clock'); if (!el) return;
+  var meta = _ssOfficeMeta(_ntVal('nt-office'));
+  el.innerHTML = meta ? _ssClockPairHtml(meta) : '';
+}
+// Add-an-office popup: Owner/Company/City/State (+ optional Address/ZIP). Derives the timezone
+// from State (+ split-state city), fills the Office field with "Owner — Company", and persists it.
+function _ssOfficeAddPopup(typed) {
+  _ssAddPopup('Add Office', [
+    { id:'owner', label:'Owner name', value:typed },
+    { id:'company', label:'Company', value:'' },
+    { id:'city', label:'City', value:'' },
+    { id:'state', label:'State (2-letter, e.g. TX)', value:'' },
+    { id:'address', label:'Address (optional)', value:'' },
+    { id:'zip', label:'ZIP (optional)', value:'' }
+  ], function(v) {
+    if (!v.company && !v.owner) return;
+    var tz = _ssTzForStateCity(v.state, v.city);
+    var o = { company:v.company, owner:v.owner, address:v.address, city:v.city,
+      state:String(v.state||'').toUpperCase(), zip:v.zip, iana:tz.iana, tz:tz.label };
+    (_TICKETS.offices = _TICKETS.offices || []).push(o);
+    _ssSetOffices(_TICKETS.offices);
+    _ntSetVal('nt-office', _ssOfficeLabel(o));
+    _ntOfficeChange();
+    if (TICKET_SCRIPT_URL) { try { _ticketPost(Object.assign({ action:'addOffice' }, o)); } catch (e) {} }
+  });
 }
 
 // ── Creatable combobox (Zendesk-Garden style) ───────────────────────────────
@@ -364,12 +462,12 @@ function _comboRender(id) {
   var matches = all.filter(function(o){ return String(o).toLowerCase().indexOf(ql) !== -1; });
   st.items = matches.map(function(o){ return { val: String(o) }; });   // pickable options (the add row is separate)
   if (st.hi >= st.items.length) st.hi = st.items.length - 1;
-  var html = matches.map(function(o, i){
+  var opts = matches.map(function(o, i){
     return '<div class="ss-combo-opt' + (i === st.hi ? ' hi' : '') + '" role="option" data-i="' + i + '">' + esc(String(o)) + '</div>';
   }).join('');
-  // ALWAYS a clickable "+ Add" action (opens the add popup), whether or not anything is typed.
-  html += '<div class="ss-combo-add" role="button" data-add="1">' + (q ? '+ Add &ldquo;' + esc(q) + '&rdquo;' : '+ Add new&hellip;') + '</div>';
-  menu.innerHTML = html;
+  // ALWAYS a clickable "+ Add" action (opens the add popup) — pinned to the TOP of the list, every category.
+  var addRow = '<div class="ss-combo-add" role="button" data-add="1">' + (q ? '+ Add &ldquo;' + esc(q) + '&rdquo;' : '+ Add new&hellip;') + '</div>';
+  menu.innerHTML = addRow + opts;
   menu.onmousedown = function(e){
     e.preventDefault();   // keep focus / fire before the input's blur
     var t = e.target;
@@ -798,9 +896,11 @@ function _ticketDetailHtml(t, notes) {
       '<button class="ps-btn secondary" onclick="_ticketToggleEdit()">Cancel</button>' +
       '<span id="ted-status" class="ss-status"></span></div>';
   } else {
+    var _oMeta = _ssOfficeMeta(t.office);
     propGrp = '<div class="ss-side-grp">' +
       _dt('Requester (Rep)', esc(t.requester)) +
       _dt('Office', esc(t.office)) +
+      (_oMeta ? _dt('Local time', _ssClockPairHtml(_oMeta)) : '') +
       _dt('Channel', esc(t.channel)) +
       _dt('Phone', esc(t.phone)) +
       _dt('Category', _ticketCat(t)) +

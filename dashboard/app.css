@@ -278,7 +278,7 @@ html[data-office="salessupport"] .ss-form-card{ overflow:visible }   /* let the 
 .ss-combo-opt:hover,.ss-combo-opt.hi{ background:var(--blue2-fade) }
 .ss-combo-create{ color:var(--accent2b);font-weight:600 }
 .ss-combo-empty{ padding:8px 10px;font-size:13px;color:var(--text2) }
-.ss-combo-add{ padding:9px 10px;border-radius:6px;font-size:14px;font-weight:700;color:var(--ss-green,#38E08A);cursor:pointer;border-top:1px solid var(--field-border);margin-top:4px }
+.ss-combo-add{ padding:9px 10px;border-radius:6px;font-size:14px;font-weight:700;color:var(--ss-green,#38E08A);cursor:pointer;border-bottom:1px solid var(--field-border);margin-bottom:4px }
 .ss-combo-add:hover,.ss-combo-add.hi{ background:rgba(56,224,138,.14) }
 .ss-combo-addhint{ padding:9px 10px;font-size:12px;color:var(--text2);border-top:1px solid var(--field-border);margin-top:4px;opacity:.85 }
 /* add-new popup */
@@ -1688,3 +1688,14 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-block-date{color:var(--text);font-weight:600;min-width:80px}
 .appt-block-time{color:var(--text2);min-width:90px}
 .appt-block-reason{color:var(--text2);flex:1}
+
+/* Office dual-clock — Sales Support office picker (their time vs your time) */
+.ss-clock-strip{margin-top:10px}
+.ss-clock-strip:empty{display:none;margin:0}
+.ss-clockpair{display:inline-flex;gap:10px;flex-wrap:wrap}
+.ss-clock{display:inline-flex;align-items:baseline;gap:6px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--field-bg,rgba(255,255,255,.04));line-height:1}
+.ss-clock-who{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);align-self:center}
+.ss-clock-time{font-family:'Orbitron','Exo 2',sans-serif;font-weight:700;font-size:15px;color:var(--text);font-variant-numeric:tabular-nums}
+.ss-clock-tz{font-size:11px;font-weight:700;color:var(--ss-gold,#e0a838);letter-spacing:.5px}
+.ss-clock-sub{font-size:11px;color:var(--text2);margin-left:2px;align-self:center}
+@media(max-width:768px){.ss-clockpair{width:100%}.ss-clock{flex:1;justify-content:center}}
