@@ -284,6 +284,223 @@ html[data-office="salessupport"] .ss-form-card{ overflow:visible }   /* let the 
 .ss-addpop{ width:100%;max-width:380px }
 .ss-addpop-fields{ display:flex;flex-direction:column;gap:12px;margin-bottom:6px }
 @media (max-width:640px){ .ss-grid{ grid-template-columns:1fr } .ss-dl{ grid-template-columns:1fr } }
+
+/* ═══════════════════ MILLENNIUM FALCON COCKPIT — dashboard reskin (login frozen) ═══════════════════
+   Sales Support DASHBOARD only. Scoped to #app + the two body-level overlays (#ticket-modal, .ss-addpop-bg)
+   that live OUTSIDE #app, so #login-screen keeps the original Jedi look untouched. Palette vars are redefined
+   here (nearest-ancestor wins over the JS-injected inline vars on <html>), which auto-recolors every var-based
+   .ss-* rule; the rules below then override the blue "console" passes with warm GUNMETAL panels + AMBER/RED
+   indicator lighting. Pass 1 = palette + windscreen + recolor. (Greebles/LEDs/toggles land in Pass 2.) */
+html[data-office="salessupport"] #app,
+html[data-office="salessupport"] #ticket-modal,
+html[data-office="salessupport"] .ss-addpop-bg{
+  --bg:#0a0a0c; --surface:#242a31; --surface2:#2c333b; --sidebar-bg:#191d22;
+  --border:rgba(212,200,178,.12);
+  --field-bg:#15181c; --field-border:#3a424c; --control-bg:#20252c; --inset-bg:#131619; --panel2-bg:#1b2026; --panel2-border:#333b45;
+  --text:#eae4d8; --text2:#a79f92;
+  --blue2:#f2a83a; --accent2b:#4ea8ff;                 /* amber PRIMARY + blue console-LED secondary */
+  --blue2-rgb:242,168,58; --blue2-fade:rgba(242,168,58,.14); --blue2-faint:rgba(242,168,58,.06);
+  --ss-gold:#f4c21b; --ss-green:#37e0a0;
+  --fx-amber:#f2a83a; --fx-red:#e7532a; --fx-blue:#4ea8ff; --fx-green:#37e0a0;   /* indicator-LED palette */
+  --metal-hi:#5a636e; --metal-lo:#12151a; --steel:#3a424c;
+}
+/* ── the view out the windscreen: deep space + warm console glow, held fixed behind the scrolling panels ── */
+/* THE WINDSCREEN — you're at the console looking UP through a DOME canopy (B-29 concentric arches that
+   converge low at the dashboard line and fan upward). Behind the translucent panels: deep space + a warm
+   galactic-core glow with nebula wisps + a moon + distant stars + vignette on .content; the drifting
+   near-starfield on ::before; the dark dome frame on ::after. Dome center = 50% 80% (down at the console). */
+html[data-office="salessupport"] #app .content{
+  position:relative; z-index:0;
+  background-color:#040405;
+  background-image:
+    radial-gradient(26% 30% at 45% 34%, rgba(150,120,200,.12), transparent 72%),       /* purple nebula wisp */
+    radial-gradient(24% 28% at 56% 33%, rgba(80,140,210,.11), transparent 72%),         /* blue nebula wisp */
+    radial-gradient(20% 24% at 50% 36%, rgba(255,240,205,.16), transparent 66%),         /* warm galactic-core glow */
+    radial-gradient(120% 70% at 50% 122%, rgba(240,150,50,.08), transparent 55%),        /* warm console glow rising from below */
+    radial-gradient(125% 115% at 50% 42%, rgba(4,5,6,0) 42%, rgba(3,4,5,.94) 84%);       /* vignette into black at the hull */
+  background-attachment:fixed;
+}
+html[data-office="salessupport"] #app .content > *{ position:relative; z-index:1 }   /* HUD panels float above the window */
+/* the view: a real STARFIELD — scattered points of light (varied size + brightness), tiled and
+   drifting very slowly with a soft twinkle; reads through the translucent panels like stars past glass */
+html[data-office="salessupport"] #app .content::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    radial-gradient(1.7px 1.7px at 34px 58px, #ffffff, transparent),
+    radial-gradient(1.3px 1.3px at 128px 96px, #dbe6ff, transparent),
+    radial-gradient(1px 1px at 208px 42px, #9fb2d6, transparent),
+    radial-gradient(2px 2px at 96px 172px, #ffffff, transparent),
+    radial-gradient(1.2px 1.2px at 252px 150px, #cdd9ff, transparent),
+    radial-gradient(1px 1px at 316px 214px, #aebfe0, transparent),
+    radial-gradient(1.5px 1.5px at 176px 250px, #ffffff, transparent),
+    radial-gradient(1px 1px at 58px 300px, #9fb2d6, transparent),
+    radial-gradient(1.4px 1.4px at 360px 92px, #ffffff, transparent),
+    radial-gradient(1px 1px at 300px 332px, #c3d2f0, transparent),
+    radial-gradient(1.7px 1.7px at 150px 360px, #ffffff, transparent),
+    radial-gradient(1px 1px at 24px 208px, #9fb2d6, transparent);
+  background-size:400px 400px;
+  animation:ss-stardrift 150s linear infinite, ss-startwinkle 7s ease-in-out infinite alternate;
+}
+/* the DOME canopy — a real SVG (built in app.tickets.js _ssInstallCanopy → --ss-canopy): dark, matte,
+   tubular concentric arches + radial struts + rivets, converging low at the console and fanning UP.
+   background-position:center bottom anchors the dome to the console line; the mask fades its outer edges. */
+html[data-office="salessupport"] #app .content::after{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:var(--ss-canopy);
+  background-repeat:no-repeat; background-position:center bottom; background-size:cover;
+  -webkit-mask-image:radial-gradient(circle at 50% 90%, #000 0 58%, transparent 86%);
+          mask-image:radial-gradient(circle at 50% 90%, #000 0 58%, transparent 86%);
+}
+@keyframes ss-stardrift{ from{ background-position:0 0 } to{ background-position:400px 400px } }
+@keyframes ss-startwinkle{ from{ opacity:.84 } to{ opacity:1 } }
+@media (prefers-reduced-motion: reduce){ html[data-office="salessupport"] #app .content::before{ animation:none; opacity:.95 } }
+/* the side console + overhead panel are the cockpit HULL — keep them opaque above the fixed windscreen */
+html[data-office="salessupport"] #app .sidebar{ position:relative; z-index:2 }
+html[data-office="salessupport"] #app .topbar{ z-index:2 }
+
+/* ── console panels: brushed gunmetal instead of blue frosted glass ── */
+html[data-office="salessupport"] #app .ss-card,
+html[data-office="salessupport"] .ss-addpop{
+  background:linear-gradient(180deg,#2a313a 0%,#232a32 48%,#1d232b 100%);
+  -webkit-backdrop-filter:none; backdrop-filter:none;
+  border:1px solid rgba(210,196,172,.14); border-radius:7px;
+  box-shadow:0 10px 30px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,220,170,.10), inset 0 0 0 1px rgba(0,0,0,.28);
+}
+/* the panel top-rule becomes a warm amber/red indicator strip */
+html[data-office="salessupport"] #app .ss-rule,
+html[data-office="salessupport"] .ss-addpop .ss-rule{
+  background:linear-gradient(90deg, transparent, var(--fx-red) 10%, var(--fx-amber) 42%, var(--ss-gold) 70%, var(--fx-amber) 90%, transparent);
+  box-shadow:0 0 10px rgba(242,140,40,.45);
+}
+/* corner accents → amber (top-left) / steel (bottom-right) */
+html[data-office="salessupport"] #app .ss-card::before{ border-top-color:var(--fx-amber); border-left-color:var(--fx-amber); opacity:.7 }
+html[data-office="salessupport"] #app .ss-card::after{ border-bottom-color:var(--steel); border-right-color:var(--steel); opacity:.65 }
+/* readout headers glow amber */
+html[data-office="salessupport"] #app .ss-h2{ color:#f6efe1; text-shadow:0 0 14px rgba(242,168,58,.3) }
+html[data-office="salessupport"] #app .ss-form-seclabel{ color:var(--fx-amber); border-bottom-color:rgba(242,168,58,.18) }
+
+/* ── side console (sidebar) nav → amber-lit ── */
+html[data-office="salessupport"] #app .sidebar-header{ border-bottom-color:rgba(210,196,172,.14) }
+html[data-office="salessupport"] #app .nav-item:hover{ background:rgba(242,168,58,.08); color:#fdf3e2 }
+html[data-office="salessupport"] #app .nav-item.active{ background:linear-gradient(90deg, rgba(242,168,58,.20), rgba(242,168,58,0)); color:#fff5e6; border-left-color:var(--fx-amber); box-shadow:inset 0 0 20px rgba(242,168,58,.12), inset 3px 0 0 var(--fx-amber) }
+html[data-office="salessupport"] #app .nav-item.active .nav-icon{ color:var(--fx-amber); filter:drop-shadow(0 0 6px rgba(242,168,58,.6)) }
+
+/* ── console buttons: gunmetal body, warm top-light, amber glow on press/hover ── */
+html[data-office="salessupport"] #app .ps-btn,
+html[data-office="salessupport"] #ticket-modal .ps-btn,
+html[data-office="salessupport"] .ss-addpop .ps-btn{
+  background:linear-gradient(180deg,#3a424c,#232830); color:#fbe6c8; border-radius:5px;
+  text-transform:uppercase; letter-spacing:1px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,220,160,.18), 0 4px 14px rgba(0,0,0,.5);
+}
+html[data-office="salessupport"] #app .ps-btn:hover,
+html[data-office="salessupport"] #ticket-modal .ps-btn:hover,
+html[data-office="salessupport"] .ss-addpop .ps-btn:hover{ filter:brightness(1.06); color:#fff; box-shadow:0 0 0 1px var(--fx-amber), inset 0 1px 0 rgba(255,220,160,.22), 0 0 18px rgba(242,168,58,.45) }
+html[data-office="salessupport"] #app .ps-btn.secondary{ background:transparent; color:var(--text2); box-shadow:inset 0 0 0 1px var(--field-border) }
+html[data-office="salessupport"] #app .ps-btn.secondary:hover{ background:transparent; color:#fdf3e2; box-shadow:inset 0 0 0 1px var(--fx-amber) }
+html[data-office="salessupport"] #app .btn{ box-shadow:0 0 0 1px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,220,160,.16), 0 4px 14px rgba(0,0,0,.5) }
+html[data-office="salessupport"] #app .btn:hover{ box-shadow:0 0 0 1px var(--fx-amber), 0 0 18px rgba(242,168,58,.45) }
+
+/* ── recessed metal inputs; amber focus (NB: #login-email deliberately untouched) ── */
+html[data-office="salessupport"] #app .ps-input:focus,
+html[data-office="salessupport"] #app .ps-select:focus,
+html[data-office="salessupport"] #app .ps-textarea:focus,
+html[data-office="salessupport"] #ticket-modal .ps-input:focus,
+html[data-office="salessupport"] #ticket-modal .ps-select:focus,
+html[data-office="salessupport"] #ticket-modal .ps-textarea:focus,
+html[data-office="salessupport"] .ss-addpop .ps-input:focus,
+html[data-office="salessupport"] .ss-addpop .ps-select:focus,
+html[data-office="salessupport"] .ss-addpop .ps-textarea:focus{ border-color:var(--fx-amber); box-shadow:0 0 0 1px var(--fx-amber), 0 0 14px rgba(242,168,58,.25) }
+html[data-office="salessupport"] #app .ss-combo-menu,
+html[data-office="salessupport"] #ticket-modal .ss-combo-menu{ border-color:rgba(210,196,172,.28); box-shadow:0 0 0 1px rgba(0,0,0,.4), 0 14px 34px rgba(0,0,0,.6) }
+
+/* ── data grid + notes + empty state ── */
+html[data-office="salessupport"] #app .ss-row:hover td{ background:rgba(242,168,58,.09) }
+html[data-office="salessupport"] #app .ss-row:hover td:first-child{ box-shadow:inset 3px 0 0 var(--fx-amber) }
+html[data-office="salessupport"] #app .ss-note{ border-left-color:rgba(242,168,58,.45) }
+html[data-office="salessupport"] #app .ss-td-side{ border-color:rgba(210,196,172,.16) }
+html[data-office="salessupport"] #app .ss-empty-svg{ stroke:var(--fx-amber); filter:drop-shadow(0 0 10px rgba(242,168,58,.4)) }
+html[data-office="salessupport"] #app .ss-loading-bar{ background:linear-gradient(90deg, transparent, var(--fx-amber), transparent); background-size:40% 100%; background-repeat:no-repeat; box-shadow:0 0 8px rgba(242,168,58,.4) }
+
+/* ── overhead panel (top bar) + office switcher ── */
+html[data-office="salessupport"] #app .topbar{ border-bottom-color:rgba(210,196,172,.16) }
+html[data-office="salessupport"] #app #page-title{ color:#f4ead9; text-shadow:0 0 12px rgba(242,168,58,.28) }
+html[data-office="salessupport"] #app .office-dd-panel{ border-color:rgba(210,196,172,.28); box-shadow:0 0 0 1px rgba(0,0,0,.35), 0 14px 34px rgba(0,0,0,.6) }
+html[data-office="salessupport"] #app .office-dd-item:hover{ background:rgba(242,168,58,.1) }
+
+/* ── amber/steel scrollbars inside the dashboard ── */
+html[data-office="salessupport"] #app ::-webkit-scrollbar-thumb{ background:rgba(242,168,58,.28) }
+html[data-office="salessupport"] #app ::-webkit-scrollbar-thumb:hover{ background:rgba(242,168,58,.5) }
+
+/* ── ticket detail modal → gunmetal console sub-panel ── */
+html[data-office="salessupport"] #ticket-modal .modal{ border-color:rgba(210,196,172,.18); background:linear-gradient(180deg,#262d36,#1c222a); box-shadow:0 0 40px rgba(0,0,0,.5), 0 20px 60px rgba(0,0,0,.75) }
+html[data-office="salessupport"] #ticket-modal .modal::before{ border-top-color:var(--fx-amber); border-left-color:var(--fx-amber) }
+html[data-office="salessupport"] #ticket-modal .modal::after{ border-bottom-color:var(--steel); border-right-color:var(--steel) }
+html[data-office="salessupport"] #ticket-modal-title{ color:#f6efe1 }
+/* ═══════════════════ END MILLENNIUM FALCON COCKPIT — Pass 1 ═══════════════════ */
+
+/* ═══════════════════ MILLENNIUM FALCON COCKPIT — Pass 2: greebles (glows are STATIC; no blinking) ═══════════════════ */
+/* native radios/checkboxes → amber (Submission Type, etc.) */
+html[data-office="salessupport"] #app input[type=radio],
+html[data-office="salessupport"] #app input[type=checkbox],
+html[data-office="salessupport"] #ticket-modal input[type=radio],
+html[data-office="salessupport"] #ticket-modal input[type=checkbox],
+html[data-office="salessupport"] .ss-addpop input[type=radio],
+html[data-office="salessupport"] .ss-addpop input[type=checkbox]{ accent-color:var(--fx-amber) }
+
+/* console panels: fine brushed-metal grain + corner RIVETS (bolts); the Jedi HUD brackets retire */
+html[data-office="salessupport"] #app .ss-card,
+html[data-office="salessupport"] .ss-addpop{
+  background:
+    radial-gradient(circle at 13px 13px, rgba(0,0,0,.5) 0 1.8px, rgba(255,222,170,.13) 2.2px 2.9px, transparent 3.4px),
+    radial-gradient(circle at calc(100% - 13px) 13px, rgba(0,0,0,.5) 0 1.8px, rgba(255,222,170,.13) 2.2px 2.9px, transparent 3.4px),
+    radial-gradient(circle at 13px calc(100% - 13px), rgba(0,0,0,.5) 0 1.8px, rgba(255,222,170,.13) 2.2px 2.9px, transparent 3.4px),
+    radial-gradient(circle at calc(100% - 13px) calc(100% - 13px), rgba(0,0,0,.5) 0 1.8px, rgba(255,222,170,.13) 2.2px 2.9px, transparent 3.4px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.014) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, rgba(40,47,56,.84) 0%, rgba(33,40,49,.87) 48%, rgba(26,32,40,.9) 100%);
+  -webkit-backdrop-filter:blur(7px); backdrop-filter:blur(7px);   /* translucent glass — the jump reads faintly through */
+}
+html[data-office="salessupport"] #app .ss-card::before,
+html[data-office="salessupport"] #app .ss-card::after{ display:none }
+
+/* nav rows read as console toggles: each carries an indicator LED that lights amber when active */
+html[data-office="salessupport"] #app .nav-item{ position:relative }
+html[data-office="salessupport"] #app .nav-item::after{
+  content:''; position:absolute; right:14px; top:50%; transform:translateY(-50%);
+  width:6px; height:6px; border-radius:50%; background:#2b3037; box-shadow:inset 0 0 0 1px rgba(0,0,0,.6);
+}
+html[data-office="salessupport"] #app .nav-item:hover::after{ background:#4a525c }
+html[data-office="salessupport"] #app .nav-item.active::after{ background:var(--fx-amber); box-shadow:0 0 8px var(--fx-amber) }
+
+/* side console: brushed-metal sidebar + warm-steel right edge */
+html[data-office="salessupport"] #app .sidebar{
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.010) 0 2px, transparent 2px 6px),
+    linear-gradient(180deg,#1c2127,#14181d);
+  border-right:1px solid rgba(210,196,172,.10);
+}
+/* hazard stripe along the sidebar-footer lip */
+html[data-office="salessupport"] #app .sidebar-footer{ position:relative }
+html[data-office="salessupport"] #app .sidebar-footer::before{
+  content:''; position:absolute; top:0; left:0; right:0; height:4px; pointer-events:none;
+  background:repeating-linear-gradient(45deg, #d9a521 0 8px, #14181d 8px 16px); opacity:.45;
+}
+
+/* overhead panel (top bar): brushed metal + a faint amber indicator-light lip */
+html[data-office="salessupport"] #app .topbar{
+  background-image:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg,#262c33,#1b2026);
+}
+html[data-office="salessupport"] #app .topbar::before{
+  content:''; position:absolute; left:0; right:0; bottom:2px; height:3px; pointer-events:none; z-index:0;
+  background-image:radial-gradient(circle, rgba(242,168,58,.7) 0 1.2px, transparent 1.8px);
+  background-size:22px 3px; background-repeat:repeat-x; opacity:.4;
+}
+
+/* (the central arched PORT is now part of the full windscreen frame in .content::after above) */
+/* ═══════════════════ END MILLENNIUM FALCON COCKPIT — Pass 2 ═══════════════════ */
+
 /* ps-* inputs keep a pure-white fill in light mode (they pop off the off-white page);
    all other form controls now auto-theme via --field-bg/--field-border. */
 html[data-theme="light"] .ps-input, html[data-theme="light"] .ps-textarea,

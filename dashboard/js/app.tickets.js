@@ -76,11 +76,39 @@ function _ticketPost(body) {
 // We also set the sidebar username here because salessupport skips loadData/_applyMainData
 // (where every other office sets it).
 function initTicketApp() {
-  var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(40, true);   // filled (readable small) sidebar wordmark
+  var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(46);   // OUTLINE wordmark — same as the login page (a touch larger + a glow, added in CSS, keep it legible)
   var nameEl = document.getElementById('sb-user-name');
   if (nameEl) nameEl.innerHTML = '<div class="ss-sb-role">' + esc(SESSION.role || 'agent') + '</div>' +
     '<div class="ss-sb-email" title="' + esc(SESSION.email || '') + '">' + esc(SESSION.email || '') + '</div>';
+  _ssInstallCanopy();
   switchTab(CURRENT_TAB || 'newticket');
+}
+// The Millennium-Falcon DOME windscreen frame, drawn as a real SVG (crisp, no gradient moiré) and handed
+// to CSS as --ss-canopy (used by html[data-office=salessupport] #app .content::after). The B-29 concentric
+// arches + radial struts converge low at the console (cx,cy) and fan UP; each strut is drawn three times
+// (wide dark base → mid body → thin dim edge-catch) so it reads as a rounded, near-silhouette metal tube,
+// and rivets/bolts sit at the arch↔strut intersections. Rendered once per session (idempotent).
+function _ssInstallCanopy() {
+  var cx = 800, cy = 900;
+  var arches = [210, 480, 760, 1050];
+  var spokes = [[800,-180],[380,-60],[1220,-60],[70,270],[1530,270],[-190,660],[1790,660]];
+  var shapes = '';
+  arches.forEach(function(r){ shapes += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'"/>'; });
+  spokes.forEach(function(p){ shapes += '<line x1="'+cx+'" y1="'+cy+'" x2="'+p[0]+'" y2="'+p[1]+'"/>'; });
+  var rivets = '';
+  [210, 480, 760].forEach(function(r){
+    for (var d = -100; d <= 100; d += 20) { var t = d * Math.PI / 180;
+      rivets += '<circle cx="'+Math.round(cx + r*Math.sin(t))+'" cy="'+Math.round(cy - r*Math.cos(t))+'" r="6"/>'; }
+  });
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000">' +
+    '<defs><g id="s" fill="none" stroke-linecap="round">' + shapes + '</g></defs>' +
+    '<use href="#s" stroke="#070b0a" stroke-width="34"/>' +   /* wide dark base (outer shadow) */
+    '<use href="#s" stroke="#1b2320" stroke-width="24"/>' +   /* body */
+    '<use href="#s" stroke="#33403b" stroke-width="15"/>' +   /* lit body */
+    '<use href="#s" stroke="#5e6d67" stroke-width="4"/>' +    /* thin edge-catch highlight (the tube spine) */
+    '<g fill="#141b18" stroke="#6d776f" stroke-width="1.6">' + rivets + '</g>' +   /* bolts: dark head, lit rim */
+    '</svg>';
+  document.documentElement.style.setProperty('--ss-canopy', 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
 }
 
 // ── "Star Wars"-inspired gold wordmark (our own SVG — NOT the trademarked logo) ──
