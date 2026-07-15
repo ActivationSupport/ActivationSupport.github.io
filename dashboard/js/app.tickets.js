@@ -83,32 +83,82 @@ function initTicketApp() {
   _ssInstallCanopy();
   switchTab(CURRENT_TAB || 'newticket');
 }
-// The Millennium-Falcon DOME windscreen frame, drawn as a real SVG (crisp, no gradient moiré) and handed
-// to CSS as --ss-canopy (used by html[data-office=salessupport] #app .content::after). The B-29 concentric
-// arches + radial struts converge low at the console (cx,cy) and fan UP; each strut is drawn three times
-// (wide dark base → mid body → thin dim edge-catch) so it reads as a rounded, near-silhouette metal tube,
-// and rivets/bolts sit at the arch↔strut intersections. Rendered once per session (idempotent).
+// The Millennium-Falcon DOME windscreen frame — our own SVG (crisp; gradient-drawn CSS moires), handed to
+// CSS as --ss-canopy (used by html[data-office=salessupport] #app .content::after). Matches the schematic
+// shape: an OPEN central circular port + concentric arches + radial ribs (ribs start at the port rim so the
+// port stays a clean window) fanning up from the console point (cx,cy). Rendered as real, top-LIT metal:
+// wide dark base (gap/shadow) → body → a vertical steel gradient (bright up top, dark below = overhead light)
+// → thin bright spine, with bolt rivets at the arch↔rib intersections. Idempotent (once per session).
 function _ssInstallCanopy() {
-  var cx = 800, cy = 900;
-  var arches = [210, 480, 760, 1050];
-  var spokes = [[800,-180],[380,-60],[1220,-60],[70,270],[1530,270],[-190,660],[1790,660]];
+  var cx = 800, cy = 840;
+  var arches = [175, 370, 560, 755, 970];                                   // innermost = the open port
+  var angles = [0, 17, 34, 51, 68, 86, 104, -17, -34, -51, -68, -86, -104]; // radial ribs (deg from straight up)
+  var Ro = 1060, Ri = arches[0];
   var shapes = '';
   arches.forEach(function(r){ shapes += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'"/>'; });
-  spokes.forEach(function(p){ shapes += '<line x1="'+cx+'" y1="'+cy+'" x2="'+p[0]+'" y2="'+p[1]+'"/>'; });
+  angles.forEach(function(a){ var t = a * Math.PI / 180;
+    shapes += '<line x1="'+Math.round(cx + Ri*Math.sin(t))+'" y1="'+Math.round(cy - Ri*Math.cos(t))+'" ' +
+                    'x2="'+Math.round(cx + Ro*Math.sin(t))+'" y2="'+Math.round(cy - Ro*Math.cos(t))+'"/>';
+  });
   var rivets = '';
-  [210, 480, 760].forEach(function(r){
-    for (var d = -100; d <= 100; d += 20) { var t = d * Math.PI / 180;
-      rivets += '<circle cx="'+Math.round(cx + r*Math.sin(t))+'" cy="'+Math.round(cy - r*Math.cos(t))+'" r="6"/>'; }
+  [arches[0], arches[1], arches[2], arches[3]].forEach(function(r){
+    angles.forEach(function(a){ var t = a * Math.PI / 180;
+      rivets += '<circle cx="'+Math.round(cx + r*Math.sin(t))+'" cy="'+Math.round(cy - r*Math.cos(t))+'" r="5.5"/>'; });
   });
   var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000">' +
-    '<defs><g id="s" fill="none" stroke-linecap="round">' + shapes + '</g></defs>' +
-    '<use href="#s" stroke="#070b0a" stroke-width="34"/>' +   /* wide dark base (outer shadow) */
-    '<use href="#s" stroke="#1b2320" stroke-width="24"/>' +   /* body */
-    '<use href="#s" stroke="#33403b" stroke-width="15"/>' +   /* lit body */
-    '<use href="#s" stroke="#5e6d67" stroke-width="4"/>' +    /* thin edge-catch highlight (the tube spine) */
-    '<g fill="#141b18" stroke="#6d776f" stroke-width="1.6">' + rivets + '</g>' +   /* bolts: dark head, lit rim */
+    '<defs>' +
+      '<linearGradient id="ssLit" x1="0" y1="0" x2="0" y2="1000" gradientUnits="userSpaceOnUse">' +
+        '<stop offset="0" stop-color="#b8c2c6"/><stop offset="0.5" stop-color="#5e686e"/><stop offset="1" stop-color="#2a3236"/>' +
+      '</linearGradient>' +
+      '<g id="s" fill="none" stroke-linecap="round" stroke-linejoin="round">' + shapes + '</g>' +
+    '</defs>' +
+    '<use href="#s" stroke="#12171a" stroke-width="36"/>' +        /* wide dark base — the gap/shadow between beams */
+    '<use href="#s" stroke="#333c42" stroke-width="26"/>' +        /* body */
+    '<use href="#s" stroke="url(#ssLit)" stroke-width="17"/>' +    /* top-lit steel gradient (overhead light) */
+    '<use href="#s" stroke="#aeb8bc" stroke-width="3" opacity="0.7"/>' +   /* thin bright spine */
+    '<g fill="#20272b" stroke="#9aa4a8" stroke-width="1.4">' + rivets + '</g>' +   /* bolts: dark head, lit rim */
     '</svg>';
   document.documentElement.style.setProperty('--ss-canopy', 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
+  _ssInstallPlanet();
+}
+// An original Alderaan-style world (NOT anyone's photo) for the view out the windscreen: a LIT sphere
+// with a teal ocean base, procedural GREEN landmasses + heavy WHITE cloud swirls (two fractal-noise
+// layers), a day/night terminator, and an atmosphere rim — all clipped to the disc. Set as CSS var
+// --ss-planet → a background layer on .content (behind the starfield + frame), slightly right of centre.
+function _ssInstallPlanet() {
+  var p = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">' +
+    '<defs>' +
+      '<radialGradient id="pS" cx="34%" cy="29%" r="84%">' +   /* lit teal ocean (highlight upper-left) */
+        '<stop offset="0" stop-color="#e3f1ff"/><stop offset="16%" stop-color="#8ec6d8"/>' +
+        '<stop offset="40%" stop-color="#3f8ca2"/><stop offset="64%" stop-color="#1e5a70"/>' +
+        '<stop offset="85%" stop-color="#0c3044"/><stop offset="100%" stop-color="#051622"/>' +
+      '</radialGradient>' +
+      '<radialGradient id="pT" cx="32%" cy="27%" r="92%">' +   /* day→night terminator (dark on the far side) */
+        '<stop offset="0" stop-color="rgba(0,0,0,0)"/><stop offset="52%" stop-color="rgba(0,0,0,0)"/>' +
+        '<stop offset="82%" stop-color="rgba(2,7,11,.55)"/><stop offset="100%" stop-color="rgba(0,2,5,.92)"/>' +
+      '</radialGradient>' +
+      '<radialGradient id="pA" cx="50%" cy="50%" r="50%">' +   /* atmosphere rim */
+        '<stop offset="80%" stop-color="rgba(150,205,255,0)"/><stop offset="95%" stop-color="rgba(160,212,255,.55)"/><stop offset="100%" stop-color="rgba(160,212,255,0)"/>' +
+      '</radialGradient>' +
+      '<filter id="pL" x="0" y="0" width="100%" height="100%">' +   /* GREEN landmasses */
+        '<feTurbulence type="fractalNoise" baseFrequency="0.013 0.021" numOctaves="4" seed="6" result="n"/>' +
+        '<feColorMatrix in="n" type="matrix" values="0 0 0 0 0.30  0 0 0 0 0.49  0 0 0 0 0.27  0 0 0 2.7 -1.02"/>' +
+      '</filter>' +
+      '<filter id="pC" x="0" y="0" width="100%" height="100%">' +   /* WHITE cloud swirls */
+        '<feTurbulence type="fractalNoise" baseFrequency="0.021 0.034" numOctaves="5" seed="15" result="n"/>' +
+        '<feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.9 -0.66"/>' +
+      '</filter>' +
+      '<clipPath id="pClip"><circle cx="100" cy="100" r="93"/></clipPath>' +
+    '</defs>' +
+    '<g clip-path="url(#pClip)">' +
+      '<circle cx="100" cy="100" r="93" fill="url(#pS)"/>' +                              /* ocean */
+      '<rect x="0" y="0" width="200" height="200" filter="url(#pL)" opacity="0.6"/>' +    /* land */
+      '<rect x="0" y="0" width="200" height="200" filter="url(#pC)" opacity="0.55"/>' +   /* clouds */
+      '<rect x="0" y="0" width="200" height="200" fill="url(#pT)"/>' +                     /* terminator */
+    '</g>' +
+    '<circle cx="100" cy="100" r="93" fill="url(#pA)"/>' +                                 /* atmosphere rim */
+    '</svg>';
+  document.documentElement.style.setProperty('--ss-planet', 'url("data:image/svg+xml,' + encodeURIComponent(p) + '")');
 }
 
 // ── "Star Wars"-inspired gold wordmark (our own SVG — NOT the trademarked logo) ──
