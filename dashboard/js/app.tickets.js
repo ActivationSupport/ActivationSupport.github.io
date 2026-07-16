@@ -264,7 +264,7 @@ function _newTicketFormHtml() {
         _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:_ntAutofillRep, onAdd:function(t){ _ssRepAddPopup(t); } })) +
         _ntField('Office', _comboField('nt-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:_ntOfficeChange, onAdd:function(t){ _ssOfficeAddPopup(t); } })) +
         _ntField('Channel', chan) +
-        _ntField('Phone #', '<input id="nt-phone" class="ps-input" autocomplete="off" placeholder="Called / texted in from">') +
+        _ntField('Phone #', '<input id="nt-phone" class="ps-input" list="nt-phone-list" oninput="_ntPhoneLookup()" placeholder="Called / texted in from"><datalist id="nt-phone-list"></datalist>') +
       '</div>' +
       '<div id="nt-clock" class="ss-clock-strip"></div>' +
     '</div>' +
@@ -312,21 +312,25 @@ function _ticketLoadFormData() {
     if (r[2] && r[2].tickets) { _TICKETS.list = r[2].tickets; _ticketBuildRepProfiles(); }
     _TICKETS._loaded = true;
     _ticketFillAgents();
+    _ntFillPhoneList();
   }).catch(function(){ /* leave the form usable with empty lists */ });
 }
 // Build { rep(lc) -> {phone, office} } from each rep's most recent ticket that HAS each value.
 function _ticketBuildRepProfiles() {
-  var byRep = {};
+  var byRep = {}, byPhone = {};
   (_TICKETS.list || []).forEach(function(t) {
-    var rep = String(t.requester || '').trim().toLowerCase(), ts = String(t.created || '');
-    if (!rep) return;
-    var r = byRep[rep] || (byRep[rep] = { phone:'', phoneTs:'', office:'', officeTs:'' });
-    var ph = String(t.phone || '').trim(), of = String(t.office || '').trim();
-    if (ph && ts >= r.phoneTs) { r.phone = ph; r.phoneTs = ts; }
-    if (of && ts >= r.officeTs) { r.office = of; r.officeTs = ts; }
+    var repRaw = String(t.requester || '').trim(), rep = repRaw.toLowerCase(), ts = String(t.created || '');
+    var ph = String(t.phone || '').trim(), of = String(t.office || '').trim(), phn = _ssNormPhone(ph);
+    if (rep) {
+      var r = byRep[rep] || (byRep[rep] = { phone:'', phoneTs:'', office:'', officeTs:'' });
+      if (ph && ts >= r.phoneTs) { r.phone = ph; r.phoneTs = ts; }
+      if (of && ts >= r.officeTs) { r.office = of; r.officeTs = ts; }
+    }
+    if (phn && repRaw) { var p = byPhone[phn]; if (!p || ts >= p.ts) byPhone[phn] = { rep: repRaw, office: of, phone: ph, ts: ts }; }
   });
   _TICKETS._repProfile = {};
   Object.keys(byRep).forEach(function(rk){ _TICKETS._repProfile[rk] = { phone: byRep[rk].phone, office: byRep[rk].office }; });
+  _TICKETS._phoneProfile = byPhone;   // reverse: phone → { rep, office }
 }
 // On picking an existing Rep, auto-fill Phone + Office from their history (each still editable).
 function _ntAutofillRep() {
@@ -334,6 +338,21 @@ function _ntAutofillRep() {
   var p = (_TICKETS._repProfile || {})[rep]; if (!p) return;
   if (p.phone) _ntSetVal('nt-phone', p.phone);
   if (p.office) { _ntSetVal('nt-office', p.office); _ntOfficeChange(); }
+}
+// Reverse link: typing/picking a known Phone # fills the Rep (+ office) it belongs to.
+// Only fills BLANK fields, so a manually-chosen rep is never clobbered.
+function _ssNormPhone(p) { return String(p || '').replace(/\D/g, ''); }
+function _ntPhoneLookup() {
+  var p = (_TICKETS._phoneProfile || {})[_ssNormPhone(_ntVal('nt-phone'))]; if (!p) return;
+  if (!_ntVal('nt-requester') && p.rep) _ntSetVal('nt-requester', p.rep);
+  if (!_ntVal('nt-office') && p.office) { _ntSetVal('nt-office', p.office); _ntOfficeChange(); }
+}
+// Fill the Phone # datalist with known numbers (labelled by rep) once ticket data loads.
+function _ntFillPhoneList() {
+  var dl = document.getElementById('nt-phone-list'); if (!dl) return;
+  var pp = _TICKETS._phoneProfile || {};
+  dl.innerHTML = Object.keys(pp).map(function(k){ var x = pp[k];
+    return '<option value="' + esc(x.phone || k) + '" label="' + esc(x.rep + (x.office ? ' — ' + x.office : '')) + '"></option>'; }).join('');
 }
 function _ticketFillAgents() {
   var sel = document.getElementById('nt-assignee'); if (!sel || !_TICKETS.agents.length) return;
@@ -577,6 +596,8 @@ function _ssRepAddPopup(typed) {
     var rk = v.name.toLowerCase();
     _TICKETS._repProfile = _TICKETS._repProfile || {};
     _TICKETS._repProfile[rk] = { phone: v.phone, office: v.office };
+    var pn = _ssNormPhone(v.phone);
+    if (pn) { _TICKETS._phoneProfile = _TICKETS._phoneProfile || {}; _TICKETS._phoneProfile[pn] = { rep: v.name, office: v.office, phone: v.phone, ts: '~' }; _ntFillPhoneList(); }
   });
 }
 function _comboKey(id, e) {
