@@ -418,12 +418,17 @@ function _ntOfficeChange() {
 }
 // Add-an-office popup: Owner/Company/City/State (+ optional Address/ZIP). Derives the timezone
 // from State (+ split-state city), fills the Office field with "Owner — Company", and persists it.
+function _ssUniqOfficeVals(key) {
+  var seen = {}, out = [];
+  (_TICKETS.offices || []).forEach(function(o){ var v = String(o[key]||'').trim(); if (v && !seen[v.toLowerCase()]) { seen[v.toLowerCase()] = 1; out.push(v); } });
+  return out.sort(function(a,b){ return a.localeCompare(b); });
+}
 function _ssOfficeAddPopup(typed) {
   _ssAddPopup('Add Office', [
-    { id:'owner', label:'Owner name', value:typed },
-    { id:'company', label:'Company', value:'' },
-    { id:'city', label:'City', value:'' },
-    { id:'state', label:'State (2-letter, e.g. TX)', value:'' },
+    { id:'owner', label:'Owner name', value:typed, options:_ssUniqOfficeVals('owner') },
+    { id:'company', label:'Company', value:'', options:_ssUniqOfficeVals('company') },
+    { id:'city', label:'City', value:'', options:_ssUniqOfficeVals('city') },
+    { id:'state', label:'State (2-letter, e.g. TX)', value:'', options:_ssUniqOfficeVals('state') },
     { id:'address', label:'Address (optional)', value:'' },
     { id:'zip', label:'ZIP (optional)', value:'' }
   ], function(v) {
@@ -530,8 +535,12 @@ function _ssAddPopup(title, fields, onSave) {
   var old = document.getElementById('ss-addpop'); if (old && old.parentNode) old.parentNode.removeChild(old);
   var wrap = document.createElement('div'); wrap.id = 'ss-addpop'; wrap.className = 'ss-addpop-bg';
   var fieldsHtml = fields.map(function(f){
+    // A field with `options` gets a native <datalist> so you can pick an existing value
+    // (fill from what's already been added) instead of re-typing a duplicate.
+    var listId = (f.options && f.options.length) ? ('ssap-' + f.id + '-list') : '';
+    var dl = listId ? '<datalist id="' + listId + '">' + f.options.map(function(o){ return '<option value="' + esc(o) + '"></option>'; }).join('') + '</datalist>' : '';
     return '<label class="ss-fld"><span class="ss-lbl">' + esc(f.label) + '</span>' +
-      '<input class="ps-input" id="ssap-' + f.id + '" autocomplete="off" value="' + esc(f.value || '') + '"></label>';
+      '<input class="ps-input" id="ssap-' + f.id + '"' + (listId ? ' list="' + listId + '"' : ' autocomplete="off"') + ' value="' + esc(f.value || '') + '">' + dl + '</label>';
   }).join('');
   wrap.innerHTML = '<div class="ss-addpop card ss-card"><div class="ss-rule"></div>' +
     '<h3 class="ss-h2" style="font-size:15px;margin:0 0 14px">' + esc(title) + '</h3>' +
@@ -552,14 +561,15 @@ function _ssAddPopup(title, fields, onSave) {
 // Add-a-rep popup: captures name + phone + office; fills the three ticket fields (each still editable).
 function _ssRepAddPopup(typed) {
   _ssAddPopup('Add Rep', [
-    { id:'name', label:'Rep name', value:typed },
+    { id:'name', label:'Rep name', value:typed, options:(_TICKETS.lookups.rep || []) },
     { id:'phone', label:'Phone number', value:'' },
-    { id:'office', label:'Office', value:'' }
+    { id:'office', label:'Office (pick an existing one)', value:'', options:(_TICKETS._officeLabels || []) }
   ], function(v){
     if (!v.name) return;
     _ntSetVal('nt-requester', v.name);
     _ntSetVal('nt-phone', v.phone);
     _ntSetVal('nt-office', v.office);
+    _ntOfficeChange();   // if the office matches a directory entry, the clock lights up
     // persist the rep + office to the dropdowns, and link rep→phone/office locally so re-picking
     // fills them even before a ticket is saved (across sessions the link comes from ticket history).
     _ticketRememberValue('rep', v.name, '');
