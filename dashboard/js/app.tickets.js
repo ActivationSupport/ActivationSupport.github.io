@@ -264,7 +264,7 @@ function _newTicketFormHtml() {
         _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:_ntAutofillRep, onAdd:function(t){ _ssRepAddPopup(t); } })) +
         _ntField('Office', _comboField('nt-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:_ntOfficeChange, onAdd:function(t){ _ssOfficeAddPopup(t); } })) +
         _ntField('Channel', chan) +
-        _ntField('Phone #', '<input id="nt-phone" class="ps-input" list="nt-phone-list" oninput="_ntPhoneLookup()" placeholder="Called / texted in from"><datalist id="nt-phone-list"></datalist>') +
+        _ntField('Phone #', _comboField('nt-phone', { placeholder:'Called / texted in from', options:_ntKnownPhones, onChange:_ntPhoneLookup, onInput:_ntPhoneLookup, noAdd:true })) +
       '</div>' +
       '<div id="nt-clock" class="ss-clock-strip"></div>' +
     '</div>' +
@@ -312,7 +312,6 @@ function _ticketLoadFormData() {
     if (r[2] && r[2].tickets) { _TICKETS.list = r[2].tickets; _ticketBuildRepProfiles(); }
     _TICKETS._loaded = true;
     _ticketFillAgents();
-    _ntFillPhoneList();
   }).catch(function(){ /* leave the form usable with empty lists */ });
 }
 // Build { rep(lc) -> {phone, office} } from each rep's most recent ticket that HAS each value.
@@ -347,12 +346,11 @@ function _ntPhoneLookup() {
   if (!_ntVal('nt-requester') && p.rep) _ntSetVal('nt-requester', p.rep);
   if (!_ntVal('nt-office') && p.office) { _ntSetVal('nt-office', p.office); _ntOfficeChange(); }
 }
-// Fill the Phone # datalist with known numbers (labelled by rep) once ticket data loads.
-function _ntFillPhoneList() {
-  var dl = document.getElementById('nt-phone-list'); if (!dl) return;
+// Known phone numbers for the Phone # combobox — { val:number, label:"number · rep — office" }.
+function _ntKnownPhones() {
   var pp = _TICKETS._phoneProfile || {};
-  dl.innerHTML = Object.keys(pp).map(function(k){ var x = pp[k];
-    return '<option value="' + esc(x.phone || k) + '" label="' + esc(x.rep + (x.office ? ' — ' + x.office : '')) + '"></option>'; }).join('');
+  return Object.keys(pp).map(function(k){ var x = pp[k];
+    return { val: x.phone || k, label: (x.phone || k) + (x.rep ? '  ·  ' + x.rep + (x.office ? ' — ' + x.office : '') : '') }; });
 }
 function _ticketFillAgents() {
   var sel = document.getElementById('nt-assignee'); if (!sel || !_TICKETS.agents.length) return;
@@ -471,26 +469,29 @@ function _ssOfficeAddPopup(typed) {
 // highlight, Esc closes. `cfg = { placeholder, options: ()=>[strings] }`.
 var _COMBO = {};
 function _comboField(id, cfg) {
-  _COMBO[id] = { opts: cfg.options, onChange: cfg.onChange || null, onAdd: cfg.onAdd || null, addTitle: cfg.addTitle || 'Add new', lookupType: cfg.lookupType || '', lookupParent: cfg.lookupParent || null, items: [], hi: -1 };
+  _COMBO[id] = { opts: cfg.options, onChange: cfg.onChange || null, onAdd: cfg.onAdd || null, onInput: cfg.onInput || null, noAdd: !!cfg.noAdd, addTitle: cfg.addTitle || 'Add new', lookupType: cfg.lookupType || '', lookupParent: cfg.lookupParent || null, items: [], hi: -1 };
   return '<div class="ss-combo">' +
     '<input id="' + id + '" class="ps-input ss-combo-input" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="' + esc(cfg.placeholder || '') + '" ' +
-      'onfocus="_comboOpen(\'' + id + '\')" oninput="_comboOpen(\'' + id + '\')" onkeydown="_comboKey(\'' + id + '\',event)" onblur="_comboBlur(\'' + id + '\')">' +
+      'onfocus="_comboOpen(\'' + id + '\')" oninput="_comboInput(\'' + id + '\')" onkeydown="_comboKey(\'' + id + '\',event)" onblur="_comboBlur(\'' + id + '\')">' +
     '<div class="ss-combo-menu" id="' + id + '-menu" role="listbox"></div>' +
   '</div>';
 }
+function _comboInput(id) { _comboOpen(id); var st = _COMBO[id]; if (st && st.onInput) st.onInput(); }
 function _comboRender(id) {
   var input = document.getElementById(id), menu = document.getElementById(id + '-menu'), st = _COMBO[id];
   if (!input || !menu || !st) return;
   var q = String(input.value || '').trim(), ql = q.toLowerCase();
   var all = (st.opts && st.opts()) || [];
-  var matches = all.filter(function(o){ return String(o).toLowerCase().indexOf(ql) !== -1; });
-  st.items = matches.map(function(o){ return { val: String(o) }; });   // pickable options (the add row is separate)
+  // Options may be plain strings OR { val, label } (display label ≠ stored value, e.g. phone · rep).
+  var norm = all.map(function(o){ return (o && typeof o === 'object') ? { val:String(o.val), label:String(o.label == null ? o.val : o.label) } : { val:String(o), label:String(o) }; });
+  var matches = norm.filter(function(o){ return (o.label + ' ' + o.val).toLowerCase().indexOf(ql) !== -1; });
+  st.items = matches;   // pickable options ({val,label}); the add row is separate
   if (st.hi >= st.items.length) st.hi = st.items.length - 1;
   var opts = matches.map(function(o, i){
-    return '<div class="ss-combo-opt' + (i === st.hi ? ' hi' : '') + '" role="option" data-i="' + i + '">' + esc(String(o)) + '</div>';
+    return '<div class="ss-combo-opt' + (i === st.hi ? ' hi' : '') + '" role="option" data-i="' + i + '">' + esc(o.label) + '</div>';
   }).join('');
-  // ALWAYS a clickable "+ Add" action (opens the add popup) — pinned to the TOP of the list, every category.
-  var addRow = '<div class="ss-combo-add" role="button" data-add="1">' + (q ? '+ Add &ldquo;' + esc(q) + '&rdquo;' : '+ Add new&hellip;') + '</div>';
+  // A clickable "+ Add" action (opens the add popup) pinned to the TOP — unless this combo is noAdd (pick-existing only).
+  var addRow = st.noAdd ? '' : '<div class="ss-combo-add" role="button" data-add="1">' + (q ? '+ Add &ldquo;' + esc(q) + '&rdquo;' : '+ Add new&hellip;') + '</div>';
   menu.innerHTML = addRow + opts;
   menu.onmousedown = function(e){
     e.preventDefault();   // keep focus / fire before the input's blur
@@ -523,6 +524,7 @@ function _comboPick(id, i) {
 // every other field uses a single-value popup that fills that combobox.
 function _comboAdd(id) {
   var st = _COMBO[id], input = document.getElementById(id);
+  if (st && st.noAdd) { _comboClose(id); return; }   // pick-existing combos have no "+ Add"
   var typed = input ? String(input.value || '').trim() : '';
   _comboClose(id);
   if (st && st.onAdd) { st.onAdd(typed); return; }   // rep → its own name/phone/office popup
@@ -554,12 +556,12 @@ function _ssAddPopup(title, fields, onSave) {
   var old = document.getElementById('ss-addpop'); if (old && old.parentNode) old.parentNode.removeChild(old);
   var wrap = document.createElement('div'); wrap.id = 'ss-addpop'; wrap.className = 'ss-addpop-bg';
   var fieldsHtml = fields.map(function(f){
-    // A field with `options` gets a native <datalist> so you can pick an existing value
-    // (fill from what's already been added) instead of re-typing a duplicate.
-    var listId = (f.options && f.options.length) ? ('ssap-' + f.id + '-list') : '';
-    var dl = listId ? '<datalist id="' + listId + '">' + f.options.map(function(o){ return '<option value="' + esc(o) + '"></option>'; }).join('') + '</datalist>' : '';
-    return '<label class="ss-fld"><span class="ss-lbl">' + esc(f.label) + '</span>' +
-      '<input class="ps-input" id="ssap-' + f.id + '"' + (listId ? ' list="' + listId + '"' : ' autocomplete="off"') + ' value="' + esc(f.value || '') + '">' + dl + '</label>';
+    // Fields with `options` render the SAME styled combobox as the main form (pick an existing
+    // value → no duplicate; no nested "+ Add"). Plain fields stay simple inputs.
+    var ctrl = (f.options && f.options.length)
+      ? _comboField('ssap-' + f.id, { placeholder:'', noAdd:true, options:(function(opts){ return function(){ return opts; }; })(f.options) })
+      : '<input class="ps-input" id="ssap-' + f.id + '" autocomplete="off" value="' + esc(f.value || '') + '">';
+    return '<label class="ss-fld"><span class="ss-lbl">' + esc(f.label) + '</span>' + ctrl + '</label>';
   }).join('');
   wrap.innerHTML = '<div class="ss-addpop card ss-card"><div class="ss-rule"></div>' +
     '<h3 class="ss-h2" style="font-size:15px;margin:0 0 14px">' + esc(title) + '</h3>' +
@@ -567,6 +569,7 @@ function _ssAddPopup(title, fields, onSave) {
     '<div class="ss-actions"><button class="ps-btn" id="ssap-save">Add</button>' +
     '<button class="ps-btn secondary" id="ssap-cancel">Cancel</button></div></div>';
   document.body.appendChild(wrap);
+  fields.forEach(function(f){ if (f.options && f.options.length && f.value) { var el = document.getElementById('ssap-' + f.id); if (el) el.value = f.value; } });   // seed combobox inputs (they render valueless)
   var close = function(){ if (wrap.parentNode) wrap.parentNode.removeChild(wrap); };
   wrap.addEventListener('mousedown', function(e){ if (e.target === wrap) close(); });
   wrap.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
@@ -597,7 +600,7 @@ function _ssRepAddPopup(typed) {
     _TICKETS._repProfile = _TICKETS._repProfile || {};
     _TICKETS._repProfile[rk] = { phone: v.phone, office: v.office };
     var pn = _ssNormPhone(v.phone);
-    if (pn) { _TICKETS._phoneProfile = _TICKETS._phoneProfile || {}; _TICKETS._phoneProfile[pn] = { rep: v.name, office: v.office, phone: v.phone, ts: '~' }; _ntFillPhoneList(); }
+    if (pn) { _TICKETS._phoneProfile = _TICKETS._phoneProfile || {}; _TICKETS._phoneProfile[pn] = { rep: v.name, office: v.office, phone: v.phone, ts: '~' }; }
   });
 }
 function _comboKey(id, e) {
