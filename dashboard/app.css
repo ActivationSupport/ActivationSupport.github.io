@@ -1707,3 +1707,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .ss-contact-save{display:flex;align-items:center;gap:10px;margin-left:auto}
 .ss-contact-save .ps-btn{padding:8px 18px;font-size:12px;white-space:nowrap}
 @media(max-width:768px){.ss-contact-save{width:100%;margin-left:0}.ss-contact-save .ps-btn{flex:1}}
+
+/* Rep Contacts: tag a row whose phone/office only came from ticket history (not yet a
+   persisted Contact Links row) — "Save All" backfills these. */
+.ss-rc-unsaved{font-size:10px;font-style:italic;color:var(--text2);opacity:.75;margin-left:6px;white-space:nowrap}

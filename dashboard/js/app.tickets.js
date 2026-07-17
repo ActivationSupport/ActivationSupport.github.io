@@ -945,28 +945,32 @@ function renderRepContacts() {
   c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Rep Contacts</h2>' + _ssLoading('Loading…') + '</div>';
   Promise.all([
     _ticketGet({ action:'getContactLinks' }),
-    _ticketGet({ action:'getLookups' })
+    _ticketGet({ action:'getLookups' }),
+    _ticketGet({ action:'getTickets' })   // so reps with no saved link yet still show their ticket-derived phone/office
   ]).then(function(r) {
     _TICKETS.contacts = (r[0] && r[0].links) || [];
     _TICKETS._contactsLoaded = true;
     if (r[1] && r[1].lookups) _TICKETS.lookups = r[1].lookups;
+    if (r[2] && r[2].tickets) _TICKETS.list = r[2].tickets;
     _ticketBuildRepProfiles();
     c.innerHTML = _repContactsView();
   }).catch(function(e) {
     c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Rep Contacts</h2><p class="ss-sub" style="color:var(--red)">Could not load: ' + esc(e.message) + '</p></div>';
   });
 }
-// Merge saved contact links with any rep names that only exist from ticket history/lookups
-// (so those reps show up here ready to have their phone/office filled in).
+// Merge saved contact links with any rep names that only exist from ticket history/lookups —
+// those get their phone/office pre-filled from _repProfile (built from past tickets) and are
+// flagged `saved:false` so "Save All" can backfill them into real Contact Links rows.
 function _ssContactRows() {
   var byRep = {};
   (_TICKETS.contacts || []).forEach(function(cLink) {
     var rep = String(cLink.rep || '').trim(); if (!rep) return;
-    byRep[rep.toLowerCase()] = { rep:rep, phone:String(cLink.phone||'').trim(), office:String(cLink.office||'').trim() };
+    byRep[rep.toLowerCase()] = { rep:rep, phone:String(cLink.phone||'').trim(), office:String(cLink.office||'').trim(), saved:true };
   });
   (_TICKETS.lookups.rep || []).forEach(function(name) {
     var k = String(name || '').trim().toLowerCase(); if (!k || byRep[k]) return;
-    byRep[k] = { rep:name, phone:'', office:'' };
+    var p = (_TICKETS._repProfile || {})[k] || {};
+    byRep[k] = { rep:name, phone:p.phone || '', office:p.office || '', saved:false };
   });
   var rows = Object.keys(byRep).map(function(k){ return byRep[k]; });
   rows.sort(function(a, b){ return a.rep.localeCompare(b.rep); });
@@ -988,17 +992,23 @@ function _repContactsView() {
   if (!rows.length) {
     tableHtml = '<div class="card ss-card">' + _ssEmpty('people', 'No reps yet', 'Add the first one above.') + '</div>';
   } else {
+    var unsaved = rows.filter(function(r){ return !r.saved && (r.phone || r.office); }).length;
     var head = '<tr><th>Rep</th><th>Phone</th><th>Office</th><th></th></tr>';
     var body = rows.map(function(r, i){
+      var tag = (!r.saved && (r.phone || r.office)) ? ' <span class="ss-rc-unsaved" title="From ticket history — not yet saved to Rep Contacts">from tickets</span>' : '';
       return '<tr class="ss-row ss-rc-row" data-i="' + i + '">' +
         '<td data-label="Rep">' + esc(r.rep) + '</td>' +
-        '<td data-label="Phone">' + esc(r.phone || '—') + '</td>' +
+        '<td data-label="Phone">' + esc(r.phone || '—') + tag + '</td>' +
         '<td data-label="Office">' + esc(r.office || '—') + '</td>' +
         '<td data-label="" style="white-space:nowrap"><button class="ps-btn secondary" onclick="_rcEditRow(' + i + ')">Edit</button></td>' +
       '</tr>';
     }).join('');
-    tableHtml = '<div class="card ss-card ss-tablewrap"><table class="tbl ss-table">' + head + body + '</table>' +
-      '<p class="ss-sub" style="margin:10px 0 0">' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + '</p></div>';
+    tableHtml = '<div class="card ss-card ss-tablewrap">' +
+      '<div class="ss-actions" style="margin-top:0;justify-content:space-between">' +
+        '<p class="ss-sub" style="margin:0">' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + (unsaved ? ' · ' + unsaved + ' from ticket history not yet saved' : '') + '</p>' +
+        (unsaved ? '<span><button class="ps-btn secondary" id="rc-saveall-btn" onclick="_rcSaveAll()">Save All (' + unsaved + ')</button></span>' : '') +
+      '</div>' +
+      '<table class="tbl ss-table">' + head + body + '</table></div>';
   }
   return addCard + tableHtml;
 }
@@ -1031,6 +1041,27 @@ function _rcAdd() {
     if (btn) { btn.disabled = false; btn.textContent = 'Add / Update Contact'; }
     _rcStatus('Error: ' + e.message, true);
   });
+}
+// Backfill every rep we already have a phone/office for (derived from past tickets) into real,
+// persisted Rep Contacts rows — so info that only lived in ticket history survives independently.
+function _rcSaveAll() {
+  var rows = (_TICKETS._contactRowsCache || []).filter(function(r){ return !r.saved && (r.phone || r.office); });
+  if (!rows.length) { _rcStatus('Nothing to save — every rep with a phone or office is already saved.', false); return; }
+  var btn = document.getElementById('rc-saveall-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  _rcStatus('Saving ' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + '…', false);
+  Promise.all(rows.map(function(r){ return _ticketPost({ action:'saveContactLink', rep:r.rep, phone:r.phone, office:r.office }); }))
+    .then(function(results) {
+      var ok = 0;
+      results.forEach(function(res, i) {
+        if (res && res.ok) { ok++; var r = rows[i]; (_TICKETS.contacts = _TICKETS.contacts || []).push({ rep:r.rep, phone:r.phone, office:r.office }); }
+      });
+      _ticketBuildRepProfiles();
+      var c = document.getElementById('main-content'); if (c) c.innerHTML = _repContactsView();
+      _rcStatus('Saved ' + ok + ' of ' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + '.', ok < rows.length);
+    }).catch(function(e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save All (' + rows.length + ')'; }
+      _rcStatus('Error: ' + e.message, true);
+    });
 }
 // Swap one row into edit mode (Phone + Office only — the rep name is the lookup key, so it
 // isn't renamed in place; add a new contact above if a rep needs a different name on file).
