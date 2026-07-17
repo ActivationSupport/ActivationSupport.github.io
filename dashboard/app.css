@@ -1699,3 +1699,11 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .ss-clock-tz{font-size:11px;font-weight:700;color:var(--ss-gold,#e0a838);letter-spacing:.5px}
 .ss-clock-sub{font-size:11px;color:var(--text2);margin-left:2px;align-self:center}
 @media(max-width:768px){.ss-clockpair{width:100%}.ss-clock{flex:1;justify-content:center}}
+
+/* Contact row (New Ticket): the office clock strip + a "Save Link" button that persists
+   the current Rep/Office/Phone as a Rep Contacts entry without creating a ticket. */
+.ss-contact-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;margin-top:10px}
+.ss-contact-row .ss-clock-strip{margin-top:0}
+.ss-contact-save{display:flex;align-items:center;gap:10px;margin-left:auto}
+.ss-contact-save .ps-btn{padding:8px 18px;font-size:12px;white-space:nowrap}
+@media(max-width:768px){.ss-contact-save{width:100%;margin-left:0}.ss-contact-save .ps-btn{flex:1}}
