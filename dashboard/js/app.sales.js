@@ -555,6 +555,65 @@ function _rehashText(d) {
   return s.join('\n');
 }
 
+// ── FIRST BILL CALCULATOR ───────────────────────────────────────────────────
+// Quick, rough estimate of a customer's first AT&T bill (no taxes/fees) — matches the
+// billing explanation already sent in the Rehash text ("First Bill — starts higher due
+// to proration [31-60 days of service] + activation fees"). AT&T bills wireless one month
+// IN ADVANCE, so the first bill = 1 full month + a partial-month proration; here that
+// partial is a flat half-month (15 days) rather than an actual activation-date calc, so
+// the plan charge is simply 1.5x the monthly price. Device installments are NOT prorated
+// (full amount from day one). The $35/line activation fee is charged in full on the first
+// bill even though AT&T typically credits it back over a later bill, not this one. Next Up
+// Anytime adds a flat $10/mo. Nothing here is saved.
+var _FBC = null;
+function _fbcInit() { if (!_FBC) _FBC = { plan:'', device:'', nextUp:false }; }
+function _fbcNum(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function _fbcTotal(d) { return (_fbcNum(d.plan) * 1.5) + _fbcNum(d.device) + 35 + (d.nextUp ? 10 : 0); }
+function _fbcMoney(n) { return '$' + n.toFixed(2); }
+function _fbcBreakdownHtml(d) {
+  var rows = [
+    ['Plan (1 mo + half-mo proration)', _fbcNum(d.plan) * 1.5],
+    ['Device (installment or full cost)', _fbcNum(d.device)],
+    ['Activation fee', 35]
+  ];
+  if (d.nextUp) rows.push(['Next Up Anytime', 10]);
+  return rows.map(function(r) {
+    return '<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0"><span>' + esc(r[0]) + '</span><span>' + _fbcMoney(r[1]) + '</span></div>';
+  }).join('');
+}
+function renderFirstBillCalc() {
+  _fbcInit();
+  var d = _FBC;
+  var tog = function(label, val) { return '<div class="ps-toggle' + (d.nextUp === val ? ' active' : '') + '" onclick="_fbcSetNextUp(' + val + ')">' + label + '</div>'; };
+  return '<div class="card"><div class="card-header dark">' + icon('firstbill') + ' First Bill Calculator</div><div class="card-body">' +
+    '<div style="font-size:.85rem;color:var(--text2);margin-bottom:18px;line-height:1.5">Rough estimate only — excludes taxes &amp; fees. Assumes AT&amp;T\'s standard advance-billing proration (1 full month + a half-month partial). Nothing here is saved.</div>' +
+    '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">' +
+      '<div style="flex:1 1 240px;min-width:220px">' +
+        '<div class="ps-label" style="margin-top:0">MONTHLY PLAN PRICE</div>' +
+        '<input class="ps-input" type="number" min="0" step="0.01" id="fbc-plan" placeholder="0.00" value="' + esc(d.plan) + '" oninput="_fbcSet(\'plan\',this.value)">' +
+        '<div class="ps-label">DEVICE &mdash; INSTALLMENT OR FULL COST</div>' +
+        '<input class="ps-input" type="number" min="0" step="0.01" id="fbc-device" placeholder="0.00" value="' + esc(d.device) + '" oninput="_fbcSet(\'device\',this.value)">' +
+        '<div class="ps-label">NEXT UP ANYTIME ($10/mo)</div>' +
+        '<div class="ps-toggle-row">' + tog('No', false) + tog('Yes', true) + '</div>' +
+      '</div>' +
+      '<div style="flex:1.5 1 260px;min-width:240px">' +
+        '<div class="ps-label" style="margin-top:0">ESTIMATED FIRST BILL</div>' +
+        '<div id="fbc-total" style="font-size:2.4rem;font-weight:700;color:var(--text)">' + _fbcMoney(_fbcTotal(d)) + '</div>' +
+        '<div id="fbc-breakdown" style="margin-top:14px;font-size:.85rem;color:var(--text2)">' + _fbcBreakdownHtml(d) + '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div></div>';
+}
+function _fbcSet(field, val) {
+  _fbcInit(); _FBC[field] = val;
+  var t = document.getElementById('fbc-total'); if (t) t.textContent = _fbcMoney(_fbcTotal(_FBC));
+  var b = document.getElementById('fbc-breakdown'); if (b) b.innerHTML = _fbcBreakdownHtml(_FBC);
+}
+function _fbcSetNextUp(val) {
+  _fbcInit(); _FBC.nextUp = val;
+  var c = document.getElementById('main-content'); if (c) c.innerHTML = renderFirstBillCalc();
+}
+
 // ── POSTED SALES (view + self-correct + void) ─────────────────────────────
 var _PSV_SALES = null;        // cached scoped list (own-only roles see only theirs)
 var _PSV_SHOW_VOIDED = false;

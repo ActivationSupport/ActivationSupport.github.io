@@ -727,6 +727,7 @@ var ROLES_PAYROLL = ['master-admin','owner','admin'];
 var TABS = [
   { id: 'postsale',    label: 'Post Sale',            roles: ROLES_REP,  group: 'Sales',       sub: 'Log a new sale' },
   { id: 'rehash',      label: 'Rehash Text',          roles: ROLES_REP,  group: 'Sales',       sub: 'Generate the customer welcome text' },
+  { id: 'firstbill',   label: 'First Bill Calc',      roles: ROLES_REP,  group: 'Sales',       sub: "Estimate a customer's first bill" },
   { id: 'postedsales', label: 'Posted Sales',         roles: ALL_ROLES,  group: 'Sales',       sub: 'View & correct posted sales' },
   { id: 'appointments', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
   { id: 'myappts',      label: 'My Appointments',      roles: ['master-admin','activator'], group: 'Scheduling', sub: 'Your booked appointments across every office' },
