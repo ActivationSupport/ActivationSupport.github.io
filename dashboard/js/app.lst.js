@@ -767,8 +767,12 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
 
   function row(item, rank) {
     var d = item.d;
-    var r = '<tr><td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(d.name) + _lstBaselineBadge(item.email) + '</div>' +
+    // Row click -> sales breakdown modal. Name click -> full profile (stops
+    // propagation so it doesn't also open the breakdown).
+    var r = '<tr class="lst-row-click" onclick="_lstShowRepBreakdown(\'' + item.email + '\')"' +
+      ' title="See what ' + esc(d.name) + ' sold day by day">' +
+      '<td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="event.stopPropagation();_lstShowRepProfile(\'' + item.email + '\')" title="Open full profile">' + esc(d.name) + _lstBaselineBadge(item.email) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[d.rank] || d.rank) + '</div></td>';
     for (var i = 0; i < 7; i++) {
       if (i > todayIdx) {
@@ -878,8 +882,11 @@ function _lstWeeksTbl(leaders, reps) {
 
   function row(item, rank) {
     var wr = wAgg[item.email]; if (!wr) return '';
-    var r = '<tr><td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(wr.name) + _lstBaselineBadge(item.email) + '</div>' +
+    // Row click -> sales breakdown modal. Name click -> full profile.
+    var r = '<tr class="lst-row-click" onclick="_lstShowRepBreakdown(\'' + item.email + '\')"' +
+      ' title="See what ' + esc(wr.name) + ' sold week by week">' +
+      '<td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="event.stopPropagation();_lstShowRepProfile(\'' + item.email + '\')" title="Open full profile">' + esc(wr.name) + _lstBaselineBadge(item.email) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[wr.rank] || wr.rank) + '</div></td>';
     wr.weeks.forEach(function(w) {
       r += '<td style="color:var(--text2)">' + w.orders + '</td>';
@@ -1017,9 +1024,6 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   h += '<div class="rp-stat"><div class="rp-stat-num">'+allOrders+'</div><div class="rp-stat-lbl">All-Time Posted</div></div>';
   h += '</div></div>';
 
-  // Sales Breakdown — posted-sales data, so it renders BEFORE the Tableau gate.
-  h += '<div id="rp-bd">' + _lstRepBreakdownHtml(email) + '</div>';
-
   if (!tableauName) {
     h += '<div class="rp-card" style="text-align:center;padding:24px;color:var(--text2)">Link a Tableau name above to see line metrics and rates.</div>';
     return h + '</div>';
@@ -1037,16 +1041,31 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   return h + '</div>';
 }
 
-// ── SALES BREAKDOWN (rep profile) ─────────────────────────────────────────
+// ── SALES BREAKDOWN (board row -> modal) ──────────────────────────────────
 // Day-by-day / week-by-week list of what this rep ACTUALLY sold, built from the
-// posted-sales feed (_LST_SALES) the board already has in memory. Deliberately
-// NOT Tableau-gated — it renders above the Tableau early-return, so reps with no
-// linked Tableau name still get a full breakdown.
+// posted-sales feed (_LST_SALES) the board already has in memory — so it opens
+// instantly with no API call, and works for reps with no linked Tableau name.
+//
+// Reached by clicking a rep's ROW on the board. Clicking their NAME still opens
+// the full rep profile (which this deliberately stays out of) — the name's
+// handler stops propagation so the two never fire together.
+function _lstShowRepBreakdown(email) {
+  var roster = DATA.roster || {};
+  var r = roster[String(email || '').trim().toLowerCase()] || roster[email] || {};
+  var t = document.getElementById('modal-title');
+  var b = document.getElementById('modal-body');
+  if (!t || !b) return;
+  t.textContent = (r.name || email) + ' — Sales Breakdown';
+  // Open on whichever period the board is showing: DAYS board -> day by day,
+  // WEEKS board -> week by week.
+  _LST_BD_VIEW = _LST_VIEW === 'weeks' ? 'weeks' : 'days';
+  b.innerHTML = '<div id="lst-bd">' + _lstRepBreakdownHtml(email) + '</div>';
+  document.getElementById('detail-modal').classList.add('open');
+}
+
 function lstBdSetView(v, email) {
   _LST_BD_VIEW = v;
-  // Repaint just this card — the profile's other sections came from API calls we
-  // don't want to re-fire on a toggle.
-  var el = document.getElementById('rp-bd');
+  var el = document.getElementById('lst-bd');
   if (el) el.innerHTML = _lstRepBreakdownHtml(email);
 }
 
@@ -1091,7 +1110,8 @@ function _lstRepBreakdownHtml(email) {
     }
   });
 
-  var h = '<div class="rp-card"><div class="rp-card-title">Sales Breakdown</div>';
+  // No card chrome / title — the modal header already says whose breakdown it is.
+  var h = '<div class="rp-bd-body">';
   h += '<div class="rp-bd-toggle">' +
     '<div class="rp-bd-btn' + (_LST_BD_VIEW === 'days' ? ' active' : '') +
       '" onclick="lstBdSetView(\'days\',\'' + esc(email) + '\')">DAY BY DAY</div>' +

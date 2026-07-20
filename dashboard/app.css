@@ -1310,7 +1310,13 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .rp-save-btn{padding:9px 18px;border-radius:6px;border:none;background:var(--blue2);color:var(--on-accent);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .rp-save-btn:disabled{opacity:.4;cursor:not-allowed}
 .rp-no-data{font-size:13px;color:var(--text2);font-style:italic}
-/* rep-profile Sales Breakdown (day-by-day / week-by-week) */
+/* Sales Breakdown modal, opened by clicking a rep's ROW on the LST board */
+.lst-tbl tbody tr.lst-row-click{cursor:pointer}
+.lst-tbl tbody tr.lst-row-click:hover td{background:rgba(var(--blue2-rgb),.09)}
+.rp-bd-body{padding-top:2px}
+/* the shared modal is 520px — too narrow for the 6-column breakdown table.
+   Scoped via :has() so no JS teardown is needed; older engines just keep 520px. */
+.modal:has(.rp-bd-body){max-width:820px}
 .rp-bd-toggle{display:flex;gap:6px;margin-bottom:14px}
 .rp-bd-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;user-select:none}
 .rp-bd-btn.active{background:var(--blue2);border-color:var(--blue2);color:var(--on-accent)}
