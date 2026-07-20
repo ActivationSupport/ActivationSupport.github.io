@@ -1244,6 +1244,11 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .lst-tbl{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
 .lst-tbl th{padding:8px 10px;color:var(--text2);font-size:10px;font-weight:600;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--surface2);text-align:center}
 .lst-tbl th.ll{text-align:left}
+/* click-to-sort column headers (LST days/weeks boards) */
+.lst-sort-th{cursor:pointer;user-select:none;transition:color .12s,background .12s}
+.lst-sort-th:hover{color:var(--text);background:var(--surface)}
+.lst-sort-active{color:var(--blue2);font-weight:700}
+.lst-sort-arw{margin-left:3px;font-size:9px;vertical-align:baseline}
 .lst-wk-date{display:block;font-size:9px;font-weight:500;color:var(--text2);opacity:.7;margin-top:3px;letter-spacing:.02em}
 .lst-tbl td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;text-align:center}
 .lst-tbl td.ll{text-align:left}

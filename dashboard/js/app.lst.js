@@ -2,6 +2,14 @@
 var _LST_SALES = null;
 var _LST_POSTED = null;   // raw posted sales (pre-legacy-merge), so legacy can be re-merged once the bundle loads
 var _LST_VIEW = 'days';
+// Click-to-sort state, kept per view so switching DAYS<->WEEKS doesn't clobber
+// the other view's choice. null = that view's default (its current period, by
+// units, descending). col is a day/week column index, or 'name'.
+var _LST_SORT = { days: null, weeks: null };
+// The sort each table ACTUALLY rendered with, recorded at render time. While
+// _LST_SORT is null the board is on its default column — this is what lets a
+// click on that default column flip it, instead of re-applying the same sort.
+var _LST_SORT_RESOLVED = { days: null, weeks: null };
 var _LST_DAYS = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
 var _LST_RNKL = {
   'master-admin':'Master Admin','owner':'Owner','admin':'Admin',
@@ -33,6 +41,54 @@ function lstSetView(v) {
 function lstRefresh() {
   _LST_SALES = null;
   renderLiveSalesTracker();
+}
+
+// Click a column header to sort the board by it. Clicking the column that's
+// already active flips the direction; clicking a new one starts at the sensible
+// default for its type (numbers high->low, names A->Z). Clicking the ACTIVE
+// column while it's already flipped clears back to the view's default sort.
+function lstSortBy(view, col, metric) {
+  var cur = _LST_SORT[view] || _LST_SORT_RESOLVED[view];
+  var isNum = col !== 'name';
+  var first = isNum ? 'desc' : 'asc';
+  if (cur && String(cur.col) === String(col) && cur.metric === metric) {
+    if (cur.dir !== first) { _LST_SORT[view] = null; }          // 3rd click -> default
+    else { _LST_SORT[view] = { col: col, metric: metric, dir: first === 'desc' ? 'asc' : 'desc' }; }
+  } else {
+    _LST_SORT[view] = { col: col, metric: metric, dir: first };
+  }
+  document.getElementById('main-content').innerHTML = _lstBuild();
+}
+
+// Sortable <th>. `active` is the resolved sort for this view (never null), so
+// the arrow also marks the DEFAULT column before anything has been clicked.
+function _lstSortTh(view, col, metric, label, active, cls, style) {
+  var on = String(active.col) === String(col) && active.metric === metric;
+  var arrow = on ? '<span class="lst-sort-arw">' + (active.dir === 'asc' ? '↑' : '↓') + '</span>' : '';
+  return '<th class="lst-sort-th' + (on ? ' lst-sort-active' : '') + (cls ? ' ' + cls : '') + '"' +
+    (style ? ' style="' + style + '"' : '') +
+    ' onclick="lstSortBy(\'' + view + '\',\'' + col + '\',\'' + metric + '\')"' +
+    ' title="Sort by ' + label + '">' + label + arrow + '</th>';
+}
+
+// Shared comparator factory. `get(item, col, metric)` pulls the cell value.
+function _lstCmp(active, get, fallback) {
+  var f = active.dir === 'asc' ? -1 : 1;
+  return function(a, b) {
+    if (active.col === 'name') {
+      var an = String((a.d && a.d.name) || '').toLowerCase();
+      var bn = String((b.d && b.d.name) || '').toLowerCase();
+      return (an < bn ? -1 : an > bn ? 1 : 0) * (active.dir === 'asc' ? 1 : -1);
+    }
+    var av = get(a, active.col, active.metric), bv = get(b, active.col, active.metric);
+    if (bv !== av) return (bv - av) * f;
+    // Same-cell tie: fall back to the other metric in that column, then to the
+    // view's default ranking, so equal rows stay in a stable, meaningful order.
+    var om = active.metric === 'units' ? 'orders' : 'units';
+    var ao = get(a, active.col, om), bo = get(b, active.col, om);
+    if (bo !== ao) return (bo - ao) * f;
+    return fallback ? fallback(a, b) : 0;
+  };
 }
 
 function _lstWeekStart() {
@@ -669,24 +725,30 @@ function _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) {
 }
 
 function _lstDaysTbl(leaders, reps, todayIdx) {
-  // The DAYS view ranks by TODAY's production (not the week-to-date total the
-  // board is built with), so #1 is whoever sold the most today. Ties fall back
-  // to today's orders, then week units, then week orders. Sorted per-group so
-  // the LEADERS / CLIENT REPS split is preserved.
-  var byToday = function(a, b) {
-    var ad = a.d.days[todayIdx], bd = b.d.days[todayIdx];
-    return bd.units - ad.units || bd.orders - ad.orders ||
-           b.d.units - a.d.units || b.d.orders - a.d.orders;
-  };
-  leaders = leaders.slice().sort(byToday);
-  reps    = reps.slice().sort(byToday);
+  // The DAYS view defaults to ranking by TODAY's production (not the week-to-date
+  // total the board is built with), so #1 is whoever sold the most today. Any
+  // day column can be clicked to sort by it instead. Sorted per-group so the
+  // LEADERS / CLIENT REPS split is preserved.
+  var active = _LST_SORT.days || { col: todayIdx, metric: 'units', dir: 'desc' };
+  _LST_SORT_RESOLVED.days = active;
+  var cmp = _lstCmp(active,
+    function(x, col, metric) { return x.d.days[col][metric]; },
+    function(a, b) { return b.d.units - a.d.units || b.d.orders - a.d.orders; });
+  leaders = leaders.slice().sort(cmp);
+  reps    = reps.slice().sort(cmp);
 
   var medals = [medalSvg(0),medalSvg(1),medalSvg(2)];
   var h = '<thead><tr>';
-  h += '<th style="width:36px">#</th><th class="ll" style="min-width:160px">NAME</th>';
+  h += '<th style="width:36px">#</th>';
+  h += _lstSortTh('days', 'name', 'name', 'NAME', active, 'll', 'min-width:160px');
   _LST_DAYS.forEach(function(d) { h += '<th colspan="2">' + d + '</th>'; });
   h += '</tr><tr><th></th><th></th>';
-  _LST_DAYS.forEach(function() { h += '<th>ORD</th><th>UNITS</th>'; });
+  _LST_DAYS.forEach(function(_, i) {
+    // Future days are all zeros (they render as "—"), so they aren't sortable.
+    if (i > todayIdx) { h += '<th></th><th></th>'; return; }
+    h += _lstSortTh('days', i, 'orders', 'ORD', active);
+    h += _lstSortTh('days', i, 'units',  'UNITS', active);
+  });
   h += '</tr></thead><tbody>';
 
   function row(item, rank) {
@@ -774,28 +836,36 @@ function _lstWeeksTbl(leaders, reps) {
     }
   });
 
-  // The WEEKS view ranks by THIS week's production, read off the weeks-view's own
-  // aggregate (weeks are oldest→newest, so the current week is the last column).
-  // Ties fall back to this week's orders, then the prior week. Sorted per-group so
-  // the LEADERS / CLIENT REPS split is preserved.
+  // The WEEKS view defaults to ranking by THIS week's production, read off the
+  // weeks-view's own aggregate (weeks are oldest→newest, so the current week is
+  // the last column). Any week column can be clicked to sort by it instead.
+  // Sorted per-group so the LEADERS / CLIENT REPS split is preserved.
   var cur = weeks.length - 1, prev = cur - 1;
-  var byWeek = function(a, b) {
-    var aw = wAgg[a.email], bw = wAgg[b.email];
-    if (!aw && !bw) return 0;
-    if (!aw) return 1;          // rows with no week data sink to the bottom
-    if (!bw) return -1;
-    return bw.weeks[cur].units - aw.weeks[cur].units ||
-           bw.weeks[cur].orders - aw.weeks[cur].orders ||
-           bw.weeks[prev].units - aw.weeks[prev].units;
+  var active = _LST_SORT.weeks || { col: cur, metric: 'units', dir: 'desc' };
+  _LST_SORT_RESOLVED.weeks = active;
+  // Rows with no week aggregate can't be ranked on a week value; treat them as 0
+  // so they sink to the bottom of a descending sort instead of throwing.
+  var cell = function(x, col, metric) {
+    var w = wAgg[x.email];
+    return w ? w.weeks[col][metric] : 0;
   };
-  leaders = leaders.slice().sort(byWeek);
-  reps    = reps.slice().sort(byWeek);
+  var cmp = _lstCmp(active, cell, function(a, b) {
+    return cell(b, cur, 'units')  - cell(a, cur, 'units') ||
+           cell(b, cur, 'orders') - cell(a, cur, 'orders') ||
+           cell(b, prev, 'units') - cell(a, prev, 'units');
+  });
+  leaders = leaders.slice().sort(cmp);
+  reps    = reps.slice().sort(cmp);
 
   var medals = [medalSvg(0),medalSvg(1),medalSvg(2)];
-  var h = '<thead><tr><th style="width:36px">#</th><th class="ll" style="min-width:160px">NAME</th>';
+  var h = '<thead><tr><th style="width:36px">#</th>';
+  h += _lstSortTh('weeks', 'name', 'name', 'NAME', active, 'll', 'min-width:160px');
   weeks.forEach(function(w) { h += '<th colspan="2">' + w.wk + '<span class="lst-wk-date">' + w.label + '</span></th>'; });
   h += '</tr><tr><th></th><th></th>';
-  weeks.forEach(function() { h += '<th>ORD</th><th>UNITS</th>'; });
+  weeks.forEach(function(_, i) {
+    h += _lstSortTh('weeks', i, 'orders', 'ORD', active);
+    h += _lstSortTh('weeks', i, 'units',  'UNITS', active);
+  });
   h += '</tr></thead><tbody>';
 
   function row(item, rank) {
