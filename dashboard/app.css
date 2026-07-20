@@ -1310,6 +1310,18 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .rp-save-btn{padding:9px 18px;border-radius:6px;border:none;background:var(--blue2);color:var(--on-accent);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .rp-save-btn:disabled{opacity:.4;cursor:not-allowed}
 .rp-no-data{font-size:13px;color:var(--text2);font-style:italic}
+/* rep-profile Sales Breakdown (day-by-day / week-by-week) */
+.rp-bd-toggle{display:flex;gap:6px;margin-bottom:14px}
+.rp-bd-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;user-select:none}
+.rp-bd-btn.active{background:var(--blue2);border-color:var(--blue2);color:var(--on-accent)}
+.rp-bd-per{margin-bottom:16px}
+.rp-bd-per:last-child{margin-bottom:0}
+.rp-bd-hdr{display:flex;align-items:baseline;gap:10px;padding:7px 2px;border-bottom:1px solid var(--border);margin-bottom:8px;flex-wrap:wrap}
+.rp-bd-ttl{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--text);text-transform:uppercase}
+.rp-bd-sub{font-size:11px;color:var(--text2)}
+.rp-bd-tot{margin-left:auto;font-size:11px;color:var(--text2);white-space:nowrap}
+.rp-bd-tot b{color:var(--blue2);font-size:13px}
+.rp-bd-none{font-size:12px;color:var(--text2);font-style:italic;padding:2px 2px 6px}
 .rp-rate-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .rp-rate-cell{text-align:center;padding:12px 8px;background:var(--surface2);border-radius:8px}
 .rp-rate-bkt{font-size:9px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}

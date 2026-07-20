@@ -100,6 +100,20 @@ function _lstTodayIdx() {
   var d = new Date().getDay(); return d === 0 ? 6 : d - 1;
 }
 
+// The 5-week window, newest→oldest: This Week, Week 4, Week 3, Week 2, Week 1.
+// `i` is "weeks ago". Shared by the WEEKS board and the rep-profile breakdown so
+// the two can never drift apart on labels, dates, or bucket boundaries.
+function _lstWeekList() {
+  var ws = _lstWeekStart(), DAY = 86400000;
+  return [0,1,2,3,4].map(function(i) {
+    var s = new Date(ws.getTime() - i * 7 * DAY);
+    var m = s.getMonth() + 1, d = s.getDate();
+    return { start: s, end: new Date(s.getTime() + 7 * DAY),
+      wk: i === 0 ? 'This Week' : 'Week ' + (5 - i),
+      label: (m < 10 ? '0' : '') + m + '/' + (d < 10 ? '0' : '') + d };
+  });
+}
+
 function _lstUCls(n) {
   return n === 0 ? 'lst-u-red' : n <= 2 ? 'lst-u-orange' : n <= 5 ? 'lst-u-yellow' : 'lst-u-green';
 }
@@ -800,17 +814,8 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
 }
 
 function _lstWeeksTbl(leaders, reps) {
-  var ws = _lstWeekStart(), DAY = 86400000;
   // Newest → oldest left-to-right: This Week, Week 4, Week 3, Week 2, Week 1.
-  // The current week leads because it's the column people actually read; `i` is
-  // "weeks ago", so the label math is unchanged by the reordering.
-  var weeks = [0,1,2,3,4].map(function(i) {
-    var s = new Date(ws.getTime() - i * 7 * DAY);
-    var m = s.getMonth() + 1, d = s.getDate();
-    return { start: s, end: new Date(s.getTime() + 7 * DAY),
-      wk: i === 0 ? 'This Week' : 'Week ' + (5 - i),
-      label: (m < 10 ? '0' : '') + m + '/' + (d < 10 ? '0' : '') + d };
-  });
+  var weeks = _lstWeekList();
   var wAgg = {}, roster = DATA.roster || {};
   Object.keys(roster).forEach(function(e) {
     var r = roster[e];
@@ -908,6 +913,7 @@ function _lstWeeksTbl(leaders, reps) {
 // ── REP PROFILE ───────────────────────────────────────────────────────────
 var _LST_PROFILE = null;
 var _LST_TBL_NAMES = null;
+var _LST_BD_VIEW = 'days';   // rep-profile Sales Breakdown: 'days' | 'weeks'
 
 function _lstShowRepProfile(email) {
   _LST_PROFILE = email;
@@ -1011,6 +1017,9 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   h += '<div class="rp-stat"><div class="rp-stat-num">'+allOrders+'</div><div class="rp-stat-lbl">All-Time Posted</div></div>';
   h += '</div></div>';
 
+  // Sales Breakdown — posted-sales data, so it renders BEFORE the Tableau gate.
+  h += '<div id="rp-bd">' + _lstRepBreakdownHtml(email) + '</div>';
+
   if (!tableauName) {
     h += '<div class="rp-card" style="text-align:center;padding:24px;color:var(--text2)">Link a Tableau name above to see line metrics and rates.</div>';
     return h + '</div>';
@@ -1024,6 +1033,105 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   h += _lstRepChurnHtml(tableauName);
   // Order Log — this rep's individual orders
   h += _lstRepOrdersHtml(tableauName);
+
+  return h + '</div>';
+}
+
+// ── SALES BREAKDOWN (rep profile) ─────────────────────────────────────────
+// Day-by-day / week-by-week list of what this rep ACTUALLY sold, built from the
+// posted-sales feed (_LST_SALES) the board already has in memory. Deliberately
+// NOT Tableau-gated — it renders above the Tableau early-return, so reps with no
+// linked Tableau name still get a full breakdown.
+function lstBdSetView(v, email) {
+  _LST_BD_VIEW = v;
+  // Repaint just this card — the profile's other sections came from API calls we
+  // don't want to re-fire on a toggle.
+  var el = document.getElementById('rp-bd');
+  if (el) el.innerHTML = _lstRepBreakdownHtml(email);
+}
+
+function _lstRepBreakdownHtml(email) {
+  // Match the roster case-insensitively, the same way _lstAgg does.
+  var key = String(email || '').trim().toLowerCase();
+  var sales = (_LST_SALES || []).filter(function(s) {
+    return String(s.repEmail || '').trim().toLowerCase() === key && !s.voided && s.dateOfSale;
+  });
+
+  var periods;
+  if (_LST_BD_VIEW === 'weeks') {
+    periods = _lstWeekList().map(function(w) {
+      return { title: w.wk, sub: 'week of ' + w.label, start: w.start, end: w.end, showDate: true };
+    });
+  } else {
+    // Today first, back to Monday. Future days are skipped — they can't have sales.
+    var ws = _lstWeekStart(), DAY = 86400000, todayIdx = _lstTodayIdx();
+    periods = [];
+    for (var i = todayIdx; i >= 0; i--) {
+      var st = new Date(ws.getTime() + i * DAY);
+      var m = st.getMonth() + 1, dd = st.getDate();
+      periods.push({ title: _LST_DAYS[i],
+        sub: (m < 10 ? '0' : '') + m + '/' + (dd < 10 ? '0' : '') + dd,
+        start: st, end: new Date(st.getTime() + DAY), showDate: false });
+    }
+  }
+
+  periods.forEach(function(p) { p.sales = []; });
+  sales.forEach(function(s) {
+    var sd = new Date(s.dateOfSale + 'T12:00:00'); sd.setHours(0,0,0,0);
+    if (isNaN(sd.getTime())) return;            // malformed date -> skip, never throw
+    for (var i = 0; i < periods.length; i++) {
+      if (sd >= periods[i].start && sd < periods[i].end) { periods[i].sales.push(s); break; }
+    }
+  });
+
+  var h = '<div class="rp-card"><div class="rp-card-title">Sales Breakdown</div>';
+  h += '<div class="rp-bd-toggle">' +
+    '<div class="rp-bd-btn' + (_LST_BD_VIEW === 'days' ? ' active' : '') +
+      '" onclick="lstBdSetView(\'days\',\'' + esc(email) + '\')">DAY BY DAY</div>' +
+    '<div class="rp-bd-btn' + (_LST_BD_VIEW === 'weeks' ? ' active' : '') +
+      '" onclick="lstBdSetView(\'weeks\',\'' + esc(email) + '\')">WEEK BY WEEK</div>' +
+    '</div>';
+
+  var grand = periods.reduce(function(a, p) { return a + p.sales.length; }, 0);
+  if (!grand) {
+    h += '<div class="rp-no-data">No posted sales in this window.</div>';
+    return h + '</div>';
+  }
+
+  periods.forEach(function(p) {
+    var o = p.sales.length;
+    var u = p.sales.reduce(function(a, s) { return a + (s.units || 0); }, 0);
+    h += '<div class="rp-bd-per">';
+    h += '<div class="rp-bd-hdr">' +
+      '<span class="rp-bd-ttl">' + esc(p.title) + '</span>' +
+      '<span class="rp-bd-sub">' + esc(p.sub) + '</span>' +
+      '<span class="rp-bd-tot">' + o + ' order' + (o !== 1 ? 's' : '') +
+        ' &middot; <b>' + u + '</b> unit' + (u !== 1 ? 's' : '') + '</span>' +
+      '</div>';
+    if (!o) { return void (h += '<div class="rp-bd-none">No sales</div></div>'); }
+    h += '<div class="tbl-wrap"><table class="call-table"><thead><tr>' +
+      (p.showDate ? '<th>Date</th>' : '') +
+      '<th>DSI</th><th>Account</th><th>Products</th><th>Units</th><th>Notes</th>' +
+      '</tr></thead><tbody>';
+    p.sales.slice().sort(function(a, b) {
+      return String(b.dateOfSale || '').localeCompare(String(a.dateOfSale || '')) ||
+             String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
+    }).forEach(function(s) {
+      var note = s.notes || '';
+      h += '<tr>';
+      if (p.showDate) h += '<td>' + esc(s.dateOfSale || '—') + '</td>';
+      h += '<td>' + esc(s.dsi || '—') + '</td>';
+      h += '<td>' + esc(s.accountType || '—') + '</td>';
+      // Reuse the Posted Sales viewer's summary so both screens describe a sale
+      // identically. app.sales.js loads before app.lst.js, so this is always defined.
+      h += '<td>' + esc(_psvProductSummary(s)) + '</td>';
+      h += '<td><b>' + (s.units || 0) + '</b></td>';
+      h += '<td>' + (note ? '<span class="psv-note" title="' + esc(note) + '">' +
+        esc(note.length > 40 ? note.slice(0, 40) + '…' : note) + '</span>' : '—') + '</td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table></div></div>';
+  });
 
   return h + '</div>';
 }
