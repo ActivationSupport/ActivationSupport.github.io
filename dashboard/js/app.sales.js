@@ -559,12 +559,17 @@ function _rehashText(d) {
 // Quick, rough estimate of a customer's first AT&T bill (no taxes/fees) — matches the
 // billing explanation already sent in the Rehash text ("First Bill — starts higher due
 // to proration [31-60 days of service] + activation fees"). AT&T bills wireless one month
-// IN ADVANCE, so the first bill = 1 full month + a partial-month proration; here that
-// partial is a flat half-month (15 days) rather than an actual activation-date calc, so
-// the plan charge is simply 1.5x the monthly price. Device installments are NOT prorated
-// (full amount from day one). The $35/line activation fee is charged in full on the first
-// bill even though AT&T typically credits it back over a later bill, not this one. Next Up
-// Anytime adds a flat $10/mo. Nothing here is saved.
+// IN ADVANCE, so the first bill = 30 days billed forward + a 15-day partial = 1.5x the
+// monthly plan charge. That plan charge is PER LINE, so it scales with the line count:
+// per-line rate x lines x 1.5. The $35 activation fee is likewise per line (AT&T's fee
+// schedule reads "Activation/upgrade fee per line"), and is charged in full on the first
+// bill even though AT&T typically credits it back on a later bill, not this one. Device
+// installments are NOT prorated (full amount from day one) and are entered as a single
+// total for all devices. Next Up Anytime is account-level, a flat $10/mo. Nothing is saved.
+//
+// The plan prices below are PRE-discount rate-plan cost, which is what the first bill
+// actually charges — AT&T's AutoPay/paperless and smartphone-line discounts arrive as bill
+// credits that don't land for up to 2 bills, so they are correctly absent here.
 //
 // Plan prices pulled from mst.att.com (per-line, by line-count tier — Consumer tops out at
 // "4+", Business breaks out through "6+"). Device list pulled from the same tool (Category/
@@ -699,20 +704,40 @@ var FBC_DEVICES = [
   { category:"Wearable", make:"Google", model:"Pixel Watch 4 45mm", storage:"32GB", installment:13.89 },
   { category:"Wearable", make:"Samsung", model:"Galaxy Watch 8 Classic LTE Black", storage:"", installment:15.28 }
 ];
+var FBC_MAX_LINES = 10;
+var FBC_ACTIVATION_FEE = 35;   // per line, per AT&T's fee schedule ("Activation/upgrade fee per line")
 var _FBC = null;
 function _fbcInit() {
   if (_FBC) return;
-  _FBC = { segment:'consumer', lines:'1', plan:FBC_PLANS.consumer.order[0], deviceCategory:'', deviceLabel:'', deviceCost:'', nextUp:false };
+  _FBC = { segment:'consumer', lines:1, plan:FBC_PLANS.consumer.order[0], deviceCategory:'', deviceLabel:'', deviceCost:'', nextUp:false };
 }
 function _fbcNum(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function _fbcLines(d) {
+  var n = parseInt(d.lines, 10);
+  if (isNaN(n) || n < 1) n = 1;
+  return Math.min(n, FBC_MAX_LINES);
+}
+// The price tables are keyed by tier, and the top tier is open-ended ('4+' consumer, '6+'
+// business) — so an exact line count above that tier falls back to the last tier's rate.
+function _fbcTier(d) {
+  var tiers = FBC_PLANS[d.segment].lineTiers;
+  var key = String(_fbcLines(d));
+  return tiers.indexOf(key) >= 0 ? key : tiers[tiers.length - 1];
+}
 function _fbcPlanPrice(d) {
   var seg = FBC_PLANS[d.segment];
-  var tierPrices = seg.prices[d.lines] || {};
+  var tierPrices = seg.prices[_fbcTier(d)] || {};
   return tierPrices[d.plan] || 0;
 }
-function _fbcTotal(d) { return (_fbcPlanPrice(d) * 1.5) + _fbcNum(d.deviceCost) + 35 + (d.nextUp ? 10 : 0); }
+// Plan rate and activation fee are both PER LINE, so both scale with the line count; the
+// device cost field is a single hand-entered total, and Next Up is account-level.
+function _fbcTotal(d) {
+  var lines = _fbcLines(d);
+  return (_fbcPlanPrice(d) * lines * 1.5) + _fbcNum(d.deviceCost)
+       + (FBC_ACTIVATION_FEE * lines) + (d.nextUp ? 10 : 0);
+}
 function _fbcMoney(n) { return '$' + n.toFixed(2); }
-function _fbcLineLabel(t) { return t + ' line' + (t === '1' ? '' : 's'); }
+function _fbcLineLabel(n) { return n + ' line' + (String(n) === '1' ? '' : 's'); }
 function _fbcDeviceCategories() {
   var seen = {}, out = [];
   FBC_DEVICES.forEach(function(x){ if (!seen[x.category]) { seen[x.category] = 1; out.push(x.category); } });
@@ -720,11 +745,11 @@ function _fbcDeviceCategories() {
 }
 function _fbcDeviceLabel(x) { return x.make + ' ' + x.model + (x.storage ? ' - ' + x.storage : ''); }
 function _fbcBreakdownHtml(d) {
-  var planPrice = _fbcPlanPrice(d);
+  var planPrice = _fbcPlanPrice(d), lines = _fbcLines(d);
   var rows = [
-    ['Plan: ' + (d.plan || '—') + ' (' + _fbcLineLabel(d.lines) + ', $' + planPrice + '/line x 1.5)', planPrice * 1.5],
+    ['Plan: ' + (d.plan || '—') + ' (' + _fbcLineLabel(lines) + ' x $' + planPrice + '/line x 1.5)', planPrice * lines * 1.5],
     ['Device' + (d.deviceLabel ? ': ' + d.deviceLabel : ''), _fbcNum(d.deviceCost)],
-    ['Activation fee', 35]
+    ['Activation fee ($' + FBC_ACTIVATION_FEE + ' x ' + _fbcLineLabel(lines) + ')', FBC_ACTIVATION_FEE * lines]
   ];
   if (d.nextUp) rows.push(['Next Up Anytime', 10]);
   return rows.map(function(r) {
@@ -737,11 +762,13 @@ function renderFirstBillCalc() {
   var seg = FBC_PLANS[d.segment];
   var segTog = function(label, val) { return '<div class="ps-toggle' + (d.segment === val ? ' active' : '') + '" onclick="_fbcSetSegment(\'' + val + '\')">' + label + '</div>'; };
   var nextUpTog = function(label, val) { return '<div class="ps-toggle' + (d.nextUp === val ? ' active' : '') + '" onclick="_fbcSetNextUp(' + val + ')">' + label + '</div>'; };
-  var lineOpts = seg.lineTiers.map(function(t) {
-    return '<option value="' + esc(t) + '"' + (t === d.lines ? ' selected' : '') + '>' + esc(_fbcLineLabel(t)) + '</option>';
-  }).join('');
+  var lines = _fbcLines(d), tierPrices = seg.prices[_fbcTier(d)] || {};
+  var lineOpts = '';
+  for (var n = 1; n <= FBC_MAX_LINES; n++) {
+    lineOpts += '<option value="' + n + '"' + (n === lines ? ' selected' : '') + '>' + esc(_fbcLineLabel(n)) + '</option>';
+  }
   var planOpts = seg.order.map(function(p) {
-    var price = (seg.prices[d.lines] || {})[p] || 0;
+    var price = tierPrices[p] || 0;
     return '<option value="' + esc(p) + '"' + (p === d.plan ? ' selected' : '') + '>' + esc(p) + ' — $' + price + '/line</option>';
   }).join('');
   var catOpts = '<option value="">— none —</option>' + _fbcDeviceCategories().map(function(c) {
@@ -770,7 +797,7 @@ function renderFirstBillCalc() {
         '<div class="ps-label">DEVICE TYPE (OPTIONAL)</div>' +
         '<select class="ps-select" id="fbc-devcat" onchange="_fbcSetDeviceCategory(this.value)">' + catOpts + '</select>' +
         (d.deviceCategory ? '<div class="ps-label">MODEL</div><select class="ps-select" id="fbc-devmodel" onchange="_fbcSetDeviceLabel(this.value)">' + modelOpts + '</select>' : '') +
-        '<div class="ps-label">DEVICE MONTHLY COST &mdash; EST. FROM PUBLIC RETAIL PRICE, ADJUST AS NEEDED</div>' +
+        '<div class="ps-label">DEVICE MONTHLY COST &mdash; TOTAL FOR ALL DEVICES. PICKING A MODEL FILLS AN ESTIMATE FROM PUBLIC RETAIL PRICE; REPLACE IT WITH THE RACK RATE</div>' +
         '<input class="ps-input" type="number" min="0" step="0.01" id="fbc-devcost" placeholder="0.00" value="' + esc(d.deviceCost) + '" oninput="_fbcSetDeviceCost(this.value)">' +
         '<div class="ps-label">NEXT UP ANYTIME ($10/mo)</div>' +
         '<div class="ps-toggle-row">' + nextUpTog('No', false) + nextUpTog('Yes', true) + '</div>' +
@@ -784,11 +811,13 @@ function renderFirstBillCalc() {
   '</div></div>';
 }
 function _fbcRepaint() { var c = document.getElementById('main-content'); if (c) c.innerHTML = renderFirstBillCalc(); }
+// Line count survives a segment switch (the tier resolves per-segment); the plan can't, since
+// Consumer and Business use different plan names.
 function _fbcSetSegment(val) {
-  _fbcInit(); _FBC.segment = val; _FBC.lines = '1'; _FBC.plan = FBC_PLANS[val].order[0];
+  _fbcInit(); _FBC.segment = val; _FBC.plan = FBC_PLANS[val].order[0];
   _fbcRepaint();
 }
-function _fbcSetLines(val) { _fbcInit(); _FBC.lines = val; _fbcRepaint(); }
+function _fbcSetLines(val) { _fbcInit(); _FBC.lines = parseInt(val, 10) || 1; _fbcRepaint(); }
 function _fbcSetPlan(val) { _fbcInit(); _FBC.plan = val; _fbcRepaint(); }
 function _fbcSetDeviceCategory(val) { _fbcInit(); _FBC.deviceCategory = val; _FBC.deviceLabel = ''; _fbcRepaint(); }
 // Picking a model auto-fills an estimated installment (public MSRP / 36mo) when we have one
