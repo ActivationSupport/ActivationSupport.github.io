@@ -669,6 +669,18 @@ function _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) {
 }
 
 function _lstDaysTbl(leaders, reps, todayIdx) {
+  // The DAYS view ranks by TODAY's production (not the week-to-date total the
+  // board is built with), so #1 is whoever sold the most today. Ties fall back
+  // to today's orders, then week units, then week orders. Sorted per-group so
+  // the LEADERS / CLIENT REPS split is preserved.
+  var byToday = function(a, b) {
+    var ad = a.d.days[todayIdx], bd = b.d.days[todayIdx];
+    return bd.units - ad.units || bd.orders - ad.orders ||
+           b.d.units - a.d.units || b.d.orders - a.d.orders;
+  };
+  leaders = leaders.slice().sort(byToday);
+  reps    = reps.slice().sort(byToday);
+
   var medals = [medalSvg(0),medalSvg(1),medalSvg(2)];
   var h = '<thead><tr>';
   h += '<th style="width:36px">#</th><th class="ll" style="min-width:160px">NAME</th>';
@@ -761,6 +773,23 @@ function _lstWeeksTbl(leaders, reps) {
       }
     }
   });
+
+  // The WEEKS view ranks by THIS week's production, read off the weeks-view's own
+  // aggregate (weeks are oldest→newest, so the current week is the last column).
+  // Ties fall back to this week's orders, then the prior week. Sorted per-group so
+  // the LEADERS / CLIENT REPS split is preserved.
+  var cur = weeks.length - 1, prev = cur - 1;
+  var byWeek = function(a, b) {
+    var aw = wAgg[a.email], bw = wAgg[b.email];
+    if (!aw && !bw) return 0;
+    if (!aw) return 1;          // rows with no week data sink to the bottom
+    if (!bw) return -1;
+    return bw.weeks[cur].units - aw.weeks[cur].units ||
+           bw.weeks[cur].orders - aw.weeks[cur].orders ||
+           bw.weeks[prev].units - aw.weeks[prev].units;
+  };
+  leaders = leaders.slice().sort(byWeek);
+  reps    = reps.slice().sort(byWeek);
 
   var medals = [medalSvg(0),medalSvg(1),medalSvg(2)];
   var h = '<thead><tr><th style="width:36px">#</th><th class="ll" style="min-width:160px">NAME</th>';
