@@ -801,8 +801,10 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
 
 function _lstWeeksTbl(leaders, reps) {
   var ws = _lstWeekStart(), DAY = 86400000;
-  // Oldest → newest left-to-right (current week rightmost), matching the Days view's chronological order.
-  var weeks = [4,3,2,1,0].map(function(i) {
+  // Newest → oldest left-to-right: This Week, Week 4, Week 3, Week 2, Week 1.
+  // The current week leads because it's the column people actually read; `i` is
+  // "weeks ago", so the label math is unchanged by the reordering.
+  var weeks = [0,1,2,3,4].map(function(i) {
     var s = new Date(ws.getTime() - i * 7 * DAY);
     var m = s.getMonth() + 1, d = s.getDate();
     return { start: s, end: new Date(s.getTime() + 7 * DAY),
@@ -837,10 +839,11 @@ function _lstWeeksTbl(leaders, reps) {
   });
 
   // The WEEKS view defaults to ranking by THIS week's production, read off the
-  // weeks-view's own aggregate (weeks are oldest→newest, so the current week is
-  // the last column). Any week column can be clicked to sort by it instead.
-  // Sorted per-group so the LEADERS / CLIENT REPS split is preserved.
-  var cur = weeks.length - 1, prev = cur - 1;
+  // weeks-view's own aggregate (weeks run newest→oldest, so the current week is
+  // the FIRST column and the prior week the second). Any week column can be
+  // clicked to sort by it instead. Sorted per-group so the LEADERS / CLIENT REPS
+  // split is preserved.
+  var cur = 0, prev = 1;
   var active = _LST_SORT.weeks || { col: cur, metric: 'units', dir: 'desc' };
   _LST_SORT_RESOLVED.weeks = active;
   // Rows with no week aggregate can't be ranked on a week value; treat them as 0
