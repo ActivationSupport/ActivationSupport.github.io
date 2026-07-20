@@ -1050,6 +1050,13 @@ function lstBdSetView(v, email) {
   if (el) el.innerHTML = _lstRepBreakdownHtml(email);
 }
 
+// "2026-07-20" -> "07/20". Parsed off the string rather than via Date so a
+// malformed value degrades to itself instead of "NaN/NaN".
+function _lstBdDate(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  return m ? m[2] + '/' + m[3] : (iso || '—');
+}
+
 function _lstRepBreakdownHtml(email) {
   // Match the roster case-insensitively, the same way _lstAgg does.
   var key = String(email || '').trim().toLowerCase();
@@ -1109,7 +1116,9 @@ function _lstRepBreakdownHtml(email) {
         ' &middot; <b>' + u + '</b> unit' + (u !== 1 ? 's' : '') + '</span>' +
       '</div>';
     if (!o) { return void (h += '<div class="rp-bd-none">No sales</div></div>'); }
-    h += '<div class="tbl-wrap"><table class="call-table"><thead><tr>' +
+    // rp-bd-tbl tightens type/padding — the rep profile column is only 640px
+    // wide, so the default .call-table metrics wrap these cells onto two lines.
+    h += '<div class="tbl-wrap"><table class="call-table rp-bd-tbl"><thead><tr>' +
       (p.showDate ? '<th>Date</th>' : '') +
       '<th>DSI</th><th>Account</th><th>Products</th><th>Units</th><th>Notes</th>' +
       '</tr></thead><tbody>';
@@ -1119,15 +1128,15 @@ function _lstRepBreakdownHtml(email) {
     }).forEach(function(s) {
       var note = s.notes || '';
       h += '<tr>';
-      if (p.showDate) h += '<td>' + esc(s.dateOfSale || '—') + '</td>';
-      h += '<td>' + esc(s.dsi || '—') + '</td>';
-      h += '<td>' + esc(s.accountType || '—') + '</td>';
+      if (p.showDate) h += '<td class="nw">' + esc(_lstBdDate(s.dateOfSale)) + '</td>';
+      h += '<td class="nw">' + esc(s.dsi || '—') + '</td>';
+      h += '<td class="nw">' + esc(s.accountType || '—') + '</td>';
       // Reuse the Posted Sales viewer's summary so both screens describe a sale
       // identically. app.sales.js loads before app.lst.js, so this is always defined.
       h += '<td>' + esc(_psvProductSummary(s)) + '</td>';
-      h += '<td><b>' + (s.units || 0) + '</b></td>';
+      h += '<td class="nw"><b>' + (s.units || 0) + '</b></td>';
       h += '<td>' + (note ? '<span class="psv-note" title="' + esc(note) + '">' +
-        esc(note.length > 40 ? note.slice(0, 40) + '…' : note) + '</span>' : '—') + '</td>';
+        esc(note.length > 28 ? note.slice(0, 28) + '…' : note) + '</span>' : '—') + '</td>';
       h += '</tr>';
     });
     h += '</tbody></table></div></div>';
