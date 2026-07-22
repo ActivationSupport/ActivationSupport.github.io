@@ -514,6 +514,7 @@ function renderTab(id) {
     case 'livesales':   renderLiveSalesTracker();          break;
     case 'teams':        renderTeamsTab();          break;
     case 'appointments': _APPT.weekOffset=0; _APPT.dayOffset=0; renderAppointmentsTab();  break;  // always open on the current week/day
+    case 'fibercal':     _FIB.monthOffset=0; renderFiberCalendarTab();                    break;  // always open on the current month
     case 'myappts':      renderMyAppointments();     break;   // Item 4: activator cross-office dashboard
     case 'training':     renderTrainingTab();       break;
     default: c.innerHTML = '<div class="empty">Coming soon.</div>';

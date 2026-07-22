@@ -731,6 +731,8 @@ var TABS = [
   { id: 'firstbill',   label: 'First Bill Calc',       roles: ROLES_REP,  group: 'Sales',       sub: "Estimate a customer's first bill" },
   { id: 'appointments', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
   { id: 'myappts',      label: 'My Appointments',      roles: ['master-admin','activator'], group: 'Scheduling', sub: 'Your booked appointments across every office' },
+  // Everyone sees the tab; client-reps are scoped SERVER-side to their own installs.
+  { id: 'fibercal',     label: 'Fiber Install Calendar', roles: ALL_ROLES, group: 'Scheduling', sub: 'Fiber & new-internet installs by scheduled date', icon: 'globe' },
   { id: 'myorders',    label: 'My Orders',           roles: ['client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
   { id: 'myteam',      label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 120-day window" },
   { id: 'master',      label: 'Master Tracker',       roles: ROLES_CALL, group: 'Call Logs',   sub: '120-day window' },
