@@ -158,8 +158,9 @@ function _fibBuild() {
     var chips = list.slice(0, 3).map(function(o) {
       var st = _fibStyleOf(o);
       var tag = o.isUpgrade ? '<span class="fib-upg" title="Upgrade">UPG</span>' : '';
-      return '<div class="fib-chip" style="background:'+st.bg+';color:'+st.fg+'" title="'+esc((o.isUpgrade?'Upgrade — ':'New Internet — ')+_fibStatusOf(o)+' — '+(_fibCustomer(o)||o.dsi))+'"'+
-        ' onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">'+tag+esc(o.dsi)+'</div>';
+      var voip = (o.voip > 0) ? '<span class="fib-voip" title="'+o.voip+' VoIP line'+(o.voip===1?'':'s')+'">'+icon('headphones')+o.voip+'</span>' : '';
+      return '<div class="fib-chip" style="background:'+st.bg+';color:'+st.fg+'" title="'+esc((o.isUpgrade?'Upgrade — ':'New Internet — ')+_fibStatusOf(o)+' — '+(_fibCustomer(o)||o.dsi)+(o.voip>0?' — '+o.voip+' VoIP':''))+'"'+
+        ' onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">'+tag+esc(o.dsi)+voip+'</div>';
     }).join('');
     if (list.length > 3) {
       chips += '<div class="fib-more" onclick="_fibOpenDay(\''+ymd+'\')">+'+(list.length-3)+' more</div>';
@@ -184,13 +185,14 @@ function _fibBuild() {
     naSec =
       '<div class="card" style="margin-top:16px"><div class="card-header dark">'+icon('clock')+' N/A — not yet scheduled <span class="fib-nacount">'+na.length+'</span></div>' +
       '<div class="card-body"><div class="fib-na-wrap"><table class="fib-na-table">' +
-        '<thead><tr><th>DSI</th><th>Type</th><th>Customer</th><th>Rep</th><th>Order date</th><th>Status</th></tr></thead><tbody>' +
+        '<thead><tr><th>DSI</th><th>Type</th><th>Customer</th><th>VoIP</th><th>Rep</th><th>Order date</th><th>Status</th></tr></thead><tbody>' +
         na.map(function(o) {
           var st = _fibStyleOf(o);
           return '<tr onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">' +
             '<td class="fib-na-dsi">'+esc(o.dsi)+'</td>' +
             '<td>'+_fibTypeTag(o)+'</td>' +
             '<td>'+esc(_fibCustomer(o)||'—')+'</td>' +
+            '<td>'+(o.voip>0?o.voip:'<span class="fib-muted">—</span>')+'</td>' +
             '<td>'+esc(o.rep||'—')+'</td>' +
             '<td>'+esc(o.orderDate||'—')+'</td>' +
             '<td><span class="fib-pill" style="background:'+st.bg+';color:'+st.fg+'">'+esc(_fibStatusOf(o))+'</span></td>' +
@@ -244,6 +246,7 @@ function _fibOpenDetail(dsi) {
       row('Install date', '<b>'+esc(_fibFmtYmd(o.installDate))+'</b>' +
         (overdue ? ' <span class="fib-pill" style="background:'+FIB_OVERDUE.bg+';color:'+FIB_OVERDUE.fg+'">Past install date</span>' : '')) +
       row('Status', '<span class="fib-pill" style="background:'+st.bg+';color:'+st.fg+'">'+esc(_fibStatusOf(o))+'</span>') +
+      row('VoIP lines', (o.voip > 0 ? '<b>'+o.voip+'</b>' : '<span class="fib-muted">None</span>')) +
       row('Rep', esc(o.rep || '—')) +
       row('Order date', esc(o.orderDate || '—')) +
       (prods ? row('Product', esc(prods)) : '') +
