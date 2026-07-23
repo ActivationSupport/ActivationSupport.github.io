@@ -1769,8 +1769,14 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .fib-cell-has .fib-daynum:hover{background:var(--surface2);color:var(--text)}
 .fib-cell-today .fib-daynum{background:var(--blue2);color:var(--on-accent,#0b1220);border-radius:999px}
 .fib-cell-has.fib-cell-today .fib-daynum:hover{background:var(--blue2);color:var(--on-accent,#0b1220)}
-.fib-chip{font-size:.68rem;font-weight:700;border-radius:4px;padding:2px 6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em}
+.fib-chip{font-size:.68rem;font-weight:700;border-radius:4px;padding:2px 6px;cursor:pointer;letter-spacing:.02em;display:flex;align-items:center;gap:4px}
 .fib-chip:hover{filter:brightness(.94)}
+.fib-chip-l{display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* CRU/IRU marker — pinned to the far right of the chip. */
+.fib-cru{margin-left:auto;flex:none;font-size:.56rem;font-weight:800;letter-spacing:.03em;border-radius:3px;padding:0 3px;vertical-align:1px}
+.fib-cru-c{background:rgba(0,0,0,.42);color:#fff}
+.fib-cru-i{background:rgba(255,255,255,.55);color:#1e293b;border:1px solid rgba(0,0,0,.2)}
+.fib-cru-o{background:rgba(0,0,0,.28);color:#fff}
 .fib-more{font-size:.66rem;color:var(--text2);cursor:pointer;padding:1px 6px}
 .fib-more:hover{color:var(--blue2);text-decoration:underline}
 
