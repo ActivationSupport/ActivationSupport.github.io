@@ -83,6 +83,8 @@ function _fibStyleOf(o) {
   return FIB_STATUS[_fibStatusOf(o).toLowerCase()] || FIB_NEUTRAL;
 }
 function _fibCustomer(o) { return String(o.spe || '').trim(); }
+// True when AT&T has rescheduled — the current due date differs from the original.
+function _fibMoved(o) { return !!(o.origDueDate && o.currentDueDate && o.origDueDate !== o.currentDueDate); }
 // "New Internet" vs "Upgrade" tag — the second thing the tab tracks.
 function _fibTypeTag(o) {
   return o.isUpgrade
@@ -201,7 +203,7 @@ function _fibBuild() {
       var tag = o.isUpgrade ? '<span class="fib-upg" title="Upgrade">UPG</span>' : '';
       var voip = (o.voip > 0) ? '<span class="fib-voip" title="'+o.voip+' VoIP line'+(o.voip===1?'':'s')+'">'+icon('headphones')+o.voip+'</span>' : '';
       var cru = _fibCruTag(o);
-      var title = (o.isUpgrade?'Upgrade — ':'New Internet — ')+_fibStatusOf(o)+' — '+(_fibCustomer(o)||o.dsi)+(o.voip>0?' — '+o.voip+' VoIP':'')+(o.cruIru?' — '+o.cruIru:'');
+      var title = (o.isUpgrade?'Upgrade — ':'New Internet — ')+_fibStatusOf(o)+' — '+(_fibCustomer(o)||o.dsi)+(o.voip>0?' — '+o.voip+' VoIP':'')+(o.cruIru?' — '+o.cruIru:'')+(_fibMoved(o)?' — moved from '+_fibFmtYmd(o.origDueDate):'');
       return '<div class="fib-chip" style="background:'+st.bg+';color:'+st.fg+'" title="'+esc(title)+'"'+
         ' onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">'+
         '<span class="fib-chip-l">'+tag+esc(o.dsi)+voip+'</span>'+cru+'</div>';
@@ -289,8 +291,10 @@ function _fibOpenDetail(dsi) {
     '<div class="nm-sub">DSI '+esc(dsi)+'</div>' +
     '<div class="fib-detail">' +
       row('Type', _fibTypeTag(o)) +
-      row('Install date', '<b>'+esc(_fibFmtYmd(o.installDate))+'</b>' +
-        (overdue ? ' <span class="fib-pill" style="background:'+FIB_OVERDUE.bg+';color:'+FIB_OVERDUE.fg+'">Past install date</span>' : '')) +
+      row('Original due date', esc(_fibFmtYmd(o.origDueDate))) +
+      row('Current due date', '<b>'+esc(_fibFmtYmd(o.currentDueDate || o.origDueDate))+'</b>' +
+        (_fibMoved(o) ? ' <span class="fib-moved">moved</span>' : '') +
+        (overdue ? ' <span class="fib-pill" style="background:'+FIB_OVERDUE.bg+';color:'+FIB_OVERDUE.fg+'">Past due</span>' : '')) +
       row('Status', '<span class="fib-pill" style="background:'+st.bg+';color:'+st.fg+'">'+esc(_fibStatusOf(o))+'</span>') +
       (o.cruIru ? row('CRU / IRU', _fibCruTag(o)) : '') +
       row('VoIP lines', (o.voip > 0 ? '<b>'+o.voip+'</b>' : '<span class="fib-muted">None</span>')) +

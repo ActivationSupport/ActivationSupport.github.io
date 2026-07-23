@@ -1814,6 +1814,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .fib-drow:last-child{border-bottom:none}
 .fib-dlabel{color:var(--text2);text-transform:uppercase;font-size:.68rem;letter-spacing:.05em;font-weight:700;padding-top:2px}
 .fib-dval{text-align:right}
+.fib-moved{display:inline-block;font-size:.6rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;background:#fb923c;color:#7c2d12;border-radius:3px;padding:1px 5px;vertical-align:1px}
 .fib-tnote{border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-size:.85rem;line-height:1.5;white-space:pre-wrap;background:var(--surface2)}
 .fib-muted{color:var(--text2);font-style:italic}
 
