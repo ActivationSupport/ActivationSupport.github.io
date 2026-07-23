@@ -9,7 +9,25 @@
 // Orders whose install date isn't set yet come back with installDate:'' and are
 // listed under "N/A — not yet scheduled" beneath the grid rather than dropped.
 
-var _FIB = { monthOffset: 0, installs: null, flight: false };
+var _FIB = { monthOffset: 0, installs: null, flight: false, statusFilter: 'all' };
+
+// Status groups for the filter view: the three "closed" outcomes each stand alone,
+// everything else is the in-flight pipeline.
+function _fibStatusGroup(o) {
+  var s = _fibStatusOf(o).toLowerCase();
+  if (s.indexOf('active') !== -1)      return 'active';
+  if (s.indexOf('cancel') !== -1)      return 'canceled';
+  if (s.indexOf('disconnect') !== -1)  return 'disconnected';
+  return 'inflight';
+}
+var FIB_FILTERS = [
+  { key:'all',          label:'All' },
+  { key:'inflight',     label:'In-flight' },
+  { key:'active',       label:'Active' },
+  { key:'canceled',     label:'Canceled' },
+  { key:'disconnected', label:'Disconnected' }
+];
+function _fibSetFilter(k) { _FIB.statusFilter = k; _fibPaint(); }
 
 // Status → pill colors. Per-office spec: Scheduled yellow · Open light orange ·
 // Pending pale orange · Delivered purple · Shipped yellow · Active green ·
@@ -105,6 +123,19 @@ function _fibPaint() {
 function _fibNav(delta) { _FIB.monthOffset += delta; _fibPaint(); }
 function _fibThisMonth() { _FIB.monthOffset = 0; _fibPaint(); }
 
+// Filter view — separate the closed outcomes (Active / Canceled / Disconnected)
+// from the in-flight pipeline. Each chip shows its own count so empty groups read
+// at a glance.
+function _fibFilterBar(everything) {
+  var counts = { all: everything.length, inflight:0, active:0, canceled:0, disconnected:0 };
+  everything.forEach(function(o) { counts[_fibStatusGroup(o)]++; });
+  var cur = _FIB.statusFilter || 'all';
+  return '<div class="fib-filter">' + FIB_FILTERS.map(function(f) {
+    return '<button class="fib-fbtn'+(cur===f.key?' active':'')+'" onclick="_fibSetFilter(\''+f.key+'\')">'+
+      esc(f.label)+'<span class="fib-fcount">'+(counts[f.key]||0)+'</span></button>';
+  }).join('') + '</div>';
+}
+
 function _fibLegend() {
   var items = [
     ['Scheduled', FIB_STATUS['scheduled']], ['Open', FIB_STATUS['open']],
@@ -119,7 +150,10 @@ function _fibLegend() {
 }
 
 function _fibBuild() {
-  var all = _FIB.installs || [];
+  var everything = _FIB.installs || [];
+  var filter = _FIB.statusFilter || 'all';
+  var all = (filter === 'all') ? everything
+    : everything.filter(function(o) { return _fibStatusGroup(o) === filter; });
   var base = _fibToday();
   var first = new Date(base.getFullYear(), base.getMonth() + _FIB.monthOffset, 1);
   var year = first.getFullYear(), month = first.getMonth();
@@ -153,7 +187,7 @@ function _fibBuild() {
         '<span class="fib-count">'+monthCount+' install'+(monthCount===1?'':'s')+' this month</span>' +
         (overdueCount ? '<span class="fib-count fib-count-warn">'+overdueCount+' past install date</span>' : '') +
       '</div>' +
-    '</div>' + _fibLegend();
+    '</div>' + _fibFilterBar(everything) + _fibLegend();
 
   // ── month grid ──
   var cells = '';
