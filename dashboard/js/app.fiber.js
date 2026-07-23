@@ -65,6 +65,12 @@ function _fibStyleOf(o) {
   return FIB_STATUS[_fibStatusOf(o).toLowerCase()] || FIB_NEUTRAL;
 }
 function _fibCustomer(o) { return String(o.spe || '').trim(); }
+// "New Internet" vs "Upgrade" tag — the second thing the tab tracks.
+function _fibTypeTag(o) {
+  return o.isUpgrade
+    ? '<span class="fib-type fib-type-upg">Upgrade</span>'
+    : '<span class="fib-type fib-type-new">New Internet</span>';
+}
 
 function renderFiberCalendarTab() {
   var c = document.getElementById('main-content');
@@ -151,8 +157,9 @@ function _fibBuild() {
     var isToday = ymd === todayYmd;
     var chips = list.slice(0, 3).map(function(o) {
       var st = _fibStyleOf(o);
-      return '<div class="fib-chip" style="background:'+st.bg+';color:'+st.fg+'" title="'+esc(_fibStatusOf(o)+' — '+(_fibCustomer(o)||o.dsi))+'"'+
-        ' onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">'+esc(o.dsi)+'</div>';
+      var tag = o.isUpgrade ? '<span class="fib-upg" title="Upgrade">UPG</span>' : '';
+      return '<div class="fib-chip" style="background:'+st.bg+';color:'+st.fg+'" title="'+esc((o.isUpgrade?'Upgrade — ':'New Internet — ')+_fibStatusOf(o)+' — '+(_fibCustomer(o)||o.dsi))+'"'+
+        ' onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">'+tag+esc(o.dsi)+'</div>';
     }).join('');
     if (list.length > 3) {
       chips += '<div class="fib-more" onclick="_fibOpenDay(\''+ymd+'\')">+'+(list.length-3)+' more</div>';
@@ -177,11 +184,12 @@ function _fibBuild() {
     naSec =
       '<div class="card" style="margin-top:16px"><div class="card-header dark">'+icon('clock')+' N/A — not yet scheduled <span class="fib-nacount">'+na.length+'</span></div>' +
       '<div class="card-body"><div class="fib-na-wrap"><table class="fib-na-table">' +
-        '<thead><tr><th>DSI</th><th>Customer</th><th>Rep</th><th>Order date</th><th>Status</th></tr></thead><tbody>' +
+        '<thead><tr><th>DSI</th><th>Type</th><th>Customer</th><th>Rep</th><th>Order date</th><th>Status</th></tr></thead><tbody>' +
         na.map(function(o) {
           var st = _fibStyleOf(o);
           return '<tr onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">' +
             '<td class="fib-na-dsi">'+esc(o.dsi)+'</td>' +
+            '<td>'+_fibTypeTag(o)+'</td>' +
             '<td>'+esc(_fibCustomer(o)||'—')+'</td>' +
             '<td>'+esc(o.rep||'—')+'</td>' +
             '<td>'+esc(o.orderDate||'—')+'</td>' +
@@ -232,6 +240,7 @@ function _fibOpenDetail(dsi) {
     '<div class="nm-title">'+esc(_fibCustomer(o) || dsi)+'</div>' +
     '<div class="nm-sub">DSI '+esc(dsi)+'</div>' +
     '<div class="fib-detail">' +
+      row('Type', _fibTypeTag(o)) +
       row('Install date', '<b>'+esc(_fibFmtYmd(o.installDate))+'</b>' +
         (overdue ? ' <span class="fib-pill" style="background:'+FIB_OVERDUE.bg+';color:'+FIB_OVERDUE.fg+'">Past install date</span>' : '')) +
       row('Status', '<span class="fib-pill" style="background:'+st.bg+';color:'+st.fg+'">'+esc(_fibStatusOf(o))+'</span>') +

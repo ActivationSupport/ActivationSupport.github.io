@@ -1775,6 +1775,12 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .fib-more:hover{color:var(--blue2);text-decoration:underline}
 
 .fib-pill{display:inline-block;font-size:.68rem;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap}
+/* Upgrade marker on a calendar chip — a compact dark tag before the DSI. */
+.fib-upg{display:inline-block;font-size:.56rem;font-weight:800;letter-spacing:.03em;background:rgba(0,0,0,.32);color:#fff;border-radius:3px;padding:0 3px;margin-right:4px;vertical-align:1px}
+/* New Internet vs Upgrade tag (detail modal + N/A table). */
+.fib-type{display:inline-block;font-size:.66rem;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap;border:1px solid transparent}
+.fib-type-new{background:rgba(37,99,235,.14);color:#2563eb;border-color:rgba(37,99,235,.3)}
+.fib-type-upg{background:rgba(124,58,237,.16);color:#7c3aed;border-color:rgba(124,58,237,.32)}
 .fib-nacount{background:rgba(255,255,255,.18);border-radius:999px;padding:1px 9px;font-size:.72rem;margin-left:7px}
 .fib-na-wrap{overflow-x:auto}
 .fib-na-table{width:100%;border-collapse:collapse;font-size:.82rem}
