@@ -291,8 +291,10 @@ function _fibOpenDetail(dsi) {
     '<div class="nm-sub">DSI '+esc(dsi)+'</div>' +
     '<div class="fib-detail">' +
       row('Type', _fibTypeTag(o)) +
-      row('Original due date', esc(_fibFmtYmd(o.origDueDate))) +
-      row('Current due date', '<b>'+esc(_fibFmtYmd(o.currentDueDate || o.origDueDate))+'</b>' +
+      // Fall back to the anchor date if a backend without the two due-date fields is
+      // still live (e.g. merged before the redeploy) — never show a blank.
+      row('Original due date', esc(_fibFmtYmd(o.origDueDate || o.installDate))) +
+      row('Current due date', '<b>'+esc(_fibFmtYmd(o.currentDueDate || o.origDueDate || o.installDate))+'</b>' +
         (_fibMoved(o) ? ' <span class="fib-moved">moved</span>' : '') +
         (overdue ? ' <span class="fib-pill" style="background:'+FIB_OVERDUE.bg+';color:'+FIB_OVERDUE.fg+'">Past due</span>' : '')) +
       row('Status', '<span class="fib-pill" style="background:'+st.bg+';color:'+st.fg+'">'+esc(_fibStatusOf(o))+'</span>') +
