@@ -224,6 +224,78 @@ var _TM_EMOJIS = [
   '🦄','🐲','💀','👻','🤡','🎪','🎠','🃏','🌑','🕶️',
 ];
 
+// ── Sub-team visibility ───────────────────────────────────────────────────
+// A team can be "split off" another via its Parent Team. The leader of the
+// PARENT gets full visibility into that child team — and the child's children,
+// recursively — from the Teams tab.
+//
+// Members / leaderboard / breakdown / AR / churn already work for any team
+// (those payloads are office-wide). Only the master-tracker pieces — Team
+// Orders and the pending/issue/cancel tiles — are scoped to the one team a
+// leader leads, so those are fetched per sub-team from readTeamOrders, which
+// re-checks the same parent→child rule server-side.
+var _TM_ORDERS = {};        // teamId -> orders[] fetched for a sub-team
+var _TM_ORD_LOADING = {};   // teamId -> true while that fetch is in flight
+
+function _tmTeamsLedByMe() {
+  var teams = DATA.teams || {}, me = (SESSION.email || '').toLowerCase(), ids = [];
+  Object.keys(teams).forEach(function(tid) {
+    if (String(teams[tid].leaderId || '').trim().toLowerCase() === me) ids.push(tid);
+  });
+  return ids;
+}
+// Walk parentId downward from rootIds. Returns a {teamId:true} set INCLUDING
+// the roots. Cycle-safe: `out` is the visited set, and the guard caps total
+// iterations so a self-referential parentId can't spin the browser.
+function _tmDescendantIds(rootIds) {
+  var teams = DATA.teams || {}, out = {}, queue = [];
+  (rootIds || []).forEach(function(id) { if (id && !out[id]) { out[id] = true; queue.push(id); } });
+  var guard = 0;
+  while (queue.length && guard++ < 500) {
+    var cur = queue.shift();
+    Object.keys(teams).forEach(function(tid) {
+      if (out[tid]) return;
+      if (String(teams[tid].parentId || '').trim() === cur) { out[tid] = true; queue.push(tid); }
+    });
+  }
+  return out;
+}
+// True when this team's orders are NOT in the user's own DATA.masterTracker:
+// i.e. a team below one they lead. Office-wide roles already have everything,
+// and the team they lead themselves is already in their payload.
+function _tmIsSubTeam(teamId) {
+  var role = SESSION.role;
+  if (role !== 'leader' && role !== 'client-rep') return false;
+  var led = _tmTeamsLedByMe();
+  if (led.indexOf(teamId) !== -1) return false;
+  return !!_tmDescendantIds(led)[teamId];
+}
+// Order source for a team's detail: the fetched sub-team payload when we have
+// one, else the user's own (already correctly scoped) master tracker.
+function _tmOrderSource(teamId) {
+  return _TM_ORDERS[teamId] || DATA.masterTracker || [];
+}
+// True while a sub-team's orders are still on the wire — the detail renders
+// the order-derived sections as "loading" rather than as a truthful-looking 0.
+function _tmOrdersPending(teamId) {
+  return _tmIsSubTeam(teamId) && !_TM_ORDERS[teamId];
+}
+function _tmEnsureOrders(teamId) {
+  if (!_tmIsSubTeam(teamId) || _TM_ORDERS[teamId] || _TM_ORD_LOADING[teamId]) return;
+  _TM_ORD_LOADING[teamId] = true;
+  api({ action:'readTeamOrders', teamId:teamId }).then(function(res) {
+    _TM_ORD_LOADING[teamId] = false;
+    _TM_ORDERS[teamId] = (res && res.orders) ? res.orders : [];
+    if (CURRENT_TAB === 'teams' && _TM_VIEW === 'detail' && _TM_DETAIL_ID === teamId) {
+      var c = document.getElementById('main-content');
+      if (c) c.innerHTML = _tmBuildDetail(teamId);
+    }
+  }).catch(function() {
+    _TM_ORD_LOADING[teamId] = false;
+    _TM_ORDERS[teamId] = [];   // stop retrying; the sections render empty
+  });
+}
+
 function renderTeamsTab() {
   var c = document.getElementById('main-content');
   function doRender() {
@@ -246,10 +318,12 @@ function _tmBuildList() {
   var canManage = ['master-admin','owner','admin','manager','jd'].indexOf(role) !== -1;   // jd can create/manage teams
   var teamArr = Object.keys(teams).map(function(k){ return teams[k]; });
   teamArr.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
-  // Client reps see ONLY their own team.
+  // Client reps see ONLY their own team — plus any team that split off one they
+  // LEAD (a rep-ranked team lead), so the sub-team is reachable to click into.
   if (role === 'client-rep') {
     var _myTeam = ((roster[(SESSION.email||'').toLowerCase()])||{}).team || '';
-    teamArr = teamArr.filter(function(t){ return t && t.name === _myTeam; });
+    var _visIds = _tmDescendantIds(_tmTeamsLedByMe());
+    teamArr = teamArr.filter(function(t){ return t && (t.name === _myTeam || _visIds[t.teamId]); });
     if (!teamArr.length) return '<div class="card"><div class="card-body"><div class="empty">You&rsquo;re not on a team yet.</div></div></div>';
   }
 
@@ -315,6 +389,7 @@ function _tmBuildList() {
 function _tmShowDetail(teamId) {
   _TM_VIEW = 'detail'; _TM_DETAIL_ID = teamId; _TM_LDR_VIEW = 'days';
   _TM_ORD = { rep:'', status:'', from:'', to:'' };   // fresh Team Orders filters per team
+  _tmEnsureOrders(teamId);   // sub-team of a team I lead → pull its orders, then re-render
   document.getElementById('main-content').innerHTML = _tmBuildDetail(teamId);
 }
 
@@ -372,7 +447,7 @@ function _tmBuildDetail(teamId) {
   // (buffer for statuses to settle) and goes 30 days back: orderDate in [t0-32d, t0-2d]. ──
   var wEnd = t0 - 2*DAY_MS, wStart = wEnd - 30*DAY_MS;
   var wTot=0, wPend=0, wIssue=0, wCanc=0;
-  (DATA.masterTracker||[]).forEach(function(o) {
+  _tmOrderSource(teamId).forEach(function(o) {
     if (memberTabs.indexOf((o.rep||'').toLowerCase())===-1) return;
     var od = String(o.orderDate||''); if (!/^\d{4}-\d{2}-\d{2}/.test(od)) return;
     var dt = new Date(od.slice(0,10)+'T12:00:00'); dt.setHours(0,0,0,0);
@@ -388,9 +463,11 @@ function _tmBuildDetail(teamId) {
       else if (sl!=='active' && sl!=='posted' && sl!=='approved' && sl.indexOf('disco')===-1) wPend += c;
     });
   });
-  var pendRate = wTot ? Math.round(wPend/wTot*100) : 0;
-  var issueRate = wTot ? Math.round(wIssue/wTot*100) : 0;
-  var cancRate = wTot ? Math.round(wCanc/wTot*100) : 0;
+  // A sub-team's orders arrive on a second request; show "…" rather than a
+  // truthful-looking 0% while they're still in flight.
+  var _ordPend = _tmOrdersPending(teamId);
+  function _rate(n) { return _ordPend ? '…' : (wTot ? Math.round(n/wTot*100) : 0) + '%'; }
+  var pendRate = _rate(wPend), issueRate = _rate(wIssue), cancRate = _rate(wCanc);
 
   // Churn data (team) — used by the churn section below
   var churnRows=(DATA.churnReport||[]).filter(function(r){ return memberTabs.indexOf((r.rep||'').toLowerCase())!==-1; });
@@ -407,9 +484,9 @@ function _tmBuildDetail(teamId) {
     '<div class="tm-remarks-sub">Last 7d: '+u7+' units · 4-wk avg '+fourWkAvg.toFixed(1)+'/wk</div>' +
     '</div>' +
     '<div class="tm-stat-pill"><span class="tm-stat-val">'+fourWkAvg.toFixed(1)+'</span><div class="tm-stat-lbl">4-WK AVG · UNITS/WK</div></div>' +
-    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#fb923c">'+pendRate+'%</span><div class="tm-stat-lbl">PENDING · 30D</div></div>' +
-    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#fbbf24">'+issueRate+'%</span><div class="tm-stat-lbl">ORDER ISSUES · 30D</div></div>' +
-    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#f87171">'+cancRate+'%</span><div class="tm-stat-lbl">CANCEL · 30D</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#fb923c">'+pendRate+'</span><div class="tm-stat-lbl">PENDING · 30D</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#fbbf24">'+issueRate+'</span><div class="tm-stat-lbl">ORDER ISSUES · 30D</div></div>' +
+    '<div class="tm-stat-pill"><span class="tm-stat-val" style="color:#f87171">'+cancRate+'</span><div class="tm-stat-lbl">CANCEL · 30D</div></div>' +
     '</div>';
 
   // Activation Rates + Churn — the SAME full tables as the main tabs, filtered to the team.
@@ -488,11 +565,12 @@ function _tmArTableHtml(memberTabs) {
 // filterable by Rep / Status / Date. Order-grouped (one row per DSI).
 function _tmOrdersHtml(teamId) {
   var team = (DATA.teams||{})[teamId]; if (!team) return '';
+  if (_tmOrdersPending(teamId)) return '<div class="empty">Loading team orders…</div>';
   var roster = DATA.roster||{};
   var memberTabs = Object.keys(roster)
     .filter(function(e){ return !roster[e].deactivated && roster[e].team===team.name; })
     .map(function(e){ return (roster[e].tableauName||'').toLowerCase(); }).filter(Boolean);
-  var orders = (DATA.masterTracker||[]).filter(function(o){ return memberTabs.indexOf((o.rep||'').toLowerCase())!==-1; });
+  var orders = _tmOrderSource(teamId).filter(function(o){ return memberTabs.indexOf((o.rep||'').toLowerCase())!==-1; });
 
   var reps={}, stats={};
   orders.forEach(function(o){

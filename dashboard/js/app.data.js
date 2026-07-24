@@ -120,6 +120,7 @@ function refreshData() {
   _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
   _LST_SALES = null; _AR_LINES = null; _AR_LOADING = false;
   _TRAINING_ORDERS = null; _PSV_SALES = null; _APPT.appointments = null;   // re-warm the secondary tabs too
+  _TM_ORDERS = {}; _TM_ORD_LOADING = {};   // Teams tab: re-pull any sub-team order payloads
   loadData(true);   // manual refresh: skip the instant-cache paint, fetch fresh
 }
 
