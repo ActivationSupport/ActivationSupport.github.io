@@ -12,10 +12,11 @@
 var _FIB = { monthOffset: 0, installs: null, flight: false, statusFilter: 'all' };
 
 // Status groups for the filter view: the three "closed" outcomes each stand alone,
-// everything else is the in-flight pipeline.
+// everything else is the in-flight pipeline. Posted means the same thing as Active,
+// so it groups (and colors) with it.
 function _fibStatusGroup(o) {
   var s = _fibStatusOf(o).toLowerCase();
-  if (s.indexOf('active') !== -1)      return 'active';
+  if (s.indexOf('active') !== -1 || s.indexOf('posted') !== -1) return 'active';
   if (s.indexOf('cancel') !== -1)      return 'canceled';
   if (s.indexOf('disconnect') !== -1)  return 'disconnected';
   return 'inflight';
@@ -41,7 +42,7 @@ var FIB_STATUS = {
   'delivered':        { bg:'#e9d5ff', fg:'#6b21a8' },
   'shipped':          { bg:'#fde047', fg:'#713f12' },
   'active':           { bg:'#bbf7d0', fg:'#166534' },
-  'posted':           { bg:'#bbf7d0', fg:'#15803d' },
+  'posted':           { bg:'#bbf7d0', fg:'#166534' },   // Posted == Active
   'canceled':         { bg:'#fecaca', fg:'#991b1b' },
   'cancelled':        { bg:'#fecaca', fg:'#991b1b' },
   'disconnected':     { bg:'#7f1d1d', fg:'#ffe4e6' }
