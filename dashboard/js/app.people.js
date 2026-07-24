@@ -270,11 +270,6 @@ function _tmIsSubTeam(teamId) {
   if (led.indexOf(teamId) !== -1) return false;
   return !!_tmDescendantIds(led)[teamId];
 }
-// Order source for a team's detail: the fetched sub-team payload when we have
-// one, else the user's own (already correctly scoped) master tracker.
-function _tmOrderSource(teamId) {
-  return _TM_ORDERS[teamId] || DATA.masterTracker || [];
-}
 // True while a sub-team's orders are still on the wire — the detail renders
 // the order-derived sections as "loading" rather than as a truthful-looking 0.
 function _tmOrdersPending(teamId) {
@@ -286,14 +281,70 @@ function _tmEnsureOrders(teamId) {
   api({ action:'readTeamOrders', teamId:teamId }).then(function(res) {
     _TM_ORD_LOADING[teamId] = false;
     _TM_ORDERS[teamId] = (res && res.orders) ? res.orders : [];
-    if (CURRENT_TAB === 'teams' && _TM_VIEW === 'detail' && _TM_DETAIL_ID === teamId) {
+    // Re-render if the open detail is this team OR a parent that rolls this team
+    // up (a descendant's orders just arrived and feed the parent's combined view).
+    if (CURRENT_TAB === 'teams' && _TM_VIEW === 'detail' && _TM_DETAIL_ID &&
+        _tmEffectiveTeamIds(_TM_DETAIL_ID).indexOf(teamId) !== -1) {
       var c = document.getElementById('main-content');
-      if (c) c.innerHTML = _tmBuildDetail(teamId);
+      if (c) c.innerHTML = _tmBuildDetail(_TM_DETAIL_ID);
     }
   }).catch(function() {
     _TM_ORD_LOADING[teamId] = false;
     _TM_ORDERS[teamId] = [];   // stop retrying; the sections render empty
   });
+}
+
+// ── Production rollup ──────────────────────────────────────────────────────
+// A child team's production counts toward its parent. So a team's detail page
+// and its list-view row aggregate across the team PLUS every team split off it
+// (recursively). A childless team's "effective set" is just itself, so nothing
+// changes for it.
+//
+// Gated on authorization: descendants are only rolled in for a viewer who can
+// actually see them — office-wide roles always, or the leader of the team / an
+// ancestor of it. A plain rep who merely sits on a parent team gets no rollup
+// (they'd otherwise pull sub-team data they aren't scoped to).
+function _tmCanRollup(teamId) {
+  var role = SESSION.role;
+  if (role !== 'client-rep' && role !== 'leader') return true;   // office-wide sees all
+  return !!_tmDescendantIds(_tmTeamsLedByMe())[teamId];           // leads it or an ancestor
+}
+function _tmEffectiveTeamIds(teamId) {
+  if (!_tmCanRollup(teamId)) return [teamId];
+  return Object.keys(_tmDescendantIds([teamId]));                 // teamId + all descendants
+}
+function _tmHasSubTeams(teamId) {
+  return _tmEffectiveTeamIds(teamId).length > 1;
+}
+// Effective team NAMES → the roster is keyed by team name, not id.
+function _tmEffectiveTeamNames(teamId) {
+  var teams = DATA.teams || {}, names = {};
+  _tmEffectiveTeamIds(teamId).forEach(function(id){ if (teams[id]) names[teams[id].name] = true; });
+  return names;
+}
+function _tmEffectiveMemberEmails(teamId) {
+  var roster = DATA.roster || {}, names = _tmEffectiveTeamNames(teamId);
+  return Object.keys(roster).filter(function(e){ return !roster[e].deactivated && names[roster[e].team]; });
+}
+function _tmEffectiveMemberTabs(teamId) {
+  var roster = DATA.roster || {};
+  return _tmEffectiveMemberEmails(teamId)
+    .map(function(e){ return (roster[e].tableauName||'').toLowerCase(); }).filter(Boolean);
+}
+// Orders across the whole effective set. Own direct team is already in
+// DATA.masterTracker (server-scoped); sub-teams come from per-team fetches.
+// Office-wide roles have the entire office in masterTracker and fetch nothing,
+// so the downstream member-tab filter narrows it to the effective set either way.
+function _tmCombinedOrders(teamId) {
+  var pool = DATA.masterTracker || [], extra = [];
+  _tmEffectiveTeamIds(teamId).forEach(function(id){ if (_TM_ORDERS[id]) extra = extra.concat(_TM_ORDERS[id]); });
+  return extra.length ? pool.concat(extra) : pool;
+}
+function _tmEnsureAllOrders(teamId) {
+  _tmEffectiveTeamIds(teamId).forEach(function(id){ _tmEnsureOrders(id); });
+}
+function _tmCombinedOrdersPending(teamId) {
+  return _tmEffectiveTeamIds(teamId).some(function(id){ return _tmOrdersPending(id); });
 }
 
 function renderTeamsTab() {
@@ -358,24 +409,51 @@ function _tmBuildList() {
       '</div></div>';
   }
 
-  var rows = teamArr.map(function(team) {
+  // Nest children under their parent (concept D). A team whose parent is also
+  // visible renders indented under it; a team whose parent isn't visible (e.g.
+  // a rep-rank lead seeing a sub-team but not its parent) renders as a root and
+  // keeps the "↳ parent" tag. Each row's MEMBERS/UNITS is the rollup of its own
+  // subtree — a parent's number includes every team split off it — with an
+  // "incl. N" tag flagging that.
+  var visible = {};
+  teamArr.forEach(function(t){ visible[t.teamId] = t; });
+  var childrenOf = {};
+  teamArr.forEach(function(t){
+    var pid = t.parentId || '';
+    if (pid && visible[pid]) (childrenOf[pid] = childrenOf[pid] || []).push(t);
+  });
+  function _combine(map, teamId){ var s=0; _tmEffectiveTeamIds(teamId).forEach(function(id){ s += (map[id]||0); }); return s; }
+  function _tmListRow(team, depth, seen){
+    if (seen[team.teamId]) return '';   // cycle guard
+    seen[team.teamId] = true;
     var leader = team.leaderId ? (roster[team.leaderId]||{}) : {};
     var leaderName = leader.name || team.leaderId || '—';
     var leaderRole = leader.rank ? (_ROLE_LABELS[leader.rank]||leader.rank) : '';
-    var cnt  = memberCounts[team.teamId]||0;
-    var units = weekUnits[team.teamId]||0;
+    var rollsUp = _tmHasSubTeams(team.teamId);
+    var cnt   = rollsUp ? _combine(memberCounts, team.teamId) : (memberCounts[team.teamId]||0);
+    var units = rollsUp ? _combine(weekUnits,   team.teamId) : (weekUnits[team.teamId]||0);
     var uColor = units>=10?'#4ade80':units>=5?'#fbbf24':units>0?'#94a3b8':'#6b7280';
-    var parent = team.parentId && teams[team.parentId] ? '<span class="tm-parent-tag">'+icon('corner-down-right')+' '+esc(teams[team.parentId].name)+'</span>' : '';
+    var rollTag = rollsUp ? '<span class="tm-roll-tag-sm">'+icon('myteam')+' incl. '+(_tmEffectiveTeamIds(team.teamId).length-1)+'</span>' : '';
+    // Show the parent tag only when the parent ISN'T shown right above (i.e. not nested).
+    var nested = depth>0;
+    var parentTag = (!nested && team.parentId && teams[team.parentId]) ? '<span class="tm-parent-tag">'+icon('corner-down-right')+' '+esc(teams[team.parentId].name)+'</span>' : '';
+    var branch = nested ? '<span class="tm-branch" style="padding-left:'+((depth-1)*18)+'px">'+icon('corner-down-right')+'</span>' : '';
     var acts = canManage ?
       '<td class="tm-act-cell"><button class="tm-btn-edit" onclick="openEditTeamModal(\''+esc(team.teamId)+'\')">EDIT</button><button class="tm-btn-del" onclick="_tmDelete(\''+esc(team.teamId)+'\',\''+esc(team.name)+'\')">DEL</button></td>' :
       '<td></td>';
-    return '<tr>' +
-      '<td class="tm-name-cell"><span class="tm-emoji-col">'+(team.emoji||'👥')+'</span><button class="tm-name-link" onclick="_tmShowDetail(\''+esc(team.teamId)+'\')">'+esc(team.name)+'</button>'+parent+'</td>' +
+    var out = '<tr'+(nested?' class="tm-sub-row"':'')+'>' +
+      '<td class="tm-name-cell">'+branch+'<span class="tm-emoji-col">'+(team.emoji||'👥')+'</span><button class="tm-name-link" onclick="_tmShowDetail(\''+esc(team.teamId)+'\')">'+esc(team.name)+'</button>'+parentTag+rollTag+'</td>' +
       '<td class="tm-leader-cell">'+esc(leaderName)+(leaderRole?' <span class="tm-role-tag">('+esc(leaderRole)+')</span>':'')+'</td>' +
       '<td class="tm-num-cell">'+cnt+'</td>' +
       '<td class="tm-num-cell"><span style="color:'+uColor+';font-weight:700">'+units+'</span></td>' +
       acts+'</tr>';
-  }).join('');
+    (childrenOf[team.teamId]||[]).sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); })
+      .forEach(function(ch){ out += _tmListRow(ch, depth+1, seen); });
+    return out;
+  }
+  var seen = {};
+  var roots = teamArr.filter(function(t){ return !(t.parentId && visible[t.parentId]); });
+  var rows = roots.map(function(t){ return _tmListRow(t, 0, seen); }).join('');
 
   return '<div class="card"><div class="card-body">' +
     '<div class="tm-header"><div><div class="tm-title">Teams</div><div class="tm-count">'+teamArr.length+' team'+(teamArr.length!==1?'s':'')+'</div></div>'+createBtn+'</div>' +
@@ -389,7 +467,7 @@ function _tmBuildList() {
 function _tmShowDetail(teamId) {
   _TM_VIEW = 'detail'; _TM_DETAIL_ID = teamId; _TM_LDR_VIEW = 'days';
   _TM_ORD = { rep:'', status:'', from:'', to:'' };   // fresh Team Orders filters per team
-  _tmEnsureOrders(teamId);   // sub-team of a team I lead → pull its orders, then re-render
+  _tmEnsureAllOrders(teamId);   // pull orders for this team + every sub-team that rolls up
   document.getElementById('main-content').innerHTML = _tmBuildDetail(teamId);
 }
 
@@ -414,9 +492,11 @@ function _tmBuildDetail(teamId) {
   var roster = DATA.roster||{};
   var DAY_MS = 86400000;
 
-  // Members
-  var memberEmails = Object.keys(roster).filter(function(e){ return !roster[e].deactivated && roster[e].team===team.name; });
-  var memberTabs   = memberEmails.map(function(e){ return (roster[e].tableauName||'').toLowerCase(); }).filter(Boolean);
+  // Members — the EFFECTIVE set: this team plus every sub-team split off it
+  // (recursive, authorization-gated). A childless team's set is just itself.
+  var memberEmails = _tmEffectiveMemberEmails(teamId);
+  var memberTabs   = _tmEffectiveMemberTabs(teamId);
+  var hasSubs      = _tmHasSubTeams(teamId);
 
   // ── Rolling 4-week (28-day) unit avg + recent-7-day trend (from _LST_SALES) ──
   // Rolling window ending TODAY (not fixed calendar weeks): sum the team's units over
@@ -447,7 +527,7 @@ function _tmBuildDetail(teamId) {
   // (buffer for statuses to settle) and goes 30 days back: orderDate in [t0-32d, t0-2d]. ──
   var wEnd = t0 - 2*DAY_MS, wStart = wEnd - 30*DAY_MS;
   var wTot=0, wPend=0, wIssue=0, wCanc=0;
-  _tmOrderSource(teamId).forEach(function(o) {
+  _tmCombinedOrders(teamId).forEach(function(o) {
     if (memberTabs.indexOf((o.rep||'').toLowerCase())===-1) return;
     var od = String(o.orderDate||''); if (!/^\d{4}-\d{2}-\d{2}/.test(od)) return;
     var dt = new Date(od.slice(0,10)+'T12:00:00'); dt.setHours(0,0,0,0);
@@ -465,7 +545,7 @@ function _tmBuildDetail(teamId) {
   });
   // A sub-team's orders arrive on a second request; show "…" rather than a
   // truthful-looking 0% while they're still in flight.
-  var _ordPend = _tmOrdersPending(teamId);
+  var _ordPend = _tmCombinedOrdersPending(teamId);
   function _rate(n) { return _ordPend ? '…' : (wTot ? Math.round(n/wTot*100) : 0) + '%'; }
   var pendRate = _rate(wPend), issueRate = _rate(wIssue), cancRate = _rate(wCanc);
 
@@ -473,8 +553,12 @@ function _tmBuildDetail(teamId) {
   var churnRows=(DATA.churnReport||[]).filter(function(r){ return memberTabs.indexOf((r.rep||'').toLowerCase())!==-1; });
   var churnBuilt=_buildChurnRepMap(churnRows,'');
 
+  var _subCount = _tmEffectiveTeamIds(teamId).length - 1;
+  var _rollTag = hasSubs
+    ? '<span class="tm-roll-tag">'+icon('myteam')+' incl. '+_subCount+' sub-team'+(_subCount!==1?'s':'')+' · '+memberEmails.length+' reps</span>'
+    : '';
   var hdr = '<div class="tm-back" onclick="_tmBackToList()">'+icon('arrow-left')+' Teams</div>' +
-    '<div class="tm-detail-hdr"><span class="tm-detail-em">'+(team.emoji||'👥')+'</span><span class="tm-detail-nm">'+esc(team.name)+'</span></div>';
+    '<div class="tm-detail-hdr"><span class="tm-detail-em">'+(team.emoji||'👥')+'</span><span class="tm-detail-nm">'+esc(team.name)+'</span>'+_rollTag+'</div>';
 
   var breakdown = '<div class="tm-section-label">TEAM BREAKDOWN</div>' +
     '<div class="tm-breakdown-row">' +
@@ -505,9 +589,60 @@ function _tmBuildDetail(teamId) {
     '</div></div>' +
     '<div id="tm-ldr-wrap">'+_tmLdrTable(teamId)+'</div>';
 
+  // Sub-Teams rollup — decomposes the combined numbers above into this team
+  // (direct) + each team split off it, so you can see where production comes
+  // from. Only shown when there ARE sub-teams rolling up.
+  var subSec = hasSubs ? ('<div class="tm-section-label">SUB-TEAMS</div>' + _tmSubTeamsHtml(teamId)) : '';
+
   var ordSec = '<div class="tm-section-label">TEAM ORDERS</div>' + _tmOrdersHtml(teamId);
 
-  return hdr+'<div class="card"><div class="card-body tm-detail-body">'+breakdown+arSec+churnSec+ldrSec+ordSec+'</div></div>';
+  return hdr+'<div class="card"><div class="card-body tm-detail-body">'+breakdown+subSec+arSec+churnSec+ldrSec+ordSec+'</div></div>';
+}
+
+// SUB-TEAMS rollup table: one row for this team (direct) + one per sub-team
+// that rolls up, then a combined TOTAL. Units come from _LST_SALES (office-wide),
+// so no extra fetch is needed here.
+function _tmSubTeamsHtml(teamId) {
+  var teams = DATA.teams||{}, roster = DATA.roster||{}, DAY_MS = 86400000;
+  var today = new Date(); today.setHours(0,0,0,0); var t0 = today.getTime();
+  var ws = _lstWeekStart();
+  function statsFor(teamName) {
+    var emails = Object.keys(roster).filter(function(e){ return !roster[e].deactivated && roster[e].team===teamName; });
+    var reps = emails.length, wk = 0, u28 = 0;
+    (_LST_SALES||[]).forEach(function(s){
+      if (!s.dateOfSale || emails.indexOf(s.repEmail)===-1) return;
+      var d = new Date(s.dateOfSale+'T12:00:00'); d.setHours(0,0,0,0); var t = d.getTime();
+      if (t > t0) return;
+      if (t > t0-28*DAY_MS) u28 += Number(s.units)||0;
+      if (d >= ws) wk += Number(s.units)||0;
+    });
+    return { reps:reps, wk:wk, avg:u28/4 };
+  }
+  var selfTeam = teams[teamId] || {};
+  // Rows: this team first (labelled "this team"), then each sub-team by week-units desc.
+  var subs = _tmEffectiveTeamIds(teamId).filter(function(id){ return id!==teamId && teams[id]; })
+    .map(function(id){ var t=teams[id]; var st=statsFor(t.name); return { emoji:t.emoji||'👥', name:t.name, st:st }; })
+    .sort(function(a,b){ return b.st.wk-a.st.wk; });
+  var selfStats = statsFor(selfTeam.name);
+  var tot = { reps:selfStats.reps, wk:selfStats.wk, avg:selfStats.avg };
+  subs.forEach(function(r){ tot.reps+=r.st.reps; tot.wk+=r.st.wk; tot.avg+=r.st.avg; });
+
+  function row(emoji,name,st,cls,tag){
+    return '<tr'+(cls?' class="'+cls+'"':'')+'>' +
+      '<td class="tm-sub-name"><span class="tm-emoji-col">'+emoji+'</span>'+esc(name)+(tag?' <span class="tm-role-tag">'+tag+'</span>':'')+'</td>' +
+      '<td class="tm-num-cell">'+st.reps+'</td>' +
+      '<td class="tm-num-cell">'+st.wk+'</td>' +
+      '<td class="tm-num-cell">'+st.avg.toFixed(1)+'</td></tr>';
+  }
+  var body = row(selfTeam.emoji||'👥', selfTeam.name, selfStats, 'tm-sub-self', '(this team)') +
+    subs.map(function(r){ return row(r.emoji, r.name, r.st); }).join('') +
+    '<tr class="tm-total-row"><td class="tm-sub-name" style="font-weight:700">TOTAL · incl. sub-teams</td>' +
+    '<td class="tm-num-cell"><b>'+tot.reps+'</b></td><td class="tm-num-cell"><b>'+tot.wk+'</b></td>' +
+    '<td class="tm-num-cell"><b>'+tot.avg.toFixed(1)+'</b></td></tr>';
+
+  return '<div class="tbl-wrap"><table class="tm-table tm-sub-table"><thead><tr>' +
+    '<th>TEAM</th><th class="tm-num-hdr">MEMBERS</th><th class="tm-num-hdr">UNITS (WK)</th><th class="tm-num-hdr">4-WK AVG</th>' +
+    '</tr></thead><tbody>'+body+'</tbody></table></div>';
 }
 
 // Team Activation Rates — same coloring/structure as the main AR tab (_buildArTable),
@@ -565,12 +700,10 @@ function _tmArTableHtml(memberTabs) {
 // filterable by Rep / Status / Date. Order-grouped (one row per DSI).
 function _tmOrdersHtml(teamId) {
   var team = (DATA.teams||{})[teamId]; if (!team) return '';
-  if (_tmOrdersPending(teamId)) return '<div class="empty">Loading team orders…</div>';
-  var roster = DATA.roster||{};
-  var memberTabs = Object.keys(roster)
-    .filter(function(e){ return !roster[e].deactivated && roster[e].team===team.name; })
-    .map(function(e){ return (roster[e].tableauName||'').toLowerCase(); }).filter(Boolean);
-  var orders = _tmOrderSource(teamId).filter(function(o){ return memberTabs.indexOf((o.rep||'').toLowerCase())!==-1; });
+  if (_tmCombinedOrdersPending(teamId)) return '<div class="empty">Loading team orders…</div>';
+  // Effective set: includes every sub-team that rolls up into this team.
+  var memberTabs = _tmEffectiveMemberTabs(teamId);
+  var orders = _tmCombinedOrders(teamId).filter(function(o){ return memberTabs.indexOf((o.rep||'').toLowerCase())!==-1; });
 
   var reps={}, stats={};
   orders.forEach(function(o){
@@ -625,7 +758,8 @@ function _tmOrdRerender(){
 function _tmLdrTable(teamId) {
   var teams=DATA.teams||{}; var team=teams[teamId]; if(!team) return '';
   var roster=DATA.roster||{};
-  var emails=Object.keys(roster).filter(function(e){ return !roster[e].deactivated&&roster[e].team===team.name; });
+  // Effective set: rolls sub-team reps into the parent's leaderboard.
+  var emails=_tmEffectiveMemberEmails(teamId);
   return _TM_LDR_VIEW==='days' ? _tmLdrDays(emails,roster) : _tmLdrWeeks(emails,roster);
 }
 

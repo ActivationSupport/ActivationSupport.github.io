@@ -1401,6 +1401,17 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .tm-unit-cell{font-weight:700}
 .tm-total-row{border-top:1.5px solid var(--border)!important;background:var(--surface2)}
 .tm-total-row td{font-weight:700}
+/* Sub-team rollup — a child team's production counts toward its parent. */
+.tm-roll-tag{display:inline-flex;align-items:center;gap:4px;font-size:.7rem;font-weight:700;letter-spacing:.3px;color:var(--blue2);background:var(--blue2-fade);border:1px solid rgba(var(--blue2-rgb),.35);padding:3px 9px;border-radius:999px;white-space:nowrap}
+.tm-roll-tag svg{width:13px;height:13px}
+.tm-roll-tag-sm{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;color:var(--blue2);background:var(--blue2-fade);border:1px solid rgba(var(--blue2-rgb),.3);padding:1px 6px;border-radius:999px;margin-left:8px;vertical-align:middle;white-space:nowrap}
+.tm-roll-tag-sm svg{width:11px;height:11px}
+.tm-sub-row{background:rgba(255,255,255,.015)}
+.tm-branch{display:inline-flex;align-items:center;color:var(--text2);margin-right:2px}
+.tm-branch svg{width:14px;height:14px;opacity:.6}
+.tm-sub-table .tm-sub-name{text-align:left;min-width:180px;font-size:.9rem;color:var(--text)}
+.tm-sub-self td{background:var(--blue2-fade)}
+.tm-sub-self .tm-sub-name{font-weight:600}
 /* Team detail: stack the four tables flush with even spacing. Drop the per-table
    inner scrollbox (max-height) and the sticky header — on one long page those make
    opaque headers float over the section above, which reads as overlapping tables.
