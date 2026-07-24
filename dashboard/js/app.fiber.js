@@ -305,7 +305,7 @@ function _fibOpenDetail(dsi) {
       row('Order date', esc(o.orderDate || '—')) +
       (prods ? row('Product', esc(prods)) : '') +
     '</div>' +
-    '<div class="nm-section-label" style="margin-top:12px">Tableau order note</div>' +
+    '<div class="nm-section-label" style="margin-top:12px">Tableau order notes</div>' +
     '<div class="fib-tnote">'+(o.tableauNotes ? esc(o.tableauNotes) : '<span class="fib-muted">No note on the order.</span>')+'</div>' +
     '<div class="nm-actions" style="display:flex;gap:8px">' +
       '<button class="nm-add-btn" style="flex:1" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(_fibCustomer(o)).replace(/'/g,"\\'")+'\',\''+esc(o.rep||'').replace(/'/g,"\\'")+'\')">' +
