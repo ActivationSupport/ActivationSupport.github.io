@@ -441,7 +441,7 @@ function _tmBuildList() {
     var parentTag = (!nested && team.parentId && teams[team.parentId]) ? '<span class="tm-parent-tag">'+icon('corner-down-right')+' '+esc(teams[team.parentId].name)+'</span>' : '';
     var branch = nested ? '<span class="tm-branch" style="padding-left:'+((depth-1)*18)+'px">'+icon('corner-down-right')+'</span>' : '';
     var acts = canManage ?
-      '<td class="tm-act-cell"><button class="tm-btn-edit" onclick="openEditTeamModal(\''+esc(team.teamId)+'\')">EDIT</button><button class="tm-btn-del" onclick="_tmDelete(\''+esc(team.teamId)+'\',\''+esc(team.name)+'\')">DEL</button></td>' :
+      '<td class="tm-act-cell"><button class="tm-btn-edit" onclick="openEditTeamModal(\''+esc(team.teamId)+'\')">EDIT</button><button class="tm-btn-del" onclick="_tmDelete(\''+esc(team.teamId)+'\')">DEL</button></td>' :
       '<td></td>';
     var out = '<tr'+(nested?' class="tm-sub-row"':'')+'>' +
       '<td class="tm-name-cell">'+branch+'<span class="tm-emoji-col">'+(team.emoji||'👥')+'</span><button class="tm-name-link" onclick="_tmShowDetail(\''+esc(team.teamId)+'\')">'+esc(team.name)+'</button>'+parentTag+rollTag+'</td>' +
@@ -930,7 +930,11 @@ function saveTeamModal(existingId) {
   }).catch(function(){ alert('Connection error.'); });
 }
 
-function _tmDelete(teamId, name) {
+function _tmDelete(teamId) {
+  // Look the name up here rather than passing it through the onclick — a team
+  // named e.g. "King's" would break an interpolated inline handler (see the
+  // notes-button apostrophe fix / notesBtnHtml).
+  var name = ((DATA.teams||{})[teamId]||{}).name || 'this team';
   if(!confirm('Delete team "'+name+'"? This cannot be undone.')) return;
   apiPost({action:'deleteTeam',teamId:teamId}).then(function(res){
     if(res.ok) refreshData(); else alert(res.error||'Delete failed.');
