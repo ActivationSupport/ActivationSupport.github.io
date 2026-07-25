@@ -1425,6 +1425,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .mto-count{margin-left:auto;font-weight:600;font-size:.8rem;color:var(--text2)}
 .mto-body{padding:4px 12px 12px}
 .mto-body .call-table-wrap{max-height:none}
+.mto-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0 10px}
 /* Team detail: stack the four tables flush with even spacing. Drop the per-table
    inner scrollbox (max-height) and the sticky header — on one long page those make
    opaque headers float over the section above, which reads as overlapping tables.

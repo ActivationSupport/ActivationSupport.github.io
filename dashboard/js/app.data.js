@@ -121,6 +121,7 @@ function refreshData() {
   _LST_SALES = null; _AR_LINES = null; _AR_LOADING = false;
   _TRAINING_ORDERS = null; _PSV_SALES = null; _APPT.appointments = null;   // re-warm the secondary tabs too
   _TM_ORDERS = {}; _TM_ORD_LOADING = {};   // Teams tab: re-pull any sub-team order payloads
+  if (typeof _MTO_F !== 'undefined') { _MTO_F = {}; _MTO_TEAM_ORDERS = {}; }   // grouped My Team's Orders filters
   loadData(true);   // manual refresh: skip the instant-cache paint, fetch fresh
 }
 

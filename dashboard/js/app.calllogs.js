@@ -835,10 +835,81 @@ function renderCallTable(orders, title, emptyMsg) {
 function _mtoHeaders() {
   return '<th>Name</th><th>DSI</th><th>Date</th><th>Product</th><th>Status</th><th>Appointment</th><th>Rating</th><th>Notes</th>';
 }
+// Per-team filter state + the full (unfiltered) orders for each section this
+// render. Both are keyed by teamId so every team section filters INDEPENDENTLY.
+var _MTO_F = {};            // teamId -> { q, status, product, from, to }
+var _MTO_TEAM_ORDERS = {};  // teamId -> orders[] (repopulated each full render)
+
+function _mtoFEmpty() { return { q:'', status:'', product:'', from:'', to:'' }; }
+function _mtoFilterOrders(orders, f) {
+  if (!f) return orders;
+  var q = (f.q||'').toLowerCase();
+  return orders.filter(function(o) {
+    if (f.status  && !((o.statusCounts ||{})[f.status]))  return false;
+    if (f.product && !((o.productCounts||{})[f.product])) return false;
+    var od = String(o.orderDate||'').slice(0,10);
+    if (f.from && od < f.from) return false;
+    if (f.to   && od > f.to)   return false;
+    if (q) {
+      var hay = ((o.rep||'')+' '+(o.dsi||'')+' '+(o.orderDate||'')+' '+
+        Object.keys(o.statusCounts||{}).join(' ')+' '+Object.keys(o.productCounts||{}).join(' ')).toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+}
+function _mtoFilteredRows(tid) {
+  var all = _MTO_TEAM_ORDERS[tid] || [];
+  return _mtoFilterOrders(all, _MTO_F[tid]).slice().sort(_byOrderDateDesc);
+}
+function _mtoTbodyHtml(tid) {
+  var rows = _mtoFilteredRows(tid);
+  return rows.length ? callTableRows(rows, null)
+    : '<tr><td colspan="8" style="text-align:center;padding:16px;color:var(--text2)">No orders match these filters.</td></tr>';
+}
+function _mtoCountText(tid) {
+  var total = (_MTO_TEAM_ORDERS[tid]||[]).length, shown = _mtoFilteredRows(tid).length;
+  return shown === total ? (total + ' order' + (total===1?'':'s')) : ('Showing ' + shown + ' of ' + total);
+}
+// Live re-filter of a single team section — rebuilds just its tbody + count.
+function _mtoApply(tid) {
+  var tb = document.getElementById('mto-tbody-'+tid); if (tb) tb.innerHTML = _mtoTbodyHtml(tid);
+  var ct = document.getElementById('mto-cnt-'+tid);   if (ct) ct.textContent = _mtoCountText(tid);
+}
+function _mtoFSet(tid, field, val) {
+  (_MTO_F[tid] = _MTO_F[tid] || _mtoFEmpty())[field] = val;
+  _mtoApply(tid);
+}
+function _mtoFClear(tid) {
+  _MTO_F[tid] = _mtoFEmpty();
+  var mid = _myTeamId(); if (!mid) return;                 // full re-render to reset the input fields
+  var c = document.getElementById('main-content'); if (c) c.innerHTML = renderMyTeamGrouped(mid);
+}
+function _mtoFilterRow(tid) {
+  var all = _MTO_TEAM_ORDERS[tid] || [], f = _MTO_F[tid] || _mtoFEmpty();
+  var stats = {}, prods = {};
+  all.forEach(function(o){
+    Object.keys(o.statusCounts ||{}).forEach(function(s){ if(s) stats[s]=1; });
+    Object.keys(o.productCounts||{}).forEach(function(p){ if(p) prods[p]=1; });
+  });
+  var statOpts = '<option value="">All statuses</option>'+Object.keys(stats).sort().map(function(s){ return '<option'+(f.status===s?' selected':'')+' value="'+esc(s)+'">'+esc(s)+'</option>'; }).join('');
+  var prodOpts = '<option value="">All products</option>'+Object.keys(prods).sort().map(function(p){ return '<option'+(f.product===p?' selected':'')+' value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('');
+  var any = f.q||f.status||f.product||f.from||f.to;
+  var cS = 'width:auto;min-width:130px;max-width:190px';
+  return '<div class="mto-filters">' +
+    '<input class="ps-input" style="'+cS+'" type="text" placeholder="Search rep / DSI…" value="'+esc(f.q)+'" oninput="_mtoFSet(\''+tid+'\',\'q\',this.value)">' +
+    '<select class="ps-select" style="'+cS+'" onchange="_mtoFSet(\''+tid+'\',\'status\',this.value)">'+statOpts+'</select>' +
+    '<select class="ps-select" style="'+cS+'" onchange="_mtoFSet(\''+tid+'\',\'product\',this.value)">'+prodOpts+'</select>' +
+    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(f.from)+'" onchange="_mtoFSet(\''+tid+'\',\'from\',this.value)" title="From date">' +
+    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(f.to)+'" onchange="_mtoFSet(\''+tid+'\',\'to\',this.value)" title="To date">' +
+    (any?'<button class="lst-toggle-btn" onclick="_mtoFClear(\''+tid+'\')">Clear</button>':'') +
+    '</div>';
+}
 function renderMyTeamGrouped(myTeamId) {
   _tmEnsureAllOrders(myTeamId);                         // auto-load every sub-team's orders
   _ctShowRiskFlags = true; _ISSUE_DSI = null;           // same risk/booked wiring renderCallTable uses
   if (_BOOKED_MAP === null) _loadBookedAppts();
+  _MTO_TEAM_ORDERS = {};                                // rebuilt below; drop last render's teams
   var teams = DATA.teams || {}, roster = DATA.roster || {};
   var ids = _tmEffectiveTeamIds(myTeamId).slice().sort(function(a, b) {
     if (a === myTeamId) return -1; if (b === myTeamId) return 1;   // own team first
@@ -853,13 +924,20 @@ function renderMyTeamGrouped(myTeamId) {
       .map(function(e){ return (roster[e].tableauName||'').toLowerCase(); }).filter(Boolean);
     var pending = _tmOrdersPending(id);
     var orders = pending ? [] : pool.filter(function(o){ return tabs.indexOf((o.rep||'').toLowerCase()) !== -1; }).slice().sort(_byOrderDateDesc);
+    _MTO_TEAM_ORDERS[id] = orders;                       // full set for this section's filter
     if (pending) anyPending = true; else totalOrders += orders.length;
     var isSelf = (id === myTeamId);
-    var body = pending
-      ? '<div class="empty" style="padding:16px">Loading '+esc(t.name)+' orders…</div>'
-      : (orders.length
-          ? '<div class="call-table-wrap"><table class="call-table"><thead><tr>'+_mtoHeaders()+'</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div>'
-          : '<div class="empty" style="padding:16px">No orders for this team.</div>');
+    var body;
+    if (pending) {
+      body = '<div class="empty" style="padding:16px">Loading '+esc(t.name)+' orders…</div>';
+    } else if (!orders.length) {
+      body = '<div class="empty" style="padding:16px">No orders for this team.</div>';
+    } else {
+      body = _mtoFilterRow(id) +
+        '<div class="call-table-wrap"><table class="call-table" id="mto-tbl-'+id+'"><thead><tr>'+_mtoHeaders()+'</tr></thead>' +
+        '<tbody id="mto-tbody-'+id+'">'+_mtoTbodyHtml(id)+'</tbody></table></div>' +
+        '<div class="tbl-count" id="mto-cnt-'+id+'" style="margin-top:6px">'+_mtoCountText(id)+'</div>';
+    }
     var cntTxt = pending ? '…' : (orders.length + ' order' + (orders.length===1?'':'s'));
     return '<details class="mto-team" open>' +
       '<summary class="mto-team-hdr'+(isSelf?' mto-self':'')+'">' +
