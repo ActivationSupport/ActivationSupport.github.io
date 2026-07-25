@@ -728,6 +728,24 @@ function _loadBookedAppts() {
   }).catch(function(){ _BOOKED_MAP={}; _bookedLoading=false; });
 }
 
+// The NOTES button. Pass dsi / customer / rep as data-* attributes (safe in an
+// attribute) and read them back in JS — NEVER interpolate them into an inline
+// onclick JS string, or a name with an apostrophe (e.g. "Bri'an Key") breaks the
+// handler: esc() encodes ' as &#39;, the browser decodes it back to ' inside the
+// attribute, and that prematurely closes the JS string → the button does nothing.
+function notesBtnHtml(dsi, customer, rep, noteCount) {
+  var safeId = String(dsi||'').replace(/\W/g,'_');
+  return '<button class="notes-btn'+(noteCount>0?' has-notes':'')+'" ' +
+    'data-dsi="'+esc(dsi)+'" data-customer="'+esc(customer||'')+'" data-rep="'+esc(rep||'')+'" ' +
+    'onclick="openNotesFromEl(this)">NOTES' +
+    (noteCount>0?'<span class="notes-count" id="nc-'+safeId+'">'+noteCount+'</span>':'') +
+    '</button>';
+}
+function openNotesFromEl(el) {
+  if (!el) return;
+  openNotesModal(el.getAttribute('data-dsi')||'', el.getAttribute('data-customer')||'', el.getAttribute('data-rep')||'');
+}
+
 function callTableRows(orders, extraColFn) {
   return orders.map(function(o) {
     var dsi = o.dsi || '';
@@ -751,11 +769,7 @@ function callTableRows(orders, extraColFn) {
       '<td>'+statusBreakdown(o.statusCounts, true)+'</td>' +
       _bookedCell(booked) +
       '<td>' + ratingPill(dsi, safeId) + '</td>' +
-      '<td>' +
-        '<button class="notes-btn'+(noteCount>0?' has-notes':'')+'" data-dsi="'+esc(dsi)+'" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(o.spe)+'\',\''+esc(o.rep)+'\')">NOTES' +
-        (noteCount>0?'<span class="notes-count" id="nc-'+safeId+'">'+noteCount+'</span>':'') +
-        '</button>' +
-      '</td>' +
+      '<td>' + notesBtnHtml(dsi, o.spe, o.rep, noteCount) + '</td>' +
     '</tr>';
   }).join('');
 }

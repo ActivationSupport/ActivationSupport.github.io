@@ -732,7 +732,7 @@ function _tmOrdersHtml(teamId) {
       '<td>'+esc(o.orderDate)+'</td>'+
       '<td>'+productBreakdown(o.productCounts,false)+'</td>'+
       '<td>'+statusBreakdown(o.statusCounts,false)+'</td>'+
-      '<td><button class="notes-btn'+(nc>0?' has-notes':'')+'" data-dsi="'+esc(o.dsi)+'" onclick="openNotesModal(\''+esc(o.dsi)+'\',\''+esc(o.spe||'')+'\',\''+esc(o.rep)+'\')">NOTES'+(nc>0?'<span class="notes-count" id="nc-'+sid+'">'+nc+'</span>':'')+'</button></td>'+
+      '<td>'+notesBtnHtml(o.dsi, o.spe, o.rep, nc)+'</td>'+
     '</tr>';
   }).join('') : '<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--text2)">No orders match these filters.</td></tr>';
 

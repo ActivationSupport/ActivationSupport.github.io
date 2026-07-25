@@ -308,7 +308,7 @@ function _fibOpenDetail(dsi) {
     '<div class="nm-section-label" style="margin-top:12px">Tableau order notes</div>' +
     '<div class="fib-tnote">'+(o.tableauNotes ? esc(o.tableauNotes) : '<span class="fib-muted">No note on the order.</span>')+'</div>' +
     '<div class="nm-actions" style="display:flex;gap:8px">' +
-      '<button class="nm-add-btn" style="flex:1" onclick="openNotesModal(\''+esc(dsi)+'\',\''+esc(_fibCustomer(o)).replace(/'/g,"\\'")+'\',\''+esc(o.rep||'').replace(/'/g,"\\'")+'\')">' +
+      '<button class="nm-add-btn" style="flex:1" data-dsi="'+esc(dsi)+'" data-customer="'+esc(_fibCustomer(o))+'" data-rep="'+esc(o.rep||'')+'" onclick="openNotesFromEl(this)">' +
         'PORTAL NOTES'+(portalNotes?' ('+portalNotes+')':'')+'</button>' +
       '<button class="nm-close-btn" style="flex:1" onclick="closeModal()">CLOSE</button>' +
     '</div>';
