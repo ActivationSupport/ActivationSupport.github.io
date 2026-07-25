@@ -822,6 +822,72 @@ function renderCallTable(orders, title, emptyMsg) {
     '</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div></div></div>';
 }
 
+// ── MY TEAM'S ORDERS — grouped by team ────────────────────────────────────
+// For a parent leader whose team has sub-teams split off it: show EVERYONE on
+// those teams' orders, cleanly SEPARATED into one collapsible section per team
+// (own team first). A leader with no sub-teams keeps the plain renderCallTable
+// path, so nothing changes for them.
+//
+// Own-team orders are already in DATA.masterTracker; sub-team orders auto-load
+// from readTeamOrders (per-team, cached in _TM_ORDERS) and re-render as they
+// arrive via _mtoRerenderIfActive. Office-wide roles (jd/manager) have the whole
+// office in masterTracker, so nothing is fetched and no section shows "loading".
+function _mtoHeaders() {
+  return '<th>Name</th><th>DSI</th><th>Date</th><th>Product</th><th>Status</th><th>Appointment</th><th>Rating</th><th>Notes</th>';
+}
+function renderMyTeamGrouped(myTeamId) {
+  _tmEnsureAllOrders(myTeamId);                         // auto-load every sub-team's orders
+  _ctShowRiskFlags = true; _ISSUE_DSI = null;           // same risk/booked wiring renderCallTable uses
+  if (_BOOKED_MAP === null) _loadBookedAppts();
+  var teams = DATA.teams || {}, roster = DATA.roster || {};
+  var ids = _tmEffectiveTeamIds(myTeamId).slice().sort(function(a, b) {
+    if (a === myTeamId) return -1; if (b === myTeamId) return 1;   // own team first
+    return String(teams[a] ? teams[a].name : '').localeCompare(String(teams[b] ? teams[b].name : ''));
+  });
+  var pool = _tmCombinedOrders(myTeamId);
+  var totalOrders = 0, anyPending = false;
+  var sections = ids.map(function(id) {
+    var t = teams[id]; if (!t) return '';
+    var tabs = Object.keys(roster)
+      .filter(function(e){ return !roster[e].deactivated && roster[e].team === t.name; })
+      .map(function(e){ return (roster[e].tableauName||'').toLowerCase(); }).filter(Boolean);
+    var pending = _tmOrdersPending(id);
+    var orders = pending ? [] : pool.filter(function(o){ return tabs.indexOf((o.rep||'').toLowerCase()) !== -1; }).slice().sort(_byOrderDateDesc);
+    if (pending) anyPending = true; else totalOrders += orders.length;
+    var isSelf = (id === myTeamId);
+    var body = pending
+      ? '<div class="empty" style="padding:16px">Loading '+esc(t.name)+' orders…</div>'
+      : (orders.length
+          ? '<div class="call-table-wrap"><table class="call-table"><thead><tr>'+_mtoHeaders()+'</tr></thead><tbody>'+callTableRows(orders, null)+'</tbody></table></div>'
+          : '<div class="empty" style="padding:16px">No orders for this team.</div>');
+    var cntTxt = pending ? '…' : (orders.length + ' order' + (orders.length===1?'':'s'));
+    return '<details class="mto-team" open>' +
+      '<summary class="mto-team-hdr'+(isSelf?' mto-self':'')+'">' +
+        '<span class="mto-caret">'+icon('chev-right')+'</span>' +
+        '<span class="mto-emoji">'+(t.emoji||'👥')+'</span>' +
+        '<span class="mto-name">'+esc(t.name)+'</span>' +
+        (isSelf?'<span class="tm-role-tag" style="margin-left:6px">(your team)</span>':'') +
+        '<span class="mto-count">'+cntTxt+'</span>' +
+      '</summary>' +
+      '<div class="mto-body">'+body+'</div>' +
+    '</details>';
+  }).join('');
+  var countLbl = (anyPending ? totalOrders+'+' : totalOrders) + ' orders · ' + ids.length + ' teams';
+  return _tableauWarnBanner() +
+    '<div class="card"><div class="card-header dark">My Team&rsquo;s Orders &nbsp;' +
+    '<span style="font-weight:400;font-size:.82rem;opacity:.8">'+countLbl+'</span></div>' +
+    '<div class="card-body">'+sections+'</div></div>';
+}
+// A sub-team's orders just landed — refresh the grouped view if it's the one on
+// screen and the team belongs to it.
+function _mtoRerenderIfActive(teamId) {
+  if (CURRENT_TAB !== 'myteam') return;
+  var mid = _myTeamId(); if (!mid) return;
+  if (_tmEffectiveTeamIds(mid).indexOf(teamId) === -1) return;
+  var c = document.getElementById('main-content');
+  if (c) c.innerHTML = renderMyTeamGrouped(mid);
+}
+
 
 // ── ACTIVATION SUPPORT (Pending / Activation sheets · Date → Rep → Product → Status) ──
 // One tab, two toggled pages. Pending = only lines NOT yet Active/Posted/Cancelled/

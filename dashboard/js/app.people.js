@@ -287,6 +287,8 @@ function _tmEnsureOrders(teamId) {
         _tmEffectiveTeamIds(_TM_DETAIL_ID).indexOf(teamId) !== -1) {
       var c = document.getElementById('main-content');
       if (c) c.innerHTML = _tmBuildDetail(_TM_DETAIL_ID);
+    } else if (typeof _mtoRerenderIfActive === 'function') {
+      _mtoRerenderIfActive(teamId);   // the grouped "My Team's Orders" call-log view
     }
   }).catch(function() {
     _TM_ORD_LOADING[teamId] = false;

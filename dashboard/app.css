@@ -1412,6 +1412,19 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .tm-sub-table .tm-sub-name{text-align:left;min-width:180px;font-size:.9rem;color:var(--text)}
 .tm-sub-self td{background:var(--blue2-fade)}
 .tm-sub-self .tm-sub-name{font-weight:600}
+/* My Team's Orders — grouped-by-team sections (parent leader). */
+.mto-team{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px;background:var(--surface)}
+.mto-team-hdr{display:flex;align-items:center;gap:9px;padding:11px 14px;cursor:pointer;list-style:none;background:var(--surface2);font-weight:700;font-size:.95rem;color:var(--text);user-select:none}
+.mto-team-hdr::-webkit-details-marker{display:none}
+.mto-team-hdr.mto-self{background:var(--blue2-fade);border-bottom:1px solid rgba(var(--blue2-rgb),.3)}
+.mto-caret{display:inline-flex;color:var(--text2);transition:transform .15s}
+.mto-caret svg{width:14px;height:14px}
+.mto-team[open] .mto-caret{transform:rotate(90deg)}
+.mto-emoji{font-size:1.2rem}
+.mto-name{font-weight:800}
+.mto-count{margin-left:auto;font-weight:600;font-size:.8rem;color:var(--text2)}
+.mto-body{padding:4px 12px 12px}
+.mto-body .call-table-wrap{max-height:none}
 /* Team detail: stack the four tables flush with even spacing. Drop the per-table
    inner scrollbox (max-height) and the sticky header — on one long page those make
    opaque headers float over the section above, which reads as overlapping tables.

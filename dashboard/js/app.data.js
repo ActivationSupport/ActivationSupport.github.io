@@ -207,7 +207,8 @@ function _tabOrderSource(tab) {
   switch (tab) {
     case 'master':    return repFilter(DATA.masterTracker || []).slice().sort(_byOrderDateDesc);
     case 'myorders':  return _myOrdersFilter(DATA.masterTracker || []).slice().sort(_byOrderDateDesc);
-    case 'myteam':    return _myTeamFilter(DATA.masterTracker || []).slice().sort(_byOrderDateDesc);
+    case 'myteam':    { var _mid=_myTeamId(); if (_mid && _tmHasSubTeams(_mid)) return null;   // grouped view → force a full re-render on refresh
+                        return _myTeamFilter(DATA.masterTracker || []).slice().sort(_byOrderDateDesc); }
     case 'dayafter':  return repFilter(DATA.dayAfterOrders || []).slice().sort(_byOrderDateDesc);
     case 'delivered': return repFilter(within29Days(DATA.deliveredOrders || [])).slice().sort(_byOrderDateDesc);
     case 'issues':    return repFilter(issueFilter(DATA.orderIssues || [])).slice().sort(_byOrderDateDesc);
@@ -452,6 +453,18 @@ function _myTeamName() {
   var me = (DATA.roster || {})[SESSION.email] || {};
   return me.team || '';                              // else the team they're ON
 }
+// The teamId of the user's "my team" — the team they LEAD, else the team they're
+// ON. Powers the grouped "My Team's Orders" view (which rolls sub-teams in).
+function _myTeamId() {
+  var teams = DATA.teams || {}, myEmail = (SESSION.email || '').toLowerCase();
+  var led = null;
+  Object.keys(teams).forEach(function(tid){ if ((teams[tid].leaderId || '').toLowerCase() === myEmail) led = tid; });
+  if (led) return led;
+  var myName = ((DATA.roster || {})[SESSION.email] || {}).team || '';
+  var found = null;
+  Object.keys(teams).forEach(function(tid){ if (teams[tid].name === myName) found = tid; });
+  return found;
+}
 function _myOrdersFilter(orders) {
   var tn = (SESSION.tableauName || '').trim().toLowerCase();
   if (!tn) return [];
@@ -497,7 +510,10 @@ function renderTab(id) {
   switch(id) {
     case 'actrates':    c.innerHTML = renderActRates();    break;
     case 'myorders':    c.innerHTML = renderCallTable(_myOrdersFilter(DATA.masterTracker||[]), 'My Orders', 'No orders found.'); break;
-    case 'myteam':      c.innerHTML = renderCallTable(_myTeamFilter(DATA.masterTracker||[]), "My Team's Orders", 'No orders found.'); break;
+    case 'myteam':      { var _mtid=_myTeamId();
+                          c.innerHTML = (_mtid && _tmHasSubTeams(_mtid))
+                            ? renderMyTeamGrouped(_mtid)                                          // parent leader → group by team
+                            : renderCallTable(_myTeamFilter(DATA.masterTracker||[]), "My Team's Orders", 'No orders found.'); break; }
     case 'master':      c.innerHTML = renderCallTable(repFilter(DATA.masterTracker||[]), 'Master Tracker', 'No orders found.'); break;
     case 'actsupport':  renderActivationSupport(); break;
     case 'dayafter':    c.innerHTML = renderCallTable(repFilter(DATA.dayAfterOrders||[]), 'Day-After Calls', 'No day-after orders found.'); break;
