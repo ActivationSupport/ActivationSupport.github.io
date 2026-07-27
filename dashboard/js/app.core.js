@@ -735,6 +735,9 @@ var TABS = [
   { id: 'fibercal',     label: 'Fiber Install Calendar', roles: ALL_ROLES, group: 'Scheduling', sub: 'Fiber & new-internet installs by scheduled date', icon: 'globe' },
   { id: 'myorders',    label: 'My Orders',           roles: ['client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
   { id: 'myteam',      label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 120-day window" },
+  // Everyone sees the tab; repFilter() scopes it — client-rep to their own lines, leader to
+  // their team, everyone else office-wide (the server scopes masterTracker the same way).
+  { id: 'actsupport',  label: 'Activation Support',    roles: ALL_ROLES,  group: 'Orders',      sub: 'Pending & Activation sheets — Date → Rep → Product → Status' },
   { id: 'master',      label: 'Master Tracker',       roles: ROLES_CALL, group: 'Call Logs',   sub: '120-day window' },
   { id: 'dayafter',    label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
   { id: 'delivered',   label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
@@ -749,9 +752,6 @@ var TABS = [
   { id: 'training',    label: 'Training & Tracking',   roles: ROLES_PAYROLL, group: 'Payroll',  sub: 'Every posted order + payout tracking' },
   { id: 'people',       label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
   { id: 'teams',        label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
-  // TEMP: Activation Support parked at the very bottom + master-admin-only until the auto-emails go live;
-  // then move it back into the 'Orders' group and reopen roles to the intended set.
-  { id: 'actsupport',  label: 'Activation Support',    roles: ['master-admin'],  group: 'Beta',   sub: 'Pending & Activation sheets — Date → Rep → Product → Status (preview)' },
 ];
 
 var _DEV_ROLE = null;

@@ -988,6 +988,7 @@ function _mtoRerenderIfActive(teamId) {
 var _asPage = 'pending';        // 'pending' | 'activation'
 var _AS_STATUS = null;          // cached readAutoEmailStatus result (global, not per-office)
 var _asStatusFlight = false;
+var _AS_STATUS_ERR = false;     // last fetch failed → show a retry instead of a stuck "Loading…"
 
 function _asIsDone(s){ var l=String(s||'').toLowerCase().trim(); return l==='active'||l==='posted'||l.indexOf('cancel')!==-1||l.indexOf('disco')!==-1; }
 function _asProdLabelFE(p){
@@ -1094,7 +1095,8 @@ function _asRenderSignifier(){
   var s=_AS_STATUS;
   function row(type,label,day){
     var d=s&&s[type], body;
-    if(!s){ body='<span style="color:var(--text2)">Loading…</span>'; }
+    if(!s && _AS_STATUS_ERR){ body='<span style="color:var(--text2)">Couldn’t load send status · <a href="#" onclick="_asReloadStatus();return false">retry</a></span>'; }
+    else if(!s){ body='<span style="color:var(--text2)">Loading…</span>'; }
     else if(!d){ body='<span style="color:var(--text2)">No send recorded yet</span>'; }
     else {
       var when=d.ts?new Date(d.ts).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):(d.date||'');
@@ -1133,17 +1135,29 @@ function _asSwitchPage(page){
   _asPage=(page==='activation')?'activation':'pending';
   renderActivationSupport();
 }
+function _asPaintSignifier(){
+  if(CURRENT_TAB!=='actsupport') return;
+  var sc=document.getElementById('as-signifier'); if(sc) sc.innerHTML=_asRenderSignifier();
+}
+// Fetched once per session and cached — the badge tracks a WEEKLY send, so re-pulling on
+// every page toggle is pointless load now that every rep opens this tab. `force` is the
+// retry link. A failure sets _AS_STATUS_ERR so the row offers a retry instead of hanging
+// on "Loading…" forever.
+function _asFetchStatus(force){
+  if(_asStatusFlight) return;
+  if(_AS_STATUS && !force) return;
+  _asStatusFlight=true; _AS_STATUS_ERR=false;
+  api({action:'readAutoEmailStatus'}).then(function(res){
+    _asStatusFlight=false;
+    if(res && !res.error) _AS_STATUS=res; else _AS_STATUS_ERR=true;
+    _asPaintSignifier();
+  }).catch(function(){ _asStatusFlight=false; _AS_STATUS_ERR=true; _asPaintSignifier(); });
+}
+function _asReloadStatus(){ _AS_STATUS_ERR=false; _asPaintSignifier(); _asFetchStatus(true); }
 function renderActivationSupport(){
   var c=document.getElementById('main-content');
   c.innerHTML=_asShell();
-  if(!_asStatusFlight){
-    _asStatusFlight=true;
-    api({action:'readAutoEmailStatus'}).then(function(res){
-      _asStatusFlight=false;
-      if(res && !res.error){ _AS_STATUS=res; }
-      if(CURRENT_TAB==='actsupport'){ var sc=document.getElementById('as-signifier'); if(sc) sc.innerHTML=_asRenderSignifier(); }
-    }).catch(function(){ _asStatusFlight=false; });
-  }
+  _asFetchStatus(false);
 }
 
 
