@@ -1091,24 +1091,109 @@ function _asToggleHtml(){
     btn('activation',icon('actsupport'),'Activation','Every line, every status')+
   '</div>';
 }
+// Why a rep on the roster did NOT get an email. The first two are failures; the next two
+// are roster data the office can fix (and the reason a rep can NEVER receive one). The
+// rest are expected and come back as counts only — see AS_NAMED_REASONS in Code.gs.
+var _AS_REASON = {
+  error:         { label:'Send failed',                          tone:'bad'  },
+  quota:         { label:'Dropped — daily email quota ran out',  tone:'bad'  },
+  noTableauName: { label:'No Tableau name linked in the roster', tone:'warn' },
+  noOrders:      { label:'Tableau name matches no orders',       tone:'warn' }
+};
+var _AS_SKIP_LABEL = {
+  noProduction:  'no production in the last 14 days',
+  nothingToShow: 'nothing to show — all caught up',
+  deactivated:   'deactivated'
+};
+var _AS_DETAIL_OPEN = { pending:false, activation:false };
+
+function _asToggleDetail(type){
+  if(type!=='pending' && type!=='activation') return;
+  _AS_DETAIL_OPEN[type] = !_AS_DETAIL_OPEN[type];
+  _asPaintSignifier();
+}
+// The expanded per-run breakdown: named non-recipients grouped by reason, then the
+// expected skips as a single counts line.
+function _asDetailPanel(type, d){
+  if(!d.hasDetail){
+    return '<div style="padding:8px 0 10px 138px;font-size:.8rem;color:var(--text2)">'+
+      'This run finished before the breakdown was recorded, so there is no per-rep detail for it. '+
+      'The next send will have one.</div>';
+  }
+  var people=d.people||[], groups={}, order=[];
+  people.forEach(function(p){
+    var r=_AS_REASON[p.r]?p.r:'error';
+    if(!groups[r]){ groups[r]=[]; order.push(r); }
+    groups[r].push(p);
+  });
+  order.sort(function(a,b){                                     // failures first, then fixable
+    var w={error:0,quota:1,noTableauName:2,noOrders:3};
+    return (w[a]==null?9:w[a]) - (w[b]==null?9:w[b]);
+  });
+  var out='';
+  order.forEach(function(r){
+    var meta=_AS_REASON[r], list=groups[r];
+    var col = meta.tone==='bad' ? 'var(--red)' : 'var(--yellow)';
+    out+='<div style="margin:8px 0 2px">'+
+      '<div style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:'+col+'">'+
+        esc(meta.label)+' ('+list.length+')</div>'+
+      list.map(function(p){
+        var office=(typeof OFFICE_NAMES!=='undefined'&&OFFICE_NAMES[p.o])||p.o;
+        return '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:3px 0 3px 2px;font-size:.82rem;border-bottom:1px solid var(--border)">'+
+          '<span style="font-weight:600;min-width:150px">'+esc(p.n||p.e||'—')+'</span>'+
+          '<span style="color:var(--text2);min-width:104px">'+esc(office)+'</span>'+
+          (p.d?'<span style="color:var(--text2);flex:1;min-width:180px">'+esc(p.d)+'</span>':'')+
+        '</div>';
+      }).join('')+
+    '</div>';
+  });
+  if(!order.length){
+    out+='<div style="padding:6px 0;font-size:.83rem;color:var(--green)">'+
+      'Everyone who qualified got their email — nothing failed and no roster gaps.</div>';
+  }
+  if(d.truncated){
+    out+='<div style="padding:6px 0 0;font-size:.78rem;color:var(--text2)">'+
+      '+ '+d.truncated+' more not listed (the run log caps how many it stores).</div>';
+  }
+  var skips=d.skips||{}, parts=[];
+  Object.keys(_AS_SKIP_LABEL).forEach(function(k){ if(skips[k]) parts.push(skips[k]+' '+_AS_SKIP_LABEL[k]); });
+  if(parts.length){
+    out+='<div style="padding:8px 0 2px;font-size:.78rem;color:var(--text2)">'+
+      '<b>Not sent for expected reasons:</b> '+esc(parts.join(' · '))+'</div>';
+  }
+  return '<div style="padding:2px 0 8px 138px">'+out+'</div>';
+}
 function _asRenderSignifier(){
   var s=_AS_STATUS;
   function row(type,label,day){
-    var d=s&&s[type], body;
+    var d=s&&s[type], body, expandable=false, open=_AS_DETAIL_OPEN[type];
     if(!s && _AS_STATUS_ERR){ body='<span style="color:var(--text2)">Couldn’t load send status · <a href="#" onclick="_asReloadStatus();return false">retry</a></span>'; }
     else if(!s){ body='<span style="color:var(--text2)">Loading…</span>'; }
     else if(!d){ body='<span style="color:var(--text2)">No send recorded yet</span>'; }
     else {
+      expandable=true;
       var when=d.ts?new Date(d.ts).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):(d.date||'');
       var statusGlyph=d.ok?icon('completed'):icon('issues');
       var detail=d.sent+' sent'+(d.qualifying?(' / '+d.qualifying+' qualified'):'')+(d.failed?(' · '+d.failed+' failed'):'')+(d.quotaHit?' · quota hit':'');
-      body=statusGlyph+' Last sent <b>'+esc(when)+'</b> &nbsp;·&nbsp; '+esc(detail);
+      var flagged=(d.people||[]).length+(d.truncated||0);
+      var tail = !d.hasDetail
+        ? '<span style="color:var(--text2)">· no breakdown</span>'
+        : (flagged
+            ? '<span style="color:var(--yellow);font-weight:600">· '+flagged+' need'+(flagged===1?'s':'')+' attention</span>'
+            : '<span style="color:var(--text2)">· none missed</span>');
+      body=statusGlyph+' Last sent <b>'+esc(when)+'</b> &nbsp;·&nbsp; '+esc(detail)+' &nbsp;'+tail;
     }
-    return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;flex-wrap:wrap">'+
-      '<span style="font-weight:700;min-width:128px">'+esc(label)+'</span>'+
+    var caret = expandable
+      ? '<span style="display:inline-block;opacity:.55;font-size:.66rem;transition:transform .12s ease'+(open?';transform:rotate(90deg)':'')+'">'+icon('chev-right')+'</span>'
+      : '<span style="width:9px;display:inline-block"></span>';
+    return '<div '+(expandable?'onclick="_asToggleDetail(\''+type+'\')" title="Click to see who did not get one" style="cursor:pointer;':'style="')+
+        'display:flex;align-items:center;gap:10px;padding:6px 0;flex-wrap:wrap">'+
+      caret+
+      '<span style="font-weight:700;min-width:118px">'+esc(label)+'</span>'+
       '<span style="font-size:.78rem;color:var(--text2);min-width:132px">Auto-sends '+esc(day)+' · 6pm PT</span>'+
       '<span style="font-size:.84rem">'+body+'</span>'+
-    '</div>';
+    '</div>'+
+    (expandable && open ? _asDetailPanel(type, d) : '');
   }
   return '<div style="border:1px solid var(--border);border-radius:10px;padding:9px 14px;margin-bottom:12px;background:var(--surface)">'+
     '<div style="font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:2px">Auto-email status</div>'+
