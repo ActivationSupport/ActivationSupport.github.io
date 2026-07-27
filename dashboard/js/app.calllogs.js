@@ -1101,9 +1101,11 @@ var _AS_REASON = {
   noOrders:      { label:'Tableau name matches no orders',       tone:'warn' }
 };
 var _AS_SKIP_LABEL = {
-  noProduction:  'no production in the last 14 days',
-  nothingToShow: 'nothing to show — all caught up',
-  deactivated:   'deactivated'
+  noProduction:   'no production in the last 14 days',
+  nothingToShow:  'nothing to show — all caught up',
+  staffNoTableau: 'office staff (no Tableau name — expected)',
+  staffNoOrders:  'office staff (no orders — expected)',
+  deactivated:    'deactivated'
 };
 var _AS_DETAIL_OPEN = { pending:false, activation:false };
 
