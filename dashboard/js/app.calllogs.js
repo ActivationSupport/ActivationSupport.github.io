@@ -1120,6 +1120,12 @@ function _asDetailPanel(type, d){
       'This run finished before the breakdown was recorded, so there is no per-rep detail for it. '+
       'The next send will have one.</div>';
   }
+  // The run refused to start because it would have sent from the personal Google account.
+  if(d.aborted){
+    return '<div style="padding:8px 0 10px 138px;font-size:.82rem;color:var(--red)">'+
+      '<b>Run aborted — nothing was sent.</b> The office mail relay is not configured, so these '+
+      'would have gone out from the personal portal account instead of ActivationSupport@AspireQc.com.</div>';
+  }
   var people=d.people||[], groups={}, order=[];
   people.forEach(function(p){
     var r=_AS_REASON[p.r]?p.r:'error';
@@ -1160,6 +1166,16 @@ function _asDetailPanel(type, d){
   if(parts.length){
     out+='<div style="padding:8px 0 2px;font-size:.78rem;color:var(--text2)">'+
       '<b>Not sent for expected reasons:</b> '+esc(parts.join(' · '))+'</div>';
+  }
+  // Which account these actually went out from — the relay means the Workspace mailbox.
+  var sn=d.sender;
+  if(sn && (sn.relay||sn.direct)){
+    out += sn.direct
+      ? '<div style="padding:6px 0 2px;font-size:.78rem;color:var(--red)"><b>⚠ '+sn.direct+
+        ' sent from the personal portal account</b>'+(sn.relay?(' · '+sn.relay+' via the relay'):'')+
+        ' — the relay should be handling every send.</div>'
+      : '<div style="padding:6px 0 2px;font-size:.78rem;color:var(--text2)">Sent from '+
+        '<b>ActivationSupport@AspireQc.com</b> via the office mail relay.</div>';
   }
   return '<div style="padding:2px 0 8px 138px">'+out+'</div>';
 }
