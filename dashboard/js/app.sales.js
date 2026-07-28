@@ -949,7 +949,16 @@ function renderFirstBillCalc() {
     }).join('');
   }
   return '<div class="card"><div class="card-header dark">' + icon('firstbill') + ' First Bill Calculator</div><div class="card-body">' +
-    '<div style="font-size:.85rem;color:var(--text2);margin-bottom:18px;line-height:1.5">Rough estimate only — excludes taxes &amp; fees. Assumes AT&amp;T\'s standard advance-billing proration (1 full month + a half-month partial). Nothing here is saved.</div>' +
+    '<div style="border:1px solid var(--yellow);border-radius:8px;padding:10px 13px;margin-bottom:16px;background:rgba(240,180,41,.10);font-size:.85rem;line-height:1.5">' +
+      '<b style="color:var(--yellow)">ESTIMATE ONLY — this is not the customer\'s actual first bill.</b> ' +
+      'Excludes taxes &amp; fees, and any promotional or trade-in credits (AutoPay and ' +
+      'smartphone-line discounts arrive as bill credits and can take up to 2 bills to appear). ' +
+      'Assumes AT&amp;T\'s standard advance-billing proration (1 full month + a half-month partial).' +
+      '<div style="margin-top:6px">Device costs are <b>MSRP at the lowest storage capacity</b>, ' +
+      'divided over 36 months — a higher-capacity model will cost more than shown. Enter the ' +
+      'real rack rate or the correct storage price to make the total accurate.</div>' +
+      '<div style="margin-top:6px;color:var(--text2)">Quote it to the customer as an approximate range, not a figure. Nothing here is saved.</div>' +
+    '</div>' +
     '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">' +
       '<div style="flex:1 1 260px;min-width:240px">' +
         '<div class="ps-label" style="margin-top:0">CONSUMER OR BUSINESS</div>' +
@@ -969,6 +978,9 @@ function renderFirstBillCalc() {
       '<div style="flex:1.5 1 260px;min-width:240px">' +
         '<div class="ps-label" style="margin-top:0">ESTIMATED FIRST BILL</div>' +
         '<div id="fbc-total" style="font-size:2.4rem;font-weight:700;color:var(--text)">' + _fbcMoney(_fbcTotal(d)) + '</div>' +
+        // Repeated next to the figure itself — this is the number that gets read out or
+        // screenshotted, often without the banner above it.
+        '<div style="font-size:.76rem;color:var(--yellow);margin-top:2px">Estimate — not the actual first bill. Devices priced at lowest storage.</div>' +
         '<div id="fbc-breakdown" style="margin-top:14px;font-size:.85rem;color:var(--text2)">' + _fbcBreakdownHtml(d) + '</div>' +
       '</div>' +
     '</div>' +
