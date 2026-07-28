@@ -601,10 +601,11 @@ var FBC_PLANS = {
 // catalogue, so make/model AND the price are MST's own — no more hand-matching against
 // att.com, and every row is priced.
 //
-// ⚠ AIA (2 rows) is the ONLY category still on the old hand-matched public-MSRP data, and
-//   one of its rows duplicates a device that now also sits under Hotspot (the Inseego
-//   Wavemaker FX4200, same $24.97). Paste the MST AIA list to replace it, or drop the
-//   category — until then a rep can find that gateway in two places.
+// Every category is now MST-sourced. The Inseego Wavemaker FX4200 is an AIA device (user-
+// confirmed), not a hotspot, so build-mst.js classifies it with an explicit rule:
+//   node build-mst.js mst-wearables-hotspots-2026-07-27.txt "Wearable=/watch/i,AIA=/wavemaker/i,Hotspot=*" --write
+// ⚠ That rebuild dropped the old hand-matched "Emblem AIA 5G Gateway - NCM112 - White"
+//   (absent from MST's list and never priced). Re-add it here if it is still sold.
 //
 // installment = "MSRP from" / 36 (AT&T's standard no-interest term).
 // ⚠ "MSRP from" is the BASE-storage price, so storage variants collapse to one row — a
@@ -615,10 +616,8 @@ var FBC_PLANS = {
 // To refresh: copy the MST list, save it under _private/device-catalog/, then
 //   node build-mst.js <rawfile> <Category> --write     (preview without --write)
 var FBC_DEVICES = [
-  { category:"AIA", make:"Emblem", model:"AIA 5G Gateway - NCM112 - White", storage:"", installment:null },
-  { category:"AIA", make:"Quality One Wireless", model:"Inseego Wavemaker FX4200 Black", storage:"", installment:24.97 },
+  { category:"AIA", make:"Inseego", model:"Inseego Wavemaker FX4200", storage:"", installment:24.97 },
   { category:"Hotspot", make:"AT&T", model:"GoLink 5G Hotspot", storage:"", installment:2.5 },
-  { category:"Hotspot", make:"Inseego", model:"Inseego Wavemaker FX4200", storage:"", installment:24.97 },
   { category:"Hotspot", make:"AT&T", model:"Franklin A70", storage:"", installment:5.83 },
   { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk® M7 PRO HOTSPOT", storage:"", installment:12.5 },
   { category:"Hotspot", make:"AT&T", model:"Franklin A50", storage:"", installment:5.83 },
@@ -867,7 +866,10 @@ var FBC_DEVICES = [
   { category:"Wearable", make:"Samsung", model:"Galaxy Watch Active2", storage:"", installment:7.78 }
 ];
 var FBC_MAX_LINES = 10;
-var FBC_ACTIVATION_FEE = 35;   // per line, per AT&T's fee schedule ("Activation/upgrade fee per line")
+// Per line. $35 for BOTH consumer and business — user-confirmed 2026-07-27, closing the
+// open question from 2026-07-20 (AT&T's business legal PDFs say "up to $50 per line", but
+// $35 is what actually bills).
+var FBC_ACTIVATION_FEE = 35;
 var _FBC = null;
 function _fbcInit() {
   if (_FBC) return;
@@ -959,7 +961,7 @@ function renderFirstBillCalc() {
         '<div class="ps-label">DEVICE TYPE (OPTIONAL)</div>' +
         '<select class="ps-select" id="fbc-devcat" onchange="_fbcSetDeviceCategory(this.value)">' + catOpts + '</select>' +
         (d.deviceCategory ? '<div class="ps-label">MODEL</div><select class="ps-select" id="fbc-devmodel" onchange="_fbcSetDeviceLabel(this.value)">' + modelOpts + '</select>' : '') +
-        '<div class="ps-label">DEVICE MONTHLY COST &mdash; TOTAL FOR ALL DEVICES. PICKING A MODEL FILLS AN ESTIMATE FROM PUBLIC RETAIL PRICE; REPLACE IT WITH THE RACK RATE</div>' +
+        '<div class="ps-label">DEVICE MONTHLY COST &mdash; TOTAL FOR ALL DEVICES. PICKING A MODEL FILLS IN MSRP &divide; 36 AT BASE STORAGE; REPLACE IT WITH THE RACK RATE, OR FOR HIGHER STORAGE</div>' +
         '<input class="ps-input" type="number" min="0" step="0.01" id="fbc-devcost" placeholder="0.00" value="' + esc(d.deviceCost) + '" oninput="_fbcSetDeviceCost(this.value)">' +
         '<div class="ps-label">NEXT UP ANYTIME ($10/mo)</div>' +
         '<div class="ps-toggle-row">' + nextUpTog('No', false) + nextUpTog('Yes', true) + '</div>' +
