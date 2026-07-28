@@ -578,19 +578,112 @@ var ATX_TYPES = [
   { cat:'appt', group:'Appointment',  key:'apptcancel', label:'Cancellation' },
   { cat:'appt', group:'Appointment',  key:'wrapup',   label:'Wrap Up' }
 ];
-// key -> body lines. Replace each array with the real script; merge fields available via
-// the `d` argument (see _atxFields). Return an array of lines or a string.
+// Types whose wording is MINE, not the user's — surfaced in the UI so nobody sends a draft
+// believing it is approved copy. Delete a key here once its wording is signed off.
+var ATX_DRAFT = { payment:1, tcs:1, byod:1, cancel:1, confirm:1, noshow:1, apptcancel:1, wrapup:1 };
+
+// key -> message body. Each entry is a function of the merge fields (see _atxFields) and
+// returns the WHOLE message as an array of lines — these are conversational SMS, so there
+// is no auto-appended header or details block. '' is a blank line.
+//
+// PROVENANCE: porting / noanswer / fol / delivery are the user's own templates, kept
+// near-verbatim (only the activator name, rep, date and VIP number are merged in). The
+// rest are drafts written to match that voice — see ATX_DRAFT.
 var ATX_SCRIPTS = {
-  payment:    null, porting: null, tcs:    null, byod:   null,
-  noanswer:   null, delivery:null, fol:    null, cancel: null,
-  confirm:    null, noshow:  null, apptcancel: null, wrapup: null
+  // ── User's own wording ──
+  porting: function(f) { return [
+    'Hey, ' + f.activator + ' here from AT&T. I was calling in regard to the order placed recently. ' +
+    'Upon reviewing your account there is a porting issue holding back the shipment of your devices. ' +
+    'Please use the link https://www.att.com/portstatus/ to fix the port issue or call into our VIP tower ' +
+    f.vip + ' to have it resolved with a live agent within two minutes. Please feel free to call or text me ' +
+    'back for additional assistance.'
+  ]; },
+  noanswer: function(f) { return [
+    'Hi, this is ' + f.activator + ' with AT&T Activation Support. We were trying to reach you regarding ' +
+    'the order you placed yesterday. If you have any questions or concerns, please feel free to call or ' +
+    'text us back.'
+  ]; },
+  fol: function(f) { return [
+    'Hi, this is ' + f.activator + ' with AT&T. I’m reaching out because our system is still showing ' +
+    'your new device hasn’t been turned on or activated yet.', '',
+    'If the phone isn’t activated soon, AT&T may flag it as lost or stolen, which can lead to the full ' +
+    'retail cost of the device being charged to the account. We definitely want to help you avoid that.', '',
+    'If you need any assistance, just let me know. I’m happy to walk you through the steps or set up a ' +
+    'quick meeting to get everything activated for you.'
+  ]; },
+  delivery: function(f) { return [
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. I just wanted to follow up regarding the ' +
+    'new ' + f.deviceWord + ' you ordered with ' + f.rep + ' on ' + f.date + '. If you have any questions ' +
+    'or would like help setting it up, feel free to call or text me back — I’ll be glad to assist!'
+  ]; },
+
+  // ── Drafts, in the same voice (ATX_DRAFT) ──
+  payment: function(f) { return [
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. I was reviewing the order you placed with ' +
+    f.rep + ' on ' + f.date + ', and it’s being held for a valid payment method — nothing has ' +
+    'shipped yet because of it.', '',
+    'You can get it updated by calling our VIP tower at ' + f.vip + ' and a live agent can take care of it ' +
+    'in a couple of minutes.', '',
+    'Please feel free to call or text me back if you’d like me to walk you through it.'
+  ]; },
+  tcs: function(f) { return [
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. Your order from ' + f.date + ' is waiting on ' +
+    'the terms and conditions to be accepted — that’s the last step before it can move forward.', '',
+    'AT&T sends them by email and text, and opening that link and accepting is all it takes. If you can’t ' +
+    'find it, our VIP tower at ' + f.vip + ' can resend it right away.', '',
+    'Please feel free to call or text me back if it doesn’t come through.'
+  ]; },
+  byod: function(f) { return [
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. I’m checking in on the device you’re ' +
+    'bringing over to your new line from the order on ' + f.date + '.', '',
+    'To finish activating it, the phone needs to be unlocked by your previous carrier and the IMEI confirmed ' +
+    'as compatible. If you’re not sure about either one, our VIP tower at ' + f.vip + ' can check it ' +
+    'while you’re on the line.', '',
+    'Happy to help — just call or text me back.'
+  ]; },
+  cancel: function(f) { return [
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. I’m reaching out because the order you ' +
+    'placed with ' + f.rep + ' on ' + f.date + ' is showing as cancelled on our end.', '',
+    'If that wasn’t intentional, we can usually get it back on track — call our VIP tower at ' +
+    f.vip + ' or reply here and I’ll look into it for you.', '',
+    'If it was intentional, no action is needed. I just wanted to make sure nothing went wrong.'
+  ]; },
+  confirm: function(f) { return [
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I’m confirming your ' +
+    'activation appointment for ' + f.apptWhen + '.', '',
+    'We’ll get everything from your order on ' + f.date + ' set up and working, and I can answer any ' +
+    'questions while we’re on the phone.', '',
+    'If that time no longer works, just call or text me back and we’ll move it.'
+  ]; },
+  noshow: function(f) { return [
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. We had your activation ' +
+    'appointment scheduled for ' + f.apptWhen + ' and I wasn’t able to reach you.', '',
+    'No problem at all — I’d like to get you rescheduled whenever it’s convenient. Just call ' +
+    'or text me back with a time that works and we’ll take care of it.'
+  ]; },
+  apptcancel: function(f) { return [
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. Your activation ' +
+    'appointment for ' + f.apptWhen + ' has been cancelled.', '',
+    'Whenever you’re ready to get set up, call or text me back and we’ll find a time that works. ' +
+    'Your VIP support line is ' + f.vip + ' if anything comes up before then.'
+  ]; },
+  wrapup: function(f) { return [
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. Thank you for your time ' +
+    'today — everything from your order on ' + f.date + ' should now be set up and working.', '',
+    'If anything comes up, your VIP support line is ' + f.vip + ', or you can call or text me back directly ' +
+    'and I’ll be glad to help.', '',
+    'Thanks again for choosing AT&T!'
+  ]; }
 };
 var _ATX = null;
 function _atxInit() {
   if (_ATX) return;
   _ATX = { cat:'call', type:'payment', accountNumber:'', repName:'', repPhone:'',
            products:{ Wireless:true, Fiber:false, Air:false, VoIP:false, DTV:false },
-           acctType:'Consumer', dateOfSale:_psOfficeToday(), custFirst:'', custInitial:'' };
+           acctType:'Consumer', dateOfSale:_psOfficeToday(), custFirst:'', custInitial:'',
+           // The activator signs the message ("this is Angel with AT&T"), so default to
+           // whoever is logged in rather than making them type it every time.
+           activator:(SESSION.name || '').split(' ')[0] || '', apptWhen:'' };
 }
 function _atxTypeDef(key) {
   for (var i = 0; i < ATX_TYPES.length; i++) if (ATX_TYPES[i].key === key) return ATX_TYPES[i];
@@ -600,6 +693,16 @@ function _atxTypeDef(key) {
 // exactly what is still missing rather than a blank or a stray comma.
 function _atxFields(d) {
   var sel = Object.keys(d.products || {}).filter(function(k){ return d.products[k]; });
+  // Reads naturally mid-sentence ("the new cellphone you ordered"), which a raw product
+  // list would not. Wireless is by far the common case.
+  var deviceWord = 'device';
+  if (sel.length === 1) {
+    if (sel[0] === 'Wireless') deviceWord = 'cellphone';
+    else if (sel[0] === 'Fiber') deviceWord = 'Fiber service';
+    else if (sel[0] === 'Air')  deviceWord = 'Internet Air service';
+    else if (sel[0] === 'DTV')  deviceWord = 'DIRECTV service';
+    else if (sel[0] === 'VoIP') deviceWord = 'phone service';
+  } else if (sel.length > 1) { deviceWord = 'service'; }
   return {
     name:    (d.custFirst || '').trim() || '[Customer first name]',
     initial: (d.custInitial || '').trim().toUpperCase().slice(0, 1),
@@ -607,35 +710,28 @@ function _atxFields(d) {
     rep:     (d.repName || '').trim() || '[Sales rep]',
     repPhone:(d.repPhone || '').trim() || '[Rep number]',
     date:    (d.dateOfSale || '').trim() || '[Date of sale]',
+    activator:(d.activator || '').trim() || '[Your name]',
+    apptWhen:(d.apptWhen || '').trim() || '[Appointment date & time]',
     sold:    sel.length ? sel.join(' + ') : '[What was sold]',
+    deviceWord: deviceWord,
     isBiz:   d.acctType === 'Business',
     vip:     d.acctType === 'Business' ? '855 370 6941' : '833 603 3270',
     typeLabel: _atxTypeDef(d.type).label
   };
 }
+// The script IS the whole message — these are conversational SMS, so nothing is prepended
+// or appended. The fields the body doesn't use are still there for the activator's own
+// reference while working the order.
 function _atxText(d) {
   var f = _atxFields(d);
   var body = ATX_SCRIPTS[d.type];
-  var s = [];
-  s.push('Hi ' + f.name + ',', '');
   if (typeof body === 'function') body = body(f, d);
-  if (Array.isArray(body)) s = s.concat(body);
-  else if (typeof body === 'string' && body) s.push(body);
-  else {
-    s.push('[ ' + f.typeLabel.toUpperCase() + ' — script not added yet ]', '');
-    s.push('Paste the wording for this message type into ATX_SCRIPTS.' + d.type + '.');
-    s.push('Available merge fields: customer first name, last initial, account number,');
-    s.push('sales rep + their number, what was sold, Consumer/Business, date of sale.', '');
-  }
-  s.push('———————————————————', '');
-  s.push('Order details');
-  s.push('   • Customer: ' + f.name + (f.initial ? ' ' + f.initial + '.' : ''));
-  s.push('   • Account: ' + f.acct);
-  s.push('   • Sold: ' + f.sold + ' (' + (f.isBiz ? 'Business' : 'Consumer') + ')');
-  s.push('   • Order date: ' + f.date);
-  s.push('   • Sales rep: ' + f.rep + ' — ' + f.repPhone, '');
-  s.push('📞 VIP Support Line: ' + f.vip);
-  return s.join('\n');
+  if (Array.isArray(body)) return body.join('\n');
+  if (typeof body === 'string' && body) return body;
+  return '[ ' + f.typeLabel.toUpperCase() + ' — no wording added yet ]\n\n' +
+         'Add it to ATX_SCRIPTS.' + d.type + '. Merge fields: activator name, customer first\n' +
+         'name + last initial, account number, sales rep + their number, what was sold,\n' +
+         'Consumer/Business, date of sale, appointment date & time, VIP number.';
 }
 function renderActivatorTextTab() {
   _atxInit();
@@ -660,16 +756,20 @@ function renderActivatorTextTab() {
     picker += '<div class="ps-toggle' + (d.type === t.key ? ' active' : '') + '" onclick="_atxPick(\'type\',\'' + t.key + '\')">' + esc(t.label) + '</div>';
   });
   if (lastGroup !== null) picker += '</div>';
-  var missing = !ATX_SCRIPTS[d.type];
+  var missing = !ATX_SCRIPTS[d.type], isDraft = !!ATX_DRAFT[d.type];
   return '<div class="card"><div class="card-header dark">' + icon('smartphone') + ' Activator Text</div><div class="card-body">' +
     '<div style="font-size:.85rem;color:var(--text2);margin-bottom:16px;line-height:1.5">Fill in the order once, pick the call type, then tap <b>Copy Text</b> and send it to the customer. Nothing here is saved — the account number is used only to build the message.</div>' +
     (missing ? '<div style="border:1px solid var(--yellow);border-radius:8px;padding:9px 12px;margin-bottom:14px;background:rgba(240,180,41,.10);font-size:.83rem">' +
-        '<b style="color:var(--yellow)">No script yet for “' + esc(_atxTypeDef(d.type).label) + '”.</b> The order-details block below is real; the message body is a placeholder until the wording is added.</div>' : '') +
+        '<b style="color:var(--yellow)">No wording yet for “' + esc(_atxTypeDef(d.type).label) + '”.</b></div>'
+     : isDraft ? '<div style="border:1px solid var(--yellow);border-radius:8px;padding:9px 12px;margin-bottom:14px;background:rgba(240,180,41,.10);font-size:.83rem">' +
+        '<b style="color:var(--yellow)">Draft wording.</b> “' + esc(_atxTypeDef(d.type).label) + '” was written to match your other templates — read it before sending, and tell me what to change.</div>' : '') +
     '<div class="ps-toggle-row" style="margin-bottom:4px">' + catTog('call', 'Call Text') + catTog('appt', 'Appointment Text') + '</div>' +
     picker +
     '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:14px">' +
       '<div style="flex:1 1 240px;min-width:220px">' +
-        '<div class="ps-label" style="margin-top:0">ACCOUNT NUMBER</div>' +
+        '<div class="ps-label" style="margin-top:0">YOUR NAME &mdash; how you sign the text</div>' +
+        '<input class="ps-input" value="' + esc(d.activator) + '" placeholder="Angel" oninput="_atxSet(\'activator\',this.value)">' +
+        '<div class="ps-label">ACCOUNT NUMBER</div>' +
         '<input class="ps-input" value="' + esc(d.accountNumber) + '" placeholder="Used only for this text — not saved" oninput="_atxSet(\'accountNumber\',this.value)">' +
         '<div class="ps-label">CUSTOMER FIRST NAME</div>' +
         '<input class="ps-input" value="' + esc(d.custFirst) + '" placeholder="First name" oninput="_atxSet(\'custFirst\',this.value)">' +
@@ -687,6 +787,10 @@ function renderActivatorTextTab() {
         '<div class="ps-toggle-row">' + acctTog('Consumer') + acctTog('Business') + '</div>' +
         '<div class="ps-label">DATE OF SALE</div>' +
         '<input class="ps-input" type="date" value="' + esc(d.dateOfSale) + '" onchange="_atxSet(\'dateOfSale\',this.value)">' +
+        // Only the appointment messages reference a time, so the field only appears there.
+        (d.cat === 'appt' ?
+          '<div class="ps-label">APPOINTMENT DATE &amp; TIME</div>' +
+          '<input class="ps-input" value="' + esc(d.apptWhen) + '" placeholder="Thu Jul 30 at 2:00 PM" oninput="_atxSet(\'apptWhen\',this.value)">' : '') +
       '</div>' +
       '<div style="flex:1.6 1 300px;min-width:260px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;gap:10px;flex-wrap:wrap">' +
