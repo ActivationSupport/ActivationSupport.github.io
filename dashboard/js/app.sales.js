@@ -555,6 +555,183 @@ function _rehashText(d) {
   return s.join('\n');
 }
 
+// ── ACTIVATOR TEXT ────────────────────────────────────────────────────────
+// Activator-side counterpart to Rehash Text: fill the order details once, pick the call
+// type, copy the customer-facing message. CUSTOMER-FACING (addressed "Hi <first name>,"),
+// with the sales rep's name + number included so the customer knows who to contact.
+// Nothing is saved — no backend call; the account number only builds the message.
+//
+// ⚠ The per-type bodies in ATX_SCRIPTS are PLACEHOLDERS. The user is supplying the real
+//   wording; drop it in verbatim rather than inventing a voice. Everything else — the
+//   fields, the header/footer, the picker, copy-to-clipboard — is finished.
+var ATX_TYPES = [
+  { cat:'call', group:'Order issues', key:'payment',  label:'Pending Valid Payment' },
+  { cat:'call', group:'Order issues', key:'porting',  label:'Porting Issue' },
+  { cat:'call', group:'Order issues', key:'tcs',      label:'Missing T&Cs' },
+  { cat:'call', group:'Order issues', key:'byod',     label:'BYOD Status' },
+  { cat:'call', group:'Other calls',  key:'noanswer', label:'No Answer' },
+  { cat:'call', group:'Other calls',  key:'delivery', label:'Delivery' },
+  { cat:'call', group:'Other calls',  key:'fol',      label:'Fear of Loss' },
+  { cat:'call', group:'Other calls',  key:'cancel',   label:'Cancellation / Disconnect' },
+  { cat:'appt', group:'Appointment',  key:'confirm',  label:'Confirmation' },
+  { cat:'appt', group:'Appointment',  key:'noshow',   label:'No Show' },
+  { cat:'appt', group:'Appointment',  key:'apptcancel', label:'Cancellation' },
+  { cat:'appt', group:'Appointment',  key:'wrapup',   label:'Wrap Up' }
+];
+// key -> body lines. Replace each array with the real script; merge fields available via
+// the `d` argument (see _atxFields). Return an array of lines or a string.
+var ATX_SCRIPTS = {
+  payment:    null, porting: null, tcs:    null, byod:   null,
+  noanswer:   null, delivery:null, fol:    null, cancel: null,
+  confirm:    null, noshow:  null, apptcancel: null, wrapup: null
+};
+var _ATX = null;
+function _atxInit() {
+  if (_ATX) return;
+  _ATX = { cat:'call', type:'payment', accountNumber:'', repName:'', repPhone:'',
+           products:{ Wireless:true, Fiber:false, Air:false, VoIP:false, DTV:false },
+           acctType:'Consumer', dateOfSale:_psOfficeToday(), custFirst:'', custInitial:'' };
+}
+function _atxTypeDef(key) {
+  for (var i = 0; i < ATX_TYPES.length; i++) if (ATX_TYPES[i].key === key) return ATX_TYPES[i];
+  return ATX_TYPES[0];
+}
+// Merge fields, each falling back to a visible [placeholder] so a half-filled message shows
+// exactly what is still missing rather than a blank or a stray comma.
+function _atxFields(d) {
+  var sel = Object.keys(d.products || {}).filter(function(k){ return d.products[k]; });
+  return {
+    name:    (d.custFirst || '').trim() || '[Customer first name]',
+    initial: (d.custInitial || '').trim().toUpperCase().slice(0, 1),
+    acct:    (d.accountNumber || '').trim() || '[Account number]',
+    rep:     (d.repName || '').trim() || '[Sales rep]',
+    repPhone:(d.repPhone || '').trim() || '[Rep number]',
+    date:    (d.dateOfSale || '').trim() || '[Date of sale]',
+    sold:    sel.length ? sel.join(' + ') : '[What was sold]',
+    isBiz:   d.acctType === 'Business',
+    vip:     d.acctType === 'Business' ? '855 370 6941' : '833 603 3270',
+    typeLabel: _atxTypeDef(d.type).label
+  };
+}
+function _atxText(d) {
+  var f = _atxFields(d);
+  var body = ATX_SCRIPTS[d.type];
+  var s = [];
+  s.push('Hi ' + f.name + ',', '');
+  if (typeof body === 'function') body = body(f, d);
+  if (Array.isArray(body)) s = s.concat(body);
+  else if (typeof body === 'string' && body) s.push(body);
+  else {
+    s.push('[ ' + f.typeLabel.toUpperCase() + ' — script not added yet ]', '');
+    s.push('Paste the wording for this message type into ATX_SCRIPTS.' + d.type + '.');
+    s.push('Available merge fields: customer first name, last initial, account number,');
+    s.push('sales rep + their number, what was sold, Consumer/Business, date of sale.', '');
+  }
+  s.push('———————————————————', '');
+  s.push('Order details');
+  s.push('   • Customer: ' + f.name + (f.initial ? ' ' + f.initial + '.' : ''));
+  s.push('   • Account: ' + f.acct);
+  s.push('   • Sold: ' + f.sold + ' (' + (f.isBiz ? 'Business' : 'Consumer') + ')');
+  s.push('   • Order date: ' + f.date);
+  s.push('   • Sales rep: ' + f.rep + ' — ' + f.repPhone, '');
+  s.push('📞 VIP Support Line: ' + f.vip);
+  return s.join('\n');
+}
+function renderActivatorTextTab() {
+  _atxInit();
+  var d = _ATX;
+  var catTog = function(v, label) {
+    return '<div class="ps-toggle' + (d.cat === v ? ' active' : '') + '" onclick="_atxSetCat(\'' + v + '\')">' + esc(label) + '</div>';
+  };
+  var acctTog = function(v) {
+    return '<div class="ps-toggle' + (d.acctType === v ? ' active' : '') + '" onclick="_atxPick(\'acctType\',\'' + v + '\')">' + v + '</div>';
+  };
+  var prodTog = function(v) {
+    return '<div class="ps-toggle' + (d.products[v] ? ' active' : '') + '" onclick="_atxToggleProduct(\'' + v + '\')">' + v + '</div>';
+  };
+  // Type picker, grouped, showing only the active category.
+  var picker = '', lastGroup = null;
+  ATX_TYPES.filter(function(t){ return t.cat === d.cat; }).forEach(function(t) {
+    if (t.group !== lastGroup) {
+      if (lastGroup !== null) picker += '</div>';
+      picker += '<div class="ps-label">' + esc(t.group.toUpperCase()) + '</div><div class="ps-toggle-row" style="flex-wrap:wrap">';
+      lastGroup = t.group;
+    }
+    picker += '<div class="ps-toggle' + (d.type === t.key ? ' active' : '') + '" onclick="_atxPick(\'type\',\'' + t.key + '\')">' + esc(t.label) + '</div>';
+  });
+  if (lastGroup !== null) picker += '</div>';
+  var missing = !ATX_SCRIPTS[d.type];
+  return '<div class="card"><div class="card-header dark">' + icon('smartphone') + ' Activator Text</div><div class="card-body">' +
+    '<div style="font-size:.85rem;color:var(--text2);margin-bottom:16px;line-height:1.5">Fill in the order once, pick the call type, then tap <b>Copy Text</b> and send it to the customer. Nothing here is saved — the account number is used only to build the message.</div>' +
+    (missing ? '<div style="border:1px solid var(--yellow);border-radius:8px;padding:9px 12px;margin-bottom:14px;background:rgba(240,180,41,.10);font-size:.83rem">' +
+        '<b style="color:var(--yellow)">No script yet for “' + esc(_atxTypeDef(d.type).label) + '”.</b> The order-details block below is real; the message body is a placeholder until the wording is added.</div>' : '') +
+    '<div class="ps-toggle-row" style="margin-bottom:4px">' + catTog('call', 'Call Text') + catTog('appt', 'Appointment Text') + '</div>' +
+    picker +
+    '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:14px">' +
+      '<div style="flex:1 1 240px;min-width:220px">' +
+        '<div class="ps-label" style="margin-top:0">ACCOUNT NUMBER</div>' +
+        '<input class="ps-input" value="' + esc(d.accountNumber) + '" placeholder="Used only for this text — not saved" oninput="_atxSet(\'accountNumber\',this.value)">' +
+        '<div class="ps-label">CUSTOMER FIRST NAME</div>' +
+        '<input class="ps-input" value="' + esc(d.custFirst) + '" placeholder="First name" oninput="_atxSet(\'custFirst\',this.value)">' +
+        '<div class="ps-label">CUSTOMER LAST INITIAL</div>' +
+        '<input class="ps-input" maxlength="1" style="max-width:90px" value="' + esc(d.custInitial) + '" placeholder="M" oninput="_atxSet(\'custInitial\',this.value)">' +
+        '<div class="ps-label">SALES REP</div>' +
+        '<input class="ps-input" value="' + esc(d.repName) + '" placeholder="Rep name" oninput="_atxSet(\'repName\',this.value)">' +
+        '<div class="ps-label">SALES REP NUMBER</div>' +
+        '<input class="ps-input" type="tel" value="' + esc(d.repPhone) + '" placeholder="555-123-4567" oninput="_atxSet(\'repPhone\',this.value)">' +
+      '</div>' +
+      '<div style="flex:1 1 240px;min-width:220px">' +
+        '<div class="ps-label" style="margin-top:0">WHAT WAS SOLD &mdash; select all that apply</div>' +
+        '<div class="ps-toggle-row" style="flex-wrap:wrap">' + prodTog('Wireless') + prodTog('Fiber') + prodTog('Air') + prodTog('VoIP') + prodTog('DTV') + '</div>' +
+        '<div class="ps-label">ACCOUNT TYPE</div>' +
+        '<div class="ps-toggle-row">' + acctTog('Consumer') + acctTog('Business') + '</div>' +
+        '<div class="ps-label">DATE OF SALE</div>' +
+        '<input class="ps-input" type="date" value="' + esc(d.dateOfSale) + '" onchange="_atxSet(\'dateOfSale\',this.value)">' +
+      '</div>' +
+      '<div style="flex:1.6 1 300px;min-width:260px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;gap:10px;flex-wrap:wrap">' +
+          '<span class="ps-label" style="margin:0">MESSAGE PREVIEW</span>' +
+          '<button class="ps-btn" onclick="_atxCopy(this)">' + icon('copy') + ' Copy Text</button>' +
+        '</div>' +
+        '<textarea id="atx-preview" readonly style="width:100%;min-height:420px;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;line-height:1.5;padding:14px;white-space:pre-wrap;resize:vertical">' + esc(_atxText(d)) + '</textarea>' +
+      '</div>' +
+    '</div>' +
+  '</div></div>';
+}
+// Typing only refreshes the preview — a repaint would steal focus from the input.
+function _atxSet(field, val) {
+  _atxInit(); _ATX[field] = val;
+  var t = document.getElementById('atx-preview'); if (t) t.value = _atxText(_ATX);
+}
+function _atxPick(field, val) { _atxInit(); _ATX[field] = val; _atxRepaint(); }
+function _atxSetCat(cat) {
+  _atxInit(); _ATX.cat = cat;
+  // Land on the first type of the newly selected category, so the preview never shows a
+  // message belonging to the tab you just left.
+  var first = ATX_TYPES.filter(function(t){ return t.cat === cat; })[0];
+  if (first) _ATX.type = first.key;
+  _atxRepaint();
+}
+function _atxToggleProduct(v) {
+  _atxInit();
+  var p = _ATX.products, on = Object.keys(p).filter(function(k){ return p[k]; });
+  if (p[v] && on.length === 1) return;   // keep at least one selected
+  p[v] = !p[v];
+  _atxRepaint();
+}
+function _atxRepaint() { var c = document.getElementById('main-content'); if (c) c.innerHTML = renderActivatorTextTab(); }
+function _atxCopy(btn) {
+  var t = document.getElementById('atx-preview'); if (!t) return;
+  t.select(); t.setSelectionRange(0, 999999);
+  var done = function() {
+    var old = btn.innerHTML; btn.innerHTML = icon('completed') + ' Copied';
+    setTimeout(function(){ btn.innerHTML = old; }, 1400);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t.value).then(done, function(){ try { document.execCommand('copy'); done(); } catch(e) {} });
+  } else { try { document.execCommand('copy'); done(); } catch(e) {} }
+}
+
 // ── FIRST BILL CALCULATOR ───────────────────────────────────────────────────
 // Quick, rough estimate of a customer's first AT&T bill (no taxes/fees) — matches the
 // billing explanation already sent in the Rehash text ("First Bill — starts higher due

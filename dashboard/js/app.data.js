@@ -527,6 +527,7 @@ function renderTab(id) {
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
     case 'postsale':    c.innerHTML = renderPostSale();    break;
     case 'rehash':      c.innerHTML = renderRehashTab();   break;
+    case 'acttext':     c.innerHTML = renderActivatorTextTab(); break;
     case 'firstbill':   c.innerHTML = renderFirstBillCalc(); break;
     case 'postedsales': renderPostedSalesTab();           break;
     case 'livesales':   renderLiveSalesTracker();          break;

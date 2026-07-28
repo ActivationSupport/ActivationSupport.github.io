@@ -738,6 +738,9 @@ var TABS = [
   // Everyone sees the tab; repFilter() scopes it — client-rep to their own lines, leader to
   // their team, everyone else office-wide (the server scopes masterTracker the same way).
   { id: 'actsupport',  label: 'Activation Support',    roles: ALL_ROLES,  group: 'Orders',      sub: 'Pending & Activation sheets — Date → Rep → Product → Status' },
+  // Activator-side counterpart to the reps' Rehash Text — customer-facing messages for the
+  // call/appointment types activators work out of the Call Logs tabs.
+  { id: 'acttext',     label: 'Activator Text',       roles: ['activator','master-admin'], group: 'Call Logs', sub: 'Customer texts for order issues & appointments', icon: 'smartphone' },
   { id: 'master',      label: 'Master Tracker',       roles: ROLES_CALL, group: 'Call Logs',   sub: '120-day window' },
   { id: 'dayafter',    label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
   { id: 'delivered',   label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
