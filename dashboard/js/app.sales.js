@@ -871,9 +871,27 @@ var FBC_MAX_LINES = 10;
 // $35 is what actually bills).
 var FBC_ACTIVATION_FEE = 35;
 var _FBC = null;
+// Sentinel category for a line the customer is keeping their own handset on. Distinct from
+// '' (nothing picked yet) so a deliberate BYOD line doesn't look like a half-filled quote.
+var FBC_BYOD = '__byod__';
+function _fbcBlankDevice() { return { cat:'', label:'', cost:'' }; }
 function _fbcInit() {
   if (_FBC) return;
-  _FBC = { segment:'consumer', lines:1, plan:FBC_PLANS.consumer.order[0], deviceCategory:'', deviceLabel:'', deviceCost:'', nextUp:false };
+  _FBC = { segment:'consumer', lines:1, plan:FBC_PLANS.consumer.order[0], devices:[_fbcBlankDevice()], nextUp:false };
+}
+// One device row per line — a 4-line account rarely takes 4 of the same handset. Rows are
+// kept in step with the line count: extra rows are dropped, new lines start blank, and rows
+// already filled in keep their selection so going 3 -> 4 lines doesn't wipe the quote.
+function _fbcSyncDevices(d) {
+  var n = _fbcLines(d);
+  if (!d.devices) d.devices = [];
+  while (d.devices.length < n) d.devices.push(_fbcBlankDevice());
+  if (d.devices.length > n) d.devices.length = n;
+  return d.devices;
+}
+function _fbcDeviceAt(i) { var a = _fbcSyncDevices(_FBC); return a[i] || null; }
+function _fbcDeviceTotal(d) {
+  return _fbcSyncDevices(d).reduce(function(sum, x) { return sum + _fbcNum(x.cost); }, 0);
 }
 function _fbcNum(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
 function _fbcLines(d) {
@@ -894,10 +912,10 @@ function _fbcPlanPrice(d) {
   return tierPrices[d.plan] || 0;
 }
 // Plan rate and activation fee are both PER LINE, so both scale with the line count; the
-// device cost field is a single hand-entered total, and Next Up is account-level.
+// device cost is the sum of the per-line rows, and Next Up is account-level.
 function _fbcTotal(d) {
   var lines = _fbcLines(d);
-  return (_fbcPlanPrice(d) * lines * 1.5) + _fbcNum(d.deviceCost)
+  return (_fbcPlanPrice(d) * lines * 1.5) + _fbcDeviceTotal(d)
        + (FBC_ACTIVATION_FEE * lines) + (d.nextUp ? 10 : 0);
 }
 function _fbcMoney(n) { return '$' + n.toFixed(2); }
@@ -911,10 +929,19 @@ function _fbcDeviceLabel(x) { return x.make + ' ' + x.model + (x.storage ? ' - '
 function _fbcBreakdownHtml(d) {
   var planPrice = _fbcPlanPrice(d), lines = _fbcLines(d);
   var rows = [
-    ['Plan: ' + (d.plan || '—') + ' (' + _fbcLineLabel(lines) + ' x $' + planPrice + '/line x 1.5)', planPrice * lines * 1.5],
-    ['Device' + (d.deviceLabel ? ': ' + d.deviceLabel : ''), _fbcNum(d.deviceCost)],
-    ['Activation fee ($' + FBC_ACTIVATION_FEE + ' x ' + _fbcLineLabel(lines) + ')', FBC_ACTIVATION_FEE * lines]
+    ['Plan: ' + (d.plan || '—') + ' (' + _fbcLineLabel(lines) + ' x $' + planPrice + '/line x 1.5)', planPrice * lines * 1.5]
   ];
+  // Itemise per line so the rep can see which handset drove the total, rather than one
+  // opaque device figure. Lines still untouched are skipped; BYOD is shown deliberately.
+  var touched = 0;
+  _fbcSyncDevices(d).forEach(function(x, i) {
+    var cost = _fbcNum(x.cost);
+    if (!x.label && !cost && x.cat !== FBC_BYOD) return;
+    touched++;
+    rows.push(['Line ' + (i + 1) + ': ' + (x.cat === FBC_BYOD ? 'BYOD — no device' : (x.label || 'device')), cost]);
+  });
+  if (!touched) rows.push(['Devices — none selected', 0]);
+  rows.push(['Activation fee ($' + FBC_ACTIVATION_FEE + ' x ' + _fbcLineLabel(lines) + ')', FBC_ACTIVATION_FEE * lines]);
   if (d.nextUp) rows.push(['Next Up Anytime', 10]);
   return rows.map(function(r) {
     return '<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0"><span>' + esc(r[0]) + '</span><span>' + _fbcMoney(r[1]) + '</span></div>';
@@ -935,19 +962,7 @@ function renderFirstBillCalc() {
     var price = tierPrices[p] || 0;
     return '<option value="' + esc(p) + '"' + (p === d.plan ? ' selected' : '') + '>' + esc(p) + ' — $' + price + '/line</option>';
   }).join('');
-  var catOpts = '<option value="">— none —</option>' + _fbcDeviceCategories().map(function(c) {
-    return '<option value="' + esc(c) + '"' + (c === d.deviceCategory ? ' selected' : '') + '>' + esc(c) + '</option>';
-  }).join('');
-  var modelOpts = '';
-  if (d.deviceCategory) {
-    var list = FBC_DEVICES.filter(function(x){ return x.category === d.deviceCategory; })
-      .map(function(x){ return { label: _fbcDeviceLabel(x), installment: x.installment }; })
-      .sort(function(a, b){ return a.label.localeCompare(b.label); });
-    modelOpts = '<option value="">— select —</option>' + list.map(function(x) {
-      var priceTag = x.installment != null ? ' — ~$' + x.installment + '/mo' : ' — no price found';
-      return '<option value="' + esc(x.label) + '"' + (x.label === d.deviceLabel ? ' selected' : '') + '>' + esc(x.label + priceTag) + '</option>';
-    }).join('');
-  }
+  var deviceRows = _fbcSyncDevices(d).map(_fbcDeviceRowHtml).join('');
   return '<div class="card"><div class="card-header dark">' + icon('firstbill') + ' First Bill Calculator</div><div class="card-body">' +
     '<div style="border:1px solid var(--yellow);border-radius:8px;padding:10px 13px;margin-bottom:16px;background:rgba(240,180,41,.10);font-size:.85rem;line-height:1.5">' +
       '<b style="color:var(--yellow)">ESTIMATE ONLY — this is not the customer\'s actual first bill.</b> ' +
@@ -967,11 +982,6 @@ function renderFirstBillCalc() {
         '<select class="ps-select" id="fbc-lines" onchange="_fbcSetLines(this.value)">' + lineOpts + '</select>' +
         '<div class="ps-label">PLAN</div>' +
         '<select class="ps-select" id="fbc-plan" onchange="_fbcSetPlan(this.value)">' + planOpts + '</select>' +
-        '<div class="ps-label">DEVICE TYPE (OPTIONAL)</div>' +
-        '<select class="ps-select" id="fbc-devcat" onchange="_fbcSetDeviceCategory(this.value)">' + catOpts + '</select>' +
-        (d.deviceCategory ? '<div class="ps-label">MODEL</div><select class="ps-select" id="fbc-devmodel" onchange="_fbcSetDeviceLabel(this.value)">' + modelOpts + '</select>' : '') +
-        '<div class="ps-label">DEVICE MONTHLY COST &mdash; TOTAL FOR ALL DEVICES. PICKING A MODEL FILLS IN MSRP &divide; 36 AT BASE STORAGE; REPLACE IT WITH THE RACK RATE, OR FOR HIGHER STORAGE</div>' +
-        '<input class="ps-input" type="number" min="0" step="0.01" id="fbc-devcost" placeholder="0.00" value="' + esc(d.deviceCost) + '" oninput="_fbcSetDeviceCost(this.value)">' +
         '<div class="ps-label">NEXT UP ANYTIME ($10/mo)</div>' +
         '<div class="ps-toggle-row">' + nextUpTog('No', false) + nextUpTog('Yes', true) + '</div>' +
       '</div>' +
@@ -984,7 +994,50 @@ function renderFirstBillCalc() {
         '<div id="fbc-breakdown" style="margin-top:14px;font-size:.85rem;color:var(--text2)">' + _fbcBreakdownHtml(d) + '</div>' +
       '</div>' +
     '</div>' +
+    // Devices get the full width below the two columns — one row per line, and at 10 lines
+    // this would be unusably cramped in the narrow left column.
+    '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px">' +
+      '<div class="ps-label" style="margin-top:0">DEVICES &mdash; ONE PER LINE. PICKING A MODEL FILLS IN MSRP &divide; 36 AT BASE STORAGE; ' +
+        'REPLACE IT WITH THE RACK RATE, OR FOR HIGHER STORAGE. LINES BRINGING THEIR OWN HANDSET &rarr; NONE / BYOD</div>' +
+      deviceRows +
+      '<div style="display:flex;justify-content:flex-end;gap:12px;align-items:baseline;padding:10px 2px 0;font-size:.9rem">' +
+        '<span style="color:var(--text2)">Devices total</span>' +
+        '<span id="fbc-devtotal" style="font-weight:700;min-width:90px;text-align:right">' + _fbcMoney(_fbcDeviceTotal(d)) + '</span>' +
+      '</div>' +
+    '</div>' +
   '</div></div>';
+}
+// One device row = one line on the account: [Line n] [category] [model] [$ /mo].
+function _fbcDeviceRowHtml(x, i) {
+  var catOpts = '<option value="">&mdash; select &mdash;</option>' +
+    '<option value="' + FBC_BYOD + '"' + (x.cat === FBC_BYOD ? ' selected' : '') + '>None / BYOD</option>' +
+    _fbcDeviceCategories().map(function(c) {
+      return '<option value="' + esc(c) + '"' + (c === x.cat ? ' selected' : '') + '>' + esc(c) + '</option>';
+    }).join('');
+  var modelSel = '';
+  if (x.cat && x.cat !== FBC_BYOD) {
+    var list = FBC_DEVICES.filter(function(y) { return y.category === x.cat; })
+      .map(function(y) { return { label: _fbcDeviceLabel(y), installment: y.installment }; })
+      .sort(function(a, b) { return a.label.localeCompare(b.label); });
+    var modelOpts = '<option value="">&mdash; select &mdash;</option>' + list.map(function(y) {
+      var tag = y.installment != null ? ' — ~$' + y.installment + '/mo' : ' — no price found';
+      return '<option value="' + esc(y.label) + '"' + (y.label === x.label ? ' selected' : '') + '>' + esc(y.label + tag) + '</option>';
+    }).join('');
+    modelSel = '<select class="ps-select" style="flex:1 1 260px;min-width:180px;margin:0" ' +
+      'onchange="_fbcSetDeviceLabelAt(' + i + ', this.value)">' + modelOpts + '</select>';
+  } else {
+    modelSel = '<span style="flex:1 1 260px;min-width:180px;font-size:.82rem;color:var(--text2)">' +
+      (x.cat === FBC_BYOD ? 'Keeping their own device &mdash; no installment' : 'Pick a device type') + '</span>';
+  }
+  var byod = x.cat === FBC_BYOD;
+  return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 2px;border-bottom:1px solid var(--border)">' +
+      '<span style="flex:0 0 56px;font-weight:600;font-size:.8rem;color:var(--text2)">Line ' + (i + 1) + '</span>' +
+      '<select class="ps-select" style="flex:0 0 155px;margin:0" onchange="_fbcSetDeviceCatAt(' + i + ', this.value)">' + catOpts + '</select>' +
+      modelSel +
+      '<input class="ps-input" type="number" min="0" step="0.01" style="flex:0 0 110px;margin:0"' +
+        (byod ? ' disabled' : '') + ' placeholder="0.00" value="' + esc(byod ? '' : x.cost) + '" ' +
+        'oninput="_fbcSetDeviceCostAt(' + i + ', this.value)" aria-label="Line ' + (i + 1) + ' monthly device cost">' +
+    '</div>';
 }
 function _fbcRepaint() { var c = document.getElementById('main-content'); if (c) c.innerHTML = renderFirstBillCalc(); }
 // Line count survives a segment switch (the tier resolves per-segment); the plan can't, since
@@ -995,19 +1048,32 @@ function _fbcSetSegment(val) {
 }
 function _fbcSetLines(val) { _fbcInit(); _FBC.lines = parseInt(val, 10) || 1; _fbcRepaint(); }
 function _fbcSetPlan(val) { _fbcInit(); _FBC.plan = val; _fbcRepaint(); }
-function _fbcSetDeviceCategory(val) { _fbcInit(); _FBC.deviceCategory = val; _FBC.deviceLabel = ''; _fbcRepaint(); }
-// Picking a model auto-fills an estimated installment (public MSRP / 36mo) when we have one
-// for that device — still just a starting point, the rep can edit the cost field either way.
-function _fbcSetDeviceLabel(val) {
-  _fbcInit(); _FBC.deviceLabel = val;
-  var match = FBC_DEVICES.find(function(x){ return x.category === _FBC.deviceCategory && _fbcDeviceLabel(x) === val; });
-  if (match && match.installment != null) _FBC.deviceCost = String(match.installment);
+// Per-line device setters. Changing type or model repaints (the row's controls change);
+// typing a cost must NOT repaint or the input loses focus mid-keystroke, so it updates the
+// totals in place instead.
+function _fbcSetDeviceCatAt(i, val) {
+  _fbcInit(); var x = _fbcDeviceAt(i); if (!x) return;
+  x.cat = val; x.label = '';
+  x.cost = (val === FBC_BYOD) ? '0' : '';
   _fbcRepaint();
 }
-function _fbcSetDeviceCost(val) {
-  _fbcInit(); _FBC.deviceCost = val;
-  var t = document.getElementById('fbc-total'); if (t) t.textContent = _fbcMoney(_fbcTotal(_FBC));
+// Picking a model auto-fills an estimated installment (MSRP / 36mo at base storage) when we
+// have one — a starting point; the rep can overwrite it with the rack rate either way.
+function _fbcSetDeviceLabelAt(i, val) {
+  _fbcInit(); var x = _fbcDeviceAt(i); if (!x) return;
+  x.label = val;
+  var match = FBC_DEVICES.find(function(y) { return y.category === x.cat && _fbcDeviceLabel(y) === val; });
+  x.cost = (match && match.installment != null) ? String(match.installment) : '';
+  _fbcRepaint();
+}
+function _fbcSetDeviceCostAt(i, val) {
+  _fbcInit(); var x = _fbcDeviceAt(i); if (!x) return;
+  x.cost = val; _fbcLiveTotals();
+}
+function _fbcLiveTotals() {
+  var t = document.getElementById('fbc-total');    if (t) t.textContent = _fbcMoney(_fbcTotal(_FBC));
   var b = document.getElementById('fbc-breakdown'); if (b) b.innerHTML = _fbcBreakdownHtml(_FBC);
+  var s = document.getElementById('fbc-devtotal');  if (s) s.textContent = _fbcMoney(_fbcDeviceTotal(_FBC));
 }
 function _fbcSetNextUp(val) { _fbcInit(); _FBC.nextUp = val; _fbcRepaint(); }
 
