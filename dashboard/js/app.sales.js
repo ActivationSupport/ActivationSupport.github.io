@@ -583,7 +583,7 @@ var ATX_TYPES = [
 ];
 // Types whose wording is MINE, not the user's — surfaced in the UI so nobody sends a draft
 // believing it is approved copy. Delete a key here once its wording is signed off.
-var ATX_DRAFT = { payment:1, tcs:1, confirm:1, noshow:1, apptcancel:1, wrapup:1 };
+var ATX_DRAFT = { payment:1, confirm:1, noshow:1, apptcancel:1, wrapup:1 };
 
 // key -> message body. Each entry is a function of the merge fields (see _atxFields) and
 // returns the WHOLE message as an array of lines — these are conversational SMS, so there
@@ -638,11 +638,13 @@ var ATX_SCRIPTS = {
     'Please feel free to call or text me back if you’d like me to walk you through it.'
   ]; },
   tcs: function(f) { return [
-    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. Your order from ' + f.date + ' is waiting on ' +
-    'the terms and conditions to be accepted — that’s the last step before it can move forward.', '',
-    'AT&T sends them by email and text, and opening that link and accepting is all it takes. If you can’t ' +
-    'find it, our VIP tower at ' + f.vip + ' can resend it right away.', '',
-    'Please feel free to call or text me back if it doesn’t come through.'
+    'Hello ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I’m reaching out ' +
+    'regarding the order you placed with ' + f.rep + ' on ' + f.date + '. We noticed that the Terms and ' +
+    'Conditions for your order have not yet been accepted.', '',
+    'To avoid your order being canceled, please note that the Terms and Conditions must be accepted ' +
+    'within 72 hours of when your order was placed. If you believe you’ve already completed this step or ' +
+    'you’re having any trouble, please reply to this text or give us a call. We’ll be happy to help you ' +
+    'get everything completed. Thank you!'
   ]; },
   byod: function(f) { return [
     'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I was just trying to ' +
