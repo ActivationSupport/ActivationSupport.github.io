@@ -571,10 +571,12 @@ function _rehashText(d) {
 // actually charges — AT&T's AutoPay/paperless and smartphone-line discounts arrive as bill
 // credits that don't land for up to 2 bills, so they are correctly absent here.
 //
-// Plan prices pulled from mst.att.com (per-line, by line-count tier — Consumer tops out at
-// "4+", Business breaks out through "6+"). Device list pulled from the same tool (Category/
-// Make/Model/Storage, ~100 SKUs, deduped across colors); MST doesn't expose a price per
-// device, so the device picker is a reference label only — cost is still typed by hand.
+// Plan prices per-line by line-count tier, read off the mst.att.com quote bars (2026-07-27).
+// BOTH segments now top out at "4+" — Business used to be modelled as 1/2/3/4/5/6+, but MST
+// only breaks it out to 4+, and _fbcTier() falls through to the last tier for anything above.
+// ⚠ Business "Premium with Turbo" no longer exists — it is now **Ultimate**, and it is
+//   dearer than the old entry at every tier ($110/100/85/75 vs $95/85/70/65), so quotes
+//   built before 2026-07-27 understated that plan by $15-45 per line before the 1.5x.
 var FBC_PLANS = {
   consumer: {
     label: 'AT&T Unlimited', lineTiers: ['1','2','3','4+'], order: ['Elite','Premium','Extra','Value'],
@@ -586,21 +588,23 @@ var FBC_PLANS = {
     }
   },
   business: {
-    label: 'AT&T Business', lineTiers: ['1','2','3','4','5','6+'], order: ['Premium with Turbo','Premium','Advanced','Standard'],
+    label: 'AT&T Business', lineTiers: ['1','2','3','4+'], order: ['Ultimate','Premium','Advanced','Standard'],
     prices: {
-      '1':  { 'Premium with Turbo':95, Premium:85, Advanced:70, Standard:50 },
-      '2':  { 'Premium with Turbo':85, Premium:75, Advanced:60, Standard:45 },
-      '3':  { 'Premium with Turbo':70, Premium:60, Advanced:50, Standard:35 },
-      '4':  { 'Premium with Turbo':65, Premium:50, Advanced:40, Standard:30 },
-      '5':  { 'Premium with Turbo':60, Premium:50, Advanced:40, Standard:30 },
-      '6+': { 'Premium with Turbo':55, Premium:50, Advanced:40, Standard:30 }
+      '1':  { Ultimate:110, Premium:85, Advanced:70, Standard:50 },
+      '2':  { Ultimate:100, Premium:75, Advanced:60, Standard:45 },
+      '3':  { Ultimate:85,  Premium:60, Advanced:50, Standard:35 },
+      '4+': { Ultimate:75,  Premium:50, Advanced:40, Standard:30 }
     }
   }
 };
-// Smartphones + Tablets (2026-07-27): straight from the mst.att.com catalogue, so make/model
-// AND the price are MST's own — no more hand-matching against att.com, and every row is priced.
-// Wearable / Hotspot / AIA are still the older hand-matched public-MSRP set and are stale —
-// paste those MST categories in and re-run to replace them the same way.
+// Smartphone / Tablet / Wearable / Hotspot (2026-07-27): straight from the mst.att.com
+// catalogue, so make/model AND the price are MST's own — no more hand-matching against
+// att.com, and every row is priced.
+//
+// ⚠ AIA (2 rows) is the ONLY category still on the old hand-matched public-MSRP data, and
+//   one of its rows duplicates a device that now also sits under Hotspot (the Inseego
+//   Wavemaker FX4200, same $24.97). Paste the MST AIA list to replace it, or drop the
+//   category — until then a rep can find that gateway in two places.
 //
 // installment = "MSRP from" / 36 (AT&T's standard no-interest term).
 // ⚠ "MSRP from" is the BASE-storage price, so storage variants collapse to one row — a
@@ -613,10 +617,19 @@ var FBC_PLANS = {
 var FBC_DEVICES = [
   { category:"AIA", make:"Emblem", model:"AIA 5G Gateway - NCM112 - White", storage:"", installment:null },
   { category:"AIA", make:"Quality One Wireless", model:"Inseego Wavemaker FX4200 Black", storage:"", installment:24.97 },
-  { category:"Hotspot", make:"Emblem", model:"GoLink 5G Hotspot", storage:"32GB", installment:2.5 },
-  { category:"Hotspot", make:"Netgear", model:"Nighthawk M7 Pro Black", storage:"", installment:12.5 },
-  { category:"Hotspot", make:"Quality One Wireless", model:"Mifi Pro M4", storage:"1GB", installment:null },
-  { category:"Hotspot", make:"Sonim", model:"MegaConnect", storage:"1GB", installment:null },
+  { category:"Hotspot", make:"AT&T", model:"GoLink 5G Hotspot", storage:"", installment:2.5 },
+  { category:"Hotspot", make:"Inseego", model:"Inseego Wavemaker FX4200", storage:"", installment:24.97 },
+  { category:"Hotspot", make:"AT&T", model:"Franklin A70", storage:"", installment:5.83 },
+  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk® M7 PRO HOTSPOT", storage:"", installment:12.5 },
+  { category:"Hotspot", make:"AT&T", model:"Franklin A50", storage:"", installment:5.83 },
+  { category:"Hotspot", make:"AT&T", model:"Franklin A10", storage:"", installment:2.22 },
+  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk M6 Pro", storage:"", installment:12.78 },
+  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk M6", storage:"", installment:8.61 },
+  { category:"Hotspot", make:"AT&T", model:"Wireless Internet Data Only", storage:"", installment:5.56 },
+  { category:"Hotspot", make:"AT&T", model:"Unite Express 2", storage:"", installment:4.03 },
+  { category:"Hotspot", make:"AT&T", model:"Turbo Hotspot 2", storage:"", installment:2.22 },
+  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk® LTE Mobile Hotspot Router", storage:"", installment:6.94 },
+  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk 5G Mobile Hotspot Pro", storage:"", installment:14.17 },
   { category:"Smartphone", make:"Motorola", model:"moto g 2026", storage:"", installment:6.67 },
   { category:"Smartphone", make:"Motorola", model:"Edge 2026", storage:"", installment:14.03 },
   { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold8 Ultra", storage:"", installment:58.33 },
@@ -819,15 +832,39 @@ var FBC_DEVICES = [
   { category:"Tablet", make:"Apple", model:"iPad 8th Generation", storage:"", installment:12.53 },
   { category:"Tablet", make:"Samsung", model:"Galaxy Tab S7 5G", storage:"", installment:23.61 },
   { category:"Tablet", make:"Samsung", model:"Galaxy Tab A 8.4\"", storage:"", installment:6.67 },
-  { category:"Wearable", make:"Apple", model:"Watch SE 3 GPS + Cellular 40mm", storage:"64GB", installment:8.33 },
-  { category:"Wearable", make:"Apple", model:"Watch SE 3 GPS + Cellular 44mm", storage:"64GB", installment:8.33 },
-  { category:"Wearable", make:"Apple", model:"Watch Series 11 GPS + Cellular 42mm", storage:"64GB", installment:13.89 },
-  { category:"Wearable", make:"Apple", model:"Watch Series 11 GPS + Cellular 46mm", storage:"64GB", installment:13.89 },
-  { category:"Wearable", make:"Apple", model:"Watch Ultra 3 GPS + Cellular 49mm", storage:"64GB", installment:22.22 },
-  { category:"Wearable", make:"AT&T", model:"amiGO Jr. Watch 2", storage:"32GB", installment:4.72 },
-  { category:"Wearable", make:"Google", model:"Pixel Watch 4 41mm", storage:"32GB", installment:12.5 },
-  { category:"Wearable", make:"Google", model:"Pixel Watch 4 45mm", storage:"32GB", installment:13.89 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch 8 Classic LTE Black", storage:"", installment:15.28 }
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch9 44mm", storage:"", installment:12.78 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch9 40mm", storage:"", installment:11.94 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch Ultra2", storage:"", installment:19.44 },
+  { category:"Wearable", make:"AT&T", model:"AT&T amiGO™ Jr. Watch 2", storage:"", installment:5.28 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 4 45mm", storage:"", installment:13.89 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 4 41mm", storage:"", installment:12.5 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra 3", storage:"", installment:22.22 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 11", storage:"", installment:13.89 },
+  { category:"Wearable", make:"Apple", model:"Watch SE 3", storage:"", installment:8.33 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch8 Classic", storage:"", installment:15.28 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch8", storage:"", installment:11.11 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra 2", storage:"", installment:19.44 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 10", storage:"", installment:12.5 },
+  { category:"Wearable", make:"Apple", model:"Watch SE (2022)", storage:"", installment:6.94 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 3 45mm", storage:"", installment:11.11 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 3 41mm", storage:"", installment:9.72 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch7", storage:"", installment:9.72 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch Ultra", storage:"", installment:18.06 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch FE", storage:"", installment:6.94 },
+  { category:"Wearable", make:"AT&T", model:"AT&T amiGO Jr. Watch™", storage:"", installment:4.58 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 2", storage:"", installment:11.11 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch6 Classic", storage:"", installment:12.5 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch6", storage:"", installment:9.72 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra", storage:"", installment:19.44 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 8", storage:"", installment:18.06 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch", storage:"", installment:11.11 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch5 Pro", storage:"", installment:13.89 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch5", storage:"", installment:9.17 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"", installment:13.33 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 6", storage:"", installment:12.5 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 4 (GPS + Cellular)", storage:"", installment:12.5 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch3", storage:"", installment:12.5 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch Active2", storage:"", installment:7.78 }
 ];
 var FBC_MAX_LINES = 10;
 var FBC_ACTIVATION_FEE = 35;   // per line, per AT&T's fee schedule ("Activation/upgrade fee per line")
