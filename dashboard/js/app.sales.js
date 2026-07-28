@@ -644,15 +644,12 @@ var ATX_SCRIPTS = {
     'find it, our VIP tower at ' + f.vip + ' can resend it right away.', '',
     'Please feel free to call or text me back if it doesn’t come through.'
   ]; },
-  // ⚠ Both VIP numbers are listed here because the user's template lists both, rather than
-  //   switching on Consumer/Business the way the other messages do.
   byod: function(f) { return [
     'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I was just trying to ' +
     'reach out regarding the phone(s) you had moved over with ' + f.rep + ' on ' + f.date + '. On our end ' +
     'it seems they haven’t gone live yet. Please be sure that you have paid off those devices, and that ' +
     'the port protection hasn’t been turned off for the previous carrier. If you need assistance please ' +
-    'give me a call back or call our VIP customer service line. (Consumer — 833 603 3270 & Business — ' +
-    '855 370 6941)'
+    'give me a call back or call our VIP customer service line at ' + f.vip + '.'
   ]; },
   cancel: function(f) { return [
     'Hello ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I’m reaching out ' +
