@@ -570,6 +570,9 @@ var ATX_TYPES = [
   { cat:'call', group:'Order issues', key:'tcs',      label:'Missing T&Cs' },
   { cat:'call', group:'Order issues', key:'byod',     label:'BYOD Status' },
   { cat:'call', group:'Other calls',  key:'noanswer', label:'No Answer' },
+  // Kept as its own type rather than folded into No Answer — the user has a separate,
+  // shorter template for it, and there is a dedicated Day-After Calls tab it pairs with.
+  { cat:'call', group:'Other calls',  key:'dayafter', label:'Day After' },
   { cat:'call', group:'Other calls',  key:'delivery', label:'Delivery' },
   { cat:'call', group:'Other calls',  key:'fol',      label:'Fear of Loss' },
   { cat:'call', group:'Other calls',  key:'cancel',   label:'Cancellation / Disconnect' },
@@ -580,7 +583,7 @@ var ATX_TYPES = [
 ];
 // Types whose wording is MINE, not the user's — surfaced in the UI so nobody sends a draft
 // believing it is approved copy. Delete a key here once its wording is signed off.
-var ATX_DRAFT = { payment:1, tcs:1, byod:1, cancel:1, confirm:1, noshow:1, apptcancel:1, wrapup:1 };
+var ATX_DRAFT = { payment:1, tcs:1, confirm:1, noshow:1, apptcancel:1, wrapup:1 };
 
 // key -> message body. Each entry is a function of the merge fields (see _atxFields) and
 // returns the WHOLE message as an array of lines — these are conversational SMS, so there
@@ -599,6 +602,14 @@ var ATX_SCRIPTS = {
     'back for additional assistance.'
   ]; },
   noanswer: function(f) { return [
+    'Hello ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I’m reaching out ' +
+    'regarding the order you placed with ' + f.rep + ' on ' + f.date + '. We just wanted to check in and ' +
+    'make sure you didn’t have any additional questions or concerns. If you did, or if you needed any ' +
+    'assistance with setting up your devices, please just give us a text or call back.', '',
+    'You can also book yourself an over-the-phone appointment for one of our specialists to reach out and ' +
+    'assist:', f.bookUrl
+  ]; },
+  dayafter: function(f) { return [
     'Hi, this is ' + f.activator + ' with AT&T Activation Support. We were trying to reach you regarding ' +
     'the order you placed yesterday. If you have any questions or concerns, please feel free to call or ' +
     'text us back.'
@@ -633,20 +644,22 @@ var ATX_SCRIPTS = {
     'find it, our VIP tower at ' + f.vip + ' can resend it right away.', '',
     'Please feel free to call or text me back if it doesn’t come through.'
   ]; },
+  // ⚠ Both VIP numbers are listed here because the user's template lists both, rather than
+  //   switching on Consumer/Business the way the other messages do.
   byod: function(f) { return [
-    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. I’m checking in on the device you’re ' +
-    'bringing over to your new line from the order on ' + f.date + '.', '',
-    'To finish activating it, the phone needs to be unlocked by your previous carrier and the IMEI confirmed ' +
-    'as compatible. If you’re not sure about either one, our VIP tower at ' + f.vip + ' can check it ' +
-    'while you’re on the line.', '',
-    'Happy to help — just call or text me back.'
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I was just trying to ' +
+    'reach out regarding the phone(s) you had moved over with ' + f.rep + ' on ' + f.date + '. On our end ' +
+    'it seems they haven’t gone live yet. Please be sure that you have paid off those devices, and that ' +
+    'the port protection hasn’t been turned off for the previous carrier. If you need assistance please ' +
+    'give me a call back or call our VIP customer service line. (Consumer — 833 603 3270 & Business — ' +
+    '855 370 6941)'
   ]; },
   cancel: function(f) { return [
-    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. I’m reaching out because the order you ' +
-    'placed with ' + f.rep + ' on ' + f.date + ' is showing as cancelled on our end.', '',
-    'If that wasn’t intentional, we can usually get it back on track — call our VIP tower at ' +
-    f.vip + ' or reply here and I’ll look into it for you.', '',
-    'If it was intentional, no action is needed. I just wanted to make sure nothing went wrong.'
+    'Hello ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I’m reaching out ' +
+    'regarding the order you placed with ' + f.rep + ' on ' + f.date + '. We noticed the order was ' +
+    'canceled and wanted to ask if there was anything about the process or your experience that led to ' +
+    'your decision. We value your feedback and use it to improve our service. We appreciate any insight ' +
+    'you’re willing to share. Thank you.'
   ]; },
   confirm: function(f) { return [
     'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I’m confirming your ' +
@@ -716,6 +729,10 @@ function _atxFields(d) {
     deviceWord: deviceWord,
     isBiz:   d.acctType === 'Business',
     vip:     d.acctType === 'Business' ? '855 370 6941' : '833 603 3270',
+    // This office's public customer-booking page — same link the Appointments tab hands
+    // out, so it is always the right one for whichever office the activator is in.
+    bookUrl: (typeof CUSTOMER_BOOKING_URL !== 'undefined' ? CUSTOMER_BOOKING_URL : 'https://activationsupport.github.io/book.html') +
+             '?office=' + encodeURIComponent((typeof CFG !== 'undefined' && CFG && CFG.officeId) ? CFG.officeId : ''),
     typeLabel: _atxTypeDef(d.type).label
   };
 }
