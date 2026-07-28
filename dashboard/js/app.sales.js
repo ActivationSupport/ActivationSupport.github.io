@@ -647,8 +647,10 @@ var ATX_SCRIPTS = {
   byod: function(f) { return [
     'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I was just trying to ' +
     'reach out regarding the phone(s) you had moved over with ' + f.rep + ' on ' + f.date + '. On our end ' +
+    // ⚠ "HAS been turned off" — user-corrected. Port protection being ON is what blocks the
+    //   transfer, so the original "hasn't" told customers to do the opposite of what is needed.
     'it seems they haven’t gone live yet. Please be sure that you have paid off those devices, and that ' +
-    'the port protection hasn’t been turned off for the previous carrier. If you need assistance please ' +
+    'the port protection has been turned off for the previous carrier. If you need assistance please ' +
     'give me a call back or call our VIP customer service line at ' + f.vip + '.'
   ]; },
   cancel: function(f) { return [
