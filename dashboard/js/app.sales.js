@@ -583,8 +583,15 @@ var ATX_TYPES = [
 ];
 // Types whose wording is MINE, not the user's — surfaced in the UI so nobody sends a draft
 // believing it is approved copy. Delete a key here once its wording is signed off.
-// Only the four appointment messages are still my wording.
-var ATX_DRAFT = { confirm:1, noshow:1, apptcancel:1, wrapup:1 };
+// Every message is now the user's own wording.
+var ATX_DRAFT = {};
+// The appointment messages quote an "Office Activation Number", which is per office and
+// distinct from the VIP tower lines. ⚠ Not yet supplied — fill these in and the field
+// below pre-fills itself; until then the activator types it and the message shows a
+// visible [Office Activation Number] placeholder rather than a blank.
+var ATX_OFFICE_NUMBER = {
+  elevate:'', midspire:'', viridian:'', vanguard:'', bayview:'', leadsphere:''
+};
 
 // key -> message body. Each entry is a function of the merge fields (see _atxFields) and
 // returns the WHOLE message as an array of lines — these are conversational SMS, so there
@@ -666,30 +673,34 @@ var ATX_SCRIPTS = {
     'you’re willing to share. Thank you.'
   ]; },
   confirm: function(f) { return [
-    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I’m confirming your ' +
-    'activation appointment for ' + f.apptWhen + '.', '',
-    'We’ll get everything from your order on ' + f.date + ' set up and working, and I can answer any ' +
-    'questions while we’re on the phone.', '',
-    'If that time no longer works, just call or text me back and we’ll move it.'
-  ]; },
-  noshow: function(f) { return [
-    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. We had your activation ' +
-    'appointment scheduled for ' + f.apptWhen + ' and I wasn’t able to reach you.', '',
-    'No problem at all — I’d like to get you rescheduled whenever it’s convenient. Just call ' +
-    'or text me back with a time that works and we’ll take care of it.'
+    'Hi, ' + f.name + '. This is ' + f.activator + ' with AT&T. I’m reaching out to confirm your ' +
+    'appointment scheduled for ' + f.apptDate + ' at ' + f.apptTime + '. I just wanted to make sure this ' +
+    'time still works for you.', '',
+    'If anything has changed or you need to reschedule, simply reply to this message or call our Office ' +
+    'Activation Number: ' + f.officeNumber + '. We’re happy to help. We look forward to speaking with you!'
   ]; },
   apptcancel: function(f) { return [
-    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. Your activation ' +
-    'appointment for ' + f.apptWhen + ' has been cancelled.', '',
-    'Whenever you’re ready to get set up, call or text me back and we’ll find a time that works. ' +
-    'Your VIP support line is ' + f.vip + ' if anything comes up before then.'
+    'Hi, ' + f.name + '. This is ' + f.activator + ' with AT&T. I noticed your appointment has been ' +
+    'canceled, and I wanted to check in to see if there was anything that led to your decision.', '',
+    'If there’s anything I can assist with or if you’d like to reschedule for a more convenient time, ' +
+    'I’d be happy to help. Just reply to this message or call our Office Activation Number: ' +
+    f.officeNumber + '. We appreciate your feedback and hope to have the opportunity to assist you.'
+  ]; },
+  noshow: function(f) { return [
+    'Hi, ' + f.name + '. This is ' + f.activator + ' with AT&T. I noticed we missed each other at your ' +
+    'scheduled appointment today, so I wanted to check in and make sure everything is okay.', '',
+    'If you’d still like to meet, I’d be happy to help you reschedule for a day and time that works best ' +
+    'for you. Simply reply to this message or call our Office Activation Number: ' + f.officeNumber +
+    ', and we’ll find a time that’s convenient. We look forward to hearing from you!'
   ]; },
   wrapup: function(f) { return [
-    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. Thank you for your time ' +
-    'today — everything from your order on ' + f.date + ' should now be set up and working.', '',
-    'If anything comes up, your VIP support line is ' + f.vip + ', or you can call or text me back directly ' +
-    'and I’ll be glad to help.', '',
-    'Thanks again for choosing AT&T!'
+    'Hi, ' + f.name + '. This is ' + f.activator + ' with AT&T. Thank you for taking the time to meet ' +
+    'with me today. It was a pleasure speaking with you.', '',
+    'If you have any questions about what we discussed or need additional assistance, please don’t ' +
+    'hesitate to reply to this message or call our Office Activation Number: ' + f.officeNumber +
+    '. We’re always happy to help.', '',
+    'Thank you for choosing AT&T. We appreciate the opportunity to assist you and look forward to serving ' +
+    'you again in the future. Have a wonderful day!'
   ]; }
 };
 var _ATX = null;
@@ -700,7 +711,9 @@ function _atxInit() {
            acctType:'Consumer', dateOfSale:_psOfficeToday(), custFirst:'', custInitial:'',
            // The activator signs the message ("this is Angel with AT&T"), so default to
            // whoever is logged in rather than making them type it every time.
-           activator:(SESSION.name || '').split(' ')[0] || '', apptWhen:'' };
+           activator:(SESSION.name || '').split(' ')[0] || '',
+           apptDate:'', apptTime:'',
+           officeNumber:(ATX_OFFICE_NUMBER[(typeof CFG !== 'undefined' && CFG) ? CFG.officeId : ''] || '') };
 }
 function _atxTypeDef(key) {
   for (var i = 0; i < ATX_TYPES.length; i++) if (ATX_TYPES[i].key === key) return ATX_TYPES[i];
@@ -728,7 +741,9 @@ function _atxFields(d) {
     repPhone:(d.repPhone || '').trim() || '[Rep number]',
     date:    (d.dateOfSale || '').trim() || '[Date of sale]',
     activator:(d.activator || '').trim() || '[Your name]',
-    apptWhen:(d.apptWhen || '').trim() || '[Appointment date & time]',
+    apptDate:(d.apptDate || '').trim() || '[Date]',
+    apptTime:(d.apptTime || '').trim() || '[Time]',
+    officeNumber:(d.officeNumber || '').trim() || '[Office Activation Number]',
     sold:    sel.length ? sel.join(' + ') : '[What was sold]',
     deviceWord: deviceWord,
     isBiz:   d.acctType === 'Business',
@@ -808,10 +823,16 @@ function renderActivatorTextTab() {
         '<div class="ps-toggle-row">' + acctTog('Consumer') + acctTog('Business') + '</div>' +
         '<div class="ps-label">DATE OF SALE</div>' +
         '<input class="ps-input" type="date" value="' + esc(d.dateOfSale) + '" onchange="_atxSet(\'dateOfSale\',this.value)">' +
-        // Only the appointment messages reference a time, so the field only appears there.
+        // All four appointment messages quote the office number; only Confirmation names a
+        // date and time, so those two only appear for it.
         (d.cat === 'appt' ?
-          '<div class="ps-label">APPOINTMENT DATE &amp; TIME</div>' +
-          '<input class="ps-input" value="' + esc(d.apptWhen) + '" placeholder="Thu Jul 30 at 2:00 PM" oninput="_atxSet(\'apptWhen\',this.value)">' : '') +
+          '<div class="ps-label">OFFICE ACTIVATION NUMBER</div>' +
+          '<input class="ps-input" type="tel" value="' + esc(d.officeNumber) + '" placeholder="Your office activation line" oninput="_atxSet(\'officeNumber\',this.value)">' : '') +
+        (d.type === 'confirm' ?
+          '<div class="ps-label">APPOINTMENT DATE</div>' +
+          '<input class="ps-input" value="' + esc(d.apptDate) + '" placeholder="Thursday, July 30" oninput="_atxSet(\'apptDate\',this.value)">' +
+          '<div class="ps-label">APPOINTMENT TIME</div>' +
+          '<input class="ps-input" value="' + esc(d.apptTime) + '" placeholder="2:00 PM" oninput="_atxSet(\'apptTime\',this.value)">' : '') +
       '</div>' +
       '<div style="flex:1.6 1 300px;min-width:260px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;gap:10px;flex-wrap:wrap">' +
