@@ -705,7 +705,8 @@ var _ATX = null;
 function _atxInit() {
   if (_ATX) return;
   _ATX = { cat:'call', type:'payment', accountNumber:'', repName:'', repPhone:'',
-           products:{ Wireless:true, Fiber:false, Air:false, VoIP:false, DTV:false },
+           // Wireless / Fiber / Air only — same set the reps' Rehash Text offers.
+           products:{ Wireless:true, Fiber:false, Air:false },
            acctType:'Consumer', dateOfSale:_psOfficeToday(), custFirst:'', custInitial:'',
            // The activator signs the message ("this is Angel with AT&T"), so default to
            // whoever is logged in rather than making them type it every time.
@@ -725,11 +726,9 @@ function _atxFields(d) {
   // list would not. Wireless is by far the common case.
   var deviceWord = 'device';
   if (sel.length === 1) {
-    if (sel[0] === 'Wireless') deviceWord = 'cellphone';
+    if (sel[0] === 'Wireless')   deviceWord = 'cellphone';
     else if (sel[0] === 'Fiber') deviceWord = 'Fiber service';
-    else if (sel[0] === 'Air')  deviceWord = 'Internet Air service';
-    else if (sel[0] === 'DTV')  deviceWord = 'DIRECTV service';
-    else if (sel[0] === 'VoIP') deviceWord = 'phone service';
+    else if (sel[0] === 'Air')   deviceWord = 'Internet Air service';
   } else if (sel.length > 1) { deviceWord = 'service'; }
   return {
     name:    (d.custFirst || '').trim() || '[Customer first name]',
@@ -767,11 +766,9 @@ function _atxProductHeader(d) {
   if (P.Wireless) sel.push('Wireless');
   if (P.Fiber)    sel.push('Fiber');
   if (P.Air)      sel.push('Internet Air');
-  if (P.VoIP)     sel.push('VoIP');
-  if (P.DTV)      sel.push('DIRECTV');
   if (!sel.length) return '📋 YOUR AT&T ORDER';
   if (sel.length === 1) {
-    var ic = P.Wireless ? '📱' : P.Air ? '📡' : P.Fiber ? '🌐' : P.VoIP ? '☎️' : '📺';
+    var ic = P.Wireless ? '📱' : P.Air ? '📡' : '🌐';
     return ic + ' YOUR ' + sel[0].toUpperCase() + ' ORDER';
   }
   return '📋 YOUR AT&T ORDER — ' + sel.join(' + ');
@@ -844,7 +841,7 @@ function renderActivatorTextTab() {
       '</div>' +
       '<div style="flex:1 1 240px;min-width:220px">' +
         '<div class="ps-label" style="margin-top:0">WHAT WAS SOLD &mdash; select all that apply</div>' +
-        '<div class="ps-toggle-row" style="flex-wrap:wrap">' + prodTog('Wireless') + prodTog('Fiber') + prodTog('Air') + prodTog('VoIP') + prodTog('DTV') + '</div>' +
+        '<div class="ps-toggle-row" style="flex-wrap:wrap">' + prodTog('Wireless') + prodTog('Fiber') + prodTog('Air') + '</div>' +
         '<div class="ps-label">ACCOUNT TYPE</div>' +
         '<div class="ps-toggle-row">' + acctTog('Consumer') + acctTog('Business') + '</div>' +
         '<div class="ps-label">DATE OF SALE</div>' +
