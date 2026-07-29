@@ -570,7 +570,9 @@ var ATX_TYPES = [
   { cat:'call', group:'Order issues', key:'tcs',      label:'Missing T&Cs' },
   { cat:'call', group:'Order issues', key:'byod',     label:'BYOD Status' },
   { cat:'call', group:'Other calls',  key:'noanswer', label:'No Answer' },
-  { cat:'call', group:'Other calls',  key:'delivery', label:'Delivery' },
+  // Labelled to match the Call Logs tab it pairs with — "Delivery" alone reads like a
+  // your-order-has-arrived message, which is NOT what this is.
+  { cat:'call', group:'Other calls',  key:'delivery', label:'Delivered Not Active' },
   { cat:'call', group:'Other calls',  key:'fol',      label:'Fear of Loss' },
   { cat:'call', group:'Other calls',  key:'cancel',   label:'Cancellation / Disconnect' },
   { cat:'appt', group:'Appointment',  key:'confirm',  label:'Confirmation' },
@@ -628,10 +630,17 @@ var ATX_SCRIPTS = {
     'If you need any assistance, just let me know. I’m happy to walk you through the steps or set up a ' +
     'quick meeting to get everything activated for you.'
   ]; },
+  // ⚠ NOT "your order has arrived". This is the DELIVERED-NOT-ACTIVE follow-up: the devices
+  //   were delivered but nothing has been turned on yet. It is the gentle first nudge —
+  //   `fol` below is the escalation that adds the lost/stolen warning. Keep them distinct.
   delivery: function(f) { return [
-    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. I just wanted to follow up regarding the ' +
-    'new ' + f.deviceWord + ' you ordered with ' + f.rep + ' on ' + f.date + '. If you have any questions ' +
-    'or would like help setting it up, feel free to call or text me back — I’ll be glad to assist!'
+    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. I’m following up on the new ' +
+    f.deviceWord + ' you ordered with ' + f.rep + ' on ' + f.date + '. It looks like it has been ' +
+    'delivered, but our system isn’t showing it as activated yet.', '',
+    'If you’d like a hand getting it set up and switched over, just call or text me back and I’ll be ' +
+    'glad to walk you through it — it usually only takes a few minutes.', '',
+    'You can also book yourself an over-the-phone appointment for one of our specialists to reach out ' +
+    'and assist:', f.bookUrl
   ]; },
 
   // ── Drafts, in the same voice (ATX_DRAFT) ──
