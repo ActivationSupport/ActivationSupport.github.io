@@ -753,19 +753,28 @@ function _atxFields(d) {
     typeLabel: _atxTypeDef(d.type).label
   };
 }
-// The script IS the whole message — these are conversational SMS, so nothing is prepended
-// or appended. The fields the body doesn't use are still there for the activator's own
-// reference while working the order.
+// Account number, customer last initial, what was sold and the rep's direct number are
+// collected but referenced by none of the 12 scripts, so they are appended as a compact
+// block after the prose rather than woven into every template. Kept plain-text and
+// separated so it reads as reference detail, not as part of the message.
+function _atxDetailsBlock(f) {
+  return ['', '———————————————',
+    'Account: ' + f.acct,
+    'Customer: ' + f.name + (f.initial ? ' ' + f.initial + '.' : ''),
+    'Sold: ' + f.sold + ' (' + (f.isBiz ? 'Business' : 'Consumer') + ')',
+    'Your sales rep: ' + f.rep + ' — ' + f.repPhone];
+}
+// The script supplies the prose; the details block is appended to every message.
 function _atxText(d) {
   var f = _atxFields(d);
   var body = ATX_SCRIPTS[d.type];
   if (typeof body === 'function') body = body(f, d);
-  if (Array.isArray(body)) return body.join('\n');
-  if (typeof body === 'string' && body) return body;
-  return '[ ' + f.typeLabel.toUpperCase() + ' — no wording added yet ]\n\n' +
-         'Add it to ATX_SCRIPTS.' + d.type + '. Merge fields: activator name, customer first\n' +
-         'name + last initial, account number, sales rep + their number, what was sold,\n' +
-         'Consumer/Business, date of sale, appointment date & time, VIP number.';
+  if (typeof body === 'string' && body) body = [body];
+  if (!Array.isArray(body)) {
+    body = ['[ ' + f.typeLabel.toUpperCase() + ' — no wording added yet ]', '',
+            'Add it to ATX_SCRIPTS.' + d.type + '.'];
+  }
+  return body.concat(_atxDetailsBlock(f)).join('\n');
 }
 function renderActivatorTextTab() {
   _atxInit();
