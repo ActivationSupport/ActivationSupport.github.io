@@ -753,16 +753,35 @@ function _atxFields(d) {
     typeLabel: _atxTypeDef(d.type).label
   };
 }
-// Account number, customer last initial, what was sold and the rep's direct number are
-// collected but referenced by none of the 12 scripts, so they are appended as a compact
-// block after the prose rather than woven into every template. Kept plain-text and
-// separated so it reads as reference detail, not as part of the message.
-function _atxDetailsBlock(f) {
-  return ['', '———————————————',
-    'Account: ' + f.acct,
-    'Customer: ' + f.name + (f.initial ? ' ' + f.initial + '.' : ''),
-    'Sold: ' + f.sold + ' (' + (f.isBiz ? 'Business' : 'Consumer') + ')',
-    'Your sales rep: ' + f.rep + ' — ' + f.repPhone];
+// Account number, what was sold and the rep's direct number are referenced by none of the 12
+// scripts, so they are appended after the prose (the scripts each open with their own
+// greeting, so a rehash-style block at the TOP would greet the customer twice).
+//
+// Deliberately mirrors the reps' Rehash Text: same emoji product title, same field labels
+// ("Account number:" / "Order date:" / "Sales Rep:") and the same separator — a customer who
+// got the rehash at point of sale then sees one consistent format in every follow-up.
+// Like the rehash, it does NOT restate the customer's own name back to them.
+function _atxProductHeader(d) {
+  var P = d.products || {};
+  var sel = [];
+  if (P.Wireless) sel.push('Wireless');
+  if (P.Fiber)    sel.push('Fiber');
+  if (P.Air)      sel.push('Internet Air');
+  if (P.VoIP)     sel.push('VoIP');
+  if (P.DTV)      sel.push('DIRECTV');
+  if (!sel.length) return '📋 YOUR AT&T ORDER';
+  if (sel.length === 1) {
+    var ic = P.Wireless ? '📱' : P.Air ? '📡' : P.Fiber ? '🌐' : P.VoIP ? '☎️' : '📺';
+    return ic + ' YOUR ' + sel[0].toUpperCase() + ' ORDER';
+  }
+  return '📋 YOUR AT&T ORDER — ' + sel.join(' + ');
+}
+function _atxDetailsBlock(f, d) {
+  return ['', '———————————————————', '',
+    _atxProductHeader(d),
+    'Account number: ' + f.acct,
+    'Order date: ' + f.date,
+    'Sales Rep: ' + f.rep + ' — ' + f.repPhone];
 }
 // The script supplies the prose; the details block is appended to every message.
 function _atxText(d) {
@@ -774,7 +793,7 @@ function _atxText(d) {
     body = ['[ ' + f.typeLabel.toUpperCase() + ' — no wording added yet ]', '',
             'Add it to ATX_SCRIPTS.' + d.type + '.'];
   }
-  return body.concat(_atxDetailsBlock(f)).join('\n');
+  return body.concat(_atxDetailsBlock(f, d)).join('\n');
 }
 function renderActivatorTextTab() {
   _atxInit();
