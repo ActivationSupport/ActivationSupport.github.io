@@ -570,9 +570,6 @@ var ATX_TYPES = [
   { cat:'call', group:'Order issues', key:'tcs',      label:'Missing T&Cs' },
   { cat:'call', group:'Order issues', key:'byod',     label:'BYOD Status' },
   { cat:'call', group:'Other calls',  key:'noanswer', label:'No Answer' },
-  // Kept as its own type rather than folded into No Answer — the user has a separate,
-  // shorter template for it, and there is a dedicated Day-After Calls tab it pairs with.
-  { cat:'call', group:'Other calls',  key:'dayafter', label:'Day After' },
   { cat:'call', group:'Other calls',  key:'delivery', label:'Delivery' },
   { cat:'call', group:'Other calls',  key:'fol',      label:'Fear of Loss' },
   { cat:'call', group:'Other calls',  key:'cancel',   label:'Cancellation / Disconnect' },
@@ -622,11 +619,6 @@ var ATX_SCRIPTS = {
     'assistance with setting up your devices, please just give us a text or call back.', '',
     'You can also book yourself an over-the-phone appointment for one of our specialists to reach out and ' +
     'assist:', f.bookUrl
-  ]; },
-  dayafter: function(f) { return [
-    'Hi, this is ' + f.activator + ' with AT&T Activation Support. We were trying to reach you regarding ' +
-    'the order you placed yesterday. If you have any questions or concerns, please feel free to call or ' +
-    'text us back.'
   ]; },
   fol: function(f) { return [
     'Hi, this is ' + f.activator + ' with AT&T. I’m reaching out because our system is still showing ' +
