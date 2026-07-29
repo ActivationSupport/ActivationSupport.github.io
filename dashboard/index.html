@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<!-- â”€â”€ SVG ICON SPRITE (Feather Icons, MIT license â€” https://feathericons.com) â”€â”€
+<!-- ── SVG ICON SPRITE (Feather Icons, MIT license — https://feathericons.com) ──
      Icons are stroke-based and inherit color via currentColor, so they auto-theme
      per office and render identically on every device (no emoji rendering drift).
      The `icon('<name>')` JS helper + `.ico` CSS render these. Add new <symbol>s
@@ -86,7 +86,7 @@
 <div id="login-screen">
   <div class="login-card">
     <div id="login-office-logo" style="display:none;margin-bottom:14px;text-align:center"></div>
-    <p id="login-office-name">Loading officeâ€¦</p>
+    <p id="login-office-name">Loading office…</p>
     <h1>Activation Support</h1>
 
     <!-- Step 1: email -->
@@ -112,12 +112,12 @@
 
     <!-- Step: reset link sent confirmation -->
     <div id="ls-reset-sent-step" style="display:none">
-      <p class="login-set-intro">If <span id="login-reset-sent-who" style="color:var(--login-accent);font-weight:600"></span> is registered, a password reset link is on its way. Check your inbox (and spam) â€” the link works for 45 minutes.</p>
+      <p class="login-set-intro">If <span id="login-reset-sent-who" style="color:var(--login-accent);font-weight:600"></span> is registered, a password reset link is on its way. Check your inbox (and spam) — the link works for 45 minutes.</p>
       <button class="btn" id="login-resend-btn" onclick="doResendReset()">Resend link</button>
       <div class="login-back" onclick="loginBack()"><span class="ico"><svg><use href="#i-arrow-left"></use></svg></span>Back to sign in</div>
     </div>
 
-    <!-- Step: set a new password from a reset link (?pwreset=â€¦) -->
+    <!-- Step: set a new password from a reset link (?pwreset=…) -->
     <div id="ls-reset-set-step" style="display:none">
       <p class="login-set-intro">Choose a new password for your account.</p>
       <div class="field">
@@ -129,7 +129,7 @@
         <li data-k="upper">An uppercase letter</li>
         <li data-k="lower">A lowercase letter</li>
         <li data-k="num">A number</li>
-        <li data-k="special">A special character (!?@#$â€¦)</li>
+        <li data-k="special">A special character (!?@#$…)</li>
       </ul>
       <div class="field">
         <label>Confirm password</label>
@@ -142,7 +142,7 @@
     <!-- Step 2b: create password (new user) -->
     <div id="ls-set-pin-step" style="display:none">
       <div class="login-who" id="login-who-set"></div>
-      <p class="login-set-intro">Welcome â€” create a password to access your dashboard.</p>
+      <p class="login-set-intro">Welcome — create a password to access your dashboard.</p>
       <div class="field">
         <label>New password</label>
         <input type="password" id="login-new-pin" placeholder="Create a password" autocomplete="new-password" oninput="_pwCheck('login-new-pin','login-new-pin-req')">
@@ -152,7 +152,7 @@
         <li data-k="upper">An uppercase letter</li>
         <li data-k="lower">A lowercase letter</li>
         <li data-k="num">A number</li>
-        <li data-k="special">A special character (!?@#$â€¦)</li>
+        <li data-k="special">A special character (!?@#$…)</li>
       </ul>
       <div class="field">
         <label>Confirm password</label>
@@ -165,7 +165,7 @@
     <!-- Step 2c: forced upgrade (existing user with an old numeric PIN) -->
     <div id="ls-upgrade-step" style="display:none">
       <div class="login-who" id="login-who-upg"></div>
-      <p class="login-set-intro">Your account uses an old PIN. Enter it once and choose a new password to continue â€” this replaces your PIN going forward.</p>
+      <p class="login-set-intro">Your account uses an old PIN. Enter it once and choose a new password to continue — this replaces your PIN going forward.</p>
       <div class="field">
         <label>Current PIN</label>
         <input type="password" id="login-upg-current" placeholder="Your existing PIN" autocomplete="current-password">
@@ -179,7 +179,7 @@
         <li data-k="upper">An uppercase letter</li>
         <li data-k="lower">A lowercase letter</li>
         <li data-k="num">A number</li>
-        <li data-k="special">A special character (!?@#$â€¦)</li>
+        <li data-k="special">A special character (!?@#$…)</li>
       </ul>
       <div class="field">
         <label>Confirm password</label>
@@ -200,8 +200,8 @@
     <div class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-office">Office</div>
-        <div class="sidebar-name" id="sb-office-name">â€”</div>
-        <div class="sidebar-user" id="sb-user-name">â€”</div>
+        <div class="sidebar-name" id="sb-office-name">—</div>
+        <div class="sidebar-user" id="sb-user-name">—</div>
       </div>
       <nav id="sidebar-nav"></nav>
       <div class="sidebar-footer">
@@ -222,7 +222,7 @@
           <button class="refresh-btn" onclick="refreshData()"><span class="ico"><svg><use href="#i-refresh"></use></svg></span> Refresh</button>
           <div class="office-dd-wrap" id="office-dd-wrap" style="display:none">
             <button class="office-dd-btn" id="office-dd-btn" onclick="toggleOfficeDropdown(event)">
-              <span id="office-dd-label">â€”</span>
+              <span id="office-dd-label">—</span>
               <span class="office-dd-arrow ico"><svg><use href="#i-chev-down"></use></svg></span>
             </button>
             <div class="office-dd-panel" id="office-dd-panel"></div>
@@ -230,7 +230,7 @@
         </div>
       </div>
       <div class="content" id="main-content">
-        <div class="spinner">Loadingâ€¦</div>
+        <div class="spinner">Loading…</div>
       </div>
     </div>
   </div>
@@ -241,9 +241,9 @@
 <!-- WALLBOARD / TV MODE -->
 <div id="wallboard" class="wb-hidden">
   <div class="wb-top">
-    <div class="wb-office" id="wb-office">â€”</div>
+    <div class="wb-office" id="wb-office">—</div>
     <div class="wb-title" id="wb-title">Live Sales</div>
-    <div class="wb-clock" id="wb-clock">â€”</div>
+    <div class="wb-clock" id="wb-clock">—</div>
     <button class="wb-close" onclick="closeWallboard()" title="Exit (Esc)"><span class="ico"><svg><use href="#i-x"></use></svg></span></button>
   </div>
   <div class="wb-stage" id="wb-stage"></div>
@@ -295,7 +295,7 @@
   </div>
 </div>
 
-<!-- SALES SUPPORT â€” TICKET MODAL (new-ticket / detail thread; app.tickets.js) -->
+<!-- SALES SUPPORT — TICKET MODAL (new-ticket / detail thread; app.tickets.js) -->
 <div class="modal-bg" id="ticket-modal">
   <div class="modal" style="max-width:900px;width:96%">
     <span class="modal-close" onclick="closeTicketModal()"><span class="ico"><svg><use href="#i-x"></use></svg></span></span>
