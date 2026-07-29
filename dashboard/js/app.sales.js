@@ -586,14 +586,14 @@ var ATX_DRAFT = {};
 // from the VIP tower lines. Pre-fills the field for the activator's office; a blank entry
 // just means they type it, and the message shows a visible [Office Activation Number]
 // placeholder rather than a gap. Written in the same spaced style as the VIP numbers.
-// ⚠ leadsphere is intentionally blank pending Gabe; bayview was never supplied.
 var ATX_OFFICE_NUMBER = {
   elevate:   '858 321 5699',
   midspire:  '224 524 8968',
   viridian:  '314 789 1988',
   vanguard:  '813 524 7081',
-  leadsphere:'',
-  bayview:   ''
+  leadsphere:'',   // ⚠ pending Gabe. Until it is set here, EVERY LeadSphere activator
+                   //   retypes it on every message — nothing on this tab is saved.
+  bayview:   ''    // office paused, no number needed
 };
 
 // key -> message body. Each entry is a function of the merge fields (see _atxFields) and
