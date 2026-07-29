@@ -583,7 +583,8 @@ var ATX_TYPES = [
 ];
 // Types whose wording is MINE, not the user's — surfaced in the UI so nobody sends a draft
 // believing it is approved copy. Delete a key here once its wording is signed off.
-var ATX_DRAFT = { payment:1, confirm:1, noshow:1, apptcancel:1, wrapup:1 };
+// Only the four appointment messages are still my wording.
+var ATX_DRAFT = { confirm:1, noshow:1, apptcancel:1, wrapup:1 };
 
 // key -> message body. Each entry is a function of the merge fields (see _atxFields) and
 // returns the WHOLE message as an array of lines — these are conversational SMS, so there
@@ -629,13 +630,15 @@ var ATX_SCRIPTS = {
   ]; },
 
   // ── Drafts, in the same voice (ATX_DRAFT) ──
+  // "[Business or Consumer Tower Number]" in the source template -> f.vip, which already
+  // follows the account-type toggle.
   payment: function(f) { return [
-    'Hi ' + f.name + ', this is ' + f.activator + ' with AT&T. I was reviewing the order you placed with ' +
-    f.rep + ' on ' + f.date + ', and it’s being held for a valid payment method — nothing has ' +
-    'shipped yet because of it.', '',
-    'You can get it updated by calling our VIP tower at ' + f.vip + ' and a live agent can take care of it ' +
-    'in a couple of minutes.', '',
-    'Please feel free to call or text me back if you’d like me to walk you through it.'
+    'Hello ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I’m reaching out ' +
+    'regarding the order you placed with ' + f.rep + ' on ' + f.date + '.', '',
+    'It looks like we were unable to process the payment for your order. To avoid any delays, please ' +
+    'reply to this text or give us a call at your earliest convenience. You can also reach us directly ' +
+    'at ' + f.vip + ', and we’ll be happy to help get everything taken care of right away.', '',
+    'Thank you, and we look forward to assisting you!'
   ]; },
   tcs: function(f) { return [
     'Hello ' + f.name + ', this is ' + f.activator + ' with AT&T Activation Support. I’m reaching out ' +
