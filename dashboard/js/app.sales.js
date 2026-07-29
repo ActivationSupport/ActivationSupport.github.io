@@ -585,12 +585,18 @@ var ATX_TYPES = [
 // believing it is approved copy. Delete a key here once its wording is signed off.
 // Every message is now the user's own wording.
 var ATX_DRAFT = {};
-// The appointment messages quote an "Office Activation Number", which is per office and
-// distinct from the VIP tower lines. ⚠ Not yet supplied — fill these in and the field
-// below pre-fills itself; until then the activator types it and the message shows a
-// visible [Office Activation Number] placeholder rather than a blank.
+// The appointment messages quote an "Office Activation Number" — per office, and distinct
+// from the VIP tower lines. Pre-fills the field for the activator's office; a blank entry
+// just means they type it, and the message shows a visible [Office Activation Number]
+// placeholder rather than a gap. Written in the same spaced style as the VIP numbers.
+// ⚠ leadsphere is intentionally blank pending Gabe; bayview was never supplied.
 var ATX_OFFICE_NUMBER = {
-  elevate:'', midspire:'', viridian:'', vanguard:'', bayview:'', leadsphere:''
+  elevate:   '858 321 5699',
+  midspire:  '224 524 8968',
+  viridian:  '314 789 1988',
+  vanguard:  '813 524 7081',
+  leadsphere:'',
+  bayview:   ''
 };
 
 // key -> message body. Each entry is a function of the merge fields (see _atxFields) and
@@ -827,7 +833,11 @@ function renderActivatorTextTab() {
         // date and time, so those two only appear for it.
         (d.cat === 'appt' ?
           '<div class="ps-label">OFFICE ACTIVATION NUMBER</div>' +
-          '<input class="ps-input" type="tel" value="' + esc(d.officeNumber) + '" placeholder="Your office activation line" oninput="_atxSet(\'officeNumber\',this.value)">' : '') +
+          '<input class="ps-input" type="tel" value="' + esc(d.officeNumber) + '" placeholder="Your office activation line" oninput="_atxSet(\'officeNumber\',this.value)">' +
+          // Offices without a configured number would otherwise look like the field was
+          // simply left empty by mistake.
+          (!(ATX_OFFICE_NUMBER[(typeof CFG !== 'undefined' && CFG) ? CFG.officeId : ''] || '')
+            ? '<div style="font-size:.75rem;color:var(--yellow);margin-top:4px">Not set up for this office yet — type it in, and it will pre-fill once it is added.</div>' : '') : '') +
         (d.type === 'confirm' ?
           '<div class="ps-label">APPOINTMENT DATE</div>' +
           '<input class="ps-input" value="' + esc(d.apptDate) + '" placeholder="Thursday, July 30" oninput="_atxSet(\'apptDate\',this.value)">' +
