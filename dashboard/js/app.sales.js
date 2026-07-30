@@ -750,6 +750,12 @@ function _atxFields(d) {
     apptDate:(d.apptDate || '').trim() || '[Date]',
     apptTime:(d.apptTime || '').trim() || '[Time]',
     officeNumber:(d.officeNumber || '').trim() || '[Office Activation Number]',
+    // ⚠ sold / isBiz / initial are AVAILABLE BUT UNUSED by all 12 scripts:
+    //   · sold + isBiz were superseded by _atxProductHeader (product title) and vip (segment)
+    //   · initial: the user chose to drop the "Customer: Sarah M." line, matching the rehash
+    //     text, which never restates the customer's own name — the form still collects it for
+    //     the activator's on-screen reference.
+    // Kept so a future pasted script can reference them without a code change.
     sold:    sel.length ? sel.join(' + ') : '[What was sold]',
     deviceWord: deviceWord,
     isBiz:   d.acctType === 'Business',
