@@ -987,16 +987,17 @@ function _ssHistoryHeadHtml(n) {
 }
 // Identity block: avatar + name, then the facts an agent needs mid-call. Phone/office fall back
 // to the rep's saved profile when the form fields are still empty.
+// NO local-time row on purpose: the form already shows the Them/You clock strip under Contact,
+// and it appears on OFFICE alone — so the form's is the one that always works. Repeating it here
+// just listed the same two times twice on one screen.
 function _ssRequesterFactsHtml(rep, opts) {
   var prof   = (_TICKETS._repProfile || {})[String(rep).trim().toLowerCase()] || {};
   var office = opts.office || prof.office || '';
   var phone  = _ssFmtPhone(opts.phone || prof.phone || '');
-  var meta   = _ssOfficeMeta(office);
   return '<div class="ss-rp-who">' + _ssAvatar(rep) + '<span class="ss-rp-name">' + esc(rep) + '</span></div>' +
     '<div class="ss-side-grp">' +
       _dt('Phone', phone ? esc(phone) : '—') +
       _dt('Office', office ? esc(office) : '—') +
-      (meta ? _dt('Local time', _ssClockPairHtml(meta)) : '') +
     '</div>';
 }
 // The New Ticket rail. Rendered even with nobody identified, so the layout never jumps.
