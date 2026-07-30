@@ -295,6 +295,15 @@ function _refreshOpenNotesModal() {
     repHist.innerHTML = repNotes.length ? repNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No rep notes yet.</div>';
     if (atTopR) repHist.scrollTop = 0;
   }
+  // A cancel request logged by someone else has to reach the open modal too — it's the
+  // one note type where being 25s stale actually matters.
+  var cancels = _notesNewestFirst(notes.filter(function(n) { return n.noteType === 'cancel'; }));
+  var cxBlock = document.getElementById('nm-cx-block');
+  if (cxBlock) cxBlock.outerHTML = notesCancelBlockHtml(cancels);
+  else if (cancels.length) {
+    var mb = document.getElementById('modal-body');
+    if (mb) mb.insertAdjacentHTML('afterbegin', notesCancelBlockHtml(cancels));
+  }
 }
 
 function _bgRefreshLst() {

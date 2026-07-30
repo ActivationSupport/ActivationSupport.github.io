@@ -113,7 +113,9 @@ function _drBuildHtml() {
   var _drDup = _drNotesShownSet(rpt);
   return '<div class="card">'+header+'<div class="card-body dr-body">'+
     _drAtAGlance(rpt)+
-    _drStatBar(rpt.callCategories||{}, rpt.appointments, rpt.activatedToday, rpt.ordersSubmitted)+
+    _drStatBar(rpt.callCategories||{}, rpt.appointments, rpt.activatedToday, rpt.ordersSubmitted, rpt.cancelRequests)+
+    // Leads the sections: an order the customer is trying to leave outranks the rest.
+    _drSectionCancelRequests(rpt.cancelRequests)+
     _drSectionEscalations(rpt.escalations||[])+
     _drSectionNoAnswers(rpt.noAnswers||[])+
     _drSectionCallsWorked(rpt.callsWorked||{}, _drDup)+
@@ -147,9 +149,10 @@ function _drFmtDate(iso) {
 }
 
 // ── KPI SUMMARY ROW ───────────────────────────────────────────────────────
-function _drStatBar(cats, ap, act, ordersSubmitted) {
+function _drStatBar(cats, ap, act, ordersSubmitted, cx) {
   ap = ap || {};
   act = act || { lines:0, orders:0 };
+  cx = cx || { total:0 };
   var bk = ap.booked || { total: (ap.bookedToday||0) };
   var sc = ap.statusChanges || { completed: 0 };
   var daT=cats.dayAfterTotal||0, daW=cats.dayAfterWorked||0;
@@ -171,6 +174,7 @@ function _drStatBar(cats, ap, act, ordersSubmitted) {
     tile(cats.issuesWorked||0,'Issues Worked','#a78bfa')+
     tile(cats.noAnswerTotal||0,'No Answers','#e9756a')+
     tile(cats.escalationTotal||0,'Escalations','#cf6b62')+
+    tile(cx.total||0,'Cancel Requests','#7f1d1d')+
     tile(bk.total||0,'Appts Booked','#4A9FD4')+
     tile(sc.completed||0,'Appts Completed','#3b82f6')+
   '</div>';
@@ -188,7 +192,31 @@ function _drAtAGlance(rpt) {
   if (ap.scheduled&&ap.scheduled.total) parts.push('<b>'+(sc.completed||0)+'</b> appt'+((sc.completed||0)===1?'':'s')+' completed'+(sc.noShow?', <b>'+sc.noShow+'</b> no-show':''));
   var attn=(cats.noAnswerTotal||0)+(cats.escalationTotal||0);
   if (attn) parts.push('<b>'+attn+'</b> item'+(attn===1?'':'s')+' need attention');
+  var cx=(rpt.cancelRequests||{}).total||0;
+  if (cx) parts.push('<b class="dr-glance-cx">'+cx+'</b> cancel request'+(cx===1?'':'s'));
   return '<div class="dr-glance">'+parts.join(' &nbsp;·&nbsp; ')+'</div>';
+}
+
+// ── CX REQUESTS TO CANCEL ─────────────────────────────────────────────────
+// Reason counts first (the 5-second read), then every request in full. Renders
+// nothing at all on a day with none, so a clean day stays clean.
+function _drSectionCancelRequests(cx) {
+  cx = cx || { total:0, byReason:{}, list:[] };
+  if (!cx.total) return '';
+  var byReason = Object.keys(cx.byReason||{})
+    .sort(function(a,b){ return cx.byReason[b]-cx.byReason[a]; })
+    .map(function(r){ return '<span class="dr-cx-chip">'+esc(r)+'<b>'+cx.byReason[r]+'</b></span>'; }).join('');
+  var rows = (cx.list||[]).map(function(x){
+    return '<tr><td class="dr-nw">'+_drDsiCell(x.dsi)+'</td>'+
+      '<td class="dr-nw"><span class="dr-cx-reason">'+esc(x.reason)+'</span></td>'+
+      '<td>'+(x.detail?esc(x.detail):'<span class="dr-muted">—</span>')+'</td>'+
+      '<td class="dr-nw">'+esc(x.author||'—')+'</td>'+
+      '<td class="dr-nw">'+esc(_drFmtTs(x.ts))+'</td></tr>';
+  }).join('');
+  return '<div class="dr-section dr-section-cx"><div class="dr-sec-hdr dr-sec-hdr-cx">'+icon('issues')+' Cx Requests to Cancel '+
+    '<span class="dr-subhdr">'+cx.total+' request'+(cx.total===1?'':'s')+'</span></div>'+
+    (byReason?'<div class="dr-cx-chips">'+byReason+'</div>':'')+
+    '<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>DSI</th><th>Reason</th><th>What they said</th><th>Logged by</th><th>When</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 
 // Detail list of activator-marked line activations for the day.
@@ -685,6 +713,7 @@ function _drBuildEmailHtml() {
     eTile(cats.issuesWorked||0,'Issues','#7c3aed')+
     eTile(cats.noAnswerTotal||0,'No Answers','#dc2626')+
     eTile(cats.escalationTotal||0,'Escalations','#b91c1c')+
+    eTile((rpt.cancelRequests||{}).total||0,'Cancel Requests','#7f1d1d')+
     eTile(eBk.total||0,'Appts Booked','#0891b2')+
     eTile(eSc.completed||0,'Appts Completed','#3b82f6');
 
@@ -837,7 +866,28 @@ function _drBuildEmailHtml() {
   if (eAp.scheduled&&eAp.scheduled.total) glParts.push('<b>'+(eSc.completed||0)+'</b> appt'+((eSc.completed||0)===1?'':'s')+' completed'+(eSc.noShow?', <b>'+eSc.noShow+'</b> no-show':''));
   var gAttn=(cats.noAnswerTotal||0)+(cats.escalationTotal||0);
   if (gAttn) glParts.push('<b>'+gAttn+'</b> item'+(gAttn===1?'':'s')+' need attention');
+  var eCx=rpt.cancelRequests||{total:0,byReason:{},list:[]};
+  if (eCx.total) glParts.push('<b style="color:#991b1b">'+eCx.total+'</b> cancel request'+(eCx.total===1?'':'s'));
   var glanceSec='<div style="font-size:13px;line-height:1.5;color:#1e293b;background:#f6f8fb;border:1px solid #e2e8f0;border-left:3px solid '+BR.accent+';border-radius:0 7px 7px 0;padding:10px 14px">'+glParts.join(' &nbsp;·&nbsp; ')+'</div>';
+
+  // Cx requests to cancel — mirrors _buildDailyReportEmailHtml in Code.gs so the
+  // pasted email and the nightly one stay the same document.
+  var cxSec='';
+  if (eCx.total) {
+    var cxByReason=Object.keys(eCx.byReason||{}).sort(function(a,b){return eCx.byReason[b]-eCx.byReason[a];})
+      .map(function(r){ return esc(r)+' <b>'+eCx.byReason[r]+'</b>'; }).join(' &nbsp;&middot;&nbsp; ');
+    var cxRows=(eCx.list||[]).map(function(x,i){
+      return '<tr'+(i%2?' style="'+ZEB+'"':'')+'>'+
+        '<td style="'+TD+';white-space:nowrap">'+esc(x.dsi)+'</td>'+
+        '<td style="'+TD+';white-space:nowrap"><span style="'+RED+'">'+esc(x.reason)+'</span></td>'+
+        '<td style="'+TD+'">'+(x.detail?esc(x.detail):'<span style="color:#94a3b8;font-size:11px">&mdash;</span>')+'</td>'+
+        '<td style="'+TD+';white-space:nowrap">'+esc(x.author||'—')+'</td></tr>';
+    }).join('');
+    cxSec='<div style="background:#fef2f2;color:#991b1b;font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-left:4px solid #b91c1c;border-radius:0 5px 5px 0;margin:0">'+
+        '&#9888; Cx Requests to Cancel ('+eCx.total+')</div>'+
+      (cxByReason?'<div style="font-size:12px;color:#475569;padding:7px 13px;background:#fff7f7">'+cxByReason+'</div>':'')+
+      eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">Reason</th><th style="'+TH+'">What they said</th><th style="'+TH+'">Logged by</th></tr>',cxRows);
+  }
 
   // Lines Activated Today
   var actSec='';
@@ -903,6 +953,7 @@ function _drBuildEmailHtml() {
     '<div style="padding:18px 22px">'+
     '<div style="margin-bottom:14px">'+glanceSec+'</div>'+
     '<div style="margin-bottom:16px">'+statBar+'</div>'+
+    (cxSec?'<div style="margin-top:18px">'+cxSec+'</div>':'')+
     (escSec?'<div style="margin-top:18px">'+escSec+'</div>':'')+
     (naSec?'<div style="margin-top:18px">'+naSec+'</div>':'')+
     (cwSec?'<div style="margin-top:18px">'+cwSec+'</div>':'')+

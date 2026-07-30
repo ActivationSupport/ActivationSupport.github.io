@@ -284,6 +284,165 @@ function _notesNewestFirst(notes) {
 //                    appointment, not the DSI, and written by a UI that no longer exists.
 //                    Read-only archive — nothing can add to it any more. From openApptNotes.
 //   opts.customerNote  what the customer typed when they self-booked.
+// ── CX REQUEST TO CANCEL ──────────────────────────────────────────────────
+// A cancel request is an ordinary _Notes_<office> row with noteType 'cancel'. The
+// reason rides inside noteText as a "[Reason] detail" prefix rather than in a new
+// column: the sheet schema is fixed at 7 columns, and keeping to it means the whole
+// capture side works with NO backend redeploy. The Daily Report parses the same
+// prefix to bucket by reason, so the two stay in step by construction.
+//
+// Reasons are save-as-you-go, exactly like the Sales Support lookups: pick an
+// existing one or add a new one that persists for everyone. Until the backend
+// serves getCancelReasons, the seed list below stands in — so the picker is never
+// empty, even before a redeploy.
+var CANCEL_REASONS = null;      // null = not loaded yet
+var _CANCEL_REASON_FLIGHT = false;
+var CANCEL_REASON_SEED = [
+  'Price / bill too high',
+  'Coverage or speed',
+  'Found a better offer',
+  'Buyer’s remorse',
+  'Moving / no longer needs service',
+  'Service never installed',
+  'Unhappy with rep or process',
+  'Other'
+];
+function cancelReasonList() { return CANCEL_REASONS && CANCEL_REASONS.length ? CANCEL_REASONS : CANCEL_REASON_SEED.slice(); }
+
+// Fetches once per session. Any failure (including an older backend that doesn't
+// know the action) just leaves the seed in place — the picker still works.
+function ensureCancelReasons(cb) {
+  cb = cb || function(){};
+  if (CANCEL_REASONS !== null || _CANCEL_REASON_FLIGHT) { cb(); return; }
+  _CANCEL_REASON_FLIGHT = true;
+  api({ action:'getCancelReasons' }).then(function(res) {
+    _CANCEL_REASON_FLIGHT = false;
+    CANCEL_REASONS = (res && !res.error && res.reasons && res.reasons.length) ? res.reasons : CANCEL_REASON_SEED.slice();
+    cb();
+  }).catch(function() { _CANCEL_REASON_FLIGHT = false; CANCEL_REASONS = CANCEL_REASON_SEED.slice(); cb(); });
+}
+
+// "[Reason] detail" → {reason, detail}. A row without the prefix (hand-typed into the
+// sheet, or written before this shipped) degrades to reason '' + the whole text as detail
+// rather than being dropped.
+function _cancelParse(noteText) {
+  var s = String(noteText || '');
+  var m = s.match(/^\s*\[([^\]]+)\]\s*([\s\S]*)$/);
+  return m ? { reason: m[1].trim(), detail: m[2].trim() } : { reason: '', detail: s.trim() };
+}
+// ']' is the one character that could break the prefix back out, so it never enters it.
+function _cancelFmt(reason, detail) {
+  var r = String(reason || '').replace(/[\[\]]/g, '').trim();
+  var d = String(detail || '').trim();
+  return '[' + r + ']' + (d ? ' ' + d : '');
+}
+
+// The spotlight block: pinned high in the modal, never collapsed, never hidden behind
+// a scroll. Only rendered when the order actually has a request.
+function notesCancelBlockHtml(cancelNotes) {
+  if (!cancelNotes || !cancelNotes.length) return '';
+  var items = cancelNotes.map(function(n) {
+    var p = _cancelParse(n.noteText);
+    return '<div class="nm-cx-item">' +
+        '<div class="nm-cx-reason">'+esc(p.reason || 'No reason recorded')+'</div>' +
+        (p.detail ? '<div class="nm-cx-detail">'+esc(p.detail)+'</div>' : '') +
+        '<div class="nm-cx-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(n.authorName)+'</div>' +
+      '</div>';
+  }).join('');
+  return '<div class="nm-cx-block" id="nm-cx-block">' +
+      '<div class="nm-cx-hdr">'+icon('issues')+' Cx Requested to Cancel' +
+        (cancelNotes.length > 1 ? '<span class="nm-cx-count">'+cancelNotes.length+'</span>' : '') +
+      '</div>' + items +
+    '</div>';
+}
+
+// The capture form. Reason is REQUIRED; 'Other' additionally requires the detail box,
+// since "Other" on its own tells the Daily Report nothing.
+function notesCancelFormHtml() {
+  var reasons = cancelReasonList();
+  var picker;
+  if (typeof _comboField === 'function') {
+    // The same save-as-you-go widget the Sales Support portal uses — pick one, or
+    // "+ Add" a new reason that persists for every office next time.
+    picker = _comboField('nm-cancel-reason', {
+      placeholder: 'Reason for cancel (required)',
+      options: function(){ return cancelReasonList(); },
+      onAdd: function(typed){ _cancelReasonAddPopup(typed); }
+    });
+  } else {
+    // Degraded: pick-existing only. Reached only if app.tickets.js failed to load.
+    picker = '<select id="nm-cancel-reason" class="ps-input"><option value="">Reason for cancel (required)</option>' +
+      reasons.map(function(r){ return '<option value="'+esc(r)+'">'+esc(r)+'</option>'; }).join('') + '</select>';
+  }
+  return '<div id="nm-cx-wrap">' +
+      '<div class="nm-section-label nm-cx-label" style="margin-top:8px">Cx Request to Cancel</div>' +
+      '<div class="nm-cx-form">' +
+        picker +
+        '<textarea class="nm-textarea" id="nm-cancel-detail" placeholder="What did they say? (required if the reason is Other)" style="margin:9px 0 0"></textarea>' +
+        '<div class="nm-cx-err" id="nm-cancel-err"></div>' +
+        '<button class="nm-add-btn nm-cx-add-btn" onclick="modalAddCancelRequest()">LOG CANCEL REQUEST</button>' +
+      '</div>' +
+    '</div>';
+}
+
+// Add a reason to the picker NOW and persist it for everyone, mirroring
+// _ticketRememberValue: local list first so it appears immediately, then the backend.
+function _cancelReasonAddPopup(typed) {
+  _ssAddPopup('Add cancel reason', [{ id:'val', label:'New reason', value:typed || '' }], function(v) {
+    var val = String(v.val || '').replace(/[\[\]]/g, '').trim();
+    if (!val) return 'Enter a reason.';
+    var list = cancelReasonList();
+    if (!list.some(function(r){ return r.toLowerCase() === val.toLowerCase(); })) list.push(val);
+    CANCEL_REASONS = list;
+    var inp = document.getElementById('nm-cancel-reason'); if (inp) inp.value = val;
+    apiPost({ action:'addCancelReason', value: val, addedBy: SESSION.email });
+  });
+}
+
+function _cancelErr(msg) {
+  var e = document.getElementById('nm-cancel-err'); if (!e) return;
+  e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none';
+}
+
+function modalAddCancelRequest() {
+  var rEl = document.getElementById('nm-cancel-reason');
+  var dEl = document.getElementById('nm-cancel-detail');
+  var reason = rEl ? String(rEl.value || '').trim() : '';
+  var detail = dEl ? String(dEl.value || '').trim() : '';
+  if (!reason) { _cancelErr('Pick a reason — a cancel request without one can’t be reported on.'); if (rEl) rEl.focus(); return; }
+  if (reason.toLowerCase() === 'other' && !detail) { _cancelErr('“Other” needs a detail — say what they told you.'); if (dEl) dEl.focus(); return; }
+  _cancelErr('');
+  var noteText = _cancelFmt(reason, detail);
+  var entry = { ts:new Date().toISOString(), authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email,
+                noteText:noteText, noteType:'cancel', linesActivated:0 };
+
+  if (rEl) rEl.value = ''; if (dEl) dEl.value = '';
+  if (!DATA.notes) DATA.notes = {};
+  if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
+  DATA.notes[_modalDsi].push(entry);
+  var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
+  if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
+
+  // Repaint the spotlight in place so the request appears where it will live.
+  var all = _notesNewestFirst((DATA.notes[_modalDsi]||[]).filter(function(n){ return n.noteType==='cancel'; }));
+  var block = document.getElementById('nm-cx-block');
+  if (block) block.outerHTML = notesCancelBlockHtml(all);
+  else {
+    var body = document.getElementById('modal-body');
+    if (body) body.insertAdjacentHTML('afterbegin', notesCancelBlockHtml(all));
+  }
+
+  _noteAddFlight = true;
+  var _done = function(){ _noteAddFlight = false; };
+  if (_modalApptId && _modalOffice !== CFG.officeId) {
+    _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'cancel',
+                linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
+  } else {
+    apiPost({ action:'addNote', dsi:_modalDsi, noteText:noteText, noteType:'cancel',
+              authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
+  }
+}
+
 // The customer's booking note. One definition, shared by the notes modal and the
 // no-DSI appointment fallback in app.appts.js — they used to be two copies of the
 // same inline-styled block that could drift apart.
@@ -308,8 +467,11 @@ function openNotesModal(dsi, customer, rep, opts) {
   var canAddActivation = role==='master-admin' || role==='activator';
   var canAddRep = ['master-admin','owner','admin','activator','client-rep','leader','jd','manager'].indexOf(role) !== -1;
 
+  // 'cancel' matches none of these filters, so cancel requests never leak into the
+  // activation or rep lists — they get their own spotlight instead.
   var actNotes = _notesNewestFirst(notes.filter(function(n){ return (n.noteType||'activation')==='activation'; }));
   var repNotes = _notesNewestFirst(notes.filter(function(n){ return n.noteType==='rep' || n.noteType==='note'; }));
+  var cancelNotes = _notesNewestFirst(notes.filter(function(n){ return n.noteType==='cancel'; }));
 
   var actHistHtml = actNotes.length ? actNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No activation notes yet.</div>';
   var repHistHtml = repNotes.length ? repNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No rep notes yet.</div>';
@@ -338,6 +500,8 @@ function openNotesModal(dsi, customer, rep, opts) {
     // Pinned above everything: the customer's own words from the booking. It used to
     // show ONLY on no-DSI bookings, so it vanished the moment the order became workable.
     (custNote ? notesCustomerNoteHtml(custNote) : '') +
+    // Spotlight: an order the customer has asked to cancel says so before anything else.
+    notesCancelBlockHtml(cancelNotes) +
     '<div class="nm-section-label nm-act-label">Activation Notes</div>' +
     '<div class="nm-history" id="nm-act-hist">'+actHistHtml+'</div>' +
     (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…" style="margin-bottom:8px"></textarea>'+_linesFieldHtml('modal-body',icon('zap')+' Lines activated on this order')+'<button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
@@ -350,12 +514,24 @@ function openNotesModal(dsi, customer, rep, opts) {
       '<div class="nm-section-label nm-appt-label" style="margin-top:8px">Appointment Notes'+
         '<span class="nm-archive-tag">archive</span></div>' +
       '<div class="nm-history" id="nm-appt-hist">'+apptNotes.map(_noteItemHtml).join('')+'</div>' : '') +
+    // The capture form sits with the other add boxes; the spotlight above is the display.
+    (canAddRep ? notesCancelFormHtml() : '') +
     (_cross ? '' :
       '<div class="nm-section-label" style="margin-top:8px">Rating</div>' +
       '<div class="nm-rating-row" id="nm-rating-row">'+ratingHtml+'</div>') +
     '<div class="nm-actions"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
 
   document.getElementById('detail-modal').classList.add('open');
+  // Reasons load once per session. If they land after the modal is already open,
+  // repaint just the capture section — preserving anything already typed into it.
+  if (canAddRep) ensureCancelReasons(function() {
+    var wrap = document.getElementById('nm-cx-wrap'); if (!wrap) return;
+    var d0 = document.getElementById('nm-cancel-detail'), r0 = document.getElementById('nm-cancel-reason');
+    var keptDetail = d0 ? d0.value : '', keptReason = r0 ? r0.value : '';
+    wrap.outerHTML = notesCancelFormHtml();
+    var d1 = document.getElementById('nm-cancel-detail'); if (d1) d1.value = keptDetail;
+    var r1 = document.getElementById('nm-cancel-reason'); if (r1) r1.value = keptReason;
+  });
 }
 
 function modalSetRating(rating) {
