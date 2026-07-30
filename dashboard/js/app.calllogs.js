@@ -255,7 +255,24 @@ var _modalApptId = '';   // set when opened from an appointment → note adds ro
 function _noteItemHtml(n) {
   var la=Math.max(0,parseInt(n.linesActivated,10)||0);
   var badge=la>0?' <span class="nm-lines-badge">'+icon('zap')+' '+la+' line'+(la===1?'':'s')+' activated</span>':'';
-  return '<div class="nm-note"><div class="nm-note-meta">'+fmtDate(n.ts)+' &mdash; '+esc(n.authorName)+badge+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
+  return '<div class="nm-note"><div class="nm-note-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(n.authorName)+badge+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
+}
+
+// NEWEST FIRST. The history boxes are only ~200px tall, so whatever renders first is
+// what you actually see — and on a heavily-called order that has to be the most recent
+// call, not the oldest. Neither the FE nor readNotes() sorted before: order was sheet
+// APPEND order, which is chronological only for as long as nobody edits the sheet.
+// Sorts a COPY — DATA.notes stays in append order for _daysSinceLastNote and friends.
+// Ties (equal or missing ts) fall back to append order, reversed, so a note added later
+// still reads as newer; a missing ts sorts to the bottom rather than jumping the list.
+function _notesNewestFirst(notes) {
+  return (notes||[]).map(function(n, i) { return { n:n, i:i, t:n.ts ? new Date(n.ts).getTime() : 0 }; })
+    .sort(function(a, b) {
+      if (isNaN(a.t)) a.t = 0;
+      if (isNaN(b.t)) b.t = 0;
+      return b.t !== a.t ? b.t - a.t : b.i - a.i;
+    })
+    .map(function(x) { return x.n; });
 }
 
 function openNotesModal(dsi, customer, rep, opts) {
@@ -270,8 +287,8 @@ function openNotesModal(dsi, customer, rep, opts) {
   var canAddActivation = role==='master-admin' || role==='activator';
   var canAddRep = ['master-admin','owner','admin','activator','client-rep','leader','jd','manager'].indexOf(role) !== -1;
 
-  var actNotes = notes.filter(function(n){ return (n.noteType||'activation')==='activation'; });
-  var repNotes = notes.filter(function(n){ return n.noteType==='rep' || n.noteType==='note'; });
+  var actNotes = _notesNewestFirst(notes.filter(function(n){ return (n.noteType||'activation')==='activation'; }));
+  var repNotes = _notesNewestFirst(notes.filter(function(n){ return n.noteType==='rep' || n.noteType==='note'; }));
 
   var actHistHtml = actNotes.length ? actNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No activation notes yet.</div>';
   var repHistHtml = repNotes.length ? repNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No rep notes yet.</div>';
@@ -377,12 +394,14 @@ function modalAddNote(noteType) {
   if (noteType === 'activation') _linesSet('modal-body', 0);
   var now = new Date().toISOString();
   var entry = { ts:now, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email, noteText:text, noteType:noteType, linesActivated:lines };
-  // Optimistic in-modal append — only the note list updates, never a full reload.
+  // Optimistic in-modal insert — only the note list updates, never a full reload.
+  // PREPENDS, and scrolls to the TOP: the list is newest-first, so the note you just
+  // wrote belongs at the head, not the tail.
   var hist = document.getElementById(histId);
   if (hist) {
     hist.querySelectorAll('.nm-empty').forEach(function(e) { e.remove(); });
-    hist.innerHTML += _noteItemHtml(entry);
-    hist.scrollTop = hist.scrollHeight;
+    hist.innerHTML = _noteItemHtml(entry) + hist.innerHTML;
+    hist.scrollTop = 0;
   }
   _noteAddFlight = true;
   var _done = function() { input.disabled = false; _noteAddFlight = false; };

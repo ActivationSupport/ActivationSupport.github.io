@@ -274,24 +274,26 @@ function _applyNoteCounts() {
   }
 }
 // If the notes window is open, refresh its history lists live (leaves the textareas
-// you're typing in untouched; keeps each list pinned to the bottom if it was there).
+// you're typing in untouched). The lists are NEWEST-FIRST, so incoming notes land at
+// the TOP — each list stays pinned to the top if that's where you were, and holds its
+// place if you had scrolled down to read older notes.
 function _refreshOpenNotesModal() {
   var dm = document.getElementById('detail-modal');
   if (!dm || !dm.classList.contains('open') || !_modalDsi) return;
   var actHist = document.getElementById('nm-act-hist'), repHist = document.getElementById('nm-rep-hist');
   if (!actHist && !repHist) return;   // a different modal is reusing detail-modal
   var notes = (DATA.notes || {})[_modalDsi] || [];
-  var actNotes = notes.filter(function(n) { return (n.noteType || 'activation') === 'activation'; });
-  var repNotes = notes.filter(function(n) { return n.noteType === 'rep' || n.noteType === 'note'; });
+  var actNotes = _notesNewestFirst(notes.filter(function(n) { return (n.noteType || 'activation') === 'activation'; }));
+  var repNotes = _notesNewestFirst(notes.filter(function(n) { return n.noteType === 'rep' || n.noteType === 'note'; }));
   if (actHist) {
-    var atBottomA = actHist.scrollHeight - actHist.scrollTop - actHist.clientHeight < 4;
+    var atTopA = actHist.scrollTop < 4;
     actHist.innerHTML = actNotes.length ? actNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No activation notes yet.</div>';
-    if (atBottomA) actHist.scrollTop = actHist.scrollHeight;
+    if (atTopA) actHist.scrollTop = 0;
   }
   if (repHist) {
-    var atBottomR = repHist.scrollHeight - repHist.scrollTop - repHist.clientHeight < 4;
+    var atTopR = repHist.scrollTop < 4;
     repHist.innerHTML = repNotes.length ? repNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No rep notes yet.</div>';
-    if (atBottomR) repHist.scrollTop = repHist.scrollHeight;
+    if (atTopR) repHist.scrollTop = 0;
   }
 }
 
@@ -542,11 +544,15 @@ function renderTab(id) {
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
-function fmtDate(v) {
+// Note timestamps carry the TIME as well as the date — the same customer often gets
+// called more than once in a day, and "Jul 21" alone can't tell those calls apart.
+// Rendered in the VIEWER's local timezone (n.ts is UTC ISO off the sheet), matching
+// _apptNoteTime and the Them/You clocks.
+function fmtDateTime(v) {
   if (!v) return '—';
   var d = v instanceof Date ? v : new Date(v);
   if (isNaN(d.getTime())) return String(v).split('T')[0];
-  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  return d.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
 }
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
