@@ -268,7 +268,7 @@ function _newTicketFormHtml() {
         _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:function(){ _ntAutofillRep('nt'); }, onAdd:function(t){ _ssRepAddPopup(t, 'nt'); } })) +
         _ntField('Office', _comboField('nt-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:function(){ _ntOfficeChange('nt'); }, onAdd:function(t){ _ssOfficeAddPopup(t, 'nt'); } })) +
         _ntField('Channel', chan) +
-        _ntField('Phone #', _comboField('nt-phone', { placeholder:'Called / texted in from', options:_ntKnownPhones, onChange:function(){ _ntPhoneLookup('nt'); }, onInput:function(){ _ntPhoneLookup('nt'); }, noAdd:true })) +
+        _ntField('Phone #', _comboField('nt-phone', { placeholder:'Called / texted in from', options:_ntKnownPhones, onChange:function(){ _ntPhoneLookup('nt'); }, onInput:function(){ _ntPhoneLookup('nt'); }, onBlur:function(){ _ssPhoneBlur('nt-phone'); }, noAdd:true })) +
       '</div>' +
       '<div class="ss-contact-row">' +
         '<div id="nt-clock" class="ss-clock-strip"></div>' +
@@ -331,7 +331,7 @@ function _ticketBuildRepProfiles() {
   var byRep = {}, byPhone = {};
   (_TICKETS.list || []).forEach(function(t) {
     var repRaw = String(t.requester || '').trim(), rep = repRaw.toLowerCase(), ts = String(t.created || '');
-    var ph = String(t.phone || '').trim(), of = String(t.office || '').trim(), phn = _ssNormPhone(ph);
+    var ph = _ssFmtPhone(t.phone), of = String(t.office || '').trim(), phn = _ssNormPhone(ph);
     if (rep) {
       var r = byRep[rep] || (byRep[rep] = { phone:'', phoneTs:'', office:'', officeTs:'' });
       if (ph && ts >= r.phoneTs) { r.phone = ph; r.phoneTs = ts; }
@@ -341,7 +341,7 @@ function _ticketBuildRepProfiles() {
   });
   (_TICKETS.contacts || []).forEach(function(cLink) {
     var repRaw = String(cLink.rep || '').trim(); if (!repRaw) return;
-    var rep = repRaw.toLowerCase(), ph = String(cLink.phone || '').trim(), of = String(cLink.office || '').trim();
+    var rep = repRaw.toLowerCase(), ph = _ssFmtPhone(cLink.phone), of = String(cLink.office || '').trim();
     var r = byRep[rep] || (byRep[rep] = { phone:'', phoneTs:'', office:'', officeTs:'' });
     if (ph) { r.phone = ph; r.phoneTs = '~'; }
     if (of) { r.office = of; r.officeTs = '~'; }
@@ -358,12 +358,44 @@ function _ntAutofillRep(prefix) {
   prefix = prefix || 'nt';
   var rep = _ntVal(prefix + '-requester').toLowerCase();
   var p = (_TICKETS._repProfile || {})[rep]; if (!p) return;
-  if (p.phone) _ntSetVal(prefix + '-phone', p.phone);
+  if (p.phone) _ntSetVal(prefix + '-phone', _ssFmtPhone(p.phone));
   if (p.office) { _ntSetVal(prefix + '-office', p.office); _ntOfficeChange(prefix); }
 }
+// ── Phone numbers — ONE universal format ────────────────────────────────────
+// Every number this office stores or shows is "(555) 123-4567". Agents may type one
+// however they like — dots, dashes, spaces, a leading 1, +1 — and it is canonicalized
+// at the moment of save, with legacy values formatted on their way to the screen.
+// A number must be 10 digits (or 11 starting with 1); anything else is REFUSED at save
+// rather than stored, which is what keeps the phone→rep map trustworthy.
+//   _ssPhoneDigits  the 10 significant digits, or '' if it isn't a valid US number
+//   _ssPhoneOk      valid to save? (blank counts as valid — phone is an optional field)
+//   _ssFmtPhone     canonical form. A non-conforming value comes back AS TYPED, so odd
+//                   legacy data still displays and is never silently rewritten.
+//   _ssNormPhone    digits-only MATCH key. Collapses 1-555… and 555… onto ONE key, so
+//                   the rep↔phone lookup spans both old and new stored formats.
+function _ssPhoneDigits(p) {
+  var d = String(p == null ? '' : p).replace(/\D/g, '');
+  if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1);
+  return d.length === 10 ? d : '';
+}
+function _ssPhoneOk(p) { return !String(p == null ? '' : p).trim() || !!_ssPhoneDigits(p); }
+function _ssFmtPhone(p) {
+  var d = _ssPhoneDigits(p);
+  return d ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6)
+           : String(p == null ? '' : p).trim();
+}
+function _ssNormPhone(p) { return _ssPhoneDigits(p) || String(p == null ? '' : p).replace(/\D/g, ''); }
+// What every surface says when a typed number isn't 10 digits.
+var SS_PHONE_ERR = 'Phone must be 10 digits — e.g. (555) 123-4567.';
+// Snap a field to the canonical format as the agent leaves it. Blank and invalid values
+// are left alone, so the save-time error can quote back exactly what they typed.
+function _ssPhoneBlur(id) {
+  var el = document.getElementById(id); if (!el) return;
+  if (_ssPhoneDigits(el.value)) el.value = _ssFmtPhone(el.value);
+}
+
 // Reverse link: typing/picking a known Phone # fills the Rep (+ office) it belongs to.
 // Only fills BLANK fields, so a manually-chosen rep is never clobbered.
-function _ssNormPhone(p) { return String(p || '').replace(/\D/g, ''); }
 function _ntPhoneLookup(prefix) {
   prefix = prefix || 'nt';
   var p = (_TICKETS._phoneProfile || {})[_ssNormPhone(_ntVal(prefix + '-phone'))]; if (!p) return;
@@ -373,8 +405,8 @@ function _ntPhoneLookup(prefix) {
 // Known phone numbers for the Phone # combobox — { val:number, label:"number · rep — office" }.
 function _ntKnownPhones() {
   var pp = _TICKETS._phoneProfile || {};
-  return Object.keys(pp).map(function(k){ var x = pp[k];
-    return { val: x.phone || k, label: (x.phone || k) + (x.rep ? '  ·  ' + x.rep + (x.office ? ' — ' + x.office : '') : '') }; });
+  return Object.keys(pp).map(function(k){ var x = pp[k], n = _ssFmtPhone(x.phone || k);
+    return { val: n, label: n + (x.rep ? '  ·  ' + x.rep + (x.office ? ' — ' + x.office : '') : '') }; });
 }
 function _ticketFillAgents() {
   var sel = document.getElementById('nt-assignee'); if (!sel || !_TICKETS.agents.length) return;
@@ -505,7 +537,7 @@ function _ssOfficeAddPopup(typed, prefix) {
 // highlight, Esc closes. `cfg = { placeholder, options: ()=>[strings] }`.
 var _COMBO = {};
 function _comboField(id, cfg) {
-  _COMBO[id] = { opts: cfg.options, onChange: cfg.onChange || null, onAdd: cfg.onAdd || null, onInput: cfg.onInput || null, noAdd: !!cfg.noAdd, addTitle: cfg.addTitle || 'Add new', lookupType: cfg.lookupType || '', lookupParent: cfg.lookupParent || null, items: [], hi: -1 };
+  _COMBO[id] = { opts: cfg.options, onChange: cfg.onChange || null, onAdd: cfg.onAdd || null, onInput: cfg.onInput || null, onBlur: cfg.onBlur || null, noAdd: !!cfg.noAdd, addTitle: cfg.addTitle || 'Add new', lookupType: cfg.lookupType || '', lookupParent: cfg.lookupParent || null, items: [], hi: -1 };
   return '<div class="ss-combo">' +
     '<input id="' + id + '" class="ps-input ss-combo-input" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="' + esc(cfg.placeholder || '') + '" ' +
       'onfocus="_comboOpen(\'' + id + '\')" oninput="_comboInput(\'' + id + '\')" onkeydown="_comboKey(\'' + id + '\',event)" onblur="_comboBlur(\'' + id + '\')">' +
@@ -548,7 +580,10 @@ function _comboClose(id) {
   if (input) input.setAttribute('aria-expanded', 'false');
   if (_COMBO[id]) _COMBO[id].hi = -1;
 }
-function _comboBlur(id) { setTimeout(function(){ _comboClose(id); }, 140); }   // delay so a click can register
+function _comboBlur(id) {
+  var st = _COMBO[id]; if (st && st.onBlur) st.onBlur();   // e.g. snap a phone to its canonical format
+  setTimeout(function(){ _comboClose(id); }, 140);         // delay so a click can register
+}
 function _comboPick(id, i) {
   var st = _COMBO[id], input = document.getElementById(id);
   if (!st || !input || !st.items[i]) return;
@@ -588,6 +623,8 @@ function _ticketRememberValue(type, value, parent) {
 }
 function _ntSetVal(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; }
 // A small console-styled popup: fields[{id,label,value}] → onSave({id:value,…}).
+// If onSave RETURNS a non-empty string, it's treated as a validation error: the popup
+// stays open and shows it, so a rejected value is never lost with the popup.
 function _ssAddPopup(title, fields, onSave) {
   var old = document.getElementById('ss-addpop'); if (old && old.parentNode) old.parentNode.removeChild(old);
   var wrap = document.createElement('div'); wrap.id = 'ss-addpop'; wrap.className = 'ss-addpop-bg';
@@ -603,7 +640,8 @@ function _ssAddPopup(title, fields, onSave) {
     '<h3 class="ss-h2" style="font-size:15px;margin:0 0 14px">' + esc(title) + '</h3>' +
     '<div class="ss-addpop-fields">' + fieldsHtml + '</div>' +
     '<div class="ss-actions"><button class="ps-btn" id="ssap-save">Add</button>' +
-    '<button class="ps-btn secondary" id="ssap-cancel">Cancel</button></div></div>';
+    '<button class="ps-btn secondary" id="ssap-cancel">Cancel</button>' +
+    '<span id="ssap-status" class="ss-status"></span></div></div>';
   document.body.appendChild(wrap);
   fields.forEach(function(f){ if (f.options && f.options.length && f.value) { var el = document.getElementById('ssap-' + f.id); if (el) el.value = f.value; } });   // seed combobox inputs (they render valueless)
   var close = function(){ if (wrap.parentNode) wrap.parentNode.removeChild(wrap); };
@@ -612,7 +650,13 @@ function _ssAddPopup(title, fields, onSave) {
   document.getElementById('ssap-cancel').onclick = close;
   document.getElementById('ssap-save').onclick = function(){
     var vals = {}; fields.forEach(function(f){ var el = document.getElementById('ssap-' + f.id); vals[f.id] = el ? el.value.trim() : ''; });
-    onSave(vals); close();
+    var err = onSave(vals);
+    if (typeof err === 'string' && err) {
+      var s = document.getElementById('ssap-status');
+      if (s) { s.textContent = err; s.style.color = 'var(--red)'; }
+      return;   // keep the popup (and everything typed into it) on screen
+    }
+    close();
   };
   var first = document.getElementById('ssap-' + fields[0].id); if (first) first.focus();
 }
@@ -625,7 +669,9 @@ function _ssRepAddPopup(typed, prefix) {
     { id:'phone', label:'Phone number', value:'' },
     { id:'office', label:'Office (pick an existing one)', value:'', options:(_TICKETS._officeLabels || []) }
   ], function(v){
-    if (!v.name) return;
+    if (!v.name) return 'Add a rep name.';
+    if (!_ssPhoneOk(v.phone)) return SS_PHONE_ERR;
+    v.phone = _ssFmtPhone(v.phone);
     _ntSetVal(prefix + '-requester', v.name);
     _ntSetVal(prefix + '-phone', v.phone);
     _ntSetVal(prefix + '-office', v.office);
@@ -677,6 +723,8 @@ function _ntSaveContactLink(ev) {
   var rep = _ntVal('nt-requester'), office = _ntVal('nt-office'), phone = _ntVal('nt-phone');
   if (!rep) { _ntContactStatus('Add a rep name first.', true); return; }
   if (!phone && !office) { _ntContactStatus('Add a phone or an office to save.', true); return; }
+  if (!_ssPhoneOk(phone)) { _ntContactStatus(SS_PHONE_ERR, true); return; }
+  phone = _ssFmtPhone(phone); _ntSetVal('nt-phone', phone);
   if (!TICKET_SCRIPT_URL) { _ntContactStatus('Preview mode — backend not connected.', true); return; }
   var btn = document.getElementById('nt-save-contact');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
@@ -711,6 +759,8 @@ function _ticketCreate(ev) {
     assignee:_ntVal('nt-assignee'), tags:_ntVal('nt-tags'), note:_ntVal('nt-note')
   };
   if (!payload.requester && !payload.subject && !payload.generalCategory) { _ntStatus('Add at least a rep, a subject, or a category.', true); return; }
+  if (!_ssPhoneOk(payload.phone)) { _ntStatus(SS_PHONE_ERR, true); return; }
+  payload.phone = _ssFmtPhone(payload.phone); _ntSetVal('nt-phone', payload.phone);
   var btn = document.getElementById('nt-submit');
   if (!TICKET_SCRIPT_URL) { _ntStatus('Preview mode — backend not connected, so this can’t save yet.', true); return; }
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
@@ -984,7 +1034,7 @@ function _repContactsView() {
     '<div class="ss-grid">' +
       _ntField('Rep name', '<input id="rc-rep" class="ps-input" autocomplete="off" placeholder="Rep name">') +
       _ntField('Office', _comboField('rc-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onAdd:function(t){ _ssOfficeAddPopup(t, 'rc'); } })) +
-      _ntField('Phone #', '<input id="rc-phone" class="ps-input" autocomplete="off" placeholder="Phone number">') +
+      _ntField('Phone #', '<input id="rc-phone" class="ps-input" autocomplete="off" placeholder="(555) 123-4567" onblur="_ssPhoneBlur(\'rc-phone\')">') +
     '</div>' +
     '<div class="ss-actions"><button class="ps-btn" id="rc-add-btn" onclick="_rcAdd()">Add / Update Contact</button><span id="rc-status" class="ss-status"></span></div>' +
   '</div>';
@@ -998,7 +1048,7 @@ function _repContactsView() {
       var tag = (!r.saved && (r.phone || r.office)) ? ' <span class="ss-rc-unsaved" title="From ticket history — not yet saved to Rep Contacts">from tickets</span>' : '';
       return '<tr class="ss-row ss-rc-row" data-i="' + i + '">' +
         '<td data-label="Rep">' + esc(r.rep) + '</td>' +
-        '<td data-label="Phone">' + esc(r.phone || '—') + tag + '</td>' +
+        '<td data-label="Phone">' + esc(_ssFmtPhone(r.phone) || '—') + tag + '</td>' +
         '<td data-label="Office">' + esc(r.office || '—') + '</td>' +
         '<td data-label="" style="white-space:nowrap"><button class="ps-btn secondary" onclick="_rcEditRow(' + i + ')">Edit</button></td>' +
       '</tr>';
@@ -1028,6 +1078,8 @@ function _rcAdd() {
   var rep = _ntVal('rc-rep'), office = _ntVal('rc-office'), phone = _ntVal('rc-phone');
   if (!rep) { _rcStatus('Add a rep name.', true); return; }
   if (!phone && !office) { _rcStatus('Add a phone or an office.', true); return; }
+  if (!_ssPhoneOk(phone)) { _rcStatus(SS_PHONE_ERR, true); return; }
+  phone = _ssFmtPhone(phone); _ntSetVal('rc-phone', phone);
   var btn = document.getElementById('rc-add-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   _rcStatus('', false);
   _ticketPost({ action:'saveContactLink', rep:rep, phone:phone, office:office }).then(function(res) {
@@ -1044,9 +1096,24 @@ function _rcAdd() {
 }
 // Backfill every rep we already have a phone/office for (derived from past tickets) into real,
 // persisted Rep Contacts rows — so info that only lived in ticket history survives independently.
+// Names the rows a batch had to leave behind, so a skip is always visible and actionable.
+function _rcBadPhoneNote(bad) {
+  var names = bad.slice(0, 3).map(function(r){ return r.rep; }).join(', ');
+  return bad.length + ' rep' + (bad.length === 1 ? '' : 's') + ' whose phone isn\'t 10 digits (' +
+    names + (bad.length > 3 ? ', +' + (bad.length - 3) + ' more' : '') + ') — fix with Edit, then save again.';
+}
 function _rcSaveAll() {
-  var rows = (_TICKETS._contactRowsCache || []).filter(function(r){ return !r.saved && (r.phone || r.office); });
-  if (!rows.length) { _rcStatus('Nothing to save — every rep with a phone or office is already saved.', false); return; }
+  var all = (_TICKETS._contactRowsCache || []).filter(function(r){ return !r.saved && (r.phone || r.office); });
+  // A legacy number that isn't 10 digits can't be canonicalized, so it is SKIPPED and named
+  // rather than written as-is — one bad row must not block the batch, or slip through it.
+  var bad  = all.filter(function(r){ return !_ssPhoneOk(r.phone); });
+  var rows = all.filter(function(r){ return  _ssPhoneOk(r.phone); })
+                .map(function(r){ return { rep:r.rep, phone:_ssFmtPhone(r.phone), office:r.office }; });
+  if (!rows.length) {
+    _rcStatus(bad.length ? 'Nothing saved — skipped ' + _rcBadPhoneNote(bad)
+                         : 'Nothing to save — every rep with a phone or office is already saved.', !!bad.length);
+    return;
+  }
   var btn = document.getElementById('rc-saveall-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   _rcStatus('Saving ' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + '…', false);
   Promise.all(rows.map(function(r){ return _ticketPost({ action:'saveContactLink', rep:r.rep, phone:r.phone, office:r.office }); }))
@@ -1057,7 +1124,9 @@ function _rcSaveAll() {
       });
       _ticketBuildRepProfiles();
       var c = document.getElementById('main-content'); if (c) c.innerHTML = _repContactsView();
-      _rcStatus('Saved ' + ok + ' of ' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + '.', ok < rows.length);
+      var msg = 'Saved ' + ok + ' of ' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + '.';
+      if (bad.length) msg += ' Skipped ' + _rcBadPhoneNote(bad);
+      _rcStatus(msg, ok < rows.length || !!bad.length);
     }).catch(function(e) {
       if (btn) { btn.disabled = false; btn.textContent = 'Save All (' + rows.length + ')'; }
       _rcStatus('Error: ' + e.message, true);
@@ -1070,7 +1139,7 @@ function _rcEditRow(i) {
   var tr = document.querySelector('.ss-rc-row[data-i="' + i + '"]'); if (!tr) return;
   tr.innerHTML =
     '<td data-label="Rep">' + esc(r.rep) + '</td>' +
-    '<td data-label="Phone"><input id="rc-e-phone-' + i + '" class="ps-input ss-ted-inp" value="' + esc(r.phone||'') + '"></td>' +
+    '<td data-label="Phone"><input id="rc-e-phone-' + i + '" class="ps-input ss-ted-inp" value="' + esc(_ssFmtPhone(r.phone)) + '" onblur="_ssPhoneBlur(\'rc-e-phone-' + i + '\')"></td>' +
     '<td data-label="Office">' + _comboField('rc-e-office-' + i, { placeholder:'Owner — Company', noAdd:true, options:function(){ return _TICKETS._officeLabels || []; } }) + '</td>' +
     '<td style="white-space:nowrap"><button class="ps-btn" onclick="_rcSaveRow(' + i + ')">Save</button> <button class="ps-btn secondary" onclick="_rcCancelEdit()">Cancel</button></td>';
   _ntSetVal('rc-e-office-' + i, r.office || '');
@@ -1079,6 +1148,8 @@ function _rcCancelEdit() { var c = document.getElementById('main-content'); if (
 function _rcSaveRow(i) {
   var rows = _TICKETS._contactRowsCache || [], r = rows[i]; if (!r) return;
   var phone = _ntVal('rc-e-phone-' + i), office = _ntVal('rc-e-office-' + i);
+  if (!_ssPhoneOk(phone)) { _rcStatus(SS_PHONE_ERR, true); return; }
+  phone = _ssFmtPhone(phone);
   _ticketPost({ action:'saveContactLink', rep:r.rep, phone:phone, office:office }).then(function(res) {
     if (res && res.ok) {
       _rcSyncLocal(r.rep, phone, office);
@@ -1113,7 +1184,7 @@ function _renderTicketDetail() {
   body.innerHTML = _ticketDetailHtml(_TICKETS.open.ticket, _TICKETS.open.notes);
   if (_TICKETS.open.editing) {   // comboboxes render valueless — seed them from the ticket
     var t = _TICKETS.open.ticket;
-    _ntSetVal('ted-requester', t.requester); _ntSetVal('ted-office', t.office); _ntSetVal('ted-phone', t.phone);
+    _ntSetVal('ted-requester', t.requester); _ntSetVal('ted-office', t.office); _ntSetVal('ted-phone', _ssFmtPhone(t.phone));
   }
 }
 function _dt(label, valHtml) { return '<div class="ss-dt"><span class="ss-lbl">' + esc(label) + '</span><span>' + (valHtml || '—') + '</span></div>'; }
@@ -1155,7 +1226,7 @@ function _ticketDetailHtml(t, notes) {
       _dtCombo('Requester (Rep)', _comboField('ted-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:function(){ _ntAutofillRep('ted'); }, onAdd:function(typ){ _ssRepAddPopup(typ, 'ted'); } })) +
       _dtCombo('Office', _comboField('ted-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:function(){ _ntOfficeChange('ted'); }, onAdd:function(typ){ _ssOfficeAddPopup(typ, 'ted'); } })) +
       _dt('Channel', chanSel) +
-      _dtCombo('Phone', _comboField('ted-phone', { placeholder:'Called / texted in from', options:_ntKnownPhones, onChange:function(){ _ntPhoneLookup('ted'); }, onInput:function(){ _ntPhoneLookup('ted'); }, noAdd:true })) +
+      _dtCombo('Phone', _comboField('ted-phone', { placeholder:'Called / texted in from', options:_ntKnownPhones, onChange:function(){ _ntPhoneLookup('ted'); }, onInput:function(){ _ntPhoneLookup('ted'); }, onBlur:function(){ _ssPhoneBlur('ted-phone'); }, noAdd:true })) +
       _dt('General Category', inp('ted-general', t.generalCategory)) +
       _dt('Specific Category', inp('ted-specific', t.specificCategory)) +
       _dt('Sara Plus', saraSel) +
@@ -1172,7 +1243,7 @@ function _ticketDetailHtml(t, notes) {
       _dt('Office', esc(t.office)) +
       (_oMeta ? _dt('Local time', _ssClockPairHtml(_oMeta)) : '') +
       _dt('Channel', esc(t.channel)) +
-      _dt('Phone', esc(t.phone)) +
+      _dt('Phone', esc(_ssFmtPhone(t.phone))) +
       _dt('Category', _ticketCat(t)) +
       _dt('Sara Plus', esc(t.saraPlus)) +
       _dt('DSI / Account', esc(t.dsi)) +
@@ -1195,7 +1266,10 @@ function _ticketToggleEdit() {
 function _ticketSaveEdit() {
   var id = _ticketOpenId(); if (!id) return;
   var v = function(x){ var e = document.getElementById(x); return e ? String(e.value || '').trim() : undefined; };
-  var st = document.getElementById('ted-status'); if (st) { st.textContent = 'Saving…'; st.style.color = 'var(--text2)'; }
+  var st = document.getElementById('ted-status');
+  if (!_ssPhoneOk(v('ted-phone'))) { if (st) { st.textContent = SS_PHONE_ERR; st.style.color = 'var(--red)'; } return; }
+  _ntSetVal('ted-phone', _ssFmtPhone(v('ted-phone')));
+  if (st) { st.textContent = 'Saving…'; st.style.color = 'var(--text2)'; }
   _ticketPost({ action:'updateTicket', ticketId:id,
     subject:v('ted-subject'), requester:v('ted-requester'), office:v('ted-office'), channel:v('ted-channel'),
     phone:v('ted-phone'), generalCategory:v('ted-general'), specificCategory:v('ted-specific'),
