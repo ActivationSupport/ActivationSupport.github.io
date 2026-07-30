@@ -858,6 +858,18 @@ function _isRotting(dsi) {
   return d!==null && d>=8;
 }
 function _bookedFor(dsi) { return (_BOOKED_MAP||{})[dsi]||null; }
+// Has the customer asked to cancel? Reads the same 'cancel' notes the notes-modal
+// spotlight and the Daily Report use, so all three agree by construction.
+function _hasCancelRequest(dsi) {
+  return ((DATA.notes||{})[dsi]||[]).some(function(n){ return n.noteType === 'cancel'; });
+}
+// The most recent cancel reason, for the flag's tooltip — the flag is only useful if
+// it says WHY without making you open the order.
+function _cancelReasonFor(dsi) {
+  var c = _notesNewestFirst(((DATA.notes||{})[dsi]||[]).filter(function(n){ return n.noteType === 'cancel'; }));
+  if (!c.length) return '';
+  return _cancelParse(c[0].noteText).reason || '';
+}
 // Rotting only counts as "rotting" if it ISN'T already handled by a future
 // booking. A booked order shows the 📅 badge instead. (At-risk is NOT suppressed
 // by a booking — order issues / 1–2★ still need attention.)
@@ -1019,8 +1031,18 @@ function callTableRows(orders, extraColFn) {
     var booked=_bookedFor(dsi);
     var rotting=_isRotting(dsi) && !booked;   // a booked order is handled → drop rotting flag
     var atrisk=_isAtRisk(dsi);                 // order issues / 1–2★ persist regardless of a booking
-    var rowCls = rotting ? ' class="ct-row-rotting"' : (atrisk ? ' class="ct-row-atrisk"' : '');
+    var cxCancel=_hasCancelRequest(dsi);
+    // Cancel outranks both for the row tint: an order the customer is trying to leave
+    // is the most urgent thing a row can say about itself.
+    var rowCls = cxCancel ? ' class="ct-row-cancel"' : (rotting ? ' class="ct-row-rotting"' : (atrisk ? ' class="ct-row-atrisk"' : ''));
     var flags='';
+    // NOT gated on _ctShowRiskFlags. That flag suppresses Rotting/At-risk on the No
+    // Answer and Escalations tabs because those tabs ARE that risk list — but a cancel
+    // request is separate information those tabs don't otherwise surface at all.
+    if (cxCancel) {
+      var _cxr=_cancelReasonFor(dsi);
+      flags+='<span class="ct-flag ct-flag-cancel" title="Customer requested to cancel'+(_cxr?' · '+esc(_cxr):'')+'">'+icon('issues')+' Cancel requested</span>';
+    }
     if (_ctShowRiskFlags && rotting) flags+='<span class="ct-flag ct-flag-rotting" title="No Answer · 8+ days since last call">'+icon('clock')+' Rotting</span>';
     if (_ctShowRiskFlags && atrisk) flags+='<span class="ct-flag ct-flag-atrisk" title="1–2★ rating or Order Issue">'+icon('issues')+' At-risk</span>';
     var dsiCell='<span class="dsi-link" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>'+(flags?'<div class="ct-flags">'+flags+'</div>':'');
@@ -1757,7 +1779,13 @@ function _lastCallCell(o) {
   return '<td><span style="display:inline-block;padding:2px 9px;border-radius:10px;font-size:.75rem;font-weight:700;white-space:nowrap;'+style+'">'+label+'</span></td>';
 }
 
-function _isPostedStatus(s) { return String(s || '').trim().toLowerCase() === 'posted'; }
+// Posted AND Approved. _statusClass already renders them as the same green 'sp-posted'
+// pill, so on screen they were indistinguishable — excluding one and not the other read
+// as a bug. Both mean the line is finished and doesn't need a call.
+function _isPostedStatus(s) {
+  var l = String(s || '').trim().toLowerCase();
+  return l === 'posted' || l === 'approved';
+}
 
 // Strips Posted lines off one order for the No Answer log — a posted line is finished
 // work and doesn't need a call. Returns null when NOTHING survives (the whole order is

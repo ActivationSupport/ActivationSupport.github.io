@@ -814,6 +814,9 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .call-table tbody tr.ct-row-atrisk:hover td{background:rgba(237,125,49,.11)}
 .ct-flags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .ct-flag{display:inline-block;padding:1px 7px;border-radius:9px;font-size:.66rem;font-weight:700;white-space:nowrap;letter-spacing:.2px}
+.call-table tbody tr.ct-row-cancel td{background:rgba(207,107,98,.12);box-shadow:inset 3px 0 0 #cf6b62}
+.call-table tbody tr.ct-row-cancel:hover td{background:rgba(207,107,98,.18)}
+.ct-flag-cancel{background:rgba(207,107,98,.24);color:#f08b80}
 .ct-flag-rotting{background:rgba(231,76,60,.16);color:#e9756a}
 .ct-flag-atrisk{background:rgba(237,125,49,.16);color:#f0995a}
 .ct-flag-booked{background:rgba(var(--blue2-rgb),.16);color:#6cb6e8}
