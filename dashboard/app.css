@@ -1849,3 +1849,46 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
   .fib-month{min-width:132px;font-size:.92rem}
   .fib-dow{font-size:.6rem}
 }
+
+/* ── SALES SUPPORT — REQUESTER PANEL (identity + interaction history) ────────
+   The duplicate-ticket fix: who's on the phone, and every ticket they've already
+   opened. Lives in the empty space right of the New Ticket form, and again inside
+   the ticket detail modal's side panel. Scoped like the rest of the office. */
+.ss-nt-wrap{ display:flex; gap:18px; align-items:flex-start }
+.ss-nt-wrap > .ss-form-card{ flex:1 1 620px; min-width:0 }
+/* min-width:0 is load-bearing: without it a flex item's min-content width is its longest
+   unbreakable line, so one long ticket subject would widen the whole rail past 320px. */
+.ss-rp-rail{ flex:0 0 320px; min-width:0; position:sticky; top:16px }
+.ss-rp{ padding-top:14px }
+.ss-rp-h{ margin-bottom:14px }
+.ss-rp-who{ display:flex; align-items:center; gap:10px; margin-bottom:14px }
+.ss-rp-who .ss-av{ width:32px; height:32px; font-size:12px }
+.ss-rp-name{ font-weight:700; font-size:1rem; line-height:1.2 }
+.ss-rp-none{ margin:0; line-height:1.5 }
+.ss-rp-histhead{ display:flex; align-items:baseline; justify-content:space-between; margin-top:16px }
+.ss-rp-histhead .ss-form-seclabel{ flex:1; margin-bottom:10px }
+.ss-rp-count{ font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-size:11px;
+  color:var(--gold,#d9c87e); padding-left:10px }
+/* the list: one button per past ticket */
+.ss-rp-hist{ display:flex; flex-direction:column; max-height:420px; overflow-y:auto; margin:0 -4px }
+.ss-rp-item{ display:flex; align-items:flex-start; gap:9px; width:100%; min-width:0; text-align:left;
+  background:none; border:0; border-radius:6px; padding:9px 6px; cursor:pointer;
+  color:inherit; font:inherit; border-bottom:1px solid var(--border) }
+.ss-rp-item:last-child{ border-bottom:0 }
+.ss-rp-item:hover{ background:var(--blue2-faint) }
+.ss-rp-item:focus-visible{ outline:1px solid var(--blue2); outline-offset:-1px }
+.ss-rp-dot{ width:9px; height:9px; border-radius:2px; flex:none; margin-top:4px }
+.ss-rp-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px }
+.ss-rp-subj{ font-size:.86rem; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.ss-rp-meta{ font-size:.72rem; color:var(--text2) }
+.ss-rp-go{ color:var(--text2); flex:none; font-size:1rem; line-height:1; margin-top:2px; opacity:.5 }
+.ss-rp-item:hover .ss-rp-go{ opacity:1; color:var(--blue2) }
+/* inside the detail modal the rail styling is inherited, only the scroll cap differs */
+.ss-rp-inmodal .ss-rp-hist{ max-height:230px }
+.ss-rp-inmodal .ss-rp-histhead{ margin-top:0 }
+/* Stack the rail UNDER the form before the form gets squeezed. 1240px keeps the
+   860px card + a 320px rail + the sidebar comfortable; below that they stack. */
+@media (max-width:1240px){
+  .ss-nt-wrap{ flex-direction:column }
+  .ss-rp-rail{ flex:1 1 auto; width:100%; max-width:860px; position:static }
+}

@@ -243,7 +243,9 @@ function renderTicketTab(id) {
 // server-side on create). Assignee defaults to the current agent.
 function renderNewTicket() {
   var c = document.getElementById('main-content'); if (!c) return;
-  c.innerHTML = _newTicketFormHtml();
+  // Form + the requester rail beside it (stacks underneath on narrow screens).
+  c.innerHTML = '<div class="ss-nt-wrap">' + _newTicketFormHtml() +
+    '<aside id="nt-reqpanel" class="ss-rp-rail">' + _ssRequesterPanelHtml('') + '</aside></div>';
   _ticketLoadFormData();   // populate datalists + assignee (no-op until the backend URL is set)
 }
 
@@ -265,10 +267,10 @@ function _newTicketFormHtml() {
     '<p class="ss-sub">Log a rep call or text. Rep, office, subject and categories remember what you type — pick an existing one or create a new one inline.</p>' +
     '<div class="ss-form-sec">' + _ntSec('Contact') +
       '<div class="ss-grid">' +
-        _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:function(){ _ntAutofillRep('nt'); }, onAdd:function(t){ _ssRepAddPopup(t, 'nt'); } })) +
-        _ntField('Office', _comboField('nt-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:function(){ _ntOfficeChange('nt'); }, onAdd:function(t){ _ssOfficeAddPopup(t, 'nt'); } })) +
+        _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:function(){ _ntAutofillRep('nt'); _ssSyncRequesterPanel('nt'); }, onInput:function(){ _ssSyncRequesterPanel('nt'); }, onAdd:function(t){ _ssRepAddPopup(t, 'nt'); } })) +
+        _ntField('Office', _comboField('nt-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:function(){ _ntOfficeChange('nt'); _ssSyncRequesterPanel('nt'); }, onAdd:function(t){ _ssOfficeAddPopup(t, 'nt'); } })) +
         _ntField('Channel', chan) +
-        _ntField('Phone #', _comboField('nt-phone', { placeholder:'Called / texted in from', options:_ntKnownPhones, onChange:function(){ _ntPhoneLookup('nt'); }, onInput:function(){ _ntPhoneLookup('nt'); }, onBlur:function(){ _ssPhoneBlur('nt-phone'); }, noAdd:true })) +
+        _ntField('Phone #', _comboField('nt-phone', { placeholder:'Called / texted in from', options:_ntKnownPhones, onChange:function(){ _ntPhoneLookup('nt'); _ssSyncRequesterPanel('nt'); }, onInput:function(){ _ntPhoneLookup('nt'); _ssSyncRequesterPanel('nt'); }, onBlur:function(){ _ssPhoneBlur('nt-phone'); _ssSyncRequesterPanel('nt'); }, noAdd:true })) +
       '</div>' +
       '<div class="ss-contact-row">' +
         '<div id="nt-clock" class="ss-clock-strip"></div>' +
@@ -315,13 +317,14 @@ function _ticketLoadFormData() {
   Promise.all([
     _ticketGet({ action:'getLookups' }),
     _ticketGet({ action:'getAgents' }),
-    _ticketGet({ action:'getTickets' })   // for the rep→last-phone map
+    _ticketGet({ action:'getTickets' })   // rep→last-phone map + the requester panel's history
   ]).then(function(r) {
     if (r[0] && r[0].lookups) _TICKETS.lookups = r[0].lookups;
     if (r[1] && r[1].agents)  _TICKETS.agents  = r[1].agents;
     if (r[2] && r[2].tickets) { _TICKETS.list = r[2].tickets; _ticketBuildRepProfiles(); }
     _TICKETS._loaded = true;
     _ticketFillAgents();
+    _ssSyncRequesterPanel('nt');   // history only exists once the tickets land
   }).catch(function(){ /* leave the form usable with empty lists */ });
 }
 // Build { rep(lc) -> {phone, office} } from each rep's most recent ticket that HAS each value,
@@ -691,6 +694,7 @@ function _ssRepAddPopup(typed, prefix) {
       if (!found) _TICKETS.contacts.push({ rep:v.name, phone:v.phone, office:v.office });
       if (TICKET_SCRIPT_URL) { try { _ticketPost({ action:'saveContactLink', rep:v.name, phone:v.phone, office:v.office }); } catch (e) {} }
     }
+    _ssSyncRequesterPanel(prefix);
   });
 }
 function _comboKey(id, e) {
@@ -739,6 +743,7 @@ function _ntSaveContactLink(ev) {
       _ticketRememberValue('rep', rep, '');
       if (office) _ticketRememberValue('office', office, '');
       _ticketBuildRepProfiles();
+      _ssSyncRequesterPanel('nt');
     } else { _ntContactStatus((res && res.error) || 'Could not save.', true); }
   }).catch(function(e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Save Link'; }
@@ -748,6 +753,7 @@ function _ntSaveContactLink(ev) {
 function _ticketResetForm() {
   ['nt-requester','nt-office','nt-phone','nt-subject','nt-general','nt-specific','nt-dsi','nt-tags','nt-note','nt-channel','nt-sara'].forEach(function(id){ var el=document.getElementById(id); if (el) el.value=''; });
   var st = document.querySelector('input[name="nt-subtype"][value="solved"]'); if (st) st.checked = true;
+  _ssSyncRequesterPanel('nt');   // nobody is on the phone any more
 }
 function _ticketCreate(ev) {
   if (ev && ev.preventDefault) ev.preventDefault();
@@ -931,6 +937,88 @@ function _ticketTableHtml() {
   }).join('');
   return '<div class="card ss-card ss-tablewrap"><table class="tbl ss-table">' + head + body + '</table>' +
     '<p class="ss-sub" style="margin:10px 0 0">' + rows.length + ' of ' + _TICKETS.list.length + ' ticket' + (_TICKETS.list.length === 1 ? '' : 's') + '</p></div>';
+}
+
+// ── REQUESTER PANEL — who's on the phone, and everything they've called about ─
+// The duplicate-ticket fix. Before an agent logs a NEW ticket, show every ticket this rep has
+// already opened — newest first, one click from the real thing. If they're calling back about
+// the same order, the agent adds a note to THAT ticket instead of starting another one.
+// Reads `_TICKETS.list`, which New Ticket already fetches for the rep→phone map, so the whole
+// feature is client-side: no new backend action, nothing to redeploy.
+
+// Every ticket for a rep, newest first. `excludeId` drops the one you're already looking at.
+function _ssRepHistory(rep, excludeId) {
+  var key = String(rep || '').trim().toLowerCase(); if (!key) return [];
+  return (_TICKETS.list || []).filter(function(t) {
+    return String(t.requester || '').trim().toLowerCase() === key && (!excludeId || t.ticketId !== excludeId);
+  }).sort(function(a, b) { return String(b.created || '').localeCompare(String(a.created || '')); });
+}
+// Who is the New Ticket form about? The rep they typed — or, while that's still blank, whoever
+// owns the phone number they entered (the same reverse lookup that autofills the form).
+function _ssPanelRep(prefix) {
+  var rep = _ntVal(prefix + '-requester'); if (rep) return rep;
+  var p = (_TICKETS._phoneProfile || {})[_ssNormPhone(_ntVal(prefix + '-phone'))];
+  return (p && p.rep) || '';
+}
+// One history row per ticket. The id rides in a data-attr and the handler reads it off the
+// element — never interpolated into an inline JS string (the "Bri'an Key" notes bug).
+function _ssHistoryListHtml(rows) {
+  if (!rows.length) return '<p class="ss-sub ss-rp-none">No earlier tickets for this rep.</p>';
+  return '<div class="ss-rp-hist">' + rows.map(function(t) {
+    var label = t.subject || t.specificCategory || t.generalCategory || t.ticketId;
+    return '<button type="button" class="ss-rp-item" data-id="' + esc(t.ticketId) + '" onclick="_ssOpenFromHistory(this)">' +
+      '<span class="ss-rp-dot" style="background:' + _ticketStatusColor(t.status) + '"></span>' +
+      '<span class="ss-rp-body">' +
+        '<span class="ss-rp-subj">' + esc(label) + '</span>' +
+        '<span class="ss-rp-meta"><span class="ss-mono">' + esc(_ticketFmtDate(t.created)) + '</span> · ' +
+          esc(_ticketStatusLabel(t.status)) + '</span>' +
+      '</span>' +
+      '<span class="ss-rp-go">›</span>' +
+    '</button>';
+  }).join('') + '</div>';
+}
+function _ssOpenFromHistory(el) {
+  var id = el && el.getAttribute ? el.getAttribute('data-id') : '';
+  if (id) openTicketDetail(id);   // in the modal this simply swaps to that ticket
+}
+function _ssHistoryHeadHtml(n) {
+  return '<div class="ss-rp-histhead"><span class="ss-form-seclabel">Interaction History</span>' +
+    (n ? '<span class="ss-rp-count">' + n + '</span>' : '') + '</div>';
+}
+// Identity block: avatar + name, then the facts an agent needs mid-call. Phone/office fall back
+// to the rep's saved profile when the form fields are still empty.
+function _ssRequesterFactsHtml(rep, opts) {
+  var prof   = (_TICKETS._repProfile || {})[String(rep).trim().toLowerCase()] || {};
+  var office = opts.office || prof.office || '';
+  var phone  = _ssFmtPhone(opts.phone || prof.phone || '');
+  var meta   = _ssOfficeMeta(office);
+  return '<div class="ss-rp-who">' + _ssAvatar(rep) + '<span class="ss-rp-name">' + esc(rep) + '</span></div>' +
+    '<div class="ss-side-grp">' +
+      _dt('Phone', phone ? esc(phone) : '—') +
+      _dt('Office', office ? esc(office) : '—') +
+      (meta ? _dt('Local time', _ssClockPairHtml(meta)) : '') +
+    '</div>';
+}
+// The New Ticket rail. Rendered even with nobody identified, so the layout never jumps.
+function _ssRequesterPanelHtml(rep, opts) {
+  opts = opts || {};
+  var rows = rep ? _ssRepHistory(rep, opts.excludeId) : [];
+  var inner = rep
+    ? _ssRequesterFactsHtml(rep, opts) + _ssHistoryHeadHtml(rows.length) + _ssHistoryListHtml(rows)
+    : '<p class="ss-sub ss-rp-none">Pick a rep — or type a phone number we already know — to see every ticket they have opened.</p>';
+  return '<div class="card ss-card ss-rp"><div class="ss-rule"></div>' +
+    '<h2 class="ss-h2 ss-rp-h">Requester</h2>' + inner + '</div>';
+}
+// Repaint the rail from whatever the form currently says. Cheap + client-side, so it can run
+// on every keystroke in the Rep / Phone fields.
+function _ssSyncRequesterPanel(prefix) {
+  prefix = prefix || 'nt';
+  // The rail belongs to the New Ticket form. Calls carrying the modal's 'ted' prefix are
+  // no-ops — otherwise editing a ticket would repaint the form's rail with the modal's rep.
+  if (prefix !== 'nt') return;
+  var el = document.getElementById('nt-reqpanel'); if (!el) return;
+  el.innerHTML = _ssRequesterPanelHtml(_ssPanelRep(prefix),
+    { office:_ntVal(prefix + '-office'), phone:_ntVal(prefix + '-phone') });
 }
 
 function _ticketFmtDate(iso) {
@@ -1251,9 +1339,18 @@ function _ticketDetailHtml(t, notes) {
     '</div>' +
     '<button class="ps-btn secondary ss-ted-edit" onclick="_ticketToggleEdit()">Edit ticket details</button>';
   }
+  // This rep's OTHER tickets, newest first — so an agent working one ticket can see the rest of
+  // the conversation and jump straight there. Read-only mode only: while editing, the panel is
+  // already a form ending in Save/Cancel, and a list under those buttons reads as part of them.
+  var histGrp = '';
+  if (!editing && t.requester) {
+    var hist = _ssRepHistory(t.requester, t.ticketId);
+    histGrp = '<div class="ss-side-grp ss-rp-inmodal">' + _ssHistoryHeadHtml(hist.length) +
+      _ssHistoryListHtml(hist) + '</div>';
+  }
   var side = '<div class="ss-td-side">' +
     '<div class="ss-side-grp">' + _dt('Status', statusSel) + _dt('Assignee', asgSel) + '</div>' +
-    propGrp +
+    propGrp + histGrp +
   '</div>';
   return header + '<div class="ss-td-grid">' + main + side + '</div>';
 }
