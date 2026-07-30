@@ -550,6 +550,7 @@ function renderTab(id) {
     case 'issues':      c.innerHTML = renderCallTable(repFilter(issueFilter(DATA.orderIssues||[])), 'Order Issues', 'No order issues found.'); break;
     case 'completed':   c.innerHTML = renderCallTable(repFilter(DATA.completedOrders||[]), 'Completed Order Log', 'No completed orders found.'); break;
     case 'noanswer':    c.innerHTML = renderNoAnswerTable(); break;
+    case 'knowledge':   c.innerHTML = renderKnowledge(); break;
     case 'escalations': c.innerHTML = renderEscalationsTable(); break;
     case 'churn':       c.innerHTML = renderChurn();       break;
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;

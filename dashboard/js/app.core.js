@@ -747,6 +747,9 @@ var TABS = [
   { id: 'issues',      label: 'Order Issues',        roles: ROLES_CALL, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
   { id: 'escalations', label: 'Escalations',          roles: ROLES_CALL, group: 'Call Logs',   sub: '1 & 2 star ratings' },
   { id: 'noanswer',    label: 'No Answer',            roles: ROLES_CALL, group: 'Call Logs',   sub: 'No answer ratings' },
+  // Its own group, directly under Call Logs — that's where someone is standing when they
+  // hit an order issue. Content is served from the _Knowledge sheet, never committed.
+  { id: 'knowledge',   label: 'Issue Resolution',     roles: ALL_ROLES,  group: 'Knowledge',   sub: 'Order issue playbooks & scripts', icon: 'training' },
   { id: 'livesales',   label: 'Live Sales Tracker',   roles: ROLES_REP,  group: 'Performance', sub: "This week's leaderboard" },
   { id: 'dailyreport', label: 'Daily Report',         roles: ROLES_CALL, group: 'Performance', sub: 'Office daily summary' },
   { id: 'actrates',    label: 'Activation Rates',     roles: ROLES_REP,  group: 'Performance', sub: 'Rep activation breakdown' },
