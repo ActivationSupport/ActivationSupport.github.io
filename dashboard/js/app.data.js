@@ -547,7 +547,7 @@ function renderTab(id) {
 // Note timestamps carry the TIME as well as the date — the same customer often gets
 // called more than once in a day, and "Jul 21" alone can't tell those calls apart.
 // Rendered in the VIEWER's local timezone (n.ts is UTC ISO off the sheet), matching
-// _apptNoteTime and the Them/You clocks.
+// the Them/You clocks.
 function fmtDateTime(v) {
   if (!v) return '—';
   var d = v instanceof Date ? v : new Date(v);

@@ -275,6 +275,25 @@ function _notesNewestFirst(notes) {
     .map(function(x) { return x.n; });
 }
 
+// opts, when opened from an appointment. NOTE the two note keys are DIFFERENT stores —
+// conflating them double-renders the list:
+//   opts.notes       the DSI's own notes (_Notes_<office>), fetched by the caller because
+//                    the appointment may belong to another office. Same data as
+//                    DATA.notes[dsi], just office-correct. From openDashNotes.
+//   opts.apptNotes   the LEGACY per-appointment staff thread (_ApptNotes), keyed on the
+//                    appointment, not the DSI, and written by a UI that no longer exists.
+//                    Read-only archive — nothing can add to it any more. From openApptNotes.
+//   opts.customerNote  what the customer typed when they self-booked.
+// The customer's booking note. One definition, shared by the notes modal and the
+// no-DSI appointment fallback in app.appts.js — they used to be two copies of the
+// same inline-styled block that could drift apart.
+function notesCustomerNoteHtml(text) {
+  return '<div class="nm-custnote">' +
+      '<div class="nm-custnote-label">Customer note &middot; from their booking</div>' +
+      '<div class="nm-custnote-text">'+esc(text)+'</div>' +
+    '</div>';
+}
+
 function openNotesModal(dsi, customer, rep, opts) {
   opts = opts || {};
   _modalDsi = dsi;
@@ -282,6 +301,8 @@ function openNotesModal(dsi, customer, rep, opts) {
   _modalApptId = opts.appointmentId || '';
   var _cross = !!_modalApptId && _modalOffice !== CFG.officeId;
   var notes = _cross ? (opts.notes || []) : ((DATA.notes||{})[dsi] || opts.notes || []);
+  var apptNotes = _notesNewestFirst(opts.apptNotes || []);
+  var custNote = String(opts.customerNote || '').trim();
   var rating = (DATA.ratings||{})[dsi] || '';
   var role = SESSION.role || 'client-rep';
   var canAddActivation = role==='master-admin' || role==='activator';
@@ -314,12 +335,21 @@ function openNotesModal(dsi, customer, rep, opts) {
     '<div class="nm-sub">'+(rep?esc(rep):'')+'</div>';
 
   document.getElementById('modal-body').innerHTML =
+    // Pinned above everything: the customer's own words from the booking. It used to
+    // show ONLY on no-DSI bookings, so it vanished the moment the order became workable.
+    (custNote ? notesCustomerNoteHtml(custNote) : '') +
     '<div class="nm-section-label nm-act-label">Activation Notes</div>' +
     '<div class="nm-history" id="nm-act-hist">'+actHistHtml+'</div>' +
     (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…" style="margin-bottom:8px"></textarea>'+_linesFieldHtml('modal-body',icon('zap')+' Lines activated on this order')+'<button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
     '<div class="nm-section-label nm-rep-label" style="margin-top:8px">Rep Notes</div>' +
     '<div class="nm-history" id="nm-rep-hist">'+repHistHtml+'</div>' +
     (canAddRep ? '<textarea class="nm-textarea" id="nm-rep-input" placeholder="Add rep note…"></textarea><button class="nm-add-btn nm-rep-add-btn" onclick="modalAddNote(\'rep\')" style="margin-bottom:14px">ADD REP NOTE</button>' : '') +
+    // Legacy _ApptNotes thread — read-only, and only rendered when the appointment
+    // actually has one, so it stays invisible on the ~all appointments that don't.
+    (apptNotes.length ?
+      '<div class="nm-section-label nm-appt-label" style="margin-top:8px">Appointment Notes'+
+        '<span class="nm-archive-tag">archive</span></div>' +
+      '<div class="nm-history" id="nm-appt-hist">'+apptNotes.map(_noteItemHtml).join('')+'</div>' : '') +
     (_cross ? '' :
       '<div class="nm-section-label" style="margin-top:8px">Rating</div>' +
       '<div class="nm-rating-row" id="nm-rating-row">'+ratingHtml+'</div>') +
@@ -411,7 +441,10 @@ function modalAddNote(noteType) {
     if (typeof _MYAPPT !== 'undefined' && _MYAPPT.appointments) {
       var ap = _MYAPPT.appointments.filter(function(x){ return x.appointmentId === _modalApptId; })[0];
       if (ap) { ap.notes = ap.notes || []; ap.notes.push(entry);
-        var mb = document.getElementById('manote-' + _modalApptId); if (mb) mb.textContent = ' ' + ap.notes.length; }
+        // Recount through the same helper the row uses, so the booking note keeps
+        // being counted instead of being dropped on the first add.
+        var mb = document.getElementById('manote-' + _modalApptId);
+        if (mb) mb.textContent = ' ' + (typeof _dashNotesCount === 'function' ? _dashNotesCount(ap) : ap.notes.length); }
     }
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:text, noteType:noteType, linesActivated:lines, email:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
   } else {

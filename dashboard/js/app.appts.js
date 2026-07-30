@@ -554,7 +554,7 @@ function _apptUpcomingTable(appts) {
     // Actions: reschedule (non-cancelled, non-terminal) + cancel (non-cancelled).
     var actions='';
     if (ok) {   // notes reference the customer → only for viewers who can see them
-      var _nN=(a.notes?a.notes.length:0)+(a.customerNote?1:0);
+      var _nN=_apptNotesCount(a);
       actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openApptNotes(\''+esc(a.appointmentId)+'\')">'+icon('edit')+(_nN?' '+_nN:'')+'</button>';
     }
     if (canX && !cancelled && !terminal)
@@ -1023,36 +1023,38 @@ function submitApptBooking() {
 
 function closeApptModal() { document.getElementById('appt-booking-modal').classList.remove('open'); }
 
-// ── Appointment notes (customer note + internal staff thread) ──
-function _apptNoteTime(iso){ if(!iso) return ''; var d=new Date(iso); return isNaN(d.getTime())?'':d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
-function _apptNotesBody(a){
-  var cust = a.customerNote
-    ? '<div style="background:rgba(var(--blue2-rgb),.1);border:1px solid rgba(var(--blue2-rgb),.25);border-radius:8px;padding:10px 12px;margin-bottom:14px">'+
-        '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:3px">Customer note</div>'+
-        '<div style="white-space:pre-wrap">'+esc(a.customerNote)+'</div></div>'
-    : '';
-  var thread = (a.notes&&a.notes.length)
-    ? a.notes.map(function(n){
-        return '<div style="border-bottom:1px solid var(--border);padding:8px 0">'+
-          '<div style="font-size:.74rem;color:var(--text2)">'+esc(n.authorName||n.authorEmail||'Staff')+' &middot; '+esc(_apptNoteTime(n.ts))+'</div>'+
-          '<div style="margin-top:2px;white-space:pre-wrap">'+esc(n.noteText)+'</div></div>';
-      }).join('')
-    : '<div style="color:var(--text2);font-size:.85rem;padding:6px 0">No staff notes yet.</div>';
-  return cust +
-    '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:4px">Staff notes (internal)</div>'+
-    '<div id="appt-note-thread">'+thread+'</div>'+
-    '<textarea id="appt-note-input" class="nm-textarea" rows="2" placeholder="Add an internal note…" style="margin-top:10px"></textarea>'+
-    '<div class="nm-actions"><button class="nm-add-btn" onclick="addApptNoteUI(\''+esc(a.appointmentId)+'\')">ADD NOTE</button><button class="nm-close-btn" onclick="closeModal()">CLOSE</button></div>';
+// ── Appointment notes ──
+// The number on a Notes button has to count what the modal actually opens with, or it
+// reads as unread mail that isn't there. It was counting the _ApptNotes thread + the
+// booking note while the modal showed the DSI's notes — three stores, none of them the
+// same number.
+//   _apptNotesCount   Appointments tab (getAppointments): DSI notes + _ApptNotes + booking note.
+//   _dashNotesCount   My Appointments (getActivatorAppointments): a.notes IS the DSI's
+//                     notes there, so it's just those + the booking note.
+// A booking with no DSI opens the fallback body, which shows the booking note alone.
+function _apptNotesCount(a){
+  var n = a.customerNote ? 1 : 0;
+  var dsi = String(a.customerDSI||'').trim(); if (!dsi) return n;
+  return n + (((typeof DATA!=='undefined' && DATA.notes)||{})[dsi]||[]).length + (a.notes||[]).length;
 }
+function _dashNotesCount(a){ return (a.notes||[]).length + (a.customerNote ? 1 : 0); }
+
 // Item 5: the appointment "notes" button opens the SAME universal call-logs Notes
 // modal (Activation + Rep notes, rating, lines-activated) keyed on the customer's DSI
 // — no more separate appointment-only thread. When a customer self-booking has no DSI
 // matched yet, show the booking note + point them to the outcome flow to add the DSI.
+//
+// getAppointments returns a.notes = the LEGACY _ApptNotes staff thread (keyed on the
+// appointment, not the DSI). Item 5 removed the UI that wrote it but left the rows, and
+// nothing displayed them any more — they ride along as opts.apptNotes so that history
+// is visible again, read-only. Do NOT pass them as opts.notes: that key means the DSI's
+// own notes, which openDashNotes supplies and which would then render twice.
 function openApptNotes(id){
   var a=_apptFindAppt(id); if(!a) return;
   var dsi=String(a.customerDSI||'').trim();
   if(dsi && typeof openNotesModal==='function'){
-    openNotesModal(dsi, a.customerName||'', 'Appointment · '+_apptActName(a.activatorEmail));
+    openNotesModal(dsi, a.customerName||'', 'Appointment · '+_apptActName(a.activatorEmail),
+      { apptNotes:a.notes||[], customerNote:a.customerNote||'' });
     return;
   }
   document.getElementById('modal-title').innerHTML='<div class="nm-dsi">Appointment — '+esc(a.customerName||'')+'</div>';
@@ -1060,24 +1062,10 @@ function openApptNotes(id){
   document.getElementById('detail-modal').classList.add('open');
 }
 function _apptNotesNoDsiBody(a){
-  var cust = a.customerNote
-    ? '<div style="background:rgba(var(--blue2-rgb),.1);border:1px solid rgba(var(--blue2-rgb),.25);border-radius:8px;padding:10px 12px;margin-bottom:14px">'+
-        '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:3px">Customer note</div>'+
-        '<div style="white-space:pre-wrap">'+esc(a.customerNote)+'</div></div>'
-    : '';
-  return cust+
+  return (a.customerNote ? notesCustomerNoteHtml(a.customerNote) : '')+
     '<div style="color:var(--text2);font-size:.85rem;padding:6px 0;line-height:1.5">This booking isn’t linked to an order yet (no DSI). '+
     'Mark the appointment’s outcome and enter the DSI there — the note and lines activated will then save into that order’s Notes.</div>'+
     '<div class="nm-actions"><button class="nm-close-btn" onclick="closeModal()">CLOSE</button></div>';
-}
-function addApptNoteUI(id){
-  var inp=document.getElementById('appt-note-input'); var txt=(inp?inp.value:'').trim().slice(0,1000); if(!txt) return;
-  var a=((window._APPT&&_APPT.appointments)||[]).filter(function(x){return x.appointmentId===id;})[0];
-  _apptPost({action:'addApptNote',appointmentId:id,noteText:txt,authorEmail:SESSION.email,authorName:SESSION.name,role:SESSION.role}).then(function(res){
-    if(res&&res.ok){
-      if(a){ a.notes=a.notes||[]; a.notes.push({ts:new Date().toISOString(),authorEmail:SESSION.email,authorName:SESSION.name,noteText:txt}); document.getElementById('modal-body').innerHTML=_apptNotesBody(a); }
-    } else alert((res&&res.error)||'Could not add note.');
-  }).catch(function(){ alert('Connection error.'); });
 }
 
 function cancelAppt(id) {
@@ -1287,8 +1275,11 @@ function openDashNotes(id){
     document.getElementById('modal-body').innerHTML=_apptNotesNoDsiBody(a);
     document.getElementById('detail-modal').classList.add('open'); return;
   }
+  // Here a.notes IS the DSI's own notes (getActivatorAppointments reads _Notes_<office>
+  // for us so cross-office appointments resolve) — so it goes in as opts.notes, NOT
+  // opts.apptNotes. This payload carries no _ApptNotes thread at all.
   openNotesModal(dsi, a.customerName||'', 'Appointment · '+_apptActName(a.activatorEmail),
-    { office:a.office, notes:a.notes||[], appointmentId:a.appointmentId });
+    { office:a.office, notes:a.notes||[], appointmentId:a.appointmentId, customerNote:a.customerNote||'' });
 }
 function _copyCalShareEmail() {
   var e = APPT_CAL_SHARE_EMAIL;
@@ -1619,7 +1610,7 @@ function _myApptTableHtml(){
     var dsiCell=dsi?'<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>':'<span style="color:var(--text2)">—</span>';
     var lang=(a.language==='spanish')?'<span style="display:inline-block;padding:1px 6px;border-radius:6px;background:rgba(217,150,60,.18);color:#c8892e;font-size:.68rem;font-weight:700">ES</span>':'<span style="color:var(--text2);font-size:.72rem">EN</span>';
     var offName=(typeof OFFICE_NAMES!=='undefined'&&OFFICE_NAMES[a.office])||a.office;
-    var notesN=(a.notes&&a.notes.length)?(' '+a.notes.length):'';
+    var _dn=_dashNotesCount(a); var notesN=_dn?(' '+_dn):'';
     var actions='';
     if(canX) actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openDashNotes(\''+esc(a.appointmentId)+'\')">'+icon('edit')+' Notes<span id="manote-'+esc(a.appointmentId)+'">'+notesN+'</span></button>';
     if(canX&&!cancelled) actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>';
