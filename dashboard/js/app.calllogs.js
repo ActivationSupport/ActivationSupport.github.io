@@ -356,8 +356,12 @@ function notesCancelBlockHtml(cancelNotes) {
     '</div>';
 }
 
-// The capture form. Reason is REQUIRED; 'Other' additionally requires the detail box,
-// since "Other" on its own tells the Daily Report nothing.
+// A button that sits under the rating row, alongside the other things you'd mark about
+// a call. The reason capture stays COLLAPSED until it's pressed — a cancel request is
+// rare, and an always-open form invites half-filled ones. Pressing it opens the fields
+// inline (not a second modal, which would fight the reason picker's own "+ Add" popup).
+// Reason is REQUIRED; 'Other' additionally requires the detail, since "Other" on its
+// own tells the Daily Report nothing.
 function notesCancelFormHtml() {
   var reasons = cancelReasonList();
   var picker;
@@ -375,14 +379,38 @@ function notesCancelFormHtml() {
       reasons.map(function(r){ return '<option value="'+esc(r)+'">'+esc(r)+'</option>'; }).join('') + '</select>';
   }
   return '<div id="nm-cx-wrap">' +
-      '<div class="nm-section-label nm-cx-label" style="margin-top:8px">Cx Request to Cancel</div>' +
-      '<div class="nm-cx-form">' +
+      '<button type="button" class="nm-cx-open-btn" id="nm-cx-open" onclick="toggleCancelForm()">' +
+        icon('issues') + ' Cx Requested to Cancel</button>' +
+      '<div class="nm-cx-form" id="nm-cx-form" style="display:none">' +
+        '<div class="nm-cx-form-label">Why are they cancelling? <span class="nm-cx-req">required</span></div>' +
         picker +
         '<textarea class="nm-textarea" id="nm-cancel-detail" placeholder="What did they say? (required if the reason is Other)" style="margin:9px 0 0"></textarea>' +
         '<div class="nm-cx-err" id="nm-cancel-err"></div>' +
-        '<button class="nm-add-btn nm-cx-add-btn" onclick="modalAddCancelRequest()">LOG CANCEL REQUEST</button>' +
+        '<div class="nm-cx-form-actions">' +
+          '<button class="nm-add-btn nm-cx-add-btn" onclick="modalAddCancelRequest()">LOG CANCEL REQUEST</button>' +
+          '<button class="nm-close-btn" onclick="toggleCancelForm(false)">CANCEL</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
+}
+
+// open === undefined toggles; pass false to force closed (used after a save and by the
+// form's own CANCEL button). Closing always clears the fields and any error, so the
+// next press starts clean rather than resurfacing a half-typed abandoned request.
+function toggleCancelForm(open) {
+  var form = document.getElementById('nm-cx-form'), btn = document.getElementById('nm-cx-open');
+  if (!form) return;
+  var isOpen = form.style.display !== 'none';
+  var next = (open === undefined) ? !isOpen : !!open;
+  form.style.display = next ? 'block' : 'none';
+  if (btn) btn.classList.toggle('active', next);
+  if (!next) {
+    var r = document.getElementById('nm-cancel-reason'); if (r) r.value = '';
+    var d = document.getElementById('nm-cancel-detail'); if (d) d.value = '';
+    _cancelErr('');
+  } else {
+    var r2 = document.getElementById('nm-cancel-reason'); if (r2 && r2.focus) r2.focus();
+  }
 }
 
 // Add a reason to the picker NOW and persist it for everyone, mirroring
@@ -416,7 +444,7 @@ function modalAddCancelRequest() {
   var entry = { ts:new Date().toISOString(), authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email,
                 noteText:noteText, noteType:'cancel', linesActivated:0 };
 
-  if (rEl) rEl.value = ''; if (dEl) dEl.value = '';
+  toggleCancelForm(false);   // clears the fields and collapses back to the button
   if (!DATA.notes) DATA.notes = {};
   if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
   DATA.notes[_modalDsi].push(entry);
@@ -514,23 +542,31 @@ function openNotesModal(dsi, customer, rep, opts) {
       '<div class="nm-section-label nm-appt-label" style="margin-top:8px">Appointment Notes'+
         '<span class="nm-archive-tag">archive</span></div>' +
       '<div class="nm-history" id="nm-appt-hist">'+apptNotes.map(_noteItemHtml).join('')+'</div>' : '') +
-    // The capture form sits with the other add boxes; the spotlight above is the display.
-    (canAddRep ? notesCancelFormHtml() : '') +
     (_cross ? '' :
       '<div class="nm-section-label" style="margin-top:8px">Rating</div>' +
       '<div class="nm-rating-row" id="nm-rating-row">'+ratingHtml+'</div>') +
+    // Sits UNDER the rating row — the other thing you mark about a call. Outside the
+    // _cross guard on purpose: a cancel request isn't a rating, and a cross-office
+    // appointment can hear one just the same.
+    (canAddRep ? notesCancelFormHtml() : '') +
     '<div class="nm-actions"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
 
   document.getElementById('detail-modal').classList.add('open');
   // Reasons load once per session. If they land after the modal is already open,
-  // repaint just the capture section — preserving anything already typed into it.
+  // repaint just the capture section — preserving whether it was open and anything
+  // already typed into it, so the fetch never yanks a form out from under someone.
   if (canAddRep) ensureCancelReasons(function() {
     var wrap = document.getElementById('nm-cx-wrap'); if (!wrap) return;
+    var f0 = document.getElementById('nm-cx-form');
+    var wasOpen = !!f0 && f0.style.display !== 'none';
     var d0 = document.getElementById('nm-cancel-detail'), r0 = document.getElementById('nm-cancel-reason');
     var keptDetail = d0 ? d0.value : '', keptReason = r0 ? r0.value : '';
     wrap.outerHTML = notesCancelFormHtml();
-    var d1 = document.getElementById('nm-cancel-detail'); if (d1) d1.value = keptDetail;
-    var r1 = document.getElementById('nm-cancel-reason'); if (r1) r1.value = keptReason;
+    if (wasOpen) {
+      toggleCancelForm(true);
+      var d1 = document.getElementById('nm-cancel-detail'); if (d1) d1.value = keptDetail;
+      var r1 = document.getElementById('nm-cancel-reason'); if (r1) r1.value = keptReason;
+    }
   });
 }
 

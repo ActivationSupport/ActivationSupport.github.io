@@ -956,10 +956,17 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .nm-cx-detail{font-size:.83rem;color:var(--text);margin-top:2px;white-space:pre-wrap}
 .nm-cx-meta{font-size:.72rem;color:var(--text2);margin-top:3px}
 .nm-cx-label{color:#e9756a}
-.nm-cx-form{border:1px solid rgba(207,107,98,.3);border-radius:7px;padding:10px 11px;margin-bottom:14px}
+/* The button under the rating row + the panel it reveals. */
+.nm-cx-open-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;margin:0 0 14px;padding:9px 14px;border:1.5px solid rgba(207,107,98,.45);border-radius:7px;background:rgba(207,107,98,.08);color:#e9756a;font-size:.8rem;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:all .15s}
+.nm-cx-open-btn:hover{background:rgba(207,107,98,.16);border-color:rgba(207,107,98,.7)}
+.nm-cx-open-btn.active{background:rgba(207,107,98,.18);border-color:#cf6b62}
+.nm-cx-form{border:1.5px solid rgba(207,107,98,.4);border-radius:7px;padding:11px 12px;margin:-6px 0 14px}
 .nm-cx-form .ss-combo-input,.nm-cx-form select.ps-input{width:100%}
+.nm-cx-form-label{font-size:.78rem;font-weight:700;color:#e9756a;margin-bottom:7px}
+.nm-cx-req{margin-left:5px;padding:1px 6px;border-radius:8px;background:rgba(207,107,98,.18);font-size:.64rem;letter-spacing:.04em;text-transform:uppercase}
+.nm-cx-form-actions{display:flex;gap:8px;margin-top:10px}
 .nm-cx-err{display:none;margin:8px 0 0;padding:6px 9px;border-radius:6px;background:rgba(207,107,98,.14);color:#e9756a;font-size:.78rem;font-weight:600}
-.nm-cx-add-btn{background:#a33c34!important;margin-top:10px;width:100%}
+.nm-cx-add-btn{background:#a33c34!important;flex:1}
 .nm-cx-add-btn:hover{background:#8d322b!important}
 .nm-custnote{background:rgba(var(--blue2-rgb),.1);border:1px solid rgba(var(--blue2-rgb),.25);border-radius:8px;padding:10px 12px;margin-bottom:14px}
 .nm-custnote-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:3px}
