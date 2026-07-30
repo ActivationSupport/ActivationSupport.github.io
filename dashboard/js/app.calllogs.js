@@ -1757,19 +1757,48 @@ function _lastCallCell(o) {
   return '<td><span style="display:inline-block;padding:2px 9px;border-radius:10px;font-size:.75rem;font-weight:700;white-space:nowrap;'+style+'">'+label+'</span></td>';
 }
 
+function _isPostedStatus(s) { return String(s || '').trim().toLowerCase() === 'posted'; }
+
+// Strips Posted lines off one order for the No Answer log — a posted line is finished
+// work and doesn't need a call. Returns null when NOTHING survives (the whole order is
+// posted → drop the row), and the untouched order when nothing was posted.
+// Rebuilds productCounts/statusCounts from the survivors so the row's breakdown shows
+// only what's still open, rather than still advertising "Posted x2".
+// Partly-posted orders are KEPT: if 2 of 3 lines are posted, that third line still
+// needs the call, and dropping the order would hide real work.
+function _withoutPostedLines(o) {
+  var lines = _asLinesOf(o);                       // real o.lines when the backend sent them
+  var kept = lines.filter(function(l) { return !_isPostedStatus(l.status); });
+  if (!kept.length) return null;
+  if (kept.length === lines.length) return o;      // nothing posted → leave it alone
+  var clone = {};
+  for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) clone[k] = o[k];
+  var pc = {}, sc = {};
+  kept.forEach(function(l) {
+    var p = l.product || 'Other', s = l.status || 'Null';
+    pc[p] = (pc[p] || 0) + 1;
+    sc[s] = (sc[s] || 0) + 1;
+  });
+  clone.productCounts = pc; clone.statusCounts = sc; clone.lines = kept;
+  return clone;
+}
+
 // No Answer order list (shared by the renderer + background soft-refresh).
-// Never-called first, then longest-overdue first; within the 29-day window.
+// Never-called first, then longest-overdue first; within the 29-day window; Posted
+// lines excluded.
 function _noAnswerOrders() {
   var ratings = DATA.ratings || {};
   var dsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='No Answer'; });
   var lookup = buildOrderLookup();
-  var cutoff = _cutoff29();
   var orders = dsis.map(function(dsi) {
     var o = lookup[dsi];
-    var base = o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'—', dtrStatus:'—' };
+    // No order record (aged out of the Tableau window) → a placeholder with no real
+    // date, which within29Days now correctly rejects instead of always admitting.
+    var base = o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'', dtrStatus:'—' };
     base._daysSince = _daysSinceLastNote(dsi);
     return base;
-  }).filter(function(o) { return (o.orderDate || '') >= cutoff; });
+  });
+  orders = within29Days(orders).map(_withoutPostedLines).filter(Boolean);
   orders.sort(function(a, b) {
     var da = a._daysSince === null ? 9999 : a._daysSince;
     var db = b._daysSince === null ? 9999 : b._daysSince;

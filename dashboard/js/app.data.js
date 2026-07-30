@@ -504,9 +504,26 @@ function _cutoff29() {
   var d = new Date(); d.setDate(d.getDate() - 29);
   return d.toISOString().slice(0, 10);
 }
+// 'YYYY-MM-DD' for anything we can date with certainty, '' otherwise. No `new Date()`
+// parsing anywhere — that would shift the day across timezones. readAOR returns raw
+// sheet cells, so an orderDate can arrive as ISO, ISO-with-time, or US sheet text.
+function _isoDay(v) {
+  var s = String(v == null ? '' : v).trim();
+  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);            // ISO, with or without a time
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);          // M/D/YYYY
+  if (m) return m[3] + '-' + ('0' + m[1]).slice(-2) + '-' + ('0' + m[2]).slice(-2);
+  return '';                                               // '—', '', or unparseable
+}
 function within29Days(orders) {
   var cutoff = _cutoff29();
-  return orders.filter(function(o) { return (o.orderDate || '') >= cutoff; });
+  // Must be a REAL date, not just `>= cutoff`. A placeholder like '—' compares GREATER
+  // than any digit string in JS (U+2014 is 8212, '2' is 50), so the bare comparison
+  // silently admitted every undated row — which is exactly the aged-out ones.
+  return orders.filter(function(o) {
+    var d = _isoDay(o.orderDate);
+    return !!d && d >= cutoff;
+  });
 }
 
 // ── RENDER TABS ───────────────────────────────────────────────────────────
