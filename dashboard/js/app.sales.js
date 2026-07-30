@@ -593,8 +593,7 @@ var ATX_OFFICE_NUMBER = {
   midspire:  '224 524 8968',
   viridian:  '314 789 1988',
   vanguard:  '813 524 7081',
-  leadsphere:'',   // ⚠ pending Gabe. Until it is set here, EVERY LeadSphere activator
-                   //   retypes it on every message — nothing on this tab is saved.
+  leadsphere:'417 429 7242',   // from Gabe, 2026-07-30
   bayview:   ''    // office paused, no number needed
 };
 
