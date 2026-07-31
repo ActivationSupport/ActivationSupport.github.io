@@ -316,14 +316,12 @@ function _apptLegend(appts, acts, ws){
       '<span class="appt-leg-dot" style="background:'+c+'"></span>'+esc(a.name)+
       '<span class="appt-leg-count" title="Appointments this week">'+n+'</span></span>';
   }).join('');
-  // A non-clickable key for the amber wash, so nobody has to guess what a tinted cell
-  // means. Only shown once there's actually an order issue in the visible week — an
-  // all-activation office never sees a legend entry for a thing it doesn't book.
-  var nIssue=appts.filter(function(a){ return a.status!=='cancelled' && a.date>=wsS && a.date<=weS && _apptIsIssue(a); }).length;
-  var key=nIssue?'<span class="appt-leg-item" style="cursor:default" title="Order-issue appointments are tinted amber">'+
-    '<span class="appt-leg-dot" style="background:rgba(217,150,60,.55)"></span>Order Issue'+
-    '<span class="appt-leg-count">'+nIssue+'</span></span>':'';
-  return '<div class="appt-legend">'+items+key+'</div>';
+  // ⚠ ACTIVATOR CHIPS ONLY. This legend is the PEOPLE picker — click a name to see that
+  // activator's week. An appointment-TYPE key was tried here and removed (2026-07-31, user
+  // decision): it sat among the names looking like another person, and the type is already
+  // obvious on the cells themselves (amber wash + the category in place of the device
+  // count). Don't reintroduce it.
+  return '<div class="appt-legend">'+items+'</div>';
 }
 
 // Shared fetch for the Appointments tab — one in-flight promise dedupes the on-open
