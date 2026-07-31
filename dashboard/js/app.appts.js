@@ -250,6 +250,35 @@ function _apptWorkCell(a, canSee){
   var det=canSee?String(a.issueDetail||'').trim():'';
   return det ? '<span class="appt-issue-cat" title="'+esc(det)+'">'+esc(cat)+' ▾</span>' : esc(cat);
 }
+// Who booked this appointment. bookerEmail is already on every row from both readers, but
+// an email is not what you want to read in a table — resolve it to a name where we can.
+// Three sources, because no single one covers every booker:
+//   DATA.roster           reps + staff in the CURRENT office (Appointments tab)
+//   _MYAPPT.actByEmail    activators across ALL offices (My Appointments is cross-office)
+//   _APPT.activators      activators in the current office
+// ⚠ 'customer-self-booking' is a SENTINEL the backend stamps when a customer books
+// themselves through the public page — it is not a real address and must never render as
+// one. Falls back to the local part rather than a bare address, with the full email on hover.
+function _apptBookerName(a){
+  var e=String((a&&a.bookerEmail)||'').trim();
+  if(!e) return '—';
+  if(e.toLowerCase()==='customer-self-booking') return 'Customer';
+  var r=((typeof DATA!=='undefined' && DATA.roster)||{})[e];
+  if(r && r.name) return r.name;
+  var m=(_MYAPPT && _MYAPPT.actByEmail)||{};
+  if(m[e] && m[e].name) return m[e].name;
+  var act=(_APPT.activators||[]).find(function(x){return x.email===e;});
+  if(act && act.name) return act.name;
+  return e.split('@')[0];
+}
+function _apptBookerCell(a){
+  var e=String((a&&a.bookerEmail)||'').trim();
+  var n=_apptBookerName(a);
+  if(n==='—') return '<span style="color:var(--text2)">—</span>';
+  // The 🌐 badge already marks self-bookings elsewhere; say it in words here too.
+  if(n==='Customer') return '<span class="appt-booker appt-booker-self" title="Booked online by the customer">'+icon('globe')+' Customer</span>';
+  return '<span class="appt-booker"'+(e&&e!==n?' title="'+esc(e)+'"':'')+'>'+esc(n)+'</span>';
+}
 function _apptOutcomeGlyph(a){
   var o=String(a.outcome||'').toLowerCase();
   if(o==='completed')   return '<span class="appt-oc-glyph oc-done" title="Completed">✓ </span>';
@@ -580,7 +609,7 @@ function _apptUpcomingTable(appts) {
   var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
   var h='<div class="card" style="margin-top:16px"><div class="card-header dark">Appointments</div>'+
     '<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
-    '<th>Date</th><th>Time</th><th>Activator</th><th>Customer</th><th>DSI</th><th>Type</th><th>Services / Reason</th><th>Status</th><th>Outcome</th><th>Actions</th>'+
+    '<th>Date</th><th>Time</th><th>Activator</th><th>Customer</th><th>DSI</th><th>Type</th><th>Services / Reason</th><th>Status</th><th>Outcome</th><th>Actions</th><th>Booked By</th>'+
     '</tr></thead><tbody>';
   rows.forEach(function(a){
     var ok=canAll||a.bookerEmail===SESSION.email;       // may see customer / DSI
@@ -619,6 +648,7 @@ function _apptUpcomingTable(appts) {
       '<td><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span></td>'+
       '<td>'+outcomeCell+'</td>'+
       '<td style="white-space:nowrap">'+(actions||'—')+'</td>'+
+      '<td>'+_apptBookerCell(a)+'</td>'+
     '</tr>';
   });
   return h+'</tbody></table></div></div>';
@@ -1742,6 +1772,8 @@ function _myApptSortVal(a,key){
     case 'services':  return (_apptIsIssue(a)?String(a.issueCategory||''):String(a.services||'')).toLowerCase();
     case 'status':    return String(a.status||'').toLowerCase();
     case 'outcome':   return String(a.outcome||'').toLowerCase();
+    // Sort on the NAME shown, not the raw email — otherwise the column sorts by address.
+    case 'booker':    return _apptBookerName(a).toLowerCase();
     default:          return '';
   }
 }
@@ -1790,7 +1822,7 @@ function _myApptTableHtml(){
   if(!rows.length) return head+'<div class="card-body"><div class="empty">'+icon('appointments')+' No appointments match these filters.</div></div></div>';
   var badgeStyle='display:inline-block;padding:2px 8px;border-radius:10px;background:var(--inset-bg,rgba(127,127,127,.14));font-size:.72rem;font-weight:600';
   var h=head+'<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
-    _myApptTh('Date','date')+_myApptTh('Time','time')+_myApptTh('Office','office')+(isMaster?_myApptTh('Activator','activator'):'')+_myApptTh('Customer','customer')+_myApptTh('DSI','dsi')+_myApptTh('Lang','lang')+_myApptTh('Type','apptType')+_myApptTh('Services / Reason','services')+_myApptTh('Status','status')+_myApptTh('Outcome','outcome')+'<th>Actions</th>'+
+    _myApptTh('Date','date')+_myApptTh('Time','time')+_myApptTh('Office','office')+(isMaster?_myApptTh('Activator','activator'):'')+_myApptTh('Customer','customer')+_myApptTh('DSI','dsi')+_myApptTh('Lang','lang')+_myApptTh('Type','apptType')+_myApptTh('Services / Reason','services')+_myApptTh('Status','status')+_myApptTh('Outcome','outcome')+'<th>Actions</th>'+_myApptTh('Booked By','booker')+
     '</tr></thead><tbody>';
   rows.forEach(function(a){
     var cancelled=a.status==='cancelled', occurred=a.date<=today;
@@ -1820,6 +1852,7 @@ function _myApptTableHtml(){
       '<td><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span></td>'+
       '<td>'+outcomeCell+'</td>'+
       '<td style="white-space:nowrap">'+(actions||'—')+'</td>'+
+      '<td>'+_apptBookerCell(a)+'</td>'+
     '</tr>';
   });
   return h+'</tbody></table></div></div>';

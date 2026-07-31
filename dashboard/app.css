@@ -1642,6 +1642,10 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .abm-type-seg .abm-seg-issue.active{background:#c8892e;color:#fff}
 #appt-booking-modal.abm-issue .modal{border-color:rgba(217,150,60,.45)}
 .abm-opt-hint{font-weight:400;color:var(--text2);font-size:.78em}
+/* "Booked By" column — who created the appointment. */
+.appt-booker{font-size:.8rem;color:var(--text2);white-space:nowrap}
+.appt-booker-self{display:inline-flex;align-items:center;gap:4px;color:#7db4e6}
+.appt-booker-self svg{width:11px;height:11px}
 /* Outcome modal: which type you're marking. */
 .ao-type-line{display:flex;align-items:center;gap:6px;margin-bottom:12px;padding:7px 11px;font-size:.8rem;
   color:#e0a951;background:rgba(217,150,60,.12);border:1px solid rgba(217,150,60,.28);border-radius:8px}
