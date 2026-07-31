@@ -147,8 +147,18 @@ function _kbLoad(force) {
   }
   api({ action: 'readKnowledge' }).then(function(res) {
     _KB_LOADING = false;
-    if (!res || res.error) { _KB_ERR = (res && res.error) ? String(res.error) : 'Could not load the knowledge base.'; _KB = null; }
-    else { _KB = res.articles || []; }
+    if (!res || res.error) {
+      _KB_ERR = (res && res.error) ? String(res.error) : 'Could not load the knowledge base.'; _KB = null;
+    } else if (!res.articles) {
+      // An action doGet doesn't recognise falls through to the MAIN DATA BUNDLE — a 200
+      // with the office blob, no error, and no articles key. Reading that as an empty
+      // list renders "No articles yet.", which looks like an empty knowledge base rather
+      // than a backend that predates this action. Distinguish on the KEY, not the length:
+      // a deployed backend always sends articles, even when it is an empty array.
+      _KB_ERR = 'The portal backend is running an older version that doesn’t serve the knowledge base yet. ' +
+                'Redeploy Code.gs as “Deploy → edit existing → New version”, then hit Retry.';
+      _KB = null;
+    } else { _KB = res.articles; }
     _kbRepaint();
   }).catch(function() {
     _KB_LOADING = false; _KB = null; _KB_ERR = 'Could not reach the server.';
