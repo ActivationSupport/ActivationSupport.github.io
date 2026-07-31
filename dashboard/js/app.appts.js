@@ -215,6 +215,41 @@ function _apptSrcBadge(a){
   return String(a&&a.source||'').toLowerCase()==='customer'
     ? '<span class="appt-src-badge" title="Booked online by the customer">'+icon('globe')+'</span>' : '';
 }
+// The second line of a calendar cell / agenda row. An activation shows what's being
+// activated (W/A/F glyphs + device count); an order issue shows the category instead —
+// it has no services or devices, so those would render as an empty "×0".
+// One helper so the three calendar renderers can't drift apart.
+function _apptCellMeta(a){
+  if(_apptIsIssue(a)){
+    return '<span class="appt-issue-chip">'+icon('issues')+esc(String(a.issueCategory||'').trim()||'Order issue')+'</span>';
+  }
+  return _apptSvcGlyphs(a.services)+'<span class="appt-dev-badge">×'+(a.deviceCount||1)+'</span>';
+}
+// Same split for the hover tooltip.
+function _apptCellTitleMeta(a){
+  return _apptIsIssue(a)
+    ? 'Order Issue · '+(String(a.issueCategory||'').trim()||'—')
+    : (a.services||'')+' ×'+(a.deviceCount||1);
+}
+// Order-issue cells get a tinted background on top of the activator's color bar (option 2C),
+// so a week reads at a glance without parsing each cell.
+function _apptCellTypeCls(a){ return _apptIsIssue(a)?' appt-cell-issue':''; }
+// Table cells. A badge alone isn't enough in a long sortable table, so the type gets its
+// own pill column and the Services column carries the category instead.
+function _apptTypePill(a){
+  return _apptIsIssue(a)
+    ? '<span class="appt-type-pill appt-type-issue">'+icon('issues')+' Order Issue</span>'
+    : '<span class="appt-type-pill appt-type-act">Activation</span>';
+}
+// `canSee` gates the free-text detail the same way the customer name is gated — it's a rep's
+// note about this customer's problem. The sprite has no info icon, so the detail rides as a
+// tooltip on the category itself.
+function _apptWorkCell(a, canSee){
+  if(!_apptIsIssue(a)) return esc(a.services||'—');
+  var cat=String(a.issueCategory||'').trim()||'—';
+  var det=canSee?String(a.issueDetail||'').trim():'';
+  return det ? '<span class="appt-issue-cat" title="'+esc(det)+'">'+esc(cat)+' ▾</span>' : esc(cat);
+}
 function _apptOutcomeGlyph(a){
   var o=String(a.outcome||'').toLowerCase();
   if(o==='completed')   return '<span class="appt-oc-glyph oc-done" title="Completed">✓ </span>';
@@ -248,7 +283,10 @@ function _apptMetricsPanel(appts){
     return '<div class="appt-metric"><div class="appt-metric-val"'+(color?' style="color:'+color+'"':'')+'>'+val+'</div>'+
       '<div class="appt-metric-lbl">'+label+'</div>'+(sub?'<div class="appt-metric-sub">'+sub+'</div>':'')+'</div>';
   }
-  var cards=card('Bookings (30d)', recent.length, marked.length+' marked', '#5B9BD5')+
+  // Split the 30-day count by type — the whole point of sharing one calendar is being able
+  // to see how much of it is order issues.
+  var recIssues=recent.filter(_apptIsIssue).length;
+  var cards=card('Bookings (30d)', recent.length, recIssues?((recent.length-recIssues)+' act · '+recIssues+' issue'):(marked.length+' marked'), '#5B9BD5')+
     card('No-Show Rate', nsRate+'%', ns+' of '+marked.length, nsRate>=15?'#e9756a':'#70AD47')+
     card('Completed', compRate+'%', comp+' of '+marked.length, '#70AD47')+
     card('Upcoming', upcoming.length, upDevices+' devices', '#FFC000');
@@ -278,7 +316,14 @@ function _apptLegend(appts, acts, ws){
       '<span class="appt-leg-dot" style="background:'+c+'"></span>'+esc(a.name)+
       '<span class="appt-leg-count" title="Appointments this week">'+n+'</span></span>';
   }).join('');
-  return '<div class="appt-legend">'+items+'</div>';
+  // A non-clickable key for the amber wash, so nobody has to guess what a tinted cell
+  // means. Only shown once there's actually an order issue in the visible week — an
+  // all-activation office never sees a legend entry for a thing it doesn't book.
+  var nIssue=appts.filter(function(a){ return a.status!=='cancelled' && a.date>=wsS && a.date<=weS && _apptIsIssue(a); }).length;
+  var key=nIssue?'<span class="appt-leg-item" style="cursor:default" title="Order-issue appointments are tinted amber">'+
+    '<span class="appt-leg-dot" style="background:rgba(217,150,60,.55)"></span>Order Issue'+
+    '<span class="appt-leg-count">'+nIssue+'</span></span>':'';
+  return '<div class="appt-legend">'+items+key+'</div>';
 }
 
 // Shared fetch for the Appointments tab — one in-flight promise dedupes the on-open
@@ -469,9 +514,9 @@ function _apptCalGrid(appts, acts, ws) {
           var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||mine.bookerEmail===SESSION.email;
           var col=_apptActColor(fe);
           var _ct=_apptDualParts(mine.date,mine.timeSlot,mine.activatorEmail);
-          html+='<div class="appt-cal-cell appt-cell-booked" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(mine.customerName):'Booked')+' · '+esc(mine.services||'')+' ×'+(mine.deviceCount||1)+(_ct.same?'':' · call '+esc(_ct.actLbl+(_ct.actAbbr?' '+_ct.actAbbr:'')))+'">'+
+          html+='<div class="appt-cal-cell appt-cell-booked'+_apptCellTypeCls(mine)+'" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(mine.customerName):'Booked')+' · '+esc(_apptCellTitleMeta(mine))+(_ct.same?'':' · call '+esc(_ct.actLbl+(_ct.actAbbr?' '+_ct.actAbbr:'')))+'">'+
             '<div class="appt-cell-name">'+_apptOutcomeGlyph(mine)+(ok?esc(mine.customerName):'••••••')+_apptSrcBadge(mine)+'</div>'+
-            '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(mine.services)+'<span class="appt-dev-badge">×'+(mine.deviceCount||1)+'</span></div></div>';
+            '<div class="appt-cell-glyphs">'+_apptCellMeta(mine)+'</div></div>';
         } else if(offWin){
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
         } else if(_apptBlocked(fe,ds,_apptToAct(ds,slot,fe))){
@@ -537,7 +582,7 @@ function _apptUpcomingTable(appts) {
   var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
   var h='<div class="card" style="margin-top:16px"><div class="card-header dark">Appointments</div>'+
     '<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
-    '<th>Date</th><th>Time</th><th>Activator</th><th>Customer</th><th>DSI</th><th>Services</th><th>Status</th><th>Outcome</th><th>Actions</th>'+
+    '<th>Date</th><th>Time</th><th>Activator</th><th>Customer</th><th>DSI</th><th>Type</th><th>Services / Reason</th><th>Status</th><th>Outcome</th><th>Actions</th>'+
     '</tr></thead><tbody>';
   rows.forEach(function(a){
     var ok=canAll||a.bookerEmail===SESSION.email;       // may see customer / DSI
@@ -571,7 +616,8 @@ function _apptUpcomingTable(appts) {
       '<td>'+esc(_apptActName(a.activatorEmail))+'</td>'+
       '<td>'+(ok?esc(a.customerName):'••••••')+_apptSrcBadge(a)+'</td>'+
       '<td>'+dsiCell+'</td>'+
-      '<td style="font-size:.78rem">'+esc(a.services||'—')+'</td>'+
+      '<td>'+_apptTypePill(a)+'</td>'+
+      '<td style="font-size:.78rem">'+_apptWorkCell(a,ok)+'</td>'+
       '<td><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span></td>'+
       '<td>'+outcomeCell+'</td>'+
       '<td style="white-space:nowrap">'+(actions||'—')+'</td>'+
@@ -623,9 +669,9 @@ function _apptAllActGrid(appts, acts, dStr){
       if(ap){
         var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||ap.bookerEmail===SESSION.email;
         var col=_apptActColor(a.email);
-        html+='<div class="appt-cal-cell appt-cell-booked" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(ap.customerName):'Booked')+' · '+esc(ap.services||'')+' ×'+(ap.deviceCount||1)+'">'+
+        html+='<div class="appt-cal-cell appt-cell-booked'+_apptCellTypeCls(ap)+'" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(ap.customerName):'Booked')+' · '+esc(_apptCellTitleMeta(ap))+'">'+
           '<div class="appt-cell-name">'+_apptOutcomeGlyph(ap)+(ok?esc(ap.customerName):'••••••')+_apptSrcBadge(ap)+'</div>'+
-          '<div class="appt-cell-glyphs">'+_apptSvcGlyphs(ap.services)+'<span class="appt-dev-badge">×'+(ap.deviceCount||1)+'</span></div></div>';
+          '<div class="appt-cell-glyphs">'+_apptCellMeta(ap)+'</div></div>';
       } else if(offWin){
         html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
       } else if(inSched && _apptBlocked(a.email,dStr,asl)){
@@ -653,11 +699,11 @@ function _apptDayAgenda(appts, acts, dStr){
   rows.forEach(function(a){
     var ok=canAll||a.bookerEmail===SESSION.email, col=_apptActColor(a.activatorEmail);
     var dsi = ok && a.customerDSI ? ' <span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>' : '';
-    h+='<div class="appt-agenda-row" style="border-left:3px solid '+col+'">'+
+    h+='<div class="appt-agenda-row'+_apptCellTypeCls(a)+'" style="border-left:3px solid '+col+'">'+
       '<div class="appt-agenda-time">'+esc(_apptFmt12(_apptToOffice(a.date,a.timeSlot,a.activatorEmail)))+'</div>'+
       '<div class="appt-agenda-main">'+
-        '<div class="appt-agenda-cust">'+(ok?esc(a.customerName):'••••••')+_apptSrcBadge(a)+dsi+'</div>'+
-        '<div class="appt-agenda-sub"><span style="color:'+col+';font-weight:700">'+esc(_apptActName(a.activatorEmail))+'</span> · '+_apptSvcGlyphs(a.services)+'<span class="appt-dev-badge">×'+(a.deviceCount||1)+'</span></div>'+
+        '<div class="appt-agenda-cust">'+(ok?esc(a.customerName):'••••••')+_apptTypeBadge(a)+_apptSrcBadge(a)+dsi+'</div>'+
+        '<div class="appt-agenda-sub"><span style="color:'+col+';font-weight:700">'+esc(_apptActName(a.activatorEmail))+'</span> · '+_apptCellMeta(a)+'</div>'+
         _apptLifecyclePath(a, today)+
       '</div>'+
     '</div>';
@@ -782,8 +828,104 @@ function _abmSvcsClick(e) {
   else return;
   _abmRenderSvcs();
 }
+// ── Appointment type: Activation vs Order Issue ───────────────────────────────
+// The same calendar carries both. 'activation' is the default everywhere, including for
+// every row booked before the type existed — see apptType in the backend APPT_HEADERS.
+function _apptIsIssue(a){ return String(a&&a.apptType||'').toLowerCase()==='orderissue'; }
+// The badge that marks an order issue on cells, rows and cards. Activations get nothing —
+// they are the overwhelming majority, and badging both would just add noise to every cell.
+function _apptTypeBadge(a){
+  if(!_apptIsIssue(a)) return '';
+  var cat=String(a.issueCategory||'').trim();
+  return '<span class="appt-type-badge" title="Order Issue'+(cat?' · '+esc(cat):'')+'">'+icon('issues')+' ISSUE</span>';
+}
+// Only ACTIVATORS and MASTER-ADMINS may add a category (user decision). This hides the
+// "+ Add" row for everyone else; the real enforcement is the badge-gated addIssueCategory
+// on the backend, which fails closed — this is just not showing a control that would 403.
+function _abmCanAddCategory(){
+  return ['activator','master-admin'].indexOf(String(SESSION&&SESSION.role||'').toLowerCase())!==-1;
+}
+var _ABM_CATS = [];   // order-issue categories, loaded once per modal open
+function _abmLoadCategories(){
+  return _apptGet({action:'getIssueCategories'}).then(function(res){
+    // Distinguish on the KEY, not the length: a backend that predates this action falls
+    // through to a response with no `categories` key at all, and `res.categories||[]`
+    // would render that as "no categories exist" instead of "this isn't deployed yet".
+    if(!res || !('categories' in res)){ _ABM_CATS=[]; return false; }
+    _ABM_CATS=res.categories||[]; return true;
+  }).catch(function(){ _ABM_CATS=[]; return false; });
+}
+// "+ Add" → a one-field popup, then persist. The list is shared across offices, so a new
+// category is immediately visible to everyone.
+function _abmAddCategory(typed){
+  _ssAddPopup('Add order-issue category', [{id:'val',label:'Category name',value:typed}], function(v){
+    var val=String(v.val||'').trim();
+    if(!val) return 'Enter a category name.';
+    if(_ABM_CATS.some(function(c){ return c.toLowerCase()===val.toLowerCase(); })) return 'That category already exists.';
+    // Optimistic: show it in the picker now, then persist. On failure we roll it back out
+    // of the list AND out of the input, so a rejected category can't be submitted — the
+    // backend validates against the sheet and would reject the booking anyway.
+    _ABM_CATS.push(val);
+    var input=document.getElementById('abm-cat'); if(input) input.value=val;
+    _apptPost({action:'addIssueCategory',value:val}).then(function(res){
+      if(res && res.ok){ if(res.categories) _ABM_CATS=res.categories; return; }
+      _ABM_CATS=_ABM_CATS.filter(function(c){ return c!==val; });
+      if(input && input.value===val) input.value='';
+      var e=document.getElementById('abm-error');
+      if(e){ e.textContent = res && res.error==='forbidden'
+        ? 'Only activators and master-admins can add a category.'
+        : 'Could not save that category — pick an existing one.'; e.style.display='block'; }
+    }).catch(function(){
+      _ABM_CATS=_ABM_CATS.filter(function(c){ return c!==val; });
+      if(input && input.value===val) input.value='';
+    });
+  });
+}
+// The one block that differs between the two types. Activations keep the services+quantity
+// picker; order issues get the category combo + a detail box.
+function _abmWorkBodyHtml(){
+  if(_ABM.type==='orderissue'){
+    return '<div class="field" style="grid-column:1/-1"><label>Issue category</label>'+
+        _comboField('abm-cat',{ placeholder:'Search or pick a category…', noAdd:!_abmCanAddCategory(),
+          addTitle:'Add order-issue category', onAdd:_abmAddCategory,
+          options:function(){ return _ABM_CATS; } })+
+        '<div class="abm-act-hint" id="abm-cat-hint" style="display:none"></div>'+
+      '</div>'+
+      '<div class="field" style="grid-column:1/-1"><label>Issue detail <span class="abm-opt-hint">(required for “Other”)</span></label>'+
+        '<textarea class="appt-form-input" id="abm-detail" rows="2" placeholder="What is wrong with the order?" style="resize:vertical"></textarea>'+
+      '</div>';
+  }
+  return '<div class="field" style="grid-column:1/-1"><label>Services &amp; quantity (tap to select)</label>'+
+      '<div class="abm-prod-list" id="abm-svcs"></div>'+
+    '</div>';
+}
+// Swap the type. Rebuilds only the work block — everything already typed into the
+// Appointment/Customer fields (name, DSI, phone, time) survives the switch.
+function _abmSetType(t){
+  _ABM.type = (t==='orderissue') ? 'orderissue' : 'activation';
+  var aB=document.getElementById('abm-seg-act'), iB=document.getElementById('abm-seg-issue');
+  if(aB) aB.classList.toggle('active', _ABM.type==='activation');
+  if(iB) iB.classList.toggle('active', _ABM.type==='orderissue');
+  var modal=document.getElementById('appt-booking-modal');
+  if(modal) modal.classList.toggle('abm-issue', _ABM.type==='orderissue');
+  var box=document.getElementById('abm-work-body'); if(!box) return;
+  box.innerHTML=_abmWorkBodyHtml();
+  var err=document.getElementById('abm-error'); if(err) err.style.display='none';
+  if(_ABM.type==='activation'){
+    _abmRenderSvcs();
+    var sb=document.getElementById('abm-svcs'); if(sb) sb.addEventListener('click',_abmSvcsClick);
+  } else {
+    var hint=document.getElementById('abm-cat-hint');
+    _abmLoadCategories().then(function(ok){
+      if(!hint) return;
+      if(!ok){ hint.style.display='block';
+        hint.textContent='Categories couldn’t be loaded — the Scheduler needs a redeploy (edit existing → New version).'; }
+      else hint.style.display='none';
+    });
+  }
+}
 function openApptBookingModal(date, activatorEmail, timeSlot) {
-  _ABM = { when:'soonest', soonest:null };
+  _ABM = { when:'soonest', soonest:null, type:'activation' };
   var acts = _APPT.activators||[];
   var actOpts='<option value="">Select activator…</option>'+
     '<option value="__next__">⚡ Next Available Agent</option>'+
@@ -794,6 +936,12 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
     '<div class="abm-section">'+
       '<div class="abm-section-title">Appointment</div>'+
       '<div class="appt-form-grid">'+
+        '<div class="field" style="grid-column:1/-1"><label>Type</label>'+
+          '<div class="abm-seg abm-type-seg">'+
+            '<button type="button" class="abm-seg-btn active" id="abm-seg-act" onclick="_abmSetType(\'activation\')">'+icon('zap')+' Activation</button>'+
+            '<button type="button" class="abm-seg-btn abm-seg-issue" id="abm-seg-issue" onclick="_abmSetType(\'orderissue\')">'+icon('issues')+' Order Issue</button>'+
+          '</div>'+
+        '</div>'+
         '<div class="field" style="grid-column:1/-1"><label>Language</label>'+
           '<select class="appt-form-input" id="abm-lang" onchange="_abmLangChange()">'+
             '<option value="english">English</option>'+
@@ -824,9 +972,9 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
         '<div class="field"><label>Contact Number</label><input type="tel" class="appt-form-input" id="abm-phone" placeholder="(555) 555-5555"></div>'+
         '<div class="field"><label>Customer Email</label><input type="email" class="appt-form-input" id="abm-email" placeholder="customer@email.com"></div>'+
         '<div class="field"><label>Notes (optional)</label><textarea class="appt-form-input" id="abm-note" rows="2" placeholder="Special requests, context, best time to reach…" style="resize:vertical"></textarea></div>'+
-        '<div class="field" style="grid-column:1/-1"><label>Services &amp; quantity (tap to select)</label>'+
-          '<div class="abm-prod-list" id="abm-svcs"></div>'+
-        '</div>'+
+        // Swapped wholesale by _abmSetType: services+quantity for an activation, the issue
+        // category + detail for an order issue.
+        '<div class="field abm-work-wrap" id="abm-work-body" style="grid-column:1/-1;display:contents">'+_abmWorkBodyHtml()+'</div>'+
       '</div>'+
     '</div>'+
     '<div id="abm-error" style="color:var(--red);font-size:.82rem;margin-top:10px;display:none"></div>'+
@@ -834,7 +982,9 @@ function openApptBookingModal(date, activatorEmail, timeSlot) {
       '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="closeApptModal()">Cancel</button>'+
       '<button class="appt-book-btn" id="abm-submit-btn" onclick="submitApptBooking()">Confirm Booking</button>'+
     '</div>';
-  document.getElementById('appt-booking-modal').classList.add('open');
+  var _modal = document.getElementById('appt-booking-modal');
+  _modal.classList.add('open');
+  _modal.classList.remove('abm-issue');   // every open starts on Activation
   _ABM_QTY = {};
   _abmRenderSvcs();
   var svcsBox = document.getElementById('abm-svcs');
@@ -996,9 +1146,12 @@ function submitApptBooking() {
   // services becomes ["Wireless x2","Air x1"] (backend joins with ", "); deviceCount = total.
   // NB: plain ASCII "x" (not "×") — the × multiplication sign gets mangled in the
   // booking POST's non-ASCII decode, so it would store/show as a broken character.
+  var isIssue=_ABM.type==='orderissue';
   var products=_ABM_PRODUCTS.filter(function(p){return _ABM_QTY[p]>0;}).map(function(p){return {name:p,qty:_ABM_QTY[p]};});
-  var svcs=products.map(function(p){return p.name+' x'+p.qty;});
-  var devices=products.reduce(function(s,p){return s+p.qty;},0);
+  var svcs=isIssue?[]:products.map(function(p){return p.name+' x'+p.qty;});
+  var devices=isIssue?0:products.reduce(function(s,p){return s+p.qty;},0);
+  var cat=isIssue?((document.getElementById('abm-cat')||{}).value||'').trim():'';
+  var detail=isIssue?((document.getElementById('abm-detail')||{}).value||'').trim().slice(0,500):'';
   var sameday=!!(document.getElementById('abm-sameday')||{}).checked;
   var nextMode='balance';   // Next Available Agent always balances the load (backend only uses this for __next__)
   var lang=(document.getElementById('abm-lang')||{}).value||'english';   // Item 1: booking language
@@ -1006,18 +1159,36 @@ function submitApptBooking() {
   if (!actEmail){errEl.textContent='Please choose an activator.';errEl.style.display='block';return;}
   if (_ABM.when==='soonest' && !slot){errEl.textContent='No opening found yet — try “Pick a date”.';errEl.style.display='block';return;}
   if (!date||!slot||!name||!dsi||!phone||!email){errEl.textContent='Please fill in all fields.';errEl.style.display='block';return;}
-  if (!svcs.length){errEl.textContent='Please select at least one service.';errEl.style.display='block';return;}
+  if (isIssue){
+    if (!cat){errEl.textContent='Please choose an issue category.';errEl.style.display='block';return;}
+    // Must be a real category, not free text the combobox left in the input — the backend
+    // rejects an unknown one, so catching it here saves a round trip and a confusing error.
+    if (!_ABM_CATS.some(function(c){return c.toLowerCase()===cat.toLowerCase();})){
+      errEl.textContent='Pick a category from the list'+(_abmCanAddCategory()?' — or use “+ Add” to create it.':'.');errEl.style.display='block';return;}
+    // "Other" says nothing on its own, so it has to be explained (mirrors the backend rule).
+    if (cat.toLowerCase()==='other' && !detail){errEl.textContent='“Other” needs a short detail.';errEl.style.display='block';return;}
+  } else if (!svcs.length){errEl.textContent='Please select at least one service.';errEl.style.display='block';return;}
   errEl.style.display='none';
   var btn=document.getElementById('abm-submit-btn');
   if(btn){btn.disabled=true;btn.textContent='Booking…';}
   _apptPost({action:'bookAppointment',bookerEmail:SESSION.email,activatorEmail:actEmail,
     date:date,timeSlot:slot,customerName:name,customerDSI:dsi,customerPhone:phone,
     customerEmail:email,customerNote:note,services:svcs,deviceCount:devices,office:CFG.officeId,
-    language:lang, nextMode:nextMode, role:(sameday?SESSION.role:'')   // role sent only on explicit same-day opt-in
+    language:lang, nextMode:nextMode, role:(sameday?SESSION.role:''),   // role sent only on explicit same-day opt-in
+    apptType:_ABM.type, issueCategory:cat, issueDetail:detail
   }).then(function(res){
     if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
     if(res.ok){closeApptModal();_APPT.appointments=null;renderAppointmentsTab();}
-    else{errEl.textContent=res.error==='slot_unavailable'?'That slot was just taken — please pick another time.':(res.error==='outside_window'?'That date is outside the booking window.':(res.error||'Booking failed. Try again.'));errEl.style.display='block';}
+    else{
+      var _msg={
+        slot_unavailable:'That slot was just taken — please pick another time.',
+        outside_window:'That date is outside the booking window.',
+        'missing issue category':'Please choose an issue category.',
+        'unknown issue category':'That category no longer exists — pick one from the list.',
+        'missing issue detail':'“Other” needs a short detail.'
+      }[res.error];
+      errEl.textContent=_msg||res.error||'Booking failed. Try again.';errEl.style.display='block';
+    }
   }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}errEl.textContent='Connection error. Try again.';errEl.style.display='block';});
 }
 
@@ -1103,9 +1274,16 @@ function setApptOutcomeUI(id, outcome) {
   _APPT_OUTCOME = { id:id, outcome:outcome };
   var a = _apptFindAppt(id);
   var canActivate = SESSION.role==='master-admin' || SESSION.role==='activator';
-  // Lines-activated only makes sense when the appointment actually happened.
-  var showLines = canActivate && outcome==='completed';
+  // Lines-activated only makes sense when the appointment actually happened — and only for
+  // an ACTIVATION. Resolving a porting issue or a device exchange activates nothing, so
+  // offering the field there invites a number that would inflate activation counts.
+  var isIssue = _apptIsIssue(a);
+  var showLines = canActivate && outcome==='completed' && !isIssue;
   var linesField = showLines ? _linesFieldHtml('appt-outcome-body',icon('zap')+' Lines activated during this appointment') : '';
+  var typeLine = isIssue
+    ? '<div class="ao-type-line">'+icon('issues')+' Order Issue'+
+      (a.issueCategory?' · <b>'+esc(a.issueCategory)+'</b>':'')+'</div>'
+    : '';
   // Item 4: a customer self-booking has no DSI until the activator matches the order —
   // let them enter it here so the activation note lands on the right order (backfilled).
   var needDsi = canActivate && a && !String(a.customerDSI||'').trim();
@@ -1115,9 +1293,10 @@ function setApptOutcomeUI(id, outcome) {
     : '';
   document.getElementById('appt-outcome-title').textContent = 'Mark Outcome — '+(_OUTCOME_LABELS[outcome]||outcome);
   document.getElementById('appt-outcome-body').innerHTML =
+    typeLine+
     dsiField+
     '<label class="ao-label">Note '+(showLines?'':'(optional)')+'</label>'+
-    '<textarea id="appt-outcome-note" class="nm-textarea" placeholder="Activation note for this appointment (saved to the customer’s notes)…" style="margin-bottom:10px"></textarea>'+
+    '<textarea id="appt-outcome-note" class="nm-textarea" placeholder="'+(isIssue?'What was done to resolve the issue (saved to the customer’s notes)…':'Activation note for this appointment (saved to the customer’s notes)…')+'" style="margin-bottom:10px"></textarea>'+
     linesField+
     '<div class="nm-actions" style="margin-top:14px">'+
       '<button class="nm-close-btn" style="flex:1" onclick="closeApptOutcomeModal(true)">Cancel</button>'+
@@ -1493,6 +1672,8 @@ function _myApptBuildView(){
     return '<option value="'+l[0]+'"'+(f.language===l[0]?' selected':'')+'>'+l[1]+'</option>'; }).join('');
   var outOpts=[['','All outcomes'],['__none__','No outcome yet'],['completed','Completed'],['rescheduled','Rescheduled'],['no-show','No-Show'],['canceled','Canceled']].map(function(o){
     return '<option value="'+o[0]+'"'+(f.outcome===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+  var typeOpts=[['','All types'],['activation','Activations'],['orderissue','Order Issues']].map(function(t){
+    return '<option value="'+t[0]+'"'+(f.apptType===t[0]?' selected':'')+'>'+t[1]+'</option>'; }).join('');
   var fi='padding:7px 9px;border:1.5px solid var(--field-border);border-radius:8px;background:var(--field-bg);color:var(--text);font:inherit;font-size:.85rem';
   var bar='<div class="card" style="margin-bottom:14px"><div class="card-body">'+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+
@@ -1501,11 +1682,12 @@ function _myApptBuildView(){
       '<input type="date" id="maf-dateto" style="'+fi+'" value="'+esc(f.dateTo||'')+'" onchange="_myApptFilter()" title="To date">'+
       '<select id="maf-office" style="'+fi+'" onchange="_myApptFilter()">'+officeOpts+'</select>'+
       (isMaster?'<select id="maf-act" style="'+fi+'" onchange="_myApptFilter()">'+actOpts+'</select>':'')+
+      '<select id="maf-type" style="'+fi+'" onchange="_myApptFilter()">'+typeOpts+'</select>'+
       '<select id="maf-lang" style="'+fi+'" onchange="_myApptFilter()">'+langOpts+'</select>'+
       '<select id="maf-outcome" style="'+fi+'" onchange="_myApptFilter()">'+outOpts+'</select>'+
       '<input type="text" id="maf-customer" style="'+fi+';width:130px" placeholder="Customer" value="'+esc(f.customer||'')+'" oninput="_myApptFilter()">'+
       '<input type="text" id="maf-dsi" style="'+fi+';width:100px" placeholder="DSI" value="'+esc(f.dsi||'')+'" oninput="_myApptFilter()">'+
-      '<input type="text" id="maf-services" style="'+fi+';width:130px" placeholder="Services" value="'+esc(f.services||'')+'" oninput="_myApptFilter()">'+
+      '<input type="text" id="maf-services" style="'+fi+';width:130px" placeholder="Service / reason" value="'+esc(f.services||'')+'" oninput="_myApptFilter()">'+
       '<button class="appt-do-cancel-btn" style="border-color:var(--text2);color:var(--text2)" onclick="_myApptClearFilters()">Clear</button>'+
       (isMaster?'<button class="appt-book-btn" style="padding:7px 12px;font-size:.82rem;margin-left:auto" onclick="openCalOverview()">'+icon('appointments')+' Calendar links</button>':'')+
     '</div>'+
@@ -1518,17 +1700,25 @@ function _myApptMatch(a,f){
   if(f.dateTo   && a.date > f.dateTo)   return false;
   if(f.office && String(a.office)!==f.office) return false;
   if(f.activator && String(a.activatorEmail||'').toLowerCase()!==String(f.activator).toLowerCase()) return false;
+  // Blank apptType = an activation (rows booked before the type existed), so compare the
+  // normalized value — filtering on 'activation' must still match those legacy rows.
+  if(f.apptType && (_apptIsIssue(a)?'orderissue':'activation')!==f.apptType) return false;
   if(f.language && (a.language||'english')!==f.language) return false;
   if(f.outcome){ if(f.outcome==='__none__'){ if(a.outcome) return false; } else if(String(a.outcome)!==f.outcome) return false; }
   if(f.customer && String(a.customerName||'').toLowerCase().indexOf(f.customer.toLowerCase())===-1) return false;
   if(f.dsi && String(a.customerDSI||'').toLowerCase().indexOf(f.dsi.toLowerCase())===-1) return false;
-  if(f.services && String(a.services||'').toLowerCase().indexOf(f.services.toLowerCase())===-1) return false;
+  // The column is "Services / Reason" now, so the text filter searches whichever the row
+  // actually shows — otherwise typing "Porting" against an order issue would match nothing.
+  if(f.services){
+    var hay=(_apptIsIssue(a)?(String(a.issueCategory||'')+' '+String(a.issueDetail||'')):String(a.services||'')).toLowerCase();
+    if(hay.indexOf(f.services.toLowerCase())===-1) return false;
+  }
   return true;
 }
 function _myApptFilter(){
   var g=function(id){var e=document.getElementById(id);return e?String(e.value||''):'';};
   _MYAPPT.filters={ dateFrom:g('maf-datefrom'), dateTo:g('maf-dateto'), office:g('maf-office'), activator:g('maf-act'),
-    language:g('maf-lang'), outcome:g('maf-outcome'),
+    apptType:g('maf-type'), language:g('maf-lang'), outcome:g('maf-outcome'),
     customer:g('maf-customer').trim(), dsi:g('maf-dsi').trim(), services:g('maf-services').trim() };
   var w=document.getElementById('myappt-tbody-wrap'); if(w) w.innerHTML=_myApptTableHtml();
 }
@@ -1548,7 +1738,10 @@ function _myApptSortVal(a,key){
     case 'customer':  return String(a.customerName||'').toLowerCase();
     case 'dsi':       return String(a.customerDSI||'').toLowerCase();
     case 'lang':      return String(a.language||'english');
-    case 'services':  return String(a.services||'').toLowerCase();
+    case 'apptType':  return _apptIsIssue(a)?'orderissue':'activation';
+    // Sort the column by what it actually SHOWS: an order issue's cell holds the category,
+    // not services, so sorting it on a.services would leave every issue row tied on ''.
+    case 'services':  return (_apptIsIssue(a)?String(a.issueCategory||''):String(a.services||'')).toLowerCase();
     case 'status':    return String(a.status||'').toLowerCase();
     case 'outcome':   return String(a.outcome||'').toLowerCase();
     default:          return '';
@@ -1599,7 +1792,7 @@ function _myApptTableHtml(){
   if(!rows.length) return head+'<div class="card-body"><div class="empty">'+icon('appointments')+' No appointments match these filters.</div></div></div>';
   var badgeStyle='display:inline-block;padding:2px 8px;border-radius:10px;background:var(--inset-bg,rgba(127,127,127,.14));font-size:.72rem;font-weight:600';
   var h=head+'<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
-    _myApptTh('Date','date')+_myApptTh('Time','time')+_myApptTh('Office','office')+(isMaster?_myApptTh('Activator','activator'):'')+_myApptTh('Customer','customer')+_myApptTh('DSI','dsi')+_myApptTh('Lang','lang')+_myApptTh('Services','services')+_myApptTh('Status','status')+_myApptTh('Outcome','outcome')+'<th>Actions</th>'+
+    _myApptTh('Date','date')+_myApptTh('Time','time')+_myApptTh('Office','office')+(isMaster?_myApptTh('Activator','activator'):'')+_myApptTh('Customer','customer')+_myApptTh('DSI','dsi')+_myApptTh('Lang','lang')+_myApptTh('Type','apptType')+_myApptTh('Services / Reason','services')+_myApptTh('Status','status')+_myApptTh('Outcome','outcome')+'<th>Actions</th>'+
     '</tr></thead><tbody>';
   rows.forEach(function(a){
     var cancelled=a.status==='cancelled', occurred=a.date<=today;
@@ -1622,7 +1815,10 @@ function _myApptTableHtml(){
       '<td>'+esc(a.customerName||'—')+'</td>'+
       '<td>'+dsiCell+'</td>'+
       '<td>'+lang+'</td>'+
-      '<td style="font-size:.78rem">'+esc(a.services||'—')+'</td>'+
+      '<td>'+_apptTypePill(a)+'</td>'+
+      // This endpoint never masks (it's gated to self / master-admin in the router), so the
+      // issue detail is always visible here.
+      '<td style="font-size:.78rem">'+_apptWorkCell(a,true)+'</td>'+
       '<td><span class="appt-status-'+esc(a.status)+'">'+esc(a.status)+'</span></td>'+
       '<td>'+outcomeCell+'</td>'+
       '<td style="white-space:nowrap">'+(actions||'—')+'</td>'+

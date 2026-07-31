@@ -1610,6 +1610,49 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-leg-item.appt-leg-dim{opacity:.4}
 .appt-leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
 .appt-leg-count{font-weight:800;font-size:.72rem;color:var(--text2);background:rgba(255,255,255,.08);min-width:18px;text-align:center;padding:0 5px;border-radius:9px}
+/* ── Appointment type: Activation vs Order Issue (2026-07-31) ──────────────────
+   Option 2C: the activator's colour bar STAYS (it's how people are told apart on the
+   all-activators view), and an order issue adds an amber wash + an ISSUE badge on top.
+   Amber is reused from the existing rotting/at-risk vocabulary elsewhere in the portal —
+   "needs attention", not "error". Every rule below is additive: an activation renders
+   exactly as it did before. */
+.appt-cell-booked.appt-cell-issue{background:rgba(217,150,60,.30)}
+.appt-agenda-row.appt-cell-issue{background:rgba(217,150,60,.10)}
+.appt-issue-chip{display:inline-flex;align-items:center;gap:4px;font-size:.6rem;font-weight:800;
+  color:#e0a951;background:rgba(217,150,60,.18);padding:0 5px;border-radius:4px;line-height:1.5;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appt-issue-chip svg{width:9px;height:9px;flex-shrink:0}
+.appt-type-badge{display:inline-flex;align-items:center;gap:3px;font-size:.58rem;font-weight:800;
+  letter-spacing:.04em;color:#e0a951;background:rgba(217,150,60,.18);border:1px solid rgba(217,150,60,.35);
+  padding:0 5px;border-radius:4px;margin-left:5px;vertical-align:1px}
+.appt-type-badge svg{width:9px;height:9px}
+/* Table pill — both types get one here: in a long sortable column, "no badge" reads as
+   missing data rather than as "activation". */
+.appt-type-pill{display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;
+  padding:2px 8px;border-radius:10px;white-space:nowrap}
+.appt-type-pill svg{width:10px;height:10px}
+.appt-type-act{color:var(--text2);background:var(--inset-bg,rgba(127,127,127,.14))}
+.appt-type-issue{color:#e0a951;background:rgba(217,150,60,.16);border:1px solid rgba(217,150,60,.32)}
+.appt-issue-cat{border-bottom:1px dotted var(--text2);cursor:help}
+/* Booking modal: the Order Issue half of the type toggle, and an amber accent on the whole
+   modal once that type is selected, so you can't fill the form thinking it's an activation. */
+/* Not scoped to #appt-booking-modal: .abm-type-seg .abm-seg-issue.active (0,3,0) already
+   outranks the generic .abm-seg-btn.active (0,2,0), and keeping it id-free means the
+   offline preview renders the real colour. */
+.abm-type-seg .abm-seg-issue.active{background:#c8892e;color:#fff}
+#appt-booking-modal.abm-issue .modal{border-color:rgba(217,150,60,.45)}
+.abm-opt-hint{font-weight:400;color:var(--text2);font-size:.78em}
+/* Outcome modal: which type you're marking. */
+.ao-type-line{display:flex;align-items:center;gap:6px;margin-bottom:12px;padding:7px 11px;font-size:.8rem;
+  color:#e0a951;background:rgba(217,150,60,.12);border:1px solid rgba(217,150,60,.28);border-radius:8px}
+.ao-type-line svg{width:13px;height:13px}
+/* Light mode: the amber fills above are tuned for the dark surface and turn muddy on white. */
+html[data-theme="light"] .appt-cell-booked.appt-cell-issue{background:rgba(217,150,60,.22)}
+html[data-theme="light"] .appt-agenda-row.appt-cell-issue{background:rgba(217,150,60,.08)}
+html[data-theme="light"] .appt-issue-chip,
+html[data-theme="light"] .appt-type-badge,
+html[data-theme="light"] .appt-type-issue,
+html[data-theme="light"] .ao-type-line{color:#8a5a12;background:rgba(217,150,60,.20)}
 /* Phase 2 #1a: Booking Performance panel */
 .appt-metrics-wrap{margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
 .appt-metrics-summary{font-size:.92rem;font-weight:800;cursor:pointer;color:var(--text);list-style:none;margin-bottom:12px}
