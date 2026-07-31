@@ -971,6 +971,8 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .kb-script p:last-child{margin-bottom:0}
 .kb-alert{border-left:3px solid #d9922e;background:rgba(217,146,46,.1);border-radius:0 6px 6px 0;padding:8px 13px;margin:10px 0;color:var(--text)}
 .kb-alert-h{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#d9922e;margin-bottom:2px}
+.kb-link{color:var(--blue2);text-decoration:underline;text-underline-offset:2px}
+.kb-link:hover{color:var(--text)}
 .kb-table{width:100%;border-collapse:collapse;margin:10px 0}
 .kb-table td{padding:7px 11px;border-bottom:1px solid var(--border);vertical-align:top}
 .kb-table tr:last-child td{border-bottom:none}

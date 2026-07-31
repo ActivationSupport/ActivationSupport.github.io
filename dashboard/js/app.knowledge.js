@@ -129,10 +129,19 @@ function _kbRender(src) {
   return out.join('');
 }
 
-// Inline formatting on ALREADY-ESCAPED text. Only **bold** is supported; asterisks are
-// the only thing this looks for, so no tag or attribute can be reconstructed from input.
+// Inline formatting on ALREADY-ESCAPED text: **bold** and [label](https://…).
+//
+// Links are the one place a scheme allowlist is load-bearing. esc() has already turned
+// " into &quot;, so a URL cannot break out of the href attribute — but "javascript:" and
+// "data:" contain NO characters that escaping touches, so they would survive intact and
+// become a live handler. Requiring an https:// prefix is what stops that, and the charset
+// additionally bars whitespace, quotes, angle brackets and parens so nothing can append a
+// second attribute. Bold runs first so the href itself can never be rewritten by it.
 function _kbInline(escaped) {
-  return String(escaped).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  var s = String(escaped).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  return s.replace(/\[([^\]]+)\]\((https:\/\/[^\s"'<>()*\\]+)\)/g, function(_m, label, url) {
+    return '<a class="kb-link" href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
+  });
 }
 
 // ── loading + interaction ──────────────────────────────────────────────────
