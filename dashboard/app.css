@@ -1670,6 +1670,19 @@ html[data-theme="light"] .appt-svc-glyph.svc-f{background:#fce6d5;color:#9c4715}
    dark-theme lightener and renders as nothing on light, leaving a bare number next to
    three solid chips. */
 html[data-theme="light"] .appt-dev-badge{background:rgba(15,23,42,.08);color:#475569}
+/* The "N open" slot pill in the day header — a chip, so it takes the same tint + dark
+   text treatment as the glyphs above (its green matches .svc-a). */
+html[data-theme="light"] .appt-avail-pill{background:#d6efdd;color:#15703e}
+/* Outcome marks (✓ completed · ✗ no-show · ↻ rescheduled · ⊘ canceled). These are bare
+   inline glyphs with no chip behind them, so they're read straight against the booked
+   cell — rgba(31,78,120,.38) over --surface, about #a4b6c8. That's a MID tone, not a
+   light one, so these run darker than the light-theme badge palette: #b3261e-on-#a4b6c8
+   is only 3.3:1. The values below clear 4.5:1 there, and gain contrast rather than lose
+   it on the lighter amber issue-cell wash. */
+html[data-theme="light"] .appt-oc-glyph.oc-done{color:#0f4d2a}
+html[data-theme="light"] .appt-oc-glyph.oc-noshow{color:#8c1d13}
+html[data-theme="light"] .appt-oc-glyph.oc-resched{color:#6f3405}
+html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
 /* Phase 2 #1a: Booking Performance panel */
 .appt-metrics-wrap{margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
 .appt-metrics-summary{font-size:.92rem;font-weight:800;cursor:pointer;color:var(--text);list-style:none;margin-bottom:12px}
