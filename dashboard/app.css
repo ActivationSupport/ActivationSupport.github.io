@@ -1657,6 +1657,19 @@ html[data-theme="light"] .appt-issue-chip,
 html[data-theme="light"] .appt-type-badge,
 html[data-theme="light"] .appt-type-issue,
 html[data-theme="light"] .ao-type-line{color:#8a5a12;background:rgba(217,150,60,.20)}
+/* Light mode: the W/A/F service glyphs. Dark uses a pale letter on a 22% tint — over the
+   light-mode booked cell (rgba(31,78,120,.38) on white ≈ #aabccc) that pale letter lands
+   within a few points of its own chip and disappears. Same inversion as the status badges
+   above: OPAQUE soft tint + saturated dark text of the same hue. The greens/oranges run a
+   shade darker than the .badge-* equivalents because the glyph is 9.6px — WCAG normal-text
+   size, so it needs 4.5:1, which the house #1a7a44/#b5541a miss by a hair at this scale. */
+html[data-theme="light"] .appt-svc-glyph.svc-w{background:#dcebfb;color:#1a4e78}
+html[data-theme="light"] .appt-svc-glyph.svc-a{background:#d6efdd;color:#15703e}
+html[data-theme="light"] .appt-svc-glyph.svc-f{background:#fce6d5;color:#9c4715}
+/* The ×N device badge sits in the same glyph row; its rgba(255,255,255,.07) fill is a
+   dark-theme lightener and renders as nothing on light, leaving a bare number next to
+   three solid chips. */
+html[data-theme="light"] .appt-dev-badge{background:rgba(15,23,42,.08);color:#475569}
 /* Phase 2 #1a: Booking Performance panel */
 .appt-metrics-wrap{margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
 .appt-metrics-summary{font-size:.92rem;font-weight:800;cursor:pointer;color:var(--text);list-style:none;margin-bottom:12px}
