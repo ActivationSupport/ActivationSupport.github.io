@@ -1344,6 +1344,34 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .lst-dash{color:rgba(255,255,255,.2)}
 .lst-total-row td{background:rgba(var(--blue2-rgb),.07);color:var(--blue2);font-weight:700}
 .lst-grand-row td{background:rgba(var(--blue2-rgb),.13)!important}
+/* ── Right-hand TOTAL column (Days = week-to-date · Weeks = across the weeks shown) ──
+   PINNED to the right edge: the days view is 18 columns and .lst-tbl-wrap scrolls
+   horizontally, so an unpinned total is the first thing to leave the screen — which is
+   the opposite of what it's for.
+   ⚠⚠ Sticky cells MUST be opaque or the scrolling columns show straight through them.
+   The base is var(--bg) because neither .lst-tbl nor .lst-tbl-wrap sets a background,
+   so an ordinary row's cells already show var(--bg) — matching it means the pinned
+   column doesn't read as a lighter stripe. Row tints (hover / total / grand) are then
+   re-applied ON TOP as a gradient layer, since a flat rgba() would let the scrolled
+   cells through again.
+   ⚠ The `right` offsets must equal the widths, so both are fixed here. Widths are set
+   for a 4-digit figure — an office 5-week unit total is the largest number shown. */
+.lst-tbl .lst-tot-u{right:0;width:58px;min-width:58px}
+.lst-tbl .lst-tot-o{right:58px;width:54px;min-width:54px;border-left:2px solid var(--border)}
+.lst-tbl .lst-tot-hdr{position:sticky;right:0;width:112px;min-width:112px;z-index:3;
+  background:var(--surface2);border-left:2px solid var(--border)}
+.lst-tbl th.lst-tot-o,.lst-tbl th.lst-tot-u{position:sticky;z-index:3;background:var(--surface2)}
+.lst-tbl td.lst-tot-o,.lst-tbl td.lst-tot-u{position:sticky;z-index:1;background:var(--bg);font-weight:700}
+.lst-tbl td.lst-tot-o{color:var(--text2)}
+.lst-tbl td.lst-tot-u{color:var(--blue2)}
+.lst-tbl td.lst-sep-tot{background:var(--surface2)}
+.lst-tbl tbody tr.lst-row-click:hover td.lst-tot-o,
+.lst-tbl tbody tr.lst-row-click:hover td.lst-tot-u{
+  background:linear-gradient(rgba(var(--blue2-rgb),.09),rgba(var(--blue2-rgb),.09)),var(--bg)}
+.lst-tbl .lst-total-row td.lst-tot-o,.lst-tbl .lst-total-row td.lst-tot-u{
+  background:linear-gradient(rgba(var(--blue2-rgb),.07),rgba(var(--blue2-rgb),.07)),var(--bg)}
+.lst-tbl .lst-grand-row td.lst-tot-o,.lst-tbl .lst-grand-row td.lst-tot-u{
+  background:linear-gradient(rgba(var(--blue2-rgb),.13),rgba(var(--blue2-rgb),.13)),var(--bg)!important}
 .lst-section-sep td{padding:4px 10px;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text2);background:var(--surface2)}
 .lst-team-rankings{margin-top:32px}
 .lst-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:12px}

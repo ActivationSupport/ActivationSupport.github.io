@@ -745,8 +745,11 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
   // LEADERS / CLIENT REPS split is preserved.
   var active = _LST_SORT.days || { col: todayIdx, metric: 'units', dir: 'desc' };
   _LST_SORT_RESOLVED.days = active;
+  // col 'total' = the week-to-date figure. d.orders/d.units are incremented in
+  // lockstep with the day buckets in _lstAgg (and only for diff 0..6), so they ARE
+  // the row's 7-day sum — no separate tally to drift out of step.
   var cmp = _lstCmp(active,
-    function(x, col, metric) { return x.d.days[col][metric]; },
+    function(x, col, metric) { return col === 'total' ? x.d[metric] : x.d.days[col][metric]; },
     function(a, b) { return b.d.units - a.d.units || b.d.orders - a.d.orders; });
   leaders = leaders.slice().sort(cmp);
   reps    = reps.slice().sort(cmp);
@@ -756,6 +759,7 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
   h += '<th style="width:36px">#</th>';
   h += _lstSortTh('days', 'name', 'name', 'NAME', active, 'll', 'min-width:160px');
   _LST_DAYS.forEach(function(d) { h += '<th colspan="2">' + d + '</th>'; });
+  h += '<th colspan="2" class="lst-tot-hdr">TOTAL</th>';
   h += '</tr><tr><th></th><th></th>';
   _LST_DAYS.forEach(function(_, i) {
     // Future days are all zeros (they render as "—"), so they aren't sortable.
@@ -763,6 +767,8 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
     h += _lstSortTh('days', i, 'orders', 'ORD', active);
     h += _lstSortTh('days', i, 'units',  'UNITS', active);
   });
+  h += _lstSortTh('days', 'total', 'orders', 'ORD',   active, 'lst-tot-o');
+  h += _lstSortTh('days', 'total', 'units',  'UNITS', active, 'lst-tot-u');
   h += '</tr></thead><tbody>';
 
   function row(item, rank) {
@@ -782,6 +788,10 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
         r += '<td class="' + _lstUCls(d.days[i].units) + '">' + d.days[i].units + '</td>';
       }
     }
+    // ⚠ No _lstUCls here — its thresholds (0 / ≤2 / ≤5) are tuned to a SINGLE day, so
+    // every week-to-date total would come out green and the colour would say nothing.
+    r += '<td class="lst-tot-o">' + d.orders + '</td>';
+    r += '<td class="lst-tot-u">' + d.units + '</td>';
     return r + '</tr>';
   }
 
@@ -802,14 +812,25 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
       if (i > todayIdx) { r += '<td class="lst-dash">—</td><td class="lst-dash">—</td>'; }
       else { r += '<td>' + dt[i].orders + '</td><td class="' + _lstUCls(dt[i].units) + '">' + dt[i].units + '</td>'; }
     }
+    r += '<td class="lst-tot-o">' + items.reduce(function(s, x) { return s + x.d.orders; }, 0) + '</td>';
+    r += '<td class="lst-tot-u">' + items.reduce(function(s, x) { return s + x.d.units;  }, 0) + '</td>';
     return r + '</tr>';
   }
 
-  h += '<tr class="lst-section-sep"><td colspan="' + (2 + 14) + '">LEADERS</td></tr>';
+  // ⚠ The separator's colspan deliberately stops SHORT of the two total columns, which
+  // get their own cells instead. A colspan cell can't be sticky per-column, so letting
+  // it run the full width would make the pinned column vanish on these rows and the
+  // scrolled cells show through the gap.
+  function sepRow(label) {
+    return '<tr class="lst-section-sep"><td colspan="' + (2 + 14) + '">' + label + '</td>' +
+      '<td class="lst-tot-o lst-sep-tot"></td><td class="lst-tot-u lst-sep-tot"></td></tr>';
+  }
+
+  h += sepRow('LEADERS');
   leaders.forEach(function(item, i) { h += row(item, i + 1); });
   h += totalRow(icon('crown')+' LEADER TOTAL', leaders);
 
-  h += '<tr class="lst-section-sep"><td colspan="' + (2 + 14) + '">CLIENT REPS</td></tr>';
+  h += sepRow('CLIENT REPS');
   reps.forEach(function(item, i) { h += row(item, i + 1); });
   h += totalRow(icon('zap')+' REP TOTAL', reps);
   h += totalRow('OFFICE TOTAL', leaders.concat(reps), 'lst-grand-row');
@@ -857,9 +878,15 @@ function _lstWeeksTbl(leaders, reps) {
   _LST_SORT_RESOLVED.weeks = active;
   // Rows with no week aggregate can't be ranked on a week value; treat them as 0
   // so they sink to the bottom of a descending sort instead of throwing.
+  // Unlike the days view there's no precomputed week-spanning total on the row, so
+  // 'total' sums the weeks actually being shown.
+  var wTot = function(w, metric) {
+    return w ? w.weeks.reduce(function(s, k) { return s + k[metric]; }, 0) : 0;
+  };
   var cell = function(x, col, metric) {
     var w = wAgg[x.email];
-    return w ? w.weeks[col][metric] : 0;
+    if (!w) return 0;
+    return col === 'total' ? wTot(w, metric) : w.weeks[col][metric];
   };
   var cmp = _lstCmp(active, cell, function(a, b) {
     return cell(b, cur, 'units')  - cell(a, cur, 'units') ||
@@ -873,11 +900,14 @@ function _lstWeeksTbl(leaders, reps) {
   var h = '<thead><tr><th style="width:36px">#</th>';
   h += _lstSortTh('weeks', 'name', 'name', 'NAME', active, 'll', 'min-width:160px');
   weeks.forEach(function(w) { h += '<th colspan="2">' + w.wk + '<span class="lst-wk-date">' + w.label + '</span></th>'; });
+  h += '<th colspan="2" class="lst-tot-hdr">TOTAL<span class="lst-wk-date">' + weeks.length + ' WEEKS</span></th>';
   h += '</tr><tr><th></th><th></th>';
   weeks.forEach(function(_, i) {
     h += _lstSortTh('weeks', i, 'orders', 'ORD', active);
     h += _lstSortTh('weeks', i, 'units',  'UNITS', active);
   });
+  h += _lstSortTh('weeks', 'total', 'orders', 'ORD',   active, 'lst-tot-o');
+  h += _lstSortTh('weeks', 'total', 'units',  'UNITS', active, 'lst-tot-u');
   h += '</tr></thead><tbody>';
 
   function row(item, rank) {
@@ -892,6 +922,10 @@ function _lstWeeksTbl(leaders, reps) {
       r += '<td style="color:var(--text2)">' + w.orders + '</td>';
       r += '<td class="' + _lstUCls(w.units) + '">' + w.units + '</td>';
     });
+    // ⚠ No _lstUCls — see the days table: the thresholds are per-day, so a multi-week
+    // total would always read green.
+    r += '<td class="lst-tot-o">' + wTot(wr, 'orders') + '</td>';
+    r += '<td class="lst-tot-u">' + wTot(wr, 'units')  + '</td>';
     return r + '</tr>';
   }
 
@@ -903,13 +937,23 @@ function _lstWeeksTbl(leaders, reps) {
       var u = items.reduce(function(s, x) { return s + (wAgg[x.email] ? wAgg[x.email].weeks[wi].units  : 0); }, 0);
       r += '<td>' + o + '</td><td class="' + _lstUCls(u) + '">' + u + '</td>';
     });
+    r += '<td class="lst-tot-o">' +
+      items.reduce(function(s, x) { return s + wTot(wAgg[x.email], 'orders'); }, 0) + '</td>';
+    r += '<td class="lst-tot-u">' +
+      items.reduce(function(s, x) { return s + wTot(wAgg[x.email], 'units'); }, 0) + '</td>';
     return r + '</tr>';
   }
 
-  h += '<tr class="lst-section-sep"><td colspan="' + (2 + weeks.length * 2) + '">LEADERS</td></tr>';
+  // Colspan stops short of the total columns — see the days table for why.
+  function sepRow(label) {
+    return '<tr class="lst-section-sep"><td colspan="' + (2 + weeks.length * 2) + '">' + label + '</td>' +
+      '<td class="lst-tot-o lst-sep-tot"></td><td class="lst-tot-u lst-sep-tot"></td></tr>';
+  }
+
+  h += sepRow('LEADERS');
   leaders.forEach(function(item, i) { h += row(item, i + 1); });
   h += totalRow(icon('crown')+' LEADER TOTAL', leaders);
-  h += '<tr class="lst-section-sep"><td colspan="' + (2 + weeks.length * 2) + '">CLIENT REPS</td></tr>';
+  h += sepRow('CLIENT REPS');
   reps.forEach(function(item, i) { h += row(item, i + 1); });
   h += totalRow(icon('zap')+' REP TOTAL', reps);
   h += totalRow('OFFICE TOTAL', leaders.concat(reps), 'lst-grand-row');
