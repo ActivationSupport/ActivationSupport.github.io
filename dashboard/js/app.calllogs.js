@@ -1863,12 +1863,11 @@ function renderNoAnswerTable() {
 
 // ── ESCALATIONS ───────────────────────────────────────────────────────────
 // Escalations order list (shared by the renderer + background soft-refresh).
-// Same treatment as the No Answer log: within the 29-day window, Posted/Approved lines
-// excluded, fully-posted orders dropped.
-// ⚠ This list is now OPEN escalations, not every escalation ever. A 1–2★ order that has
-// since posted in full DISAPPEARS from the tab even though the customer's rating still
-// stands. That trade was made deliberately — expect the list to be much shorter, and
-// don't "fix" it back by removing the filter without saying so.
+// The 29-day window from the No Answer log — and ONLY the window.
+// ⚠ Status is deliberately NOT filtered here. Unlike No Answer ("this order needs a
+// call", where a posted line is finished work), an escalation is the customer's 1–2★
+// rating: it still stands after the order posts, so every rated order in the window
+// shows with all of its lines and its real status. Don't add _withoutPostedLines here.
 function _escalationOrders() {
   var ratings = DATA.ratings || {};
   var dsis = Object.keys(ratings).filter(function(dsi) { return ratings[dsi]==='1 Star'||ratings[dsi]==='2 Stars'; });
@@ -1880,7 +1879,7 @@ function _escalationOrders() {
     // GREATER than any date string and sneak the stalest rows through.
     return o ? o : { dsi:dsi, rep:'—', spe:'', productType:'—', orderDate:'', dtrStatus:'—' };
   });
-  orders = within29Days(orders).map(_withoutPostedLines).filter(Boolean);
+  orders = within29Days(orders);
   orders.sort(_byOrderDateDesc);   // default: newest order first
   return orders;
 }
@@ -1889,11 +1888,11 @@ function renderEscalationsTable() {
   var ratings = DATA.ratings || {};
   if (!Object.keys(ratings).some(function(dsi) { return ratings[dsi]==='1 Star'||ratings[dsi]==='2 Stars'; })) return noData('No escalations yet.', {icon:'escalations', sub:'Orders rated 1 or 2 Stars will appear here.'});
   var orders = _escalationOrders();
-  // Ratings exist but nothing survived the window/Posted filter. Without this the tab
+  // Ratings exist but every one of them fell outside the window. Without this the tab
   // renders an empty table headed "0 orders", which reads as broken rather than as
-  // "you're caught up" — and with the filter on, this is a NORMAL everyday state.
-  if (!orders.length) return noData('No open escalations.', {icon:'escalations',
-    sub:'Every 1–2★ order is either fully posted or older than 29 days.'});
+  // "nothing recent".
+  if (!orders.length) return noData('No escalations in the last 29 days.',
+    {icon:'escalations', sub:'Older 1–2★ orders are outside the window.'});
   _tabOrders = orders.slice(); _sortTblId = 'esc-table'; _sortState = { col: null, dir: 1 }; _activeFilters = { products: [], statuses: [], dateFrom: '', dateTo: '' }; _extraColFn = null;
   _ctShowRiskFlags = false; _ISSUE_DSI = null;
   if (_BOOKED_MAP === null) _loadBookedAppts();
