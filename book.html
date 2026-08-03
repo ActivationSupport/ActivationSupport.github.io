@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- CSP: 'unsafe-inline' is required because this whole page is one inline <script>/<style>.
+     connect-src is the Customer Booking /exec plus the googleusercontent host its 302 lands on.
+     img-src names activationsupport.github.io explicitly so the office logos (absolute URLs)
+     also resolve under local http preview. frame-ancestors omitted — ignored in <meta>. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://activationsupport.github.io; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'">
 <title>Schedule Your AT&amp;T Activation</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="alternate icon" type="image/png" href="/favicon.png" />

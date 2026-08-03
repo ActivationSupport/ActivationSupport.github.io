@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- CSP: 'unsafe-inline' is required because this whole page is one inline <script>/<style>.
+     connect-src is the Customer Booking /exec plus the googleusercontent host its 302 lands on.
+     img-src names activationsupport.github.io explicitly so the office logos (absolute URLs)
+     also resolve under local http preview. frame-ancestors omitted — ignored in <meta>. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://activationsupport.github.io; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'">
 <title>Reschedule Your AT&amp;T Activation</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="alternate icon" type="image/png" href="/favicon.png" />
@@ -162,6 +167,7 @@
   function fmtTime(t){var p=String(t).split(":").map(Number),h=p[0],m=p[1];var ap=h>=12?"PM":"AM",hr=h>12?h-12:(h===0?12:h);return hr+":"+(m<10?"0"+m:m)+" "+ap;}
   function fmtDate(d){var p=String(d).split("-").map(Number);var mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return mo[p[1]-1]+" "+p[2]+", "+p[0];}
   function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):"";}
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 
   function init(){
     applyTheme(OFFICE);
@@ -170,7 +176,7 @@
       var a=res && res.appointment;
       if(!a || String(a.status).toLowerCase()==="cancelled"){ show("invalid"); return; }
       appt=a; applyTheme(a.office);
-      $("cur").innerHTML="Current: <b>"+fmtDate(a.date)+" at "+fmtTime(a.timeSlot)+"</b> · "+cap(a.office);
+      $("cur").innerHTML="Current: <b>"+fmtDate(a.date)+" at "+fmtTime(a.timeSlot)+"</b> · "+esc(cap(a.office));
       apiGet("window", {}).then(function(wr){
         win=wr && wr.window; if(win){ var d=$("date"); d.min=win.min; d.max=win.max; d.value=win.min; loadSlots(); }
       }).catch(function(){});

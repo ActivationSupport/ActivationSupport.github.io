@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Content-Security-Policy — the seatbelt for the one esc() that eventually gets missed.
+     script-src keeps 'unsafe-inline' ONLY because ~212 inline onclick handlers still exist;
+     once those become delegated data-* listeners, drop it and the policy gets real teeth.
+     style-src needs it too (~602 inline style="" attributes).
+     fonts.googleapis/gstatic: app.tickets.js injects Exo 2 + Orbitron for the salessupport office.
+     script.google.com + script.googleusercontent.com: Apps Script /exec and its 302 redirect target.
+     activationsupport.github.io in img-src keeps logos working under local http preview too.
+     NOTE: frame-ancestors is intentionally omitted — it is ignored in a <meta> CSP and needs a
+     real HTTP header, which GitHub Pages will not let us set. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://activationsupport.github.io; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'">
 <title>Activation Support</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="alternate icon" type="image/png" href="/favicon.png">
@@ -304,17 +314,26 @@
   </div>
 </div>
 
-<script src="js/app.core.js?v=20260730a"></script>
-<script src="js/app.data.js?v=20260730d"></script>
-<script src="js/app.calllogs.js?v=20260731b"></script>
-<script src="js/app.reports.js?v=20260730a"></script>
-<script src="js/app.knowledge.js?v=20260730c"></script>
-<script src="js/app.people.js?v=20260724e"></script>
-<script src="js/app.sales.js?v=20260730a"></script>
-<script src="js/app.lst.js?v=20260731b"></script>
-<script src="js/app.appts.js?v=20260731b"></script>
-<script src="js/app.fiber.js?v=20260724a"></script>
-<script src="js/app.tickets.js?v=20260730b"></script>
-<script src="js/app.boot.js?v=20260709"></script>
+<!-- `defer` on all twelve: they still execute in this exact document order, but now they
+     download in PARALLEL instead of one blocking request at a time. Order is load-bearing
+     (app.boot.js calls initLogin() last, and every bundle assumes app.core.js has run), so
+     do not switch any of these to `async`, which would let them execute in any order.
+     Deferred scripts also run after the DOM is fully parsed — strictly safer than the
+     previous end-of-body placement, not less safe. -->
+<script defer src="js/app.core.js?v=20260730a"></script>
+<script defer src="js/app.data.js?v=20260730d"></script>
+<script defer src="js/app.calllogs.js?v=20260731b"></script>
+<script defer src="js/app.reports.js?v=20260730a"></script>
+<script defer src="js/app.knowledge.js?v=20260730c"></script>
+<script defer src="js/app.people.js?v=20260724e"></script>
+<script defer src="js/app.sales.js?v=20260730a"></script>
+<script defer src="js/app.lst.js?v=20260731b"></script>
+<script defer src="js/app.appts.js?v=20260731b"></script>
+<script defer src="js/app.fiber.js?v=20260724a"></script>
+<!-- NOT salessupport-only: this bundle also defines the shared _comboField / _ssAddPopup /
+     _ticketRememberValue widgets, which app.appts.js:889,917 calls UNGUARDED for every
+     office. It cannot be conditionally loaded until those move to a shared bundle. -->
+<script defer src="js/app.tickets.js?v=20260730b"></script>
+<script defer src="js/app.boot.js?v=20260709"></script>
 </body>
 </html>
