@@ -248,6 +248,37 @@ function ensureTableauNames(cb) {
 }
 
 // ── NOTES MODAL ───────────────────────────────────────────────────────────
+// Who wrote a note, as a NAME. authorName is captured at write time as
+// `SESSION.name || SESSION.email`, and for an activator or master-admin working across
+// offices SESSION.name is frequently blank — so the raw EMAIL got persisted and shown.
+// Resolving here rather than at write time means every historical note is corrected on
+// the next render; no sheet backfill, and notes written by someone since removed from the
+// roster still resolve as long as they are reachable in any of the sources below.
+function _noteAuthor(n){
+  var raw = String((n && n.authorName) || '').trim();
+  if (raw && raw.indexOf('@') === -1) return raw;   // already a real name — leave it alone
+  var email = String((n && n.authorEmail) || raw || '').trim().toLowerCase();
+  if (!email) return 'Unknown';
+  var hit = ((DATA.roster || {})[email] || {}).name;
+  // Cross-office members: guestRoster may be a map OR an array depending on the caller.
+  if (!hit) {
+    var g = DATA.guestRoster;
+    if (g && !Array.isArray(g) && g[email]) hit = g[email].name;
+    else if (Array.isArray(g)) {
+      for (var i = 0; i < g.length; i++)
+        if (String(g[i] && g[i].email || '').toLowerCase() === email) { hit = g[i].name; break; }
+    }
+  }
+  // Activators are not necessarily on THIS office's roster at all.
+  if (!hit && typeof _APPT !== 'undefined' && _APPT && Array.isArray(_APPT.activators)) {
+    for (var j = 0; j < _APPT.activators.length; j++)
+      if (String(_APPT.activators[j].email || '').toLowerCase() === email) { hit = _APPT.activators[j].name; break; }
+  }
+  if (hit) return hit;
+  // Nothing matched — make the local part presentable instead of showing a bare address.
+  var lp = email.split('@')[0].replace(/[._\-]+/g, ' ').replace(/\d+/g, '').trim();
+  return lp ? lp.replace(/\b\w/g, function(c){ return c.toUpperCase(); }) : email;
+}
 var _modalDsi = '';
 var _modalOffice = '';   // office the modal's notes belong to (cross-office dashboard support)
 var _modalApptId = '';   // set when opened from an appointment → note adds route via addAppointmentNote
@@ -255,7 +286,7 @@ var _modalApptId = '';   // set when opened from an appointment → note adds ro
 function _noteItemHtml(n) {
   var la=Math.max(0,parseInt(n.linesActivated,10)||0);
   var badge=la>0?' <span class="nm-lines-badge">'+icon('zap')+' '+la+' line'+(la===1?'':'s')+' activated</span>':'';
-  return '<div class="nm-note"><div class="nm-note-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(n.authorName)+badge+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
+  return '<div class="nm-note"><div class="nm-note-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(_noteAuthor(n))+badge+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
 }
 
 // NEWEST FIRST. The history boxes are only ~200px tall, so whatever renders first is
@@ -346,7 +377,7 @@ function notesCancelBlockHtml(cancelNotes) {
     return '<div class="nm-cx-item">' +
         '<div class="nm-cx-reason">'+esc(p.reason || 'No reason recorded')+'</div>' +
         (p.detail ? '<div class="nm-cx-detail">'+esc(p.detail)+'</div>' : '') +
-        '<div class="nm-cx-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(n.authorName)+'</div>' +
+        '<div class="nm-cx-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(_noteAuthor(n))+'</div>' +
       '</div>';
   }).join('');
   return '<div class="nm-cx-block" id="nm-cx-block">' +
