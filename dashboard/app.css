@@ -555,6 +555,17 @@ html[data-theme="light"] .dr-sc-total{ background:#e8f0fb; border-color:#b6c2d0;
 html[data-theme="light"] .dr-sec-hdr{ background:rgba(var(--blue2-rgb),.14); }
 html[data-theme="light"] .dr-glance{ background:rgba(var(--blue2-rgb),.10); border-color:rgba(var(--blue2-rgb),.30); color:#1b2433; }
 html[data-theme="light"] .dr-glance b{ color:#0f172a; }
+/* 🔴 Appointments / Calls-Worked GROUP HEADERS were INVISIBLE in light mode: near-white
+   text (#e6edf3 / #c2cbd6 / #d6dee8) on a rgba(255,255,255,.045) fill — a dark-theme
+   LIGHTENER, so both the label and its count chip went white-on-white. Owners default to
+   light (_applyTheme) and the Daily Report is theirs, so this was the default view.
+   Same inversion the rest of the light patches use: darkener fill + saturated dark ink. */
+html[data-theme="light"] .dr-appt-ghdr,
+html[data-theme="light"] .dr-cw-group-hdr{ background:rgba(15,23,42,.055); color:#1b2433; }
+html[data-theme="light"] .dr-appt-gcnt,
+html[data-theme="light"] .dr-cw-cnt{ background:rgba(15,23,42,.10); color:#475569; }
+html[data-theme="light"] .dr-cw-da, html[data-theme="light"] .dr-cw-dna,
+html[data-theme="light"] .dr-cw-oi, html[data-theme="light"] .dr-cw-other{ color:#1b2433; }
 html[data-theme="light"] .call-table thead tr{ border-bottom-color:#b6c2d0; }
 html[data-theme="light"] .call-table tbody tr:nth-child(even) td{ background:rgba(15,23,42,.045); }
 html[data-theme="light"] .call-table tbody tr:hover td{ background:rgba(var(--blue2-rgb),.10); }
