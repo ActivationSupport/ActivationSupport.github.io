@@ -23,19 +23,40 @@ function _apptXofficeCell(label, oid){
 }
 // Fetch cross-office / calendar block state for `dates` (skips already-loaded +
 // out-of-window). Stores into _APPT.blocked; resolves true if it actually fetched.
+// ⚠⚠ NEVER-DOUBLE-BOOK: blockedLoaded[d] is a three-state flag, not a boolean —
+//   undefined = never fetched · 'loading' = in flight · true = loaded and trustworthy.
+// It used to be set to `true` up-front purely to de-duplicate in-flight requests, which
+// meant a FAILED fetch was indistinguishable from a successful one: the date was never
+// retried and every cross-office booking on it silently rendered as an open "+ Book" cell
+// for the rest of the session. That failed OPEN — the one direction booking must never
+// fail. On failure we now DELETE the flag so the next render retries it.
 function _apptFetchBlocks(dates){
   var win=_apptWindow();
   var need=dates.filter(function(d){ return d>=win.min && d<=win.max && !_APPT.blockedLoaded[d]; });
   if(!need.length) return Promise.resolve(false);
-  need.forEach(function(d){ _APPT.blockedLoaded[d]=true; });   // mark in-flight (avoid duplicate fetches)
+  need.forEach(function(d){ _APPT.blockedLoaded[d]='loading'; });   // in flight — truthy, so still de-dupes
   return _apptGet({action:'getOfficeBlocks',officeId:CFG.officeId,dates:need.join(','),role:SESSION.role}).then(function(res){
     var bl=res.blocks||{};
     Object.keys(bl).forEach(function(email){
       var byDate=bl[email]||{};
       Object.keys(byDate).forEach(function(d){ _APPT.blocked[email+'|'+d]=byDate[d]||{}; });
     });
+    // Only NOW is this date's cross-office state known. A date the backend returned no
+    // entry for is still loaded — it genuinely has no blocks.
+    need.forEach(function(d){ _APPT.blockedLoaded[d]=true; });
     return true;
-  }).catch(function(){ return false; });
+  }).catch(function(){
+    need.forEach(function(d){ delete _APPT.blockedLoaded[d]; });   // allow a retry
+    return false;
+  });
+}
+// Is this date's cross-office/block state actually known? Anything short of a completed
+// fetch is NOT known, and availability must treat it as unavailable (fail closed).
+// Dates outside the booking window are never bookable anyway, so they count as ready.
+function _apptBlocksReady(ds){
+  var win=_apptWindow();
+  if(ds<win.min || ds>win.max) return true;
+  return _APPT.blockedLoaded[ds]===true;
 }
 // Dates the current view needs block data for (week = its 7 days; all = that day).
 function _apptViewDates(){
@@ -495,6 +516,13 @@ function _apptCalGrid(appts, acts, ws) {
   // current view?" — used by both the header pill counts and the cell render.
   function availAt(ds, slot){
     if (ds<win.min || ds>win.max) return false;
+    // ⚠⚠ NEVER-DOUBLE-BOOK — FAIL CLOSED. Cross-office bookings do NOT arrive in `appts`
+    // (getAppointments is office-scoped by design); they arrive separately as
+    // "Booked — <Office>" entries via getOfficeBlocks. Until that fetch has COMPLETED we
+    // cannot prove this slot is free, so we must not offer it. Treating not-yet-known as
+    // open is exactly how an activator already booked at another office gets a second
+    // booking here. See feedback-never-double-book.
+    if (!_apptBlocksReady(ds)) return false;
     var dk=dayKeys[new Date(ds+'T12:00:00').getDay()];
     var slotAppts=aMap[ds+'|'+slot]||[];
     if (fe){
@@ -553,6 +581,10 @@ function _apptCalGrid(appts, acts, ws) {
         } else if(availAt(ds,slot)){
           html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+_apptToAct(ds,slot,fe)+'\')">'+
             '<span class="appt-avail-plus">+</span> Book</div>';
+        } else if(!_apptBlocksReady(ds)){
+          // availAt failed closed only because the cross-office check hasn't landed yet.
+          // Say so — rendering the usual "—" would claim the activator is closed.
+          html+='<div class="appt-cal-cell appt-cell-checking" title="Checking other offices for conflicts…">…</div>';
         } else {
           html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
         }
@@ -570,6 +602,8 @@ function _apptCalGrid(appts, acts, ws) {
           var _fc=freeCount(ds,slot);
           html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\'\',\''+slot+'\')" title="'+_fc+' activator'+(_fc===1?'':'s')+' free">'+
             '<span class="appt-avail-plus">+</span> Book<span class="appt-avail-freecount">'+_fc+' free</span></div>';
+        } else if(!_apptBlocksReady(ds)){
+          html+='<div class="appt-cal-cell appt-cell-checking" title="Checking other offices for conflicts…">…</div>';
         } else {
           html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
         }

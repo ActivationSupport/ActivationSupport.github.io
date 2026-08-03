@@ -1581,6 +1581,14 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-avail-freecount{display:block;font-size:.62rem;font-weight:700;color:var(--green);opacity:.85;margin-top:1px;font-variant-numeric:tabular-nums}
 .appt-cell-booked-multi{background:rgba(31,78,120,.22);flex-direction:column;gap:2px;cursor:default}
 .appt-cell-closed{background:var(--bg);color:#303030;cursor:default;font-size:1rem}
+/* Cross-office conflict check still in flight. availAt() fails CLOSED, so the slot is not
+   offered yet — this says "not known yet", NOT "closed" (which is what "—" would imply).
+   Deliberately theme-token based (--control-bg/--text2), not a hardcoded dark literal. */
+.appt-cell-checking{background:var(--control-bg);color:var(--text2);cursor:progress;font-size:1rem;letter-spacing:1px;opacity:.75}
+@media (prefers-reduced-motion:no-preference){
+  .appt-cell-checking{animation:apptCheckPulse 1.2s ease-in-out infinite}
+}
+@keyframes apptCheckPulse{0%,100%{opacity:.45}50%{opacity:.9}}
 .appt-cell-name{font-weight:700;color:var(--text);font-size:.75rem;line-height:1.2}
 /* Item 3 — dual-time (customer/office time over the activator call time) on cross-tz bookings */
 .appt-dtime{display:flex;flex-direction:column;gap:2px;line-height:1.25}
