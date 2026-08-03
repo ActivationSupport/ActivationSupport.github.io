@@ -1592,17 +1592,28 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
    "+ Book / N free". The offices holding the rest of the pool ride in a thin band
    pinned to the bottom edge — present enough to notice, quiet enough not to compete
    with the primary action. `position:absolute` keeps it out of the flex flow so a
-   cell with a strip is exactly as tall as one without (rows must stay aligned). */
-.appt-cal-cell.has-xoffice{padding-bottom:13px}
-.appt-xoffice-strip{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;gap:2px;height:12px;pointer-events:none}
-.appt-xoffice-chip{display:inline-flex;align-items:center;justify-content:center;height:12px;padding:0 3px;border-radius:2px}
-.appt-xoffice-chip img{height:8px;width:auto;display:block;object-fit:contain}
-.appt-xoffice-more{font-size:.55rem;font-weight:700;color:var(--text2);line-height:1}
-/* Fully held by other offices — not "closed". Bigger marks, since nothing competes. */
-.appt-cell-xoffice-full{background:var(--control-bg);cursor:not-allowed;position:relative}
-.appt-cell-xoffice-full .appt-xoffice-strip{position:static;height:auto;gap:4px}
-.appt-cell-xoffice-full .appt-xoffice-chip{height:20px;padding:0 5px;border-radius:3px}
-.appt-cell-xoffice-full .appt-xoffice-chip img{height:13px}
+   cell with a strip is exactly as tall as one without (rows must stay aligned).
+
+   OVERLAPPING DISCS (presence-avatar convention): 8px logos were unreadable, but giving
+   each mark its own full-width slot would either crowd the cell or force every row taller.
+   Overlapping buys ~16px marks in the width two flat chips used to take. Every office
+   logo is near-square (ratios 1.00-1.23), so a circular crop suits all of them.
+   The white disc is what makes this work on BOTH themes — the marks are coloured artwork
+   and would disappear against a dark tint without it. */
+.appt-cal-cell.has-xoffice{padding-bottom:19px}
+.appt-xoffice-strip{position:absolute;left:0;right:0;bottom:2px;display:flex;align-items:center;justify-content:center;height:16px;pointer-events:none}
+.appt-xoffice-chip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#fff;margin-left:-5px;position:relative;flex:none}
+.appt-xoffice-chip:first-child{margin-left:0}
+.appt-xoffice-chip img{width:10px;height:10px;object-fit:contain;display:block}
+.appt-xoffice-chip b{font-size:.5rem;font-weight:800;line-height:1}
+.appt-xoffice-more{font-size:.55rem;font-weight:700;color:var(--text2);line-height:1;margin-left:3px}
+/* Fully held by other offices — not "closed". Nothing competes for the space, so the
+   marks go up to 24px and the label returns. */
+.appt-cell-xoffice-full{background:var(--control-bg);cursor:not-allowed}
+.appt-cell-xoffice-full .appt-xoffice-strip{position:static;height:auto}
+.appt-cell-xoffice-full .appt-xoffice-chip{width:24px;height:24px;margin-left:-7px}
+.appt-cell-xoffice-full .appt-xoffice-chip img{width:15px;height:15px}
+.appt-cell-xoffice-full .appt-xoffice-chip b{font-size:.7rem}
 @media (prefers-reduced-motion:no-preference){
   .appt-cell-checking{animation:apptCheckPulse 1.2s ease-in-out infinite}
 }

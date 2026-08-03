@@ -28,13 +28,21 @@ function _apptXofficeCell(label, oid){
 // Caps at 4 + "+n" so a busy slot can't push the cell taller than its row.
 function _apptXofficeStrip(oids){
   if(!oids || !oids.length) return '';
-  var shown = oids.slice(0,4);
-  return '<div class="appt-xoffice-strip">'+shown.map(function(oid){
+  var shown = oids.slice(0,3);
+  return '<div class="appt-xoffice-strip">'+shown.map(function(oid,i){
     var c = OFFICE_BOOK_TINT[oid] || 'var(--text2)';
-    return '<span class="appt-xoffice-chip" style="background:'+_hexToRgba(c,.20)+';box-shadow:inset 0 -2px 0 '+c+'"'+
+    var logo = OFFICE_BOOK_LOGO[oid] || '';
+    // White disc + office-colour inner ring, with an outer ring in the cell background so
+    // overlapping discs cut cleanly into each other instead of smudging together.
+    // z-index descends so the FIRST office stays on top of the ones tucked behind it.
+    return '<span class="appt-xoffice-chip" style="z-index:'+(9-i)+';box-shadow:0 0 0 1.5px var(--bg), inset 0 0 0 1.5px '+c+'"'+
       ' title="Booked — '+esc(OFFICE_NAMES[oid]||oid)+'">'+
-      '<img src="assets/'+esc(OFFICE_BOOK_LOGO[oid]||'')+'" alt="'+esc(OFFICE_NAMES[oid]||oid)+'"></span>';
-  }).join('')+(oids.length>4?'<span class="appt-xoffice-more">+'+(oids.length-4)+'</span>':'')+'</div>';
+      (logo ? '<img src="assets/'+esc(logo)+'" alt="'+esc(OFFICE_NAMES[oid]||oid)+'">'
+            // No symbol asset for this office — a broken <img> would look like a bug, so
+            // fall back to a monogram in the office's own colour.
+            : '<b style="color:'+c+'">'+esc((OFFICE_NAMES[oid]||oid).charAt(0).toUpperCase())+'</b>')+
+      '</span>';
+  }).join('')+(oids.length>3?'<span class="appt-xoffice-more">+'+(oids.length-3)+'</span>':'')+'</div>';
 }
 // Fetch cross-office / calendar block state for `dates` (skips already-loaded +
 // out-of-window). Stores into _APPT.blocked; resolves true if it actually fetched.
