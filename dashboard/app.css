@@ -12,6 +12,21 @@
   --border:rgba(255,255,255,.10);
   --field-bg:#1e1e1e;--field-border:#3a3a3a;--control-bg:#2a2a2a;--inset-bg:#1a1a1a;--panel2-bg:#161b22;--panel2-border:#21262d;/* O2 semantic control surfaces (dark defaults; light theme overrides below) */
   --text:#e2e2e2;--text2:#b3b3b3;
+  /* ── POLARITY-FLIPPING TINTS ──────────────────────────────────────────────
+     A tint layered on the current surface, NOT a fixed color. In dark these
+     LIGHTEN; in light they must DARKEN, or the element dissolves into the page
+     (rgba(255,255,255,.06) over white is white). That inversion is the whole
+     point — these are the only vars whose light values are not just "paler".
+     tint-* fill a shape; rule-* draw a 1-2px separator, and run a touch
+     stronger because a hairline needs more contrast than an area to register.
+     ⚠ Dark values were chosen as the cluster centre of the 25 literals they
+     replaced, so every dark delta is <= .02 alpha (imperceptible). Keep it that
+     way: retuning one of these moves every consumer at once. */
+  --tint-1:rgba(255,255,255,.02);   /* faint wash — zebra rows, sub-rows, hatching */
+  --tint-2:rgba(255,255,255,.06);   /* subtle fill — hover, bar tracks, small chips */
+  --tint-3:rgba(255,255,255,.16);   /* visible chip — count badges */
+  --rule-1:rgba(255,255,255,.05);   /* hairline separator between rows */
+  --rule-2:rgba(255,255,255,.14);   /* emphasis rule — total rows, modal edge */
   --sidebar:240px;
 }
 /* ── LIGHT THEME (toggle; master-admin + activator always stay dark) ── */
@@ -22,6 +37,13 @@ html[data-theme="light"]{
   --border:rgba(15,23,42,.18);
   --text:#1b2433; --text2:#5b6675;
   --field-bg:#ffffff; --field-border:#cfd6e0; --control-bg:#eef1f5; --inset-bg:#e8edf3; --panel2-bg:#eef2f7; --panel2-border:#c4cedb;
+  /* The polarity flip: white-alpha -> navy-alpha. Alphas are NOT mirrored 1:1 —
+     dark ink on a light surface reads stronger than light ink on a dark one at
+     the same alpha, so these sit slightly higher only where a hairline has to
+     hold up (rule-*), and in line with the .045 zebra the light patches below
+     already use (tint-1). */
+  --tint-1:rgba(15,23,42,.04); --tint-2:rgba(15,23,42,.07); --tint-3:rgba(15,23,42,.11);
+  --rule-1:rgba(15,23,42,.13); --rule-2:rgba(15,23,42,.24);
 }
 /* ── SALES SUPPORT — Jedi "deep-space" palette (office-scoped; locked dark) ──
    Only the neutral SURFACE/bg/text/border vars live here; the blue+green "lightsaber"
@@ -32,6 +54,12 @@ html[data-office="salessupport"]{
   --border:rgba(120,170,255,.14);
   --field-bg:#0e1526; --field-border:#26375c; --control-bg:#111a30; --inset-bg:#0a1020; --panel2-bg:#0d1526; --panel2-border:#1e2c4a;
   --text:#e7eeff; --text2:#9fb2d6;
+  /* Restated for the same reason as the surfaces above — this block sits after the
+     light theme so it wins even if a light class lingers. Without these the tints
+     would fall back to their navy-alpha light values on a deep-space background
+     and disappear. Sales Support is locked dark, so they stay white-alpha. */
+  --tint-1:rgba(255,255,255,.02); --tint-2:rgba(255,255,255,.06); --tint-3:rgba(255,255,255,.16);
+  --rule-1:rgba(255,255,255,.05); --rule-2:rgba(255,255,255,.14);
   --ss-gold:#F4C21B;   /* Jedi gold — wordmark + accent rule */
   --ss-green:#38E08A;  /* Jedi green saber */
 }
@@ -566,6 +594,12 @@ html[data-theme="light"] .dr-appt-gcnt,
 html[data-theme="light"] .dr-cw-cnt{ background:rgba(15,23,42,.10); color:#475569; }
 html[data-theme="light"] .dr-cw-da, html[data-theme="light"] .dr-cw-dna,
 html[data-theme="light"] .dr-cw-oi, html[data-theme="light"] .dr-cw-other{ color:#1b2433; }
+/* Off-window (unbookable) calendar cells carry color:#2c2c2c — a near-black ink meant
+   to sit almost invisibly on the dark hatch. On light that inverts into the LOUDEST
+   text on the grid, so unbookable hours out-shout the bookable ones. Matched to the
+   dark intent (~1.5:1, present but recessive) rather than made merely paler.
+   ⚠ Not fixable with opacity on the cell — that would fade the hatch as well. */
+html[data-theme="light"] .appt-cell-offwindow{ color:#ccd3dc; }
 html[data-theme="light"] .call-table thead tr{ border-bottom-color:#b6c2d0; }
 html[data-theme="light"] .call-table tbody tr:nth-child(even) td{ background:rgba(15,23,42,.045); }
 html[data-theme="light"] .call-table tbody tr:hover td{ background:rgba(var(--blue2-rgb),.10); }
@@ -724,7 +758,7 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}
 th{text-align:left;background:var(--surface2);color:var(--text2);font-weight:700;padding:9px 12px;white-space:nowrap;position:sticky;top:0;z-index:2;box-shadow:inset 0 -1px 0 rgba(255,255,255,.08)}
 td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:top;color:var(--text)}
 tr:last-child td{border-bottom:none}
-tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+tr:nth-child(even) td{background:var(--tint-1)}
 tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 
 /* ── BADGES ── */
@@ -780,7 +814,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .ar-red{background:#b71c1c;color:#ffcdd2}
 .ar-blue{background:#0d47a1;color:#90caf9}
 .ar-rep{padding:10px 14px;font-size:.875rem;color:var(--text);vertical-align:middle}
-.ar-grand-row{border-top:2px solid rgba(255,255,255,.15);border-bottom:2px solid rgba(255,255,255,.15)}
+.ar-grand-row{border-top:2px solid var(--rule-2);border-bottom:2px solid var(--rule-2)}
 #ar-table-wrap th+th,#churn-table-wrap th+th,.dr-section .call-table th+th,.tm-rate-wrap th+th{text-align:center}
 .ar-grand-rep{font-weight:700;color:var(--blue2)}
 /* .call-table td sets color:var(--text) which beats .ar-grand-rep — keep the grand-total
@@ -793,7 +827,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .dd-btn:hover{border-color:var(--blue2);color:var(--blue2)}
 .dd-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:200;background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-width:190px;padding:0 0 4px;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .dd-panel.open{display:block}
-.dd-panel-hdr{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);padding:10px 14px 6px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:2px;position:sticky;top:0;background:var(--surface2);z-index:1}
+.dd-panel-hdr{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);padding:10px 14px 6px;border-bottom:1px solid var(--rule-1);margin-bottom:2px;position:sticky;top:0;background:var(--surface2);z-index:1}
 .dd-panel label{display:block;padding:8px 14px;font-size:.84rem;color:var(--text);cursor:pointer;transition:background .1s,color .1s;line-height:1.5}
 .dd-panel label:hover{background:rgba(var(--blue2-rgb),.08)}
 .dd-panel label:has(input:checked){background:rgba(var(--blue2-rgb),.13);color:var(--blue2)}
@@ -847,7 +881,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .ct-active-filters:empty{display:none;margin:0}
 .ct-af-lbl{font-size:.74rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text2);margin-right:2px}
 .ct-af-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 5px 3px 10px;border-radius:13px;font-size:.76rem;font-weight:600;background:rgba(var(--blue2-rgb),.14);border:1px solid var(--blue2);color:var(--text)}
-.ct-af-x{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:.9rem;line-height:1;cursor:pointer;color:var(--text2);background:rgba(255,255,255,.06)}
+.ct-af-x{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:.9rem;line-height:1;cursor:pointer;color:var(--text2);background:var(--tint-2)}
 .ct-af-x:hover{background:rgba(233,117,106,.3);color:#fff}
 .ct-af-clear{font-size:.74rem;font-weight:700;cursor:pointer;color:var(--text2);text-decoration:underline;text-underline-offset:2px;margin-left:4px}
 .ct-af-clear:hover{color:var(--text)}
@@ -931,7 +965,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .nm-section-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:8px}
 .nm-history{min-height:60px;max-height:200px;overflow-y:auto;background:var(--field-bg);border-radius:6px;padding:10px 12px;margin-bottom:16px}
 .nm-empty{font-size:.82rem;color:var(--text2);font-style:italic}
-.nm-note{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:.83rem}
+.nm-note{padding:6px 0;border-bottom:1px solid var(--rule-1);font-size:.83rem}
 .nm-note:last-child{border-bottom:none}
 .nm-note-meta{font-size:.72rem;color:var(--text2);margin-bottom:2px}
 .nm-note-text{color:var(--text)}
@@ -952,7 +986,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .nm-appt-label{color:var(--text2)}
 .nm-archive-tag{margin-left:7px;padding:1px 6px;border-radius:9px;background:var(--control-bg);border:1px solid var(--field-border);color:var(--text2);font-size:.62rem;font-weight:700;letter-spacing:.04em;text-transform:none}
 /* ── KNOWLEDGE BASE ─────────────────────────────────────────────────────── */
-.kb-count{margin-left:10px;padding:2px 9px;border-radius:10px;background:rgba(255,255,255,.14);font-size:.72rem;font-weight:700}
+.kb-count{margin-left:10px;padding:2px 9px;border-radius:10px;background:var(--tint-3);font-size:.72rem;font-weight:700}
 .kb-toolbar{display:flex;gap:9px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .kb-search{flex:1;min-width:220px;padding:9px 13px;border:1.5px solid var(--field-border);border-radius:7px;background:var(--field-bg);color:var(--text);font-size:.88rem;font-family:inherit;outline:none}
 .kb-search:focus{border-color:var(--blue2)}
@@ -987,7 +1021,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .kb-table{width:100%;border-collapse:collapse;margin:10px 0}
 .kb-table td{padding:7px 11px;border-bottom:1px solid var(--border);vertical-align:top}
 .kb-table tr:last-child td{border-bottom:none}
-.kb-td-k{width:32%;font-weight:700;color:var(--text);background:rgba(255,255,255,.03)}
+.kb-td-k{width:32%;font-weight:700;color:var(--text);background:var(--tint-1)}
 .kb-noresult,.kb-err{padding:22px;text-align:center;color:var(--text2);font-size:.88rem}
 .kb-retry{margin-left:10px;padding:6px 14px;border-radius:6px;border:1.5px solid var(--field-border);background:var(--control-bg);color:var(--text);font-weight:700;font-size:.8rem;cursor:pointer}
 @media (max-width:768px){ .kb-td-k{width:40%} .kb-art-tag{display:none} }
@@ -1066,7 +1100,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .modal h3{font-size:1rem;color:var(--blue2);margin-bottom:16px;font-weight:700}
 .modal-close{float:right;cursor:pointer;color:var(--text2);font-size:1.2rem;margin-top:-4px;transition:color .15s}
 .modal-close:hover{color:var(--text)}
-.detail-row{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:.85rem}
+.detail-row{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--rule-1);font-size:.85rem}
 .detail-row:last-child{border-bottom:none}
 .detail-label{font-weight:600;color:var(--text2);min-width:140px;flex-shrink:0}
 .detail-val{color:var(--text)}
@@ -1104,13 +1138,13 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .dr-table td{padding:.42rem .55rem;border-bottom:1px solid #262d38;vertical-align:top}
 .dr-table tbody tr:nth-child(even):not(.dr-total-row) td{background:rgba(255,255,255,.032)}
 .dr-table tbody tr:hover td{background:rgba(255,255,255,.055)}
-.dr-total-row td{font-weight:700;background:rgba(255,255,255,.04);border-top:1.5px solid var(--field-border)}
+.dr-total-row td{font-weight:700;background:var(--tint-2);border-top:1.5px solid var(--field-border)}
 /* status cards */
 .dr-status-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;padding:.1rem 0}
 .dr-status-card{background:var(--panel2-bg);border:1px solid var(--panel2-border);border-radius:7px;padding:8px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
 .dr-sc-metrics{display:flex;align-items:stretch;width:100%;margin-top:4px}
 .dr-sc-metric{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 2px}
-.dr-sc-divider{width:1px;background:rgba(255,255,255,.07);margin:2px 4px;align-self:stretch}
+.dr-sc-divider{width:1px;background:var(--tint-2);margin:2px 4px;align-self:stretch}
 .dr-sc-num{font-size:1.2rem;font-weight:700;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
 .dr-sc-lbl{font-size:.6rem;color:#666;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
 .dr-sc-total{grid-column:1/-1;background:var(--blue2-faint);border-color:#2a3a4a;flex-direction:row;justify-content:space-between;align-items:center;padding:7px 14px;gap:0}
@@ -1232,7 +1266,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .ps-review-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .ps-review-title{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text2);text-transform:uppercase}
 .ps-edit-btn{font-size:12px;color:var(--blue2);cursor:pointer;font-weight:600}
-.ps-review-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04)}
+.ps-review-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid var(--rule-1)}
 .ps-review-row .ps-rl{color:var(--text2)}
 .ps-review-row .ps-rv{color:var(--text);font-weight:600;text-align:right;max-width:60%;word-break:break-all}
 .ps-product-line{font-size:13px;color:var(--text);padding:5px 0}
@@ -1421,7 +1455,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .rp-pct-val.orange{color:#fb923c}
 .rp-pct-val.yellow{color:#fbbf24}
 .rp-pct-val.red{color:#f87171}
-.rp-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}
+.rp-bar{height:5px;border-radius:3px;background:var(--tint-2);overflow:hidden}
 .rp-bar-fill{height:100%;border-radius:3px;transition:width .3s}
 .rp-tbl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .rp-tbl-sel{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;padding:9px 10px;outline:none}
@@ -1474,7 +1508,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .tm-table th{font-size:.72rem;letter-spacing:.8px;font-weight:700;color:var(--text2);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
 .tm-table th.tm-num-hdr{text-align:center}
 .tm-table th.tm-act-hdr{text-align:right}
-.tm-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle}
+.tm-table td{padding:10px 12px;border-bottom:1px solid var(--rule-1);vertical-align:middle}
 .tm-name-cell{min-width:160px}
 .tm-emoji-col{font-size:1.2rem;margin-right:8px;vertical-align:middle}
 .tm-name-link{background:none;border:none;color:var(--blue2);font-size:.92rem;font-weight:600;cursor:pointer;padding:0}
@@ -1509,7 +1543,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .tm-stat-lbl{font-size:.6rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text2)}
 .tm-ldr-table{width:100%;border-collapse:collapse;font-size:.82rem}
 .tm-ldr-table th{font-size:.65rem;letter-spacing:.5px;font-weight:700;color:var(--text2);padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)}
-.tm-ldr-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);text-align:center;vertical-align:middle}
+.tm-ldr-table td{padding:6px 8px;border-bottom:1px solid var(--rule-1);text-align:center;vertical-align:middle}
 .tm-ldr-rank{width:28px;color:var(--text2);font-weight:600}
 .tm-ldr-name-cell{text-align:left!important;min-width:140px}
 .tm-ldr-name{color:var(--blue2);cursor:pointer;font-weight:600;font-size:.88rem}
@@ -1525,7 +1559,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .tm-roll-tag svg{width:13px;height:13px}
 .tm-roll-tag-sm{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;color:var(--blue2);background:var(--blue2-fade);border:1px solid rgba(var(--blue2-rgb),.3);padding:1px 6px;border-radius:999px;margin-left:8px;vertical-align:middle;white-space:nowrap}
 .tm-roll-tag-sm svg{width:11px;height:11px}
-.tm-sub-row{background:rgba(255,255,255,.015)}
+.tm-sub-row{background:var(--tint-1)}
 .tm-branch{display:inline-flex;align-items:center;color:var(--text2);margin-right:2px}
 .tm-branch svg{width:14px;height:14px;opacity:.6}
 .tm-sub-table .tm-sub-name{text-align:left;min-width:180px;font-size:.9rem;color:var(--text)}
@@ -1613,7 +1647,7 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-status-confirmed{color:var(--green);font-weight:700;font-size:.75rem}
 .appt-status-cancelled{color:var(--red);font-weight:600;font-size:.75rem;text-decoration:line-through}
 /* Phase 1: out-of-window (un-bookable) calendar cells — tonal, not interactive */
-.appt-cell-offwindow{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 6px,rgba(255,255,255,.018) 6px,rgba(255,255,255,.018) 12px);color:#2c2c2c;cursor:default;font-size:.9rem}
+.appt-cell-offwindow{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 6px,var(--tint-1) 6px,var(--tint-1) 12px);color:#2c2c2c;cursor:default;font-size:.9rem}
 /* Calendar/manual-block conflict — slot exists but is unavailable (greyed + hatched + 🔒) */
 .appt-cell-blocked{background:repeating-linear-gradient(45deg,rgba(200,70,50,.06),rgba(200,70,50,.06) 6px,rgba(200,70,50,.14) 6px,rgba(200,70,50,.14) 12px);color:#8a8a8a;cursor:not-allowed;font-size:.82rem;display:flex;align-items:center;justify-content:center}
 .appt-xoffice-logo{width:24px;height:24px;object-fit:contain;pointer-events:none}
@@ -1653,10 +1687,10 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-oc-glyph.oc-canc{color:#cf6b62}
 .appt-legend{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
 .appt-leg-item{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text);cursor:pointer;padding:2px 8px;border-radius:14px;transition:background .12s}
-.appt-leg-item:hover{background:rgba(255,255,255,.06)}
+.appt-leg-item:hover{background:var(--tint-2)}
 .appt-leg-item.appt-leg-dim{opacity:.4}
 .appt-leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
-.appt-leg-count{font-weight:800;font-size:.72rem;color:var(--text2);background:rgba(255,255,255,.08);min-width:18px;text-align:center;padding:0 5px;border-radius:9px}
+.appt-leg-count{font-weight:800;font-size:.72rem;color:var(--text2);background:var(--tint-2);min-width:18px;text-align:center;padding:0 5px;border-radius:9px}
 /* ── Appointment type: Activation vs Order Issue (2026-07-31) ──────────────────
    Option 2C: the activator's colour bar STAYS (it's how people are told apart on the
    all-activators view), and an order issue adds an amber wash + an ISSUE badge on top.
@@ -1741,7 +1775,7 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
 .appt-metric-sub{font-size:.68rem;color:var(--text2);margin-top:3px;opacity:.85}
 .appt-metric-acts{margin-top:14px;border-top:1px solid var(--border);padding-top:10px}
 .appt-metric-acts-hdr{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px}
-.appt-metric-act-row{display:flex;align-items:center;gap:14px;padding:5px 0;font-size:.82rem;border-bottom:1px solid rgba(255,255,255,.04)}
+.appt-metric-act-row{display:flex;align-items:center;gap:14px;padding:5px 0;font-size:.82rem;border-bottom:1px solid var(--rule-1)}
 .appt-metric-act-name{flex:1;font-weight:600;color:var(--text)}
 .appt-metric-act-stat{font-weight:700;color:var(--text2);min-width:62px;text-align:right;font-variant-numeric:tabular-nums}
 /* Phase 2 #6: Week | Day | All-Activators switcher */
@@ -1778,7 +1812,7 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
 .appt-util-title{font-size:.86rem;font-weight:800;color:var(--text)}
 .appt-util-summary{font-size:.84rem;color:var(--text2);font-variant-numeric:tabular-nums}
 .appt-util-note{font-size:.78rem;color:var(--text2);font-style:italic}
-.appt-util-bar{height:9px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:9px}
+.appt-util-bar{height:9px;border-radius:6px;background:var(--tint-2);overflow:hidden;margin-top:9px}
 .appt-util-bar-fill{height:100%;border-radius:6px;transition:width .3s}
 .appt-util-acts-wrap{margin-top:10px}
 .appt-util-acts-sum{font-size:.74rem;font-weight:700;color:var(--text2);cursor:pointer;list-style:none}
@@ -1787,7 +1821,7 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
 .appt-util-acts-wrap[open] .appt-util-acts-sum:before{content:'▾ '}
 .appt-util-act{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:.8rem}
 .appt-util-act-name{flex:0 0 130px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.appt-util-actbar{flex:1;height:7px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden}
+.appt-util-actbar{flex:1;height:7px;border-radius:5px;background:var(--tint-2);overflow:hidden}
 .appt-util-actbar-fill{height:100%;border-radius:5px}
 .appt-util-act-num{flex:0 0 auto;color:var(--text2);font-weight:700;font-variant-numeric:tabular-nums;min-width:46px;text-align:right}
 /* Phase 1: Wallboard / TV mode */
@@ -1843,7 +1877,7 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
 .abm-chip-ok{color:var(--text)}
 .abm-chip-ok b{color:#52c785}
 /* Phase 3 #1: booking-modal visual pass (scoped to #appt-booking-modal) */
-#appt-booking-modal .modal{padding:26px 28px 24px;border-radius:14px;border-color:rgba(255,255,255,.12);box-shadow:0 24px 60px rgba(0,0,0,.55)}
+#appt-booking-modal .modal{padding:26px 28px 24px;border-radius:14px;border-color:var(--rule-2);box-shadow:0 24px 60px rgba(0,0,0,.55)}
 #appt-booking-modal h3{font-size:1.18rem;font-weight:800;margin-bottom:20px;letter-spacing:.2px}
 #appt-booking-modal .modal-close{font-size:1.15rem}
 #appt-booking-modal .appt-form-grid{gap:14px 16px}
@@ -2021,7 +2055,7 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
 /* VoIP marker on a calendar chip — small headset glyph + count, right-aligned. */
 .fib-voip{display:inline-flex;align-items:center;gap:2px;font-size:.58rem;font-weight:800;opacity:.85;margin-left:4px;vertical-align:1px}
 .fib-voip .ico{width:9px;height:9px}
-.fib-nacount{background:rgba(255,255,255,.18);border-radius:999px;padding:1px 9px;font-size:.72rem;margin-left:7px}
+.fib-nacount{background:var(--tint-3);border-radius:999px;padding:1px 9px;font-size:.72rem;margin-left:7px}
 .fib-na-wrap{overflow-x:auto}
 .fib-na-table{width:100%;border-collapse:collapse;font-size:.82rem}
 .fib-na-table th{text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);padding:7px 9px;border-bottom:2px solid var(--border);white-space:nowrap}
