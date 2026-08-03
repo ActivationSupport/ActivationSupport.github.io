@@ -739,11 +739,15 @@ function _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) {
 }
 
 function _lstDaysTbl(leaders, reps, todayIdx) {
-  // The DAYS view defaults to ranking by TODAY's production (not the week-to-date
-  // total the board is built with), so #1 is whoever sold the most today. Any
-  // day column can be clicked to sort by it instead. Sorted per-group so the
-  // LEADERS / CLIENT REPS split is preserved.
-  var active = _LST_SORT.days || { col: todayIdx, metric: 'units', dir: 'desc' };
+  // Ranks by TOTAL production, most to least, within each group.
+  // ⚠ This used to default to TODAY's column, which is why the board could disagree with
+  // everything around it: _lstBuild, the Top Performers cards and the wallboard all rank
+  // on the week-to-date total, so the table's #1 was often not the card's #1. Ranking by
+  // total makes the whole tab tell one story. Early in the week it also stops the order
+  // looking arbitrary — on a Monday morning every "today" figure is 0.
+  // Any single day is still one click away in the header.
+  // Sorted per-group so the LEADERS / CLIENT REPS split is preserved.
+  var active = _LST_SORT.days || { col: 'total', metric: 'units', dir: 'desc' };
   _LST_SORT_RESOLVED.days = active;
   // col 'total' = the week-to-date figure. d.orders/d.units are incremented in
   // lockstep with the day buckets in _lstAgg (and only for diff 0..6), so they ARE
@@ -868,13 +872,12 @@ function _lstWeeksTbl(leaders, reps) {
     }
   });
 
-  // The WEEKS view defaults to ranking by THIS week's production, read off the
-  // weeks-view's own aggregate (weeks run newest→oldest, so the current week is
-  // the FIRST column and the prior week the second). Any week column can be
-  // clicked to sort by it instead. Sorted per-group so the LEADERS / CLIENT REPS
-  // split is preserved.
+  // Ranks by TOTAL production across the weeks shown, most to least, within each group —
+  // matching the days board. (Weeks run newest→oldest, so cur/prev below are the current
+  // and prior week, still used to break ties.) Any single week is one click away.
+  // Sorted per-group so the LEADERS / CLIENT REPS split is preserved.
   var cur = 0, prev = 1;
-  var active = _LST_SORT.weeks || { col: cur, metric: 'units', dir: 'desc' };
+  var active = _LST_SORT.weeks || { col: 'total', metric: 'units', dir: 'desc' };
   _LST_SORT_RESOLVED.weeks = active;
   // Rows with no week aggregate can't be ranked on a week value; treat them as 0
   // so they sink to the bottom of a descending sort instead of throwing.
