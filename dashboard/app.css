@@ -619,17 +619,67 @@ html[data-theme="light"] .badge-red,
 html[data-theme="light"] .rp-1, html[data-theme="light"] .rp-2,
 html[data-theme="light"] .nm-r-btn.active-1, html[data-theme="light"] .nm-r-btn.active-2,
 html[data-theme="light"] .pill-31-60, html[data-theme="light"] .dr-na-badge{ background:#fbe0dc; color:#b3261e; border-color:#eaa9a2; }
-html[data-theme="light"] .pill-15-30{ background:#fce6d5; color:#b5541a; }
+/* ⚠ These two inks were PRE-EXISTING and sat just under AA at this size (4.10:1 and
+   4.41:1 — these pills are .75rem bold = WCAG NORMAL text, so 4.5:1 applies, the
+   same trap as the outcome glyphs). Nudged the ink only; the tints are unchanged. */
+html[data-theme="light"] .pill-15-30{ background:#fce6d5; color:#aa4f18; }
 html[data-theme="light"] .badge-yellow,
 html[data-theme="light"] .rp-3, html[data-theme="light"] .nm-r-btn.active-3,
 html[data-theme="light"] .pill-8-14{ background:#f6ecc2; color:#7a5c00; border-color:#dcc77e; }
 html[data-theme="light"] .badge-green,
 html[data-theme="light"] .rp-4, html[data-theme="light"] .rp-5,
 html[data-theme="light"] .nm-r-btn.active-4, html[data-theme="light"] .nm-r-btn.active-5,
-html[data-theme="light"] .pill-0-7{ background:#d6efdd; color:#1a7a44; border-color:#a9d9b8; }
+html[data-theme="light"] .pill-0-7{ background:#d6efdd; color:#197843; border-color:#a9d9b8; }
 html[data-theme="light"] .badge-blue{ background:#dcebfb; color:#1a4e78; }
 html[data-theme="light"] .badge-gray,
 html[data-theme="light"] .rp-na, html[data-theme="light"] .nm-r-btn.active-na{ background:#e4e8ee; color:#5b6675; border-color:#cfd6e0; }
+
+/* ── ORDER-STATUS PILLS in light mode ─────────────────────────────────────────
+   The dark pills are a near-black wash (#0a2010…#2a2000) carrying a bright ink,
+   so on white they read as eleven black holes down the status column. Same
+   inversion as the badge palette above: soft tint of the SAME HUE + saturated
+   dark ink of that hue.
+   🔑 The eleven must stay TELLABLE APART. In dark almost all the signal is in the
+   INK (the backgrounds are eleven shades of nearly-black), so the ink is what
+   carries the distinction here too — each hue family keeps its bright/mid/deep
+   ordering rather than collapsing onto one shared green/red/orange. */
+html[data-theme="light"] .sp-active       {background:#d9f0e2;color:#12703f}
+html[data-theme="light"] .sp-posted       {background:#c7e9d4;color:#0d5c32}
+html[data-theme="light"] .sp-canceled     {background:#fbdedb;color:#b3261e}
+html[data-theme="light"] .sp-disconnected {background:#f5ccc8;color:#8c1d13}
+html[data-theme="light"] .sp-orange-bright{background:#fde5d1;color:#a8500f}
+html[data-theme="light"] .sp-orange       {background:#fbdbc2;color:#94460d}
+html[data-theme="light"] .sp-dark-orange  {background:#f7d0b3;color:#803a08}
+html[data-theme="light"] .sp-purple       {background:#ebddfa;color:#6b21a8}
+html[data-theme="light"] .sp-yellow-bright{background:#f9edbe;color:#7a5c00}
+html[data-theme="light"] .sp-yellow       {background:#f4e5a8;color:#6b5000}
+html[data-theme="light"] .sp-pale-yellow  {background:#efe7d0;color:#63542b}
+/* .sp-default keeps var(--control-bg), which already themes — but its #999 ink is
+   only ~2.4:1 on the light control surface. */
+html[data-theme="light"] .sp-default      {color:#5b6675}
+
+/* ── the remaining dark chips ────────────────────────────────────────────────
+   ⚠ Only the chips that read as HOLES are converted. The saturated fills are
+   deliberately LEFT ALONE — .ar-* badges, the coloured .appt-path-step chevrons,
+   .nm-cx-add-btn / .nm-rep-add-btn, the blue :hover states, .dr-copy-btn and
+   #dsi-toast are all saturated colour + white ink, which is a legitimate look in
+   either theme. Recolouring them would be restyling, not repairing. */
+html[data-theme="light"] .prod-pill{ background:#dcebfb; color:#1a4e78; }
+html[data-theme="light"] .pill-product{ background:#e9edf3; color:#475569; border-color:#cfd6e0; }
+html[data-theme="light"] .dr-esc-badge{ background:#fbe0dc; color:#b3261e; }   /* its twin .dr-na-badge was already patched; this one was missed */
+html[data-theme="light"] .dr-table td{ border-bottom-color:#dde3ea; }
+html[data-theme="light"] .tm-btn-del{ background:#fbe0dc; color:#b3261e; }
+html[data-theme="light"] .tm-btn-del:hover{ background:#f5ccc8; color:#8c1d13; }
+/* The two NEUTRAL path steps only — the coloured chevrons keep their saturated fills.
+   ⚠⚠ THE :not() CHAIN IS LOAD-BEARING, NOT DEFENSIVE PADDING. `html[data-theme=
+   "light"] .appt-path-step` scores (0,2,1) and so BEATS every `.appt-path-step.st-*`
+   modifier at (0,2,0) — a plain base override silently repaints COMPLETED, NO SHOW
+   and CANCELED pale grey too. It has to exclude every modifier by name.
+   🔑 Add a new .st-* variant and you MUST add it here; lightmode_harness.js diffs the
+   two lists and fails, because this failure is invisible in dark mode. */
+html[data-theme="light"] .appt-path-step:not(.st-done):not(.st-active):not(.st-pending):not(.st-done-green):not(.st-done-red):not(.st-done-amber):not(.st-done-canc){ background:#dfe4ec; color:#5b6675; }
+html[data-theme="light"] .appt-path-step.st-pending{ background:#e8ecf2; color:#626a77; }
+html[data-theme="light"] #appt-booking-modal input[type=checkbox]{ border-color:var(--field-border); }
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;height:100vh;overflow:hidden}
 
 /* ── LOGIN ── */
