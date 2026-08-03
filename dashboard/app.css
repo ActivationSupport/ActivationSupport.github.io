@@ -4,10 +4,22 @@
   --blue:#1F4E78;--blue2:#4A9FD4;--blue2-rgb:74,159,212;--blue3:#1a3347;--blueHover:#2563a8;--blueText:#fff;
   --accent2b:#4A9FD4;/* secondary "dual" accent — defaults to --blue2; per-office override (Vanguard = red) */
   --blue2-fade:rgba(96,165,250,.13);--blue2-faint:rgba(96,165,250,.05);
-  --green:#27ae60;--green2:#1a4a2a;--green3:#c6efce;
-  --yellow:#f0b429;--yellow2:#3a2c00;--yellow3:#fff2cc;
-  --red:#e74c3c;--red2:#3d0d0d;--red3:#fce4d6;
-  --gray:#aaa;--gray2:#2e2e2e;
+  /* ⚠ --blue3 is WRITE-ONLY: applyOfficeTheme sets it from OFFICE_CONFIG.theme.dark
+     (app.core.js:105) but no rule reads it. Kept because that `dark` field is part of
+     the documented per-office theme contract (_private/OFFICE_ONBOARDING.md); dropping
+     the var means dropping the field from all 7 offices too. Don't reach for it as an
+     "existing dark tint" — it has never rendered anything. */
+  --green:#27ae60;
+  --yellow:#f0b429;
+  --red:#e74c3c;
+  --gray:#aaa;
+  /* ⚠⚠ REMOVED 2026-08-03 as part of the light-mode pass: --green2/3 --yellow2/3
+     --red2/3 --gray2. All seven were declared here and referenced ZERO times in any
+     css/js/html in the repo. They looked like the ready-made "status tint" layer and
+     a plan was written around tokenising them — which would have changed nothing at
+     all. If you need a dark status tint, the live ones are the --tint-*/--rule-*
+     pairs below; the per-status chips carry their own values with light counterparts
+     next to the badge palette. */
   --bg:#111111;--surface:#242424;--surface2:#2c2c2c;--sidebar-bg:#111827;
   --border:rgba(255,255,255,.10);
   --field-bg:#1e1e1e;--field-border:#3a3a3a;--control-bg:#2a2a2a;--inset-bg:#1a1a1a;--panel2-bg:#161b22;--panel2-border:#21262d;/* O2 semantic control surfaces (dark defaults; light theme overrides below) */
