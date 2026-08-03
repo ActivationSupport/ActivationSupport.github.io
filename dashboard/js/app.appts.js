@@ -21,6 +21,21 @@ function _apptXofficeCell(label, oid){
   var c=OFFICE_BOOK_TINT[oid];
   return '<div class="appt-cal-cell appt-cell-blocked" style="background:'+_hexToRgba(c,.22)+';box-shadow:inset 3px 0 0 '+c+'" title="'+esc(label)+'"><img class="appt-xoffice-logo" src="assets/'+OFFICE_BOOK_LOGO[oid]+'" alt=""></div>';
 }
+// Cross-office logo strip for the DEFAULT (unfiltered) week view, where one cell covers
+// every activator. The filtered view can tint the whole cell because it's one person;
+// here the cell may be part-taken, so the offices holding it ride along a thin band under
+// the label instead of colouring the cell and hiding that slots remain.
+// Caps at 4 + "+n" so a busy slot can't push the cell taller than its row.
+function _apptXofficeStrip(oids){
+  if(!oids || !oids.length) return '';
+  var shown = oids.slice(0,4);
+  return '<div class="appt-xoffice-strip">'+shown.map(function(oid){
+    var c = OFFICE_BOOK_TINT[oid] || 'var(--text2)';
+    return '<span class="appt-xoffice-chip" style="background:'+_hexToRgba(c,.20)+';box-shadow:inset 0 -2px 0 '+c+'"'+
+      ' title="Booked — '+esc(OFFICE_NAMES[oid]||oid)+'">'+
+      '<img src="assets/'+esc(OFFICE_BOOK_LOGO[oid]||'')+'" alt="'+esc(OFFICE_NAMES[oid]||oid)+'"></span>';
+  }).join('')+(oids.length>4?'<span class="appt-xoffice-more">+'+(oids.length-4)+'</span>':'')+'</div>';
+}
 // Fetch cross-office / calendar block state for `dates` (skips already-loaded +
 // out-of-window). Stores into _APPT.blocked; resolves true if it actually fetched.
 // ⚠⚠ NEVER-DOUBLE-BOOK: blockedLoaded[d] is a three-state flag, not a boolean —
@@ -544,6 +559,20 @@ function _apptCalGrid(appts, acts, ws) {
     });
     return n;
   }
+  // Which OTHER offices are holding this activator pool at (ds,slot)? Only activators who
+  // are actually scheduled to work the slot count — someone simply off that day is not a
+  // cross-office booking and must not put a logo on the cell.
+  function xOfficesAt(ds, slot){
+    if (ds<win.min || ds>win.max || !_apptBlocksReady(ds)) return [];
+    var dk=dayKeys[new Date(ds+'T12:00:00').getDay()], seen={}, out=[];
+    Object.keys(sMap).forEach(function(em){
+      var s=_apptDaySched(sMap[em],dk), asl=_apptToAct(ds,slot,em);
+      if(!s || !_apptSlotInSched(asl,s.start,s.end)) return;
+      var oid=_apptBlockOffice(_apptBlocked(em,ds,asl));
+      if(oid && !seen[oid]){ seen[oid]=1; out.push(oid); }
+    });
+    return out;
+  }
   var availCount=[0,0,0,0,0,0,0];
   for (var di=0;di<7;di++){ slots.forEach(function(slot){ if(availAt(dates[di],slot)) availCount[di]++; }); }
 
@@ -600,12 +629,19 @@ function _apptCalGrid(appts, acts, ws) {
           html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
         } else if(availAt(ds,slot)){
           var _fc=freeCount(ds,slot);
-          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\'\',\''+slot+'\')" title="'+_fc+' activator'+(_fc===1?'':'s')+' free">'+
-            '<span class="appt-avail-plus">+</span> Book<span class="appt-avail-freecount">'+_fc+' free</span></div>';
+          var _xo=xOfficesAt(ds,slot);   // some of the pool may be held elsewhere
+          html+='<div class="appt-cal-cell appt-cell-avail'+(_xo.length?' has-xoffice':'')+'" onclick="openApptBookingModal(\''+ds+'\',\'\',\''+slot+'\')" title="'+_fc+' activator'+(_fc===1?'':'s')+' free'+(_xo.length?' · also booked at '+esc(_xo.map(function(o){return OFFICE_NAMES[o]||o;}).join(', ')):'')+'">'+
+            '<span class="appt-avail-plus">+</span> Book<span class="appt-avail-freecount">'+_fc+' free</span>'+
+            _apptXofficeStrip(_xo)+'</div>';
         } else if(!_apptBlocksReady(ds)){
           html+='<div class="appt-cal-cell appt-cell-checking" title="Checking other offices for conflicts…">…</div>';
         } else {
-          html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
+          // Nothing bookable here — but "—" claims the office is CLOSED. If the pool is
+          // scheduled and simply held by other offices, show whose, not a dead dash.
+          var _xoFull=xOfficesAt(ds,slot);
+          html += _xoFull.length
+            ? '<div class="appt-cal-cell appt-cell-xoffice-full" title="Fully booked at '+esc(_xoFull.map(function(o){return OFFICE_NAMES[o]||o;}).join(', '))+'">'+_apptXofficeStrip(_xoFull)+'</div>'
+            : '<div class="appt-cal-cell appt-cell-closed">—</div>';
         }
       }
     }

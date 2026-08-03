@@ -1570,7 +1570,9 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-cal-dayname{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
 .appt-cal-daynum{font-size:.88rem;font-weight:700;color:var(--text);margin-top:2px}
 .appt-cal-time{display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:.68rem;color:var(--text2);border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface2);min-height:54px}
-.appt-cal-cell{min-height:54px;padding:4px 5px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:.73rem;transition:background .12s;text-align:center}
+/* position:relative anchors the absolutely-positioned .appt-xoffice-strip to the CELL.
+   Without it the strip would resolve against the grid and land in the wrong place. */
+.appt-cal-cell{min-height:54px;padding:4px 5px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:.73rem;transition:background .12s;text-align:center;position:relative}
 .appt-cell-booked{background:rgba(31,78,120,.38);cursor:default}
 .appt-cell-avail{background:rgba(39,174,96,.08);color:var(--green);cursor:pointer;font-weight:600}
 .appt-cell-avail:hover{background:rgba(39,174,96,.2)}
@@ -1585,6 +1587,22 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
    offered yet — this says "not known yet", NOT "closed" (which is what "—" would imply).
    Deliberately theme-token based (--control-bg/--text2), not a hardcoded dark literal. */
 .appt-cell-checking{background:var(--control-bg);color:var(--text2);cursor:progress;font-size:1rem;letter-spacing:1px;opacity:.75}
+/* ── Cross-office logo strip (default week view) ──────────────────────────────
+   One cell covers every activator here, so the cell itself must stay readable as
+   "+ Book / N free". The offices holding the rest of the pool ride in a thin band
+   pinned to the bottom edge — present enough to notice, quiet enough not to compete
+   with the primary action. `position:absolute` keeps it out of the flex flow so a
+   cell with a strip is exactly as tall as one without (rows must stay aligned). */
+.appt-cal-cell.has-xoffice{padding-bottom:13px}
+.appt-xoffice-strip{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;gap:2px;height:12px;pointer-events:none}
+.appt-xoffice-chip{display:inline-flex;align-items:center;justify-content:center;height:12px;padding:0 3px;border-radius:2px}
+.appt-xoffice-chip img{height:8px;width:auto;display:block;object-fit:contain}
+.appt-xoffice-more{font-size:.55rem;font-weight:700;color:var(--text2);line-height:1}
+/* Fully held by other offices — not "closed". Bigger marks, since nothing competes. */
+.appt-cell-xoffice-full{background:var(--control-bg);cursor:not-allowed;position:relative}
+.appt-cell-xoffice-full .appt-xoffice-strip{position:static;height:auto;gap:4px}
+.appt-cell-xoffice-full .appt-xoffice-chip{height:20px;padding:0 5px;border-radius:3px}
+.appt-cell-xoffice-full .appt-xoffice-chip img{height:13px}
 @media (prefers-reduced-motion:no-preference){
   .appt-cell-checking{animation:apptCheckPulse 1.2s ease-in-out infinite}
 }
