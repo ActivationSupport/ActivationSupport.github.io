@@ -588,7 +588,7 @@ html[data-theme="light"] .pse-notes-ro{
 /* office switcher, refresh, hamburger, wallboard chips + abm-seg now auto-theme
    via --control-bg/--field-border/--inset-bg — per-selector light patches removed. */
 html[data-theme="light"] .dr-kpi-val, html[data-theme="light"] .lst-kpi-val{ color:#0f172a; }
-html[data-theme="light"] .dr-stat-pill{ background:#e8edf3; border-color:#c4cedb; color:#475569; }
+html[data-theme="light"] .dr-stat-pill{ background:#d5dbe2; border-color:#a8b0bb; color:#475569; box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 /* Light mode: lift the near-white DR panels off the white page (clearer fills + visible
    borders) and repair the at-a-glance line, which otherwise keeps dark-mode text colors. */
 html[data-theme="light"] .dr-sc-total{ background:#e8f0fb; border-color:#b6c2d0; }
@@ -630,21 +630,21 @@ html[data-theme="light"] .modal{ box-shadow:0 16px 48px rgba(15,23,42,.22); }
 html[data-theme="light"] .badge-red,
 html[data-theme="light"] .rp-1, html[data-theme="light"] .rp-2,
 html[data-theme="light"] .nm-r-btn.active-1, html[data-theme="light"] .nm-r-btn.active-2,
-html[data-theme="light"] .pill-31-60, html[data-theme="light"] .dr-na-badge{ background:#fbe0dc; color:#b3261e; border-color:#eaa9a2; }
+html[data-theme="light"] .pill-31-60, html[data-theme="light"] .dr-na-badge{ background:#f2cac5; color:#ac241d; border-color:#dc958f; box-shadow:inset 0 0 0 1px #dc958f,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 /* ⚠ These two inks were PRE-EXISTING and sat just under AA at this size (4.10:1 and
    4.41:1 — these pills are .75rem bold = WCAG NORMAL text, so 4.5:1 applies, the
    same trap as the outcome glyphs). Nudged the ink only; the tints are unchanged. */
-html[data-theme="light"] .pill-15-30{ background:#fce6d5; color:#aa4f18; }
+html[data-theme="light"] .pill-15-30{ background:#f2d4be; color:#974615; box-shadow:inset 0 0 0 1px #d5a788,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 html[data-theme="light"] .badge-yellow,
 html[data-theme="light"] .rp-3, html[data-theme="light"] .nm-r-btn.active-3,
-html[data-theme="light"] .pill-8-14{ background:#f6ecc2; color:#7a5c00; border-color:#dcc77e; }
+html[data-theme="light"] .pill-8-14{ background:#e7dbab; color:#785a00; border-color:#c3b274; box-shadow:inset 0 0 0 1px #c3b274,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 html[data-theme="light"] .badge-green,
 html[data-theme="light"] .rp-4, html[data-theme="light"] .rp-5,
 html[data-theme="light"] .nm-r-btn.active-4, html[data-theme="light"] .nm-r-btn.active-5,
-html[data-theme="light"] .pill-0-7{ background:#d6efdd; color:#197843; border-color:#a9d9b8; }
-html[data-theme="light"] .badge-blue{ background:#dcebfb; color:#1a4e78; }
+html[data-theme="light"] .pill-0-7{ background:#bfe1cb; color:#166b3c; border-color:#89bb9d; box-shadow:inset 0 0 0 1px #89bb9d,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .badge-blue{ background:#c5d8eb; color:#1a4e78; box-shadow:inset 0 0 0 1px #8eacc6,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 html[data-theme="light"] .badge-gray,
-html[data-theme="light"] .rp-na, html[data-theme="light"] .nm-r-btn.active-na{ background:#e4e8ee; color:#5b6675; border-color:#cfd6e0; }
+html[data-theme="light"] .rp-na, html[data-theme="light"] .nm-r-btn.active-na{ background:#d4d8df; color:#535d6a; border-color:#abb1ba; box-shadow:inset 0 0 0 1px #abb1ba,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 
 /* ── ORDER-STATUS PILLS in light mode ─────────────────────────────────────────
    The dark pills are a near-black wash (#0a2010…#2a2000) carrying a bright ink,
@@ -655,17 +655,17 @@ html[data-theme="light"] .rp-na, html[data-theme="light"] .nm-r-btn.active-na{ b
    INK (the backgrounds are eleven shades of nearly-black), so the ink is what
    carries the distinction here too — each hue family keeps its bright/mid/deep
    ordering rather than collapsing onto one shared green/red/orange. */
-html[data-theme="light"] .sp-active       {background:#d9f0e2;color:#12703f}
-html[data-theme="light"] .sp-posted       {background:#c7e9d4;color:#0d5c32}
-html[data-theme="light"] .sp-canceled     {background:#fbdedb;color:#b3261e}
-html[data-theme="light"] .sp-disconnected {background:#f5ccc8;color:#8c1d13}
-html[data-theme="light"] .sp-orange-bright{background:#fde5d1;color:#a8500f}
-html[data-theme="light"] .sp-orange       {background:#fbdbc2;color:#94460d}
-html[data-theme="light"] .sp-dark-orange  {background:#f7d0b3;color:#803a08}
-html[data-theme="light"] .sp-purple       {background:#ebddfa;color:#6b21a8}
-html[data-theme="light"] .sp-yellow-bright{background:#f9edbe;color:#7a5c00}
-html[data-theme="light"] .sp-yellow       {background:#f4e5a8;color:#6b5000}
-html[data-theme="light"] .sp-pale-yellow  {background:#efe7d0;color:#63542b}
+html[data-theme="light"] .sp-active       {background:#c1e1ce;color:#116c3c; box-shadow:inset 0 0 0 1px #89bc9f,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-posted       {background:#b1d8c1;color:#0d5c32; box-shadow:inset 0 0 0 1px #7db093,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-canceled     {background:#f2c8c4;color:#aa241d; box-shadow:inset 0 0 0 1px #db948f,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-disconnected {background:#e8b7b2;color:#8c1d13; box-shadow:inset 0 0 0 1px #cb867f,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-orange-bright{background:#f3d3ba;color:#96470d; box-shadow:inset 0 0 0 1px #d5a683,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-orange       {background:#efc9ac;color:#8e430c; box-shadow:inset 0 0 0 1px #d09e79,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-dark-orange  {background:#e9be9e;color:#803a08; box-shadow:inset 0 0 0 1px #c7946e,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-purple       {background:#dcc6f0;color:#6b21a8; box-shadow:inset 0 0 0 1px #b891d9,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-yellow-bright{background:#eadca7;color:#795b00; box-shadow:inset 0 0 0 1px #c6b372,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-yellow       {background:#e4d394;color:#6b5000; box-shadow:inset 0 0 0 1px #bda965,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .sp-pale-yellow  {background:#ded5bc;color:#63542b; box-shadow:inset 0 0 0 1px #b7ac8e,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 /* .sp-default keeps var(--control-bg), which already themes — but its #999 ink is
    only ~2.4:1 on the light control surface. */
 html[data-theme="light"] .sp-default      {color:#5b6675}
@@ -676,12 +676,12 @@ html[data-theme="light"] .sp-default      {color:#5b6675}
    .nm-cx-add-btn / .nm-rep-add-btn, the blue :hover states, .dr-copy-btn and
    #dsi-toast are all saturated colour + white ink, which is a legitimate look in
    either theme. Recolouring them would be restyling, not repairing. */
-html[data-theme="light"] .prod-pill{ background:#dcebfb; color:#1a4e78; }
-html[data-theme="light"] .pill-product{ background:#e9edf3; color:#475569; border-color:#cfd6e0; }
-html[data-theme="light"] .dr-esc-badge{ background:#fbe0dc; color:#b3261e; }   /* its twin .dr-na-badge was already patched; this one was missed */
+html[data-theme="light"] .prod-pill{ background:#c5d8eb; color:#1a4e78; box-shadow:inset 0 0 0 1px #8eacc6,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .pill-product{ background:#d6dbe2; color:#475569; border-color:#a8b0bb; box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .dr-esc-badge{ background:#f2cac5; color:#ac241d; box-shadow:inset 0 0 0 1px #dc958f,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}   /* its twin .dr-na-badge was already patched; this one was missed */
 html[data-theme="light"] .dr-table td{ border-bottom-color:#dde3ea; }
-html[data-theme="light"] .tm-btn-del{ background:#fbe0dc; color:#b3261e; }
-html[data-theme="light"] .tm-btn-del:hover{ background:#f5ccc8; color:#8c1d13; }
+html[data-theme="light"] .tm-btn-del{ background:#f2cac5; color:#ac241d; border-color:#dc958f; box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .tm-btn-del:hover{ background:#e8b7b2; color:#8c1d13; border-color:#cb867f; box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 /* The two NEUTRAL path steps only — the coloured chevrons keep their saturated fills.
    ⚠⚠ THE :not() CHAIN IS LOAD-BEARING, NOT DEFENSIVE PADDING. `html[data-theme=
    "light"] .appt-path-step` scores (0,2,1) and so BEATS every `.appt-path-step.st-*`
@@ -689,8 +689,8 @@ html[data-theme="light"] .tm-btn-del:hover{ background:#f5ccc8; color:#8c1d13; }
    and CANCELED pale grey too. It has to exclude every modifier by name.
    🔑 Add a new .st-* variant and you MUST add it here; lightmode_harness.js diffs the
    two lists and fails, because this failure is invisible in dark mode. */
-html[data-theme="light"] .appt-path-step:not(.st-done):not(.st-active):not(.st-pending):not(.st-done-green):not(.st-done-red):not(.st-done-amber):not(.st-done-canc){ background:#dfe4ec; color:#5b6675; }
-html[data-theme="light"] .appt-path-step.st-pending{ background:#e8ecf2; color:#626a77; }
+html[data-theme="light"] .appt-path-step:not(.st-done):not(.st-active):not(.st-pending):not(.st-done-green):not(.st-done-red):not(.st-done-amber):not(.st-done-canc){ background:#c2c8d2; color:#4a535f; }
+html[data-theme="light"] .appt-path-step.st-pending{ background:#cbcfd7; color:#505762; }
 html[data-theme="light"] #appt-booking-modal input[type=checkbox]{ border-color:var(--field-border); }
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;height:100vh;overflow:hidden}
 
@@ -1806,16 +1806,16 @@ html[data-theme="light"] .ao-type-line{color:#8a5a12;background:rgba(217,150,60,
    above: OPAQUE soft tint + saturated dark text of the same hue. The greens/oranges run a
    shade darker than the .badge-* equivalents because the glyph is 9.6px — WCAG normal-text
    size, so it needs 4.5:1, which the house #1a7a44/#b5541a miss by a hair at this scale. */
-html[data-theme="light"] .appt-svc-glyph.svc-w{background:#dcebfb;color:#1a4e78}
-html[data-theme="light"] .appt-svc-glyph.svc-a{background:#d6efdd;color:#15703e}
-html[data-theme="light"] .appt-svc-glyph.svc-f{background:#fce6d5;color:#9c4715}
+html[data-theme="light"] .appt-svc-glyph.svc-w{background:#c5d8eb;color:#1a4e78; box-shadow:inset 0 0 0 1px #8eacc6,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .appt-svc-glyph.svc-a{background:#bfe0ca;color:#146a3b; box-shadow:inset 0 0 0 1px #88ba9c,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
+html[data-theme="light"] .appt-svc-glyph.svc-f{background:#f0d3be;color:#974514; box-shadow:inset 0 0 0 1px #d4a688,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 /* The ×N device badge sits in the same glyph row; its rgba(255,255,255,.07) fill is a
    dark-theme lightener and renders as nothing on light, leaving a bare number next to
    three solid chips. */
 html[data-theme="light"] .appt-dev-badge{background:rgba(15,23,42,.08);color:#475569}
 /* The "N open" slot pill in the day header — a chip, so it takes the same tint + dark
    text treatment as the glyphs above (its green matches .svc-a). */
-html[data-theme="light"] .appt-avail-pill{background:#d6efdd;color:#15703e}
+html[data-theme="light"] .appt-avail-pill{background:#bfe0ca;color:#146a3b; box-shadow:inset 0 0 0 1px #88ba9c,inset 0 1px 0 rgba(255,255,255,.6),0 1px 1.5px rgba(15,23,42,.09);}
 /* Outcome marks (✓ completed · ✗ no-show · ↻ rescheduled · ⊘ canceled). These are bare
    inline glyphs with no chip behind them, so they're read straight against the booked
    cell — rgba(31,78,120,.38) over --surface, about #a4b6c8. That's a MID tone, not a
