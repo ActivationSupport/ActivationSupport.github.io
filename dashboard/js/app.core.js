@@ -566,7 +566,7 @@ function _startInactivityWatcher() {
 // Master-admin + activator always stay on the dark theme. Everyone else can
 // toggle; the choice persists per browser (localStorage 'as_theme').
 function _themeAllowed() {
-  return true;   // every role can see + use the toggle (defaults still differ: owner = light, others = dark)
+  return true;   // every role can see + use the toggle; ALL roles now DEFAULT to dark (see _applyTheme)
 }
 function _applyTheme() {
   var allowed = _themeAllowed(), pref = '';
@@ -574,7 +574,12 @@ function _applyTheme() {
   var theme;
   if (!allowed) theme = 'dark';                                 // (reserved) force dark if a role is ever disallowed
   else if (pref === 'light' || pref === 'dark') theme = pref;   // an explicit toggle choice wins
-  else theme = ((SESSION.role || '').toLowerCase() === 'owner') ? 'light' : 'dark';  // default: owner = light, everyone else dark
+  // ⚠ EVERY role now defaults to DARK. Owners used to default to LIGHT, which meant the
+  //   office owner landed in light mode without ever choosing it — and that default is
+  //   how the white-on-white Daily Report headers went unnoticed for so long. The toggle
+  //   is unchanged and still available to every role; an explicit choice is remembered in
+  //   localStorage and wins over this line.
+  else theme = 'dark';
   var _ssOffice = (typeof CFG !== 'undefined' && CFG && CFG.officeId === 'salessupport');
   if (_ssOffice) theme = 'dark';   // Sales Support is locked to its deep-space dark theme
   document.documentElement.setAttribute('data-theme', theme);

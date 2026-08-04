@@ -43,6 +43,14 @@
   /* Elevation. Only ~14 of the file's box-shadows were ever elevation; the rest are
      Sales Support glows, inset rings and focus rings, and are left alone.
      These FLIP like the tints: a dark theme lifts with black, a light one with navy. */
+  /* ⚠ The KPI tile keeps its OWN surface + top rule. Folding the five tiles into one
+     moved .dr-kpi from the near-black --panel2-bg onto --surface and gave every tile a
+     bright accent stripe, which made dark mode visibly LIGHTER and louder. Dark keeps
+     the deep panel and a quiet rule; light gets white paper and the office accent. */
+  /* ⚠ --kpi-accent is set INLINE per card by app.lst.js:494/507 to colour-code the Live
+     Sales KPIs. It has to keep winning here, or those cards lose their coding — the
+     fallback is the quiet panel border, not the other way round. */
+  --kpi-bg:var(--panel2-bg); --kpi-rule:var(--kpi-accent,var(--panel2-border));
   --e-1:0 4px 16px rgba(0,0,0,.45);    /* cards, stat tiles          */
   --e-2:0 8px 24px rgba(0,0,0,.5);     /* dropdowns, popovers, menus */
   --e-3:0 24px 60px rgba(0,0,0,.55);   /* modals                     */
@@ -57,10 +65,17 @@
 /* First pass: flips the core surfaces + the common hardcoded dark elements.
    Sidebar intentionally stays dark navy (white content + dark rail). */
 html[data-theme="light"]{
-  --bg:#e9ecf1; --surface:#f5f6f9; --surface2:#eceff4;
-  --border:rgba(15,23,42,.18);
+  /* ⚠⚠ GREY DESK, WHITE PAPER. Every light surface used to sit above L=0.75 — page,
+     card, fields, controls, panels — so a card had NOTHING to float on and the whole
+     screen read as one white expanse. Measured: page-to-card separation was 1.10:1,
+     against dark's 1.22:1. The page is now a real grey and the cards are the paper,
+     which takes separation to 1.30:1.
+     🔑 The fix is the PAGE, not the cards. Lightening the cards further would have made
+     the wall of white worse; the canvas underneath is what was missing. */
+  --bg:#dde2ea; --surface:#ffffff; --surface2:#f2f5f9;
+  --border:rgba(15,23,42,.16);
   --text:#1b2433; --text2:#5b6675;
-  --field-bg:#ffffff; --field-border:#cfd6e0; --control-bg:#eef1f5; --inset-bg:#e8edf3; --panel2-bg:#eef2f7; --panel2-border:#c4cedb;
+  --field-bg:#ffffff; --field-border:#cfd6e0; --control-bg:#eef1f6; --inset-bg:#eef2f7; --panel2-bg:#f7f9fc; --panel2-border:#c4cedb;
   /* The polarity flip: white-alpha -> navy-alpha. Alphas are NOT mirrored 1:1 —
      dark ink on a light surface reads stronger than light ink on a dark one at
      the same alpha, so these sit slightly higher only where a hairline has to
@@ -70,6 +85,7 @@ html[data-theme="light"]{
   --rule-1:rgba(15,23,42,.13); --rule-2:rgba(15,23,42,.24);
   /* Elevation on light: a black shadow over a white page reads as grey mud, so these
      are navy-tinted and use a two-layer contact+ambient pair instead of one soft blur. */
+  --kpi-bg:#ffffff; --kpi-rule:var(--kpi-accent,var(--blue2));
   --e-1:0 1px 3px rgba(15,23,42,.08),0 1px 2px rgba(15,23,42,.04);
   --e-2:0 6px 18px rgba(15,23,42,.10),0 2px 5px rgba(15,23,42,.06);
   --e-3:0 16px 48px rgba(15,23,42,.18),0 4px 12px rgba(15,23,42,.08);
@@ -629,6 +645,7 @@ html[data-theme="light"] .dr-cw-oi, html[data-theme="light"] .dr-cw-other{ color
    dark intent (~1.5:1, present but recessive) rather than made merely paler.
    ⚠ Not fixable with opacity on the cell — that would fade the hatch as well. */
 html[data-theme="light"] .appt-cell-offwindow{ color:#ccd3dc; }
+html[data-theme="light"] .modal{ box-shadow:var(--e-3); }
 html[data-theme="light"] .call-table thead tr{ border-bottom-color:#b6c2d0; }
 html[data-theme="light"] .call-table tbody tr:nth-child(even) td{ background:rgba(15,23,42,.045); }
 html[data-theme="light"] .call-table tbody tr:hover td{ background:rgba(var(--blue2-rgb),.10); }
@@ -1185,11 +1202,10 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:200}
 .modal-bg.open{display:flex}
 .modal-bg.open .modal{animation:modalIn .15s ease}
-/* ⚠ The dark modal previously had NO shadow at all — it leaned entirely on the
-   .modal-bg scrim, which is why it read as a flat panel rather than a raised one.
-   --e-3 applies in BOTH themes now. This is the one intentional dark-theme change in
-   the scale pass; everything else here is radius, which carries no visual weight. */
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:var(--e-3)}
+/* ⚠ The dark modal has NO shadow ON PURPOSE — it leans on the .modal-bg scrim, which is
+   how it has always looked. An earlier pass gave it --e-3 in BOTH themes; the user asked
+   for dark to go back to how it was, so the elevation is light-only now. */
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto}
 .modal h3{font-size:1rem;color:var(--blue2);margin-bottom:16px;font-weight:700}
 .modal-close{float:right;cursor:pointer;color:var(--text2);font-size:1.2rem;margin-top:-4px;transition:color .15s}
 .modal-close:hover{color:var(--text)}
@@ -1238,8 +1254,8 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
    ⚠ Ad-hoc child margins are zeroed here because the container now owns the rhythm
    via `gap` — leaving them in would double the spacing. */
 .dr-kpi,.lst-kpi-card,.tm-stat-pill,.rp-stat{
-  background:var(--surface);border:1px solid var(--border);
-  border-top:2px solid var(--kpi-accent,var(--blue2));
+  background:var(--kpi-bg);border:1px solid var(--border);
+  border-top:2px solid var(--kpi-rule);
   border-radius:var(--r-lg);padding:13px 14px 12px;box-shadow:var(--e-1);
   display:flex;flex-direction:column;gap:4px;text-align:left}
 .dr-kpi-lbl,.lst-kpi-lbl,.tm-stat-lbl,.rp-stat-lbl{
