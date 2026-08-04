@@ -1766,6 +1766,19 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .appt-avail-freecount{display:block;font-size:.62rem;font-weight:700;color:var(--green);opacity:.85;margin-top:1px;font-variant-numeric:tabular-nums}
 .appt-cell-booked-multi{background:rgba(31,78,120,.22);flex-direction:column;gap:2px;cursor:default}
 .appt-cell-closed{background:var(--bg);color:#303030;cursor:default;font-size:1rem}
+/* "Booked elsewhere" — the slot is held by ANOTHER office, which is not the same fact as
+   the office being closed. Reuses the inset-3px office-colour bar the per-activator
+   .appt-cell-blocked already uses, so this is the existing cross-office language rather
+   than a new one. --wv and the tinted background are set inline per cell from the
+   blocking office's bookTint (app.appts.js).
+   ⚠ Deliberately QUIET: the cell is NOT actionable, so it must not compete with the green
+   "+ Book" cells beside it. The office name lives in the title, not the cell. */
+.appt-cell-elsewhere{box-shadow:inset 3px 0 0 var(--wv);color:var(--text2);cursor:default;
+  font-size:.62rem;line-height:1.25;gap:0}
+.appt-elsewhere-lbl{font-weight:700;font-size:.66rem;color:var(--wv);filter:brightness(1.25)}
+.appt-elsewhere-sub{opacity:.7}
+/* On light the office colours are already dark enough to read; brightening washes them. */
+html[data-theme="light"] .appt-elsewhere-lbl{filter:none}
 /* Cross-office conflict check still in flight. availAt() fails CLOSED, so the slot is not
    offered yet — this says "not known yet", NOT "closed" (which is what "—" would imply).
    Deliberately theme-token based (--control-bg/--text2), not a hardcoded dark literal. */
