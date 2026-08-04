@@ -554,16 +554,21 @@ function _apptCalGrid(appts, acts, ws) {
   // elsewhere" for someone's dentist appointment would be a lie.
   // ⚠⚠ This is LABELLING ONLY. It runs in the branch where the cell is already
   // unavailable and never feeds availAt(), so it cannot make a blocked slot bookable.
-  function blockingOffice(ds, slot){
-    if (ds<win.min || ds>win.max) return '';
-    var dk=dayKeys[new Date(ds+'T12:00:00').getDay()], sched=0, oid='';
+  // ⚠⚠ RETURNS EVERY BLOCKING OFFICE, NOT THE FIRST. Different activators can be booked
+  // by DIFFERENT offices in the same slot. An earlier version took the first match, which
+  // rendered one office's tint and claimed "All activators booked at Viridian" for a slot
+  // actually held by Viridian AND Midspire — wrong colour and a wrong count.
+  function blockingOffices(ds, slot){
+    if (ds<win.min || ds>win.max) return [];
+    var dk=dayKeys[new Date(ds+'T12:00:00').getDay()], sched=0, out=[];
     Object.keys(sMap).forEach(function(em){
       var s=_apptDaySched(sMap[em],dk), asl=_apptToAct(ds,slot,em);
       if(!s || !_apptSlotInSched(asl,s.start,s.end)) return;
       sched++;
-      if(!oid){ var o=_apptBlockOffice(_apptBlocked(em,ds,asl)); if(o) oid=o; }
+      var o=_apptBlockOffice(_apptBlocked(em,ds,asl));
+      if(o && out.indexOf(o)===-1) out.push(o);
     });
-    return sched>0 ? oid : '';   // nobody scheduled ⇒ genuinely closed, not "elsewhere"
+    return sched>0 ? out : [];   // nobody scheduled ⇒ genuinely closed, not "elsewhere"
   }
   var availCount=[0,0,0,0,0,0,0];
   for (var di=0;di<7;di++){ slots.forEach(function(slot){ if(availAt(dates[di],slot)) availCount[di]++; }); }
@@ -629,12 +634,19 @@ function _apptCalGrid(appts, acts, ws) {
           // "Closed" and "every activator is booked at another office" are different
           // facts; the grid used to show one dash for both. Only label it when a real
           // office owns the block — see blockingOffice().
-          var _eo = blockingOffice(ds,slot);
-          if(_eo){
-            var _ec = OFFICE_BOOK_TINT[_eo] || '#8a8a8a';
+          var _eo = blockingOffices(ds,slot);
+          if(_eo.length){
+            // One office keeps its own tint. TWO OR MORE go neutral — there is no single
+            // correct colour for a contested slot, and picking one of them misreports it.
+            var _multi = _eo.length>1;
+            var _ec = _multi ? '#8a94a0' : (OFFICE_BOOK_TINT[_eo[0]] || '#8a8a8a');
+            var _en = _eo.map(function(o){ return OFFICE_NAMES[o]||o; });
+            // cap the tooltip: with six offices the full list is unreadable
+            var _et = _en.length>3 ? _en.slice(0,3).join(', ')+' +'+(_en.length-3)+' more' : _en.join(', ');
             html+='<div class="appt-cal-cell appt-cell-elsewhere" style="--wv:'+_ec+';background:'+_hexToRgba(_ec,.09)+'"'+
-              ' title="All activators booked at '+esc(OFFICE_NAMES[_eo]||_eo)+'">'+
-              '<span class="appt-elsewhere-lbl">Booked</span><span class="appt-elsewhere-sub">elsewhere</span></div>';
+              ' title="All activators booked at '+esc(_et)+'">'+
+              '<span class="appt-elsewhere-lbl">Booked</span>'+
+              '<span class="appt-elsewhere-sub">'+(_multi ? _eo.length+' offices' : 'elsewhere')+'</span></div>';
           } else {
             html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
           }
