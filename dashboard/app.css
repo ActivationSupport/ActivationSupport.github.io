@@ -43,14 +43,16 @@
   /* Elevation. Only ~14 of the file's box-shadows were ever elevation; the rest are
      Sales Support glows, inset rings and focus rings, and are left alone.
      These FLIP like the tints: a dark theme lifts with black, a light one with navy. */
-  /* ⚠ The KPI tile keeps its OWN surface + top rule. Folding the five tiles into one
-     moved .dr-kpi from the near-black --panel2-bg onto --surface and gave every tile a
-     bright accent stripe, which made dark mode visibly LIGHTER and louder. Dark keeps
-     the deep panel and a quiet rule; light gets white paper and the office accent. */
-  /* ⚠ --kpi-accent is set INLINE per card by app.lst.js:494/507 to colour-code the Live
-     Sales KPIs. It has to keep winning here, or those cards lose their coding — the
-     fallback is the quiet panel border, not the other way round. */
-  --kpi-bg:var(--panel2-bg); --kpi-rule:var(--kpi-accent,var(--panel2-border));
+  /* ⚠ The KPI tile keeps its OWN surface, separate from --surface. Folding the five
+     tiles into one had moved .dr-kpi off the near-black --panel2-bg, which is what made
+     dark mode visibly lighter. The SURFACE is the part that had to go back; the coloured
+     top accent stays — the user asked for it explicitly ("i just want the coloured
+     accents for them on the top"). Dark = deep panel + accent; light = white + accent.
+     ⚠ --kpi-accent is set INLINE per card by app.lst.js:494/507 to colour-code the Live
+     Sales KPIs, and .dr-kpi passes a per-metric colour as an inline border-top shorthand
+     (app.reports.js:161) which beats this rule outright. Both must keep winning; the
+     office accent is only the FALLBACK for tiles that name no colour of their own. */
+  --kpi-bg:var(--panel2-bg); --kpi-rule:var(--kpi-accent,var(--blue2));
   --e-1:0 4px 16px rgba(0,0,0,.45);    /* cards, stat tiles          */
   --e-2:0 8px 24px rgba(0,0,0,.5);     /* dropdowns, popovers, menus */
   --e-3:0 24px 60px rgba(0,0,0,.55);   /* modals                     */
