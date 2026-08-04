@@ -9,10 +9,33 @@ function _drTodayStr() {
   return d.getFullYear()+'-'+(d.getMonth()<9?'0':'')+(d.getMonth()+1)+'-'+(d.getDate()<10?'0':'')+d.getDate();
 }
 
+/* PERF-4 · how old a stored report may be before opening the tab rebuilds it.
+   The tab used to POST generateDailyReport on EVERY open — a ~345-line backend rebuild
+   with 8 getValues() and 2 sheet writes — even when a colleague had just triggered the
+   identical build seconds earlier. Now: read first, and only rebuild if what came back is
+   missing or older than this.
+   ⚠ Kept just under the backend's own _DR_CACHE_TTL (120s) so the two agree on "fresh";
+   if the FE asked more often than the backend rebuilds, the extra POSTs would be answered
+   from cache and achieve nothing. */
+var _DR_FRESH_MS = 90 * 1000;
+
+/* ⚠⚠ FAILS TOWARD THE OLD BEHAVIOUR. `generatedAt` only exists once the backend redeploy
+   lands; until then it is undefined, this returns false, and the tab regenerates on every
+   open exactly as it does today. That direction is deliberate — the FE can ship before
+   the redeploy without waiting on it. */
+function _drIsFresh(generatedAt) {
+  if (!generatedAt) return false;
+  var t = Date.parse(generatedAt);
+  if (isNaN(t)) return false;
+  var age = Date.now() - t;
+  return age >= 0 && age < _DR_FRESH_MS;   // a clock-skewed future stamp is not "fresh"
+}
+
 function renderDailyReport() {
-  // Opening the tab always REGENERATES today's report for the CURRENT office,
-  // from live data, so it's never stale and never another office's (user choice).
-  // The date picker can still pull older SAVED reports afterward via drSelectDate.
+  // Opening the tab shows today's report for the CURRENT office. It READS first and only
+  // regenerates when the stored build is missing or stale, so ten reps opening the tab in
+  // the same minute no longer trigger ten identical rebuilds.
+  // The date picker still pulls older SAVED reports via drSelectDate (read-only).
   _DR_SEL_DATE = _drTodayStr();            // reset to today on every entry (handles midnight rollover)
   if (_DR_LOADING) return '<div class="card"><div class="card-body"><div class="empty">Generating today’s report…</div></div></div>';
   _DR_LOADING = true;
@@ -21,7 +44,12 @@ function renderDailyReport() {
   var selOffice = CFG.officeId;             // pin office so a stale regen can't paint over a new one
   // Dates list (for the picker) loads in parallel with the generate→read chain.
   var datesP  = api({action:'getDailyReportDates'}).then(function(d){ return d.dates || []; }).catch(function(){ return _DR_DATES || []; });
-  var reportP = apiPost({action:'generateDailyReport', date:selDate}).then(function(){ return api({action:'readDailyReport', date:selDate}); });
+  // Read → rebuild only if needed → re-read. The common case is now ONE cheap GET.
+  var reportP = api({action:'readDailyReport', date:selDate}).then(function(r){
+    if (r && r.report && _drIsFresh(r.generatedAt)) return r;
+    return apiPost({action:'generateDailyReport', date:selDate})
+      .then(function(){ return api({action:'readDailyReport', date:selDate}); });
+  });
   Promise.all([datesP, reportP]).then(function(res) {
     _DR_LOADING = false;
     // Bail if the user navigated away, switched office, or changed the date mid-flight.
@@ -56,7 +84,10 @@ function drRefresh() {
   var selDate = _DR_SEL_DATE || _drTodayStr();
   var c = document.getElementById('main-content');
   if (c) c.innerHTML = '<div class="card"><div class="card-body"><div class="empty">Generating report for '+esc(selDate)+'… this may take a moment.</div></div></div>';
-  apiPost({action:'generateDailyReport', date:selDate}).then(function() {
+  // force:true — Refresh is an explicit user request, so it must bypass the PERF-4 cache
+  // and genuinely rebuild. Without this the button could silently return a cached build
+  // and look broken. An un-redeployed backend ignores the extra field and rebuilds anyway.
+  apiPost({action:'generateDailyReport', date:selDate, force:true}).then(function() {
     _DR_DATA = undefined;
     return api({action:'readDailyReport', date:selDate});
   }).then(function(r) {
