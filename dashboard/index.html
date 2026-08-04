@@ -320,7 +320,7 @@
      do not switch any of these to `async`, which would let them execute in any order.
      Deferred scripts also run after the DOM is fully parsed — strictly safer than the
      previous end-of-body placement, not less safe. -->
-<script defer src="js/app.core.js?v=20260804a"></script>
+<script defer src="js/app.core.js?v=20260804b"></script>
 <!-- Keyboard reachability for the 77 clickable div/span/tr elements that carry an inline
      onclick and no tabindex. Applied by MutationObserver, so no render site changes and
      new markup is covered as it appears. Order-independent (DOM APIs only), but kept next
@@ -335,10 +335,26 @@
 <script defer src="js/app.lst.js?v=20260731b"></script>
 <script defer src="js/app.appts.js?v=20260804a"></script>
 <script defer src="js/app.fiber.js?v=20260724a"></script>
-<!-- NOT salessupport-only: this bundle also defines the shared _comboField / _ssAddPopup /
-     _ticketRememberValue widgets, which app.appts.js:889,917 calls UNGUARDED for every
-     office. It cannot be conditionally loaded until those move to a shared bundle. -->
-<script defer src="js/app.tickets.js?v=20260730b"></script>
+<!-- The shared slice of the old app.tickets.js: the office-switcher allowlist, the two
+     symbols app.core.js reads at boot, and the _comboField / _ssAddPopup widgets that
+     app.appts.js and app.calllogs.js call for EVERY office. Always loaded. -->
+<script defer src="js/app.sswidgets.js?v=20260804a"></script>
+<!-- The Sales Support ticketing UI (~82 KB raw / 23 KB gz) is loaded ONLY for its own
+     office — the other six can never open it. Sales Support and Activation Support are
+     separate entities; this is that rule expressed in code.
+     ⚠ A dynamically inserted script does NOT join the defer queue, so this can land after
+     showApp(). app.core.js's _SS_INIT_PENDING handshake is what makes the order harmless
+     — do not "simplify" either side without the other. -->
+<script>
+  (function () {
+    var office = new URLSearchParams(location.search).get('office');
+    if (office !== 'salessupport') return;
+    var s = document.createElement('script');
+    s.src = 'js/app.tickets.js?v=20260804a';
+    s.async = false;                       // keep it ordered against other injected scripts
+    document.head.appendChild(s);
+  })();
+</script>
 <script defer src="js/app.boot.js?v=20260709"></script>
 </body>
 </html>

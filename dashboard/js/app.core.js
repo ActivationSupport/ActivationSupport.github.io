@@ -599,6 +599,21 @@ function _toggleTheme() {
   _applyTheme();
 }
 
+/* app.tickets.js is loaded CONDITIONALLY — index.html injects it only for
+   ?office=salessupport — so it can land either BEFORE or AFTER showApp() runs, and neither
+   order is guaranteed (a dynamically inserted script does not join the defer queue).
+   Whoever finds the flag still set performs the init, exactly once.
+   ⚠⚠ THE OLD SHAPE WAS `if (_ssApp && typeof initTicketApp === 'function') … else loadData()`.
+   With a conditional load that is a live bug: if the bundle hasn't landed, a Sales Support
+   session falls into the else and calls loadData(), fetching a main-data blob Sales Support
+   does not have. The flag is what makes the race harmless — do not collapse it back. */
+var _SS_INIT_PENDING = false;
+function _ssTryInitTickets() {
+  if (!_SS_INIT_PENDING || typeof initTicketApp !== 'function') return;
+  _SS_INIT_PENDING = false;
+  initTicketApp();
+}
+
 function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -613,7 +628,7 @@ function showApp() {
   _setSidebarOfficeLogo(CFG.officeId);
   buildOfficeSwitcher();
   buildNav();
-  if (_ssApp && typeof initTicketApp === 'function') { initTicketApp(); }   // ticketing UI (app.tickets.js)
+  if (_ssApp) { _SS_INIT_PENDING = true; _ssTryInitTickets(); }   // ticketing UI (app.tickets.js)
   else { loadData(); }
   _startInactivityWatcher();
   if (!_ssApp) _startBgRefresh();   // Sales Support has no main-data blob to poll
