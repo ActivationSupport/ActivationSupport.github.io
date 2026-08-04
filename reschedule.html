@@ -148,7 +148,7 @@
     midspire: {accent:'#4FB0FF',accent2:'#80C8FF',dim:'#123047',deep:'#1E78C4',on:'#06243b',glow:'#143650',logo:'midspire-logo-symbol.png'},
     viridian: {accent:'#D9C87E',accent2:'#E8DBA6',dim:'#2b2a18',deep:'#A98F45',on:'#1b2814',glow:'#27301d',logo:'viridian-logo-full.png'},
     vanguard: {accent:'#2652D7',accent2:'#5277E6',dim:'#15203f',deep:'#1B3AAE',on:'#ffffff',glow:'#141b33',logo:'vanguard-logo-symbol-reverse.png'},
-    bayview:  {accent:'#CDAB5A',accent2:'#E0C77E',dim:'#1b2740',deep:'#143055',on:'#0F2439',glow:'#152033',logo:'bayview-logo-symbol.png'},
+    bayview:  {accent:'#CDAB5A',accent2:'#E0C77E',dim:'#1b2740',deep:'#143055',on:'#0F2439',glow:'#152033',logo:'bayview-logo-symbol.png',logoBg:'#D3B364'},
     leadsphere:{accent:'#2B6AFF',accent2:'#5E8CFF',dim:'#132a45',deep:'#1B4EC4',on:'#ffffff',glow:'#152740',logo:'leadsphere-logo-symbol.png'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
@@ -158,7 +158,14 @@
     r.setProperty('--accentdim',t.dim); r.setProperty('--accent-deep',t.deep);
     r.setProperty('--on-accent',t.on); r.setProperty('--glow',t.glow);
     var wm=document.getElementById('wm'); if(wm) wm.src=BASE_ASSET+t.logo;
-    var lg=document.getElementById('logo'); if(lg) lg.innerHTML='<img src="'+BASE_ASSET+t.logo+'" alt="">';
+    var lg = document.getElementById('logo');
+    if(lg){
+      lg.innerHTML = '<img src="' + BASE_ASSET + t.logo + '" alt="">';
+      // Bayview ships a NAVY mark; on the dark tile it is invisible to the customer.
+      // logoBg paints the brand-gold panel behind it, exactly as the staff portal does.
+      lg.style.background  = t.logoBg || '';
+      lg.style.borderColor = t.logoBg ? 'rgba(19,36,58,.25)' : '';
+    }
   }
   function $(id){return document.getElementById(id);}
   function show(id){["loading","invalid","form","done"].forEach(function(x){$(x).classList.toggle("hidden",x!==id);});}
