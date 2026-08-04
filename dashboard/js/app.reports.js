@@ -9,26 +9,21 @@ function _drTodayStr() {
   return d.getFullYear()+'-'+(d.getMonth()<9?'0':'')+(d.getMonth()+1)+'-'+(d.getDate()<10?'0':'')+d.getDate();
 }
 
-/* PERF-4 · how old a stored report may be before opening the tab rebuilds it.
+/* PERF-4 · may the tab render the stored report instead of rebuilding it?
    The tab used to POST generateDailyReport on EVERY open — a ~345-line backend rebuild
-   with 8 getValues() and 2 sheet writes — even when a colleague had just triggered the
-   identical build seconds earlier. Now: read first, and only rebuild if what came back is
-   missing or older than this.
-   ⚠ Kept just under the backend's own _DR_CACHE_TTL (120s) so the two agree on "fresh";
-   if the FE asked more often than the backend rebuilds, the extra POSTs would be answered
-   from cache and achieve nothing. */
-var _DR_FRESH_MS = 90 * 1000;
-
-/* ⚠⚠ FAILS TOWARD THE OLD BEHAVIOUR. `generatedAt` only exists once the backend redeploy
-   lands; until then it is undefined, this returns false, and the tab regenerates on every
-   open exactly as it does today. That direction is deliberate — the FE can ship before
-   the redeploy without waiting on it. */
-function _drIsFresh(generatedAt) {
-  if (!generatedAt) return false;
-  var t = Date.parse(generatedAt);
-  if (isNaN(t)) return false;
-  var age = Date.now() - t;
-  return age >= 0 && age < _DR_FRESH_MS;   // a clock-skewed future stamp is not "fresh"
+   with 8 getValues() and 2 sheet writes — even when a colleague had triggered the
+   identical build seconds earlier.
+   🔑 THE ANSWER IS THE BACKEND'S TO GIVE, NOT OURS TO GUESS. An earlier version of this
+   compared generatedAt against a clock, which was WRONG: a report built 30 seconds ago
+   looks recent but is already stale if someone logged an activation 5 seconds ago, and
+   the FE cannot see the sheets to know. `fresh` means "a build exists AND none of its
+   inputs have moved since" — the backend derives it from row counts on _Notes_,
+   _Ratings_ and Appointments. Anything else, we rebuild.
+   ⚠⚠ FAILS TOWARD THE OLD BEHAVIOUR: `fresh` is absent until the backend redeploy lands,
+   so this returns false and the tab regenerates on every open exactly as it does today.
+   Deliberate — the FE ships without waiting on the redeploy. */
+function _drStoredIsCurrent(r) {
+  return !!(r && r.report && r.fresh === true);
 }
 
 function renderDailyReport() {
@@ -46,7 +41,7 @@ function renderDailyReport() {
   var datesP  = api({action:'getDailyReportDates'}).then(function(d){ return d.dates || []; }).catch(function(){ return _DR_DATES || []; });
   // Read → rebuild only if needed → re-read. The common case is now ONE cheap GET.
   var reportP = api({action:'readDailyReport', date:selDate}).then(function(r){
-    if (r && r.report && _drIsFresh(r.generatedAt)) return r;
+    if (_drStoredIsCurrent(r)) return r;
     return apiPost({action:'generateDailyReport', date:selDate})
       .then(function(){ return api({action:'readDailyReport', date:selDate}); });
   });
