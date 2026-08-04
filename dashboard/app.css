@@ -17,9 +17,13 @@
      --red2/3 --gray2. All seven were declared here and referenced ZERO times in any
      css/js/html in the repo. They looked like the ready-made "status tint" layer and
      a plan was written around tokenising them — which would have changed nothing at
-     all. If you need a dark status tint, the live ones are the --tint-*/--rule-*
-     pairs below; the per-status chips carry their own values with light counterparts
-     next to the badge palette. */
+     all. If you need a dark status tint, the live ones are the tint/rule pairs
+     below; the per-status chips carry their own values with light counterparts
+     next to the badge palette.
+     ⚠⚠ NEVER write a glob like "--tint-<star>/--rule-<star>" in a CSS comment. That
+     sequence CLOSES THE COMMENT EARLY; the rest is parsed as garbage and the parser
+     recovers by skipping to the next semicolon — which silently ate --bg:#111111 on
+     the line below and shipped a transparent body (white page) in dark mode. */
   --bg:#111111;--surface:#242424;--surface2:#2c2c2c;--sidebar-bg:#111827;
   --border:rgba(255,255,255,.10);
   --field-bg:#1e1e1e;--field-border:#3a3a3a;--control-bg:#2a2a2a;--inset-bg:#1a1a1a;--panel2-bg:#161b22;--panel2-border:#21262d;/* O2 semantic control surfaces (dark defaults; light theme overrides below) */
