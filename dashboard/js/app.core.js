@@ -207,15 +207,35 @@ function _authIntercept(j) { if (j && j.error === 'auth_required') _forceReauth(
 // through apiPost. The entry is cleared the moment the request settles, so periodic
 // background refreshes (90s apart) never collide and always get fresh data.
 var _API_INFLIGHT = {};
+/* ⚠⚠ READS ARE POSTED, NOT GET, AND THAT IS DELIBERATE — DO NOT "TIDY" IT BACK.
+   A GET puts the whole payload in the URL, so a LIVE SESSION BADGE ends up in browser
+   history, the Referer header of anything the page links to, and every proxy/CDN access log
+   on the way. Apps Script exposes no request headers to doGet/doPost, so the POST body is
+   the only place a token can go.
+   The backend routes `_read:true` straight into doGet, so gating, role checks and the P2
+   blob cache are unchanged — this is a transport change only.
+   🔴 REQUIRES the backend to understand `_read` (all three redeployed + verified
+   2026-08-04 via readoverpost_deploycheck.js). Shipping this against an older backend
+   kills EVERY read in the portal.
+   ⚠ The in-flight de-dupe still keys on the same serialised params — it just is not a URL
+   any more. Keep it: it is what collapses the first-paint overlaps. */
 function api(params) {
   params.key = API_KEY;
   params.officeId = CFG.officeId;
   if (SESSION && SESSION.token) params.token = SESSION.token;   // Phase 1 Stage B: carry the badge
-  var qs = Object.keys(params).map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
-  if (_API_INFLIGHT[qs]) return _API_INFLIGHT[qs];
-  var p = fetch(APPS_SCRIPT_URL + '?' + qs).then(function(r) { return r.json(); }).then(_authIntercept);
-  _API_INFLIGHT[qs] = p;
-  var clear = function() { delete _API_INFLIGHT[qs]; };
+  var key = Object.keys(params).sort().map(function(k) { return k + '=' + params[k]; }).join('&');
+  if (_API_INFLIGHT[key]) return _API_INFLIGHT[key];
+  var body = {};
+  Object.keys(params).forEach(function(k) { body[k] = params[k]; });
+  body._read = true;
+  var p = fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // no CORS preflight
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json(); }).then(_authIntercept);
+  _API_INFLIGHT[key] = p;
+  var clear = function() { delete _API_INFLIGHT[key]; };
   p.then(clear, clear);
   return p;
 }

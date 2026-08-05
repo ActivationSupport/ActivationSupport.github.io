@@ -338,7 +338,7 @@
      do not switch any of these to `async`, which would let them execute in any order.
      Deferred scripts also run after the DOM is fully parsed — strictly safer than the
      previous end-of-body placement, not less safe. -->
-<script defer src="js/app.core.js?v=20260804b"></script>
+<script defer src="js/app.core.js?v=20260804c"></script>
 <!-- Keyboard reachability for the 77 clickable div/span/tr elements that carry an inline
      onclick and no tabindex. Applied by MutationObserver, so no render site changes and
      new markup is covered as it appears. Order-independent (DOM APIs only), but kept next
@@ -351,7 +351,7 @@
 <script defer src="js/app.people.js?v=20260724e"></script>
 <script defer src="js/app.sales.js?v=20260730a"></script>
 <script defer src="js/app.lst.js?v=20260731b"></script>
-<script defer src="js/app.appts.js?v=20260804a"></script>
+<script defer src="js/app.appts.js?v=20260804b"></script>
 <script defer src="js/app.fiber.js?v=20260724a"></script>
 <!-- The shared slice of the old app.tickets.js: the office-switcher allowlist, the two
      symbols app.core.js reads at boot, and the _comboField / _ssAddPopup widgets that
@@ -368,7 +368,7 @@
     var office = new URLSearchParams(location.search).get('office');
     if (office !== 'salessupport') return;
     var s = document.createElement('script');
-    s.src = 'js/app.tickets.js?v=20260804b';
+    s.src = 'js/app.tickets.js?v=20260804c';
     s.async = false;                       // keep it ordered against other injected scripts
     document.head.appendChild(s);
   })();

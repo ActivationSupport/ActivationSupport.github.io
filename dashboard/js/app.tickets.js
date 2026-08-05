@@ -83,11 +83,20 @@ function _ticketParse(r) {
     throw err;
   });
 }
+/* POSTed, not GET — see the note on api() in app.core.js. A GET would put the live session
+   badge in the URL, and Apps Script gives no access to request headers. `_read:true` routes
+   into the ticketing backend's doGet verbatim.
+   🔴 Requires the redeployed Sales Support Ticketing backend (verified 2026-08-04).
+   ⚠ Still goes through _ticketParse, so a non-JSON response is still classified rather than
+   leaking a WebKit parser string to the rep. */
 function _ticketGet(params) {
-  var p = Object.assign({}, params, { key: API_KEY, officeId: CFG.officeId });
+  var p = Object.assign({}, params, { key: API_KEY, officeId: CFG.officeId, _read: true });
   if (SESSION && SESSION.token) p.token = SESSION.token;
-  var qs = Object.keys(p).map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(p[k] == null ? '' : p[k]); }).join('&');
-  return fetch(TICKET_SCRIPT_URL + '?' + qs, { redirect:'follow' }).then(_ticketParse);
+  return fetch(TICKET_SCRIPT_URL, {
+    method:'POST', redirect:'follow',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },   // no CORS preflight
+    body: JSON.stringify(p)
+  }).then(_ticketParse);
 }
 function _ticketPost(body) {
   var extra = (SESSION && SESSION.token) ? { key: API_KEY, token: SESSION.token, officeId: CFG.officeId } : { key: API_KEY, officeId: CFG.officeId };

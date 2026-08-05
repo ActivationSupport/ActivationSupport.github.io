@@ -68,11 +68,18 @@ function _apptViewDates(){
 // Lazy loader used during in-page navigation: fetch + re-render only if it loaded.
 function _apptLoadBlocks(dates){ _apptFetchBlocks(dates).then(function(did){ if(did) _apptRerender(); }); }
 
+/* POSTed, not GET — see the note on api() in app.core.js. A GET would put the live session
+   badge in the URL, and Apps Script gives no access to request headers. `_read:true` routes
+   into the Scheduler's doGet verbatim, so nothing about auth or dispatch changes.
+   🔴 Requires the redeployed Scheduler (verified 2026-08-04). */
 function _apptGet(params) {
-  var p = Object.assign({}, params, { key: API_KEY });
+  var p = Object.assign({}, params, { key: API_KEY, _read: true });
   if (SESSION && SESSION.token) p.token = SESSION.token;   // Phase 1 Stage B: carry the badge
-  var qs = Object.keys(p).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(p[k]||''); }).join('&');
-  return fetch(APPT_SCRIPT_URL+'?'+qs, { redirect:'follow' }).then(function(r){ return r.json(); }).then(_authIntercept);
+  return fetch(APPT_SCRIPT_URL, {
+    method:'POST', redirect:'follow',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },   // no CORS preflight
+    body: JSON.stringify(p)
+  }).then(function(r){ return r.json(); }).then(_authIntercept);
 }
 function _apptPost(body) {
   var extra = (SESSION && SESSION.token) ? { key: API_KEY, token: SESSION.token } : { key: API_KEY };
