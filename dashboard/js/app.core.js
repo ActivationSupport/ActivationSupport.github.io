@@ -200,6 +200,131 @@ function _forceReauth() {
 }
 function _authIntercept(j) { if (j && j.error === 'auth_required') _forceReauth(); return j; }
 
+/* ⚠⚠ THE ERROR REPORTER MUST NEVER BE A HARD DEPENDENCY OF THE TRANSPORT.
+   app.errors.js loads first, so AS_ERR is normally there — but "normally" is not good
+   enough for the layer every read and write goes through. If that bundle ever fails to
+   arrive (a 404, a truncated download, a blocked request, an ad-blocker rule), an
+   unguarded _ERR.netStart() below would throw inside EVERY api() and apiPost() call and
+   take the whole portal down — because its ERROR REPORTER was missing. That is the
+   reporter breaking the page, which is the single thing app.errors.js promises not to do.
+   🔑 Caught by readoverpost_live.js, which loads app.core.js on its own and so reproduces
+   exactly that scenario. Degrading to a no-op is the only acceptable behaviour: without
+   the reporter the portal loses its diagnostics, never its function. */
+var _ERR = (typeof AS_ERR !== 'undefined' && AS_ERR) || {
+  report: function (c) { return c; },
+  crumb: function () {}, netStart: function () {}, netEnd: function () {},
+  label: function () { return 'Something went wrong'; },
+  hint:  function () { return 'Please try again.'; }
+};
+
+/* ⚠⚠ NEVER CALL r.json() DIRECTLY ON AN APPS SCRIPT RESPONSE.
+   `/exec` does not always return JSON. Google serves an HTML page for an execution error, a
+   timeout, a quota trip or an auth interstitial, and r.json() then throws a PARSER error
+   whose text leaks straight to the user — on iOS Safari that reads "The string did not match
+   the expected pattern.", which tells a rep nothing and tells us nothing either.
+
+   This was fixed for Sales Support in 2026-08-04 (_ticketParse, app.tickets.js:64) — but
+   since the PERF-1b split that bundle only loads for ?office=salessupport, so the SIX
+   ACTIVATION OFFICES still had the raw r.json(). This is that fix, ported to the shared
+   transports, which is where it should have lived in the first place.
+
+   Contract, deliberately narrow so the 58 call sites do not change:
+     · A JSON response behaves EXACTLY as before — including `{error:…}`, which is still
+       RETURNED, not thrown, because every caller handles res.error itself.
+     · A non-JSON response threw before (an opaque SyntaxError) and still throws now — but
+       the thrown Error carries `.asCode`, a human message and a did-it-save flag.
+
+   🔑 A classified failure sets `.asCode`, which app.errors.js uses to skip re-reporting it
+   as a generic APP-01. Precise beats loud.
+
+   ⚠ Deliberately does NOT call _forceReauth() on an HTML login interstitial. Signing the rep
+   out on a response we cannot fully trust would make sign-outs MORE frequent, and the
+   intermittent Sales Support sign-in is still unexplained — the point of this pass is to get
+   that event LOGGED with a code, not to add a new way to be logged out. */
+function _asParse(r, meta) {
+  meta = meta || {};
+  return r.text().then(function (t) {
+    var j = null;
+    try { j = JSON.parse(t); } catch (e) { j = null; }
+
+    if (j) {
+      if (j.error) _asReportJsonError(j.error, meta);
+      return _authIntercept(j);
+    }
+
+    var body = String(t || ''), code;
+    if (/<form[^>]+accounts\.google\.com|ServiceLogin|signin\/v2/i.test(body)) code = 'AUTH-01';
+    else if (/exceeded|quota|too many requests|rate limit/i.test(body))       code = 'NET-03';
+    else if (!r.ok)                                                          code = 'NET-01';
+    else                                                                     code = 'DATA-01';
+
+    // For a WRITE we cannot tell whether the server acted before it failed to answer, and
+    // that distinction is the difference between safely retrying and creating a duplicate.
+    if (meta.write) code = (code === 'NET-01' || code === 'DATA-01') ? 'WRITE-02' : code;
+
+    var err = new Error(_ERR.label(code) + ' — ' + _ERR.hint(code));
+    err.asCode = code;
+    err.asTransport = true;         // "we never got a usable answer", NOT "the server said no"
+    err.asRetryable = code !== 'AUTH-01';
+    _ERR.report(code, err, {
+      action: meta.action || '', http: r.status, kind: meta.write ? 'write' : 'read',
+      bodyStart: body.slice(0, 200), bodyLen: body.length
+    });
+    throw err;
+  });
+}
+
+/* A JSON `{error:…}` is the server saying no, on purpose. We still want it CODED and
+   COUNTED — "9 reps hit forbidden_office this week" is the kind of fact that is invisible
+   today — but the value is returned to the caller unchanged. */
+function _asReportJsonError(e, meta) {
+  try {
+    var s = String(e || ''), code;
+    if (s === 'auth_required')       code = 'AUTH-01';
+    else if (s === 'unauthorized')   code = 'AUTH-02';
+    else if (s === 'forbidden_office') code = 'AUTH-03';
+    else if (/busy|retry/i.test(s))  code = 'NET-03';
+    else if (/unknown action/i.test(s)) code = 'DATA-03';   // FE is ahead of the deployed backend
+    else code = meta.write ? 'WRITE-01' : 'DATA-02';
+    _ERR.report(code, { message: s }, { action: meta.action || '', kind: meta.write ? 'write' : 'read' });
+  } catch (_) {}
+}
+
+/* fetch() itself rejected — we never reached the server at all (offline, DNS, TLS, a
+   blocked request). Distinct from _asParse, which had a response to look at. */
+function _asNetworkError(e, action, write) {
+  try {
+    var offline = (navigator && navigator.onLine === false);
+    var code = offline ? 'NET-02' : (write ? 'WRITE-02' : 'NET-01');
+    var err = new Error(_ERR.label(code) + ' — ' + _ERR.hint(code));
+    err.asCode = code; err.asTransport = true; err.asRetryable = true;
+    _ERR.report(code, { message: String(e && e.message || e), stack: e && e.stack },
+                  { action: action || '', kind: write ? 'write' : 'read' });
+    return err;
+  } catch (_) { return e; }
+}
+
+/* One wrapper so all four transports get identical breadcrumbs, timing and classification.
+   ⚠ The breadcrumb pair is not decoration — AS_ERR uses in-flight count + time-since-last
+   to decide when the network is quiet enough to flush a report, which is what keeps an
+   error POST from queueing in front of the main blob. */
+function _asFetch(url, payload, meta) {
+  var act = meta.action || 'read', t0 = Date.now();
+  _ERR.netStart(act);
+  return fetch(url, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // no CORS preflight
+    body: JSON.stringify(payload)
+  }).then(function (r) {
+    _ERR.netEnd(act, r.ok, Date.now() - t0);
+    return _asParse(r, meta);
+  }, function (e) {
+    _ERR.netEnd(act, false, Date.now() - t0);
+    throw _asNetworkError(e, act, meta.write);
+  });
+}
+
 // In-flight GET de-dupe: concurrent identical reads (same query string) share
 // one network round-trip instead of each firing its own. Collapses the first-paint
 // overlaps (e.g. readActRateLines preload + tab open, readPostedSales bg-refresh +
@@ -238,12 +363,7 @@ function api(params) {
   var body = {};
   Object.keys(params).forEach(function(k) { body[k] = params[k]; });
   body._read = true;
-  var p = fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // no CORS preflight
-    body: JSON.stringify(body)
-  }).then(function(r) { return r.json(); }).then(_authIntercept);
+  var p = _asFetch(APPS_SCRIPT_URL, body, { action: params.action || 'read' });
   _API_INFLIGHT[key] = p;
   var clear = function() { delete _API_INFLIGHT[key]; };
   p.then(clear, clear);
@@ -254,12 +374,7 @@ function apiPost(body) {
   body.key = API_KEY;
   body.officeId = CFG.officeId;
   if (SESSION && SESSION.token) body.token = SESSION.token;     // Phase 1 Stage B: carry the badge
-  return fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(body)
-  }).then(function(r) { return r.json(); }).then(_authIntercept);
+  return _asFetch(APPS_SCRIPT_URL, body, { action: body.action || 'write', write: true });
 }
 
 // ── AUTH ─────────────────────────────────────────────────────────────────

@@ -72,22 +72,18 @@ function _apptLoadBlocks(dates){ _apptFetchBlocks(dates).then(function(did){ if(
    badge in the URL, and Apps Script gives no access to request headers. `_read:true` routes
    into the Scheduler's doGet verbatim, so nothing about auth or dispatch changes.
    🔴 Requires the redeployed Scheduler (verified 2026-08-04). */
+/* ⚠ Routed through _asFetch (app.core.js) like the portal transports — the Scheduler is a
+   different Apps Script project but the same `/exec` failure modes apply, so it gets the
+   same read-text-then-classify treatment rather than a raw r.json(). */
 function _apptGet(params) {
   var p = Object.assign({}, params, { key: API_KEY, _read: true });
   if (SESSION && SESSION.token) p.token = SESSION.token;   // Phase 1 Stage B: carry the badge
-  return fetch(APPT_SCRIPT_URL, {
-    method:'POST', redirect:'follow',
-    headers:{ 'Content-Type':'text/plain;charset=utf-8' },   // no CORS preflight
-    body: JSON.stringify(p)
-  }).then(function(r){ return r.json(); }).then(_authIntercept);
+  return _asFetch(APPT_SCRIPT_URL, p, { action: 'appt:' + (params && params.action || 'read') });
 }
 function _apptPost(body) {
   var extra = (SESSION && SESSION.token) ? { key: API_KEY, token: SESSION.token } : { key: API_KEY };
-  return fetch(APPT_SCRIPT_URL, {
-    method:'POST', redirect:'follow',
-    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({}, body, extra))
-  }).then(function(r){ return r.json(); }).then(_authIntercept);
+  return _asFetch(APPT_SCRIPT_URL, Object.assign({}, body, extra),
+                  { action: 'appt:' + (body && body.action || 'write'), write: true });
 }
 function _apptWeekStart(offset) {
   var d = new Date(); var dow = d.getDay();

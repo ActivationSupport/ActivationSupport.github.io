@@ -222,16 +222,24 @@ function loadingState(msg, opts) {
 }
 
 /* A fetch failed. `retry` is a JS expression put on a button's onclick — ALWAYS pass one
-   if the caller can be re-run. An error the user cannot act on is a dead end. */
+   if the caller can be re-run. An error the user cannot act on is a dead end.
+
+   `opts.code` renders the stable error code from app.errors.js (e.g. DATA-03). A code is
+   only worth having if the rep can SEE it — that is what turns "it's broken" into "I got
+   DATA-03", which is a fact we can look up in the log rather than a symptom we have to
+   reconstruct. The code is also already in the auto-report, so the two agree by
+   construction. ⚠ Codes are permanent: renumbering one invalidates every screenshot,
+   log row and conversation that has ever mentioned it. */
 function errorState(msg, opts) {
   opts = opts || {};
   var sub = opts.sub ? '<div class="empty-sub">'+esc(opts.sub)+'</div>' : '';
+  var code = opts.code ? '<div class="empty-code">'+esc(opts.code)+'</div>' : '';
   var action = opts.retry
     ? '<div class="empty-action"><button class="ps-btn" onclick="'+esc(opts.retry)+'">Try again</button></div>'
     : (opts.action ? '<div class="empty-action">'+opts.action+'</div>' : '');
   var inner = '<div class="empty-state is-error">'+
     '<div class="empty-ico">'+icon(opts.icon||'issues')+'</div>'+
-    '<div class="empty-msg">'+esc(msg||'Something went wrong.')+'</div>'+sub+action+'</div>';
+    '<div class="empty-msg">'+esc(msg||'Something went wrong.')+'</div>'+sub+code+action+'</div>';
   return opts.bare ? inner : '<div class="card"><div class="card-body">'+inner+'</div></div>';
 }
 

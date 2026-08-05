@@ -14,6 +14,39 @@
      real HTTP header, which GitHub Pages will not let us set. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://activationsupport.github.io; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'">
 <title>Activation Support</title>
+<!-- ── EARLIEST-POSSIBLE ERROR CAPTURE ────────────────────────────────────────────────
+     Runs during HEAD parse, before a single bundle has downloaded. That matters because
+     the one failure this catches and app.errors.js cannot is A BUNDLE THAT NEVER LOADS —
+     including app.errors.js itself. A resource error does not bubble, so it is invisible
+     to a plain window.onerror; the `true` capture argument is what sees it.
+     This only BUFFERS. AS_ERR.install() drains __AS_ERR_PRE the moment it runs, so there
+     is exactly one reporting implementation and this stays a stub.
+     ⚠ Inline on purpose — an external file cannot protect against external files failing
+     to load. CSP already allows 'unsafe-inline' for script-src. -->
+<script>
+  window.__AS_ERR_PRE = [];
+  (function () {
+    function push(rec) { try { if (window.__AS_ERR_PRE.length < 20) window.__AS_ERR_PRE.push(rec); } catch (e) {} }
+    window.addEventListener('error', function (ev) {
+      try {
+        if (window.AS_ERR) return;              // real reporter is live — it owns this event
+        if (ev && ev.target && ev.target !== window && (ev.target.src || ev.target.href)) {
+          push({ code: 'APP-02', message: 'Failed to load ' + (ev.target.src || ev.target.href) });
+        } else {
+          push({ code: 'APP-01', message: ev && ev.message, stack: ev && ev.error && ev.error.stack,
+                 filename: ev && ev.filename, lineno: ev && ev.lineno, colno: ev && ev.colno });
+        }
+      } catch (e) {}
+    }, true);
+    window.addEventListener('unhandledrejection', function (ev) {
+      try {
+        if (window.AS_ERR) return;
+        var r = ev && ev.reason;
+        push({ code: 'APP-01', message: 'Unhandled rejection: ' + (r && r.message || r), stack: r && r.stack });
+      } catch (e) {}
+    });
+  })();
+</script>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="alternate icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/favicon.png">
@@ -338,7 +371,12 @@
      do not switch any of these to `async`, which would let them execute in any order.
      Deferred scripts also run after the DOM is fully parsed — strictly safer than the
      previous end-of-body placement, not less safe. -->
-<script defer src="js/app.core.js?v=20260804c"></script>
+<!-- ⚠⚠ MUST STAY FIRST IN THE DEFER CHAIN. It is what is alive when a later bundle throws,
+     so anything ordered in front of it is a bundle whose failures nobody hears about. It has
+     no dependencies precisely so it can hold this slot — do not "tidy" it next to its
+     alphabetical neighbours or below app.core.js. -->
+<script defer src="js/app.errors.js?v=20260805a"></script>
+<script defer src="js/app.core.js?v=20260805a"></script>
 <!-- Keyboard reachability for the 77 clickable div/span/tr elements that carry an inline
      onclick and no tabindex. Applied by MutationObserver, so no render site changes and
      new markup is covered as it appears. Order-independent (DOM APIs only), but kept next
@@ -348,10 +386,10 @@
 <script defer src="js/app.calllogs.js?v=20260804a"></script>
 <script defer src="js/app.reports.js?v=20260804b"></script>
 <script defer src="js/app.knowledge.js?v=20260804a"></script>
-<script defer src="js/app.people.js?v=20260804a"></script>
+<script defer src="js/app.people.js?v=20260805a"></script>
 <script defer src="js/app.sales.js?v=20260804a"></script>
 <script defer src="js/app.lst.js?v=20260804a"></script>
-<script defer src="js/app.appts.js?v=20260804c"></script>
+<script defer src="js/app.appts.js?v=20260805a"></script>
 <script defer src="js/app.fiber.js?v=20260804a"></script>
 <!-- The shared slice of the old app.tickets.js: the office-switcher allowlist, the two
      symbols app.core.js reads at boot, and the _comboField / _ssAddPopup widgets that

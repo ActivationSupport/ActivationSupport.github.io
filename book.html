@@ -185,6 +185,103 @@
   // script.google.com, so multi-account Google logins don't hit the "unable to
   // open the file" error. The backend key stays server-side in that app.
   var API = "https://script.google.com/macros/s/AKfycbxXJfk5XAwiRY6LE3l_jLGLPItaiWqCYwySiHBXoMntR8ssSTcOk3B3SWtWFUA7MaTE/exec";
+
+  /* ── ERROR CODES + AUTO-REPORTING ─────────────────────────────────────────────
+     ⚠⚠ THIS BLOCK IS BYTE-IDENTICAL IN book.html, cancel.html AND reschedule.html.
+     Those three pages are standalone by design (they must never import from the staff
+     portal), so this is deliberate duplication rather than a shared file — and
+     errors_harness.js compares the three copies so they cannot drift apart silently.
+
+     Why it matters more here than anywhere else: this is the page a CUSTOMER uses. If
+     it fails, they close the tab and we lose the appointment, and nobody ever finds
+     out. There is no rep to complain. Every failure on this page was invisible until
+     now.
+
+     ⚠ r.json() is NOT used — `/exec` serves HTML for an execution error, a timeout or a
+     quota trip, and r.json() then throws a parser error that iOS Safari renders as
+     "The string did not match the expected pattern." (a real screenshot from a rep).
+     Read text, parse it ourselves, classify the failure. Same rule as the staff portal.
+
+     ⚠ NO CUSTOMER DATA LEAVES. The form holds a name, phone and email; none of it is
+     read into a report. Only the code, the shape of the failure and the environment. */
+  var PERR = (function () {
+    var CODES = {
+      "NET-01":  "We could not reach the booking service.",
+      "NET-02":  "You appear to be offline.",
+      "NET-03":  "The booking service is busy right now.",
+      "DATA-01": "The booking service sent a reply we could not read.",
+      "APP-01":  "Something went wrong on this page."
+    };
+    var sent = 0, MAX = 8, seen = {};
+    function clip(v, n) { var s = String(v == null ? "" : v); return s.length > n ? s.slice(0, n) + "…" : s; }
+    // Appointment links carry ?id= and ?token= — never let either reach the log.
+    function scrub(v) { return String(v == null ? "" : v).replace(/([?&](?:token|key|id|email)=)[^&\s]*/gi, "$1[redacted]"); }
+    function report(code, err, extra) {
+      try {
+        var msg = clip(scrub(err && err.message || err), 300), sig = code + "|" + msg;
+        if (sent >= MAX || seen[sig]) return code;      // storm control
+        seen[sig] = 1; sent++;
+        fetch(API, {
+          method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+          redirect: "follow", keepalive: true,
+          body: JSON.stringify({ action: "logClientError", reports: [{
+            code: code, message: msg, stack: clip(scrub(err && err.stack), 1200),
+            at: new Date().toISOString(),
+            page: (location.pathname.split("/").pop() || "book.html"),
+            ctx: {
+              office: (typeof OFFICE !== "undefined" ? OFFICE : ""),
+              url: clip(scrub(location.href), 300), ua: clip(navigator.userAgent, 300),
+              viewport: (window.innerWidth || 0) + "x" + (window.innerHeight || 0),
+              online: navigator.onLine === false ? "offline" : "online",
+              tz: new Date().getTimezoneOffset()
+            },
+            extra: extra || {} }] })
+        })["catch"](function () {});                    // a failed report is not worth reporting
+      } catch (e) {}
+      return code;
+    }
+    function parse(r, action) {
+      return r.text().then(function (t) {
+        var j = null; try { j = JSON.parse(t); } catch (e) { j = null; }
+        if (j) return j;
+        var b = String(t || "");
+        var code = /exceeded|quota|too many requests/i.test(b) ? "NET-03" : (!r.ok ? "NET-01" : "DATA-01");
+        var e2 = new Error(CODES[code]); e2.perr = code;
+        report(code, e2, { action: action || "", http: r.status, bodyStart: b.slice(0, 200) });
+        throw e2;
+      });
+    }
+    function netFail(e, action) {
+      var code = (navigator.onLine === false) ? "NET-02" : "NET-01";
+      var e2 = new Error(CODES[code]); e2.perr = code;
+      report(code, e2, { action: action || "", cause: clip(e && e.message, 200) });
+      return e2;
+    }
+    // Append the code to whatever the page was already going to say, so the customer
+    // can read it out to their activation team. A code is only useful if it is visible.
+    function say(err, fallback) {
+      var c = err && err.perr;
+      return c ? (CODES[c] + " (" + c + ")") : (fallback || CODES["APP-01"] + " (APP-01)");
+    }
+    window.addEventListener("error", function (ev) {
+      try {
+        if (ev && ev.target && ev.target !== window && (ev.target.src || ev.target.href)) {
+          report("APP-01", { message: "Failed to load " + (ev.target.src || ev.target.href) });
+        } else {
+          report("APP-01", { message: ev && ev.message, stack: ev && ev.error && ev.error.stack },
+                 { line: ev && ev.lineno, col: ev && ev.colno });
+        }
+      } catch (e) {}
+    }, true);
+    window.addEventListener("unhandledrejection", function (ev) {
+      try {
+        var r = ev && ev.reason;
+        if (r && r.perr) return;                        // already reported with a precise code
+        report("APP-01", { message: "Unhandled rejection: " + (r && r.message || r), stack: r && r.stack });
+      } catch (e) {}
+    });
+    return { report: report, parse: parse, netFail: netFail, say: say, codes: CODES };
+  })();
   var OFFICE = String((new URLSearchParams(location.search)).get("office") || "").toLowerCase();
   var OFFICE_NAMES = { elevate:"Elevate", midspire:"Midspire", viridian:"Viridian", vanguard:"Vanguard", bayview:"Bayview Horizons", leadsphere:"LeadSphere Solutions" };
   var PRODUCTS = ["Wireless", "Air", "Fiber - Self Install"];
@@ -200,11 +297,14 @@
       if (params[k] !== null && params[k] !== undefined && params[k] !== "")
         qs += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
     });
-    return fetch(API + "?" + qs, { redirect:"follow" }).then(function(r){ return r.json(); });
+    return fetch(API + "?" + qs, { redirect:"follow" })
+      .then(function(r){ return PERR.parse(r, action); }, function(e){ throw PERR.netFail(e, action); });
   }
   function apiPost(body){
     return fetch(API, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
-      body: JSON.stringify(body), redirect:"follow" }).then(function(r){ return r.json(); });
+      body: JSON.stringify(body), redirect:"follow" })
+      .then(function(r){ return PERR.parse(r, body && body.action); },
+            function(e){ throw PERR.netFail(e, body && body.action); });
   }
 
   // ── Per-office branding (matches the staff portal) ──
@@ -393,9 +493,11 @@
         if (res && res.error === "slot_unavailable") loadSlots();
         showErr(mapErr(res && res.error));
       }
-    }).catch(function(){
+    }).catch(function(e){
       btn.disabled = false; btn.textContent = "Confirm appointment";
-      showErr("Something went wrong. Please try again.");
+      // PERR.say() names the actual failure and appends its code, so the customer can
+      // read it out instead of describing "it just didn't work".
+      showErr(PERR.say(e, "Something went wrong. Please try again."));
     });
   }
 
