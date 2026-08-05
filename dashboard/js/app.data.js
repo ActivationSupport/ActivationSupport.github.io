@@ -468,6 +468,23 @@ function _preloadTabs() {
    that sum. */
 var _SECONDARY_TTL = 75000;
 var _SEC_TS = {};
+
+/* Which secondary surface each tab actually reads. A tab absent from this map reads only
+   the main blob (call logs, master tracker, escalations…), which has its own 90s cycle —
+   so an expiring secondary surface must NEVER repaint it.
+   ⚠ Getting this wrong is expensive in both directions: too broad and every rep refetches
+   on a timer for data their tab doesn't show (that was the live slowdown); too narrow and
+   the visible tab silently drifts past the 2-minute budget. */
+var _TAB_SURFACE = {
+  appointments: 'appointments',
+  myappts:      'appointments',
+  training:     'training',
+  postedsales:  'postedsales',
+  actrates:     'arlines',
+  churn:        'arlines',
+  teams:        'teamorders',
+  myteam:       'teamorders'
+};
 function _secStale(name) { return !!_SEC_TS[name] && (Date.now() - _SEC_TS[name]) >= _SECONDARY_TTL; }
 
 /* Each entry: the cache to drop, and how to tell whether it currently holds anything.
@@ -518,13 +535,33 @@ function _bgTick() {
   if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _bgRefreshMain();
   if (Date.now() - _CACHE.lstSalesTs  >= _CACHE.LST_TTL)  _bgRefreshLst();
 
-  /* Whatever the rep is LOOKING AT has to come back inside the budget too. Re-render only
-     the tabs that are safe to repaint under someone — the same exclusion list the main
-     refresh already uses, because those manage their own form/scroll state. Excluded tabs
-     still get their cache dropped above, so opening one always refetches. */
+  /* Keep whatever the rep is LOOKING AT inside the freshness budget.
+     🔴 THE FIRST VERSION OF THIS CAUSED A LIVE SLOWDOWN. It re-rendered the current tab
+     whenever ANY of the five surfaces expired, so a rep on Call Logs got a full repaint —
+     and the refetches that come with it — every 75s because the APPOINTMENTS cache had
+     aged out. Call Logs does not use appointments. Five surfaces that previously fetched
+     once each were suddenly refetching on a timer, for every rep, against an Apps Script
+     backend that takes ~2s a call.
+     Now: only the surface THIS tab actually reads can trigger a repaint. Everything else
+     is still invalidated (free — no fetch) so it refetches when that tab is next opened,
+     which is what the ≤2min budget actually requires. */
   var dropped = _invalidateStaleSecondary();
+  if (!dropped.length) return;
+  var need = _TAB_SURFACE[CURRENT_TAB];
+  if (!need || dropped.indexOf(need) === -1) return;
+
+  /* These manage their own form/scroll state — invalidating is enough, repainting is not
+     safe. (Same exclusion list the main refresh uses.) */
   var skipRender = { postsale:1, postedsales:1, dailyreport:1, training:1 };
-  if (dropped.length && !skipRender[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
+  if (skipRender[CURRENT_TAB]) return;
+
+  /* ⚠ Don't yank the view out from under someone mid-interaction. _bgRefreshMain already
+     bails when focus is in a field; the first version of this skipped that guard entirely
+     and hard-repainted every 75s regardless. */
+  var ae = document.activeElement, mc = document.getElementById('main-content');
+  if (ae && mc && mc.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
+
+  TAB_CACHE = {}; renderTab(CURRENT_TAB);
 }
 
 function _startBgRefresh() {
