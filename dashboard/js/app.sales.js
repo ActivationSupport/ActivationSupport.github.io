@@ -1461,10 +1461,10 @@ function renderPostedSalesTab() {
       _PSV_FLIGHT = false;
       _PSV_SALES = (res && res.sales) ? res.sales : [];
       if (CURRENT_TAB === 'postedsales') _psvPaint();
-    }).catch(function() {
+    }).catch(function(e) {
       _PSV_FLIGHT = false;
       if (CURRENT_TAB === 'postedsales') document.getElementById('main-content').innerHTML =
-        errorState('Couldn’t load posted sales.', { icon:'postedsales', retry:'renderPostedSalesTab()' });
+        errorState('Couldn’t load posted sales.', { icon:'postedsales', code:errCode(e), retry:'renderPostedSalesTab()' });
     });
   }
   c.innerHTML = loadingState('Loading posted sales…', { icon:'postedsales' });

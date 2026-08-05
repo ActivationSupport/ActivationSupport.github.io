@@ -109,10 +109,10 @@ function renderFiberCalendarTab() {
       _FIB.flight = false;
       _FIB.installs = (res && res.installs) ? res.installs : [];
       if (CURRENT_TAB === 'fibercal') _fibPaint();
-    }).catch(function() {
+    }).catch(function(e) {
       _FIB.flight = false;
       if (CURRENT_TAB === 'fibercal') document.getElementById('main-content').innerHTML =
-        errorState('Couldn’t load fiber installs.', { retry:'renderFiberCalendarTab()' });
+        errorState('Couldn’t load fiber installs.', { code:errCode(e), retry:'renderFiberCalendarTab()' });
     });
   }
   c.innerHTML = loadingState('Loading fiber installs…', { icon:'delivered' });

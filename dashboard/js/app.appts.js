@@ -400,7 +400,10 @@ function _apptFetchAll() {
     return true;
   }).then(function(r) {
     _APPT.loading = false; _apptFlight = null; return r;
-  }).catch(function() {
+  }).catch(function(e) {
+    /* This resolves to `false` rather than rejecting, so the caller learns THAT it failed
+       but not WHY — and the code would be lost. Stash it for the render site to read. */
+    _APPT.lastErrCode = errCode(e);
     _APPT.loading = false; _apptFlight = null; return false;
   });
   return _apptFlight;
@@ -414,7 +417,8 @@ function renderAppointmentsTab() {
     if (CURRENT_TAB !== 'appointments') return;
     if (ok) { c.innerHTML = _apptBuildView(); _apptBindEvents(); }
     else if (!have) c.innerHTML = errorState('Couldn’t load appointments.', {
-    icon:'appointments', sub:'Check your connection, then try again.', retry:'renderAppointmentsTab()' });
+    icon:'appointments', sub:'Check your connection, then try again.',
+    code:_APPT.lastErrCode || '', retry:'renderAppointmentsTab()' });
   });
 }
 // Warm the Appointments cache in the background after login.
@@ -1532,10 +1536,10 @@ function openApptSchedModal() {
   _apptGet({action:'getActivatorSchedule',email:SESSION.email}).then(function(res){
     _renderSchedModal(res.schedule||{});
     _scLoadCalStatus();
-  }).catch(function(){
+  }).catch(function(e){
     // bare: already inside the modal's own body, so it must not add another card
     document.getElementById('appt-sched-body').innerHTML=errorState('Couldn’t load your schedule.', {
-      icon:'appointments', bare:true, retry:'openApptSchedModal()' });
+      icon:'appointments', bare:true, code:errCode(e), retry:'openApptSchedModal()' });
   });
 }
 // Calendar-link self-check for My Schedule: tells the activator whether their Google
@@ -1761,8 +1765,8 @@ function renderMyAppointments(){
     var m={}; (((res[1]||{}).activators)||[]).forEach(function(a){ m[a.email]={name:a.name,tz:a.timezone||''}; });
     _MYAPPT.actByEmail=m;
     if(CURRENT_TAB==='myappts') c.innerHTML=_myApptBuildView();
-  }).catch(function(){ if(CURRENT_TAB==='myappts') c.innerHTML=errorState('Couldn’t load your appointments.', {
-    icon:'appointments', retry:'renderMyAppointments()' }); });
+  }).catch(function(e){ if(CURRENT_TAB==='myappts') c.innerHTML=errorState('Couldn’t load your appointments.', {
+    icon:'appointments', code:errCode(e), retry:'renderMyAppointments()' }); });
 }
 function _myApptActTz(email){ var e=_MYAPPT.actByEmail&&_MYAPPT.actByEmail[email]; return (e&&e.tz)||''; }
 function _myApptActName(email){ var e=_MYAPPT.actByEmail&&_MYAPPT.actByEmail[email]; return (e&&e.name)||email; }
@@ -1892,8 +1896,8 @@ function openCalOverview(){
     document.getElementById('modal-body').innerHTML=
       (nNot?'<div class="sc-bookable-hint" style="margin-bottom:12px">'+nNot+' activator'+(nNot===1?'':'s')+' need to re-share their calendar with <code style="background:var(--surface2);padding:2px 6px;border-radius:5px">'+esc(APPT_CAL_SHARE_EMAIL)+'</code> (Make changes to events).</div>':'<div class="sc-bookable-hint" style="margin-bottom:12px">All activators are linked.</div>')+
       rows+'<div class="nm-actions" style="margin-top:14px"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
-  }).catch(function(){ document.getElementById('modal-body').innerHTML=errorState('Couldn’t load calendar status.', {
-    bare:true, retry:'openCalOverview()' }); });   // bare: already inside the modal body
+  }).catch(function(e){ document.getElementById('modal-body').innerHTML=errorState('Couldn’t load calendar status.', {
+    bare:true, code:errCode(e), retry:'openCalOverview()' }); });   // bare: already inside the modal body
 }
 function _myApptClearFilters(){
   _MYAPPT.filters={};

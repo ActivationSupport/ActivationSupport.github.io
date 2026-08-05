@@ -28,9 +28,9 @@ function renderLiveSalesTracker() {
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
     _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     c.innerHTML = _lstBuild();
-  }).catch(function() {
+  }).catch(function(e) {
     c.innerHTML = errorState('Couldn’t load sales data.', {
-      icon:'livesales', retry:'renderLiveSalesTracker()' });
+      icon:'livesales', code:errCode(e), retry:'renderLiveSalesTracker()' });
   });
 }
 
@@ -983,14 +983,14 @@ function _lstShowRepProfile(email) {
     var lineStats = res[1];
     if (res[2] && res[2].actRateLines) _AR_LINES = res[2].actRateLines;
     c.innerHTML = _lstProfileHtml(email, lineStats, _LST_TBL_NAMES);
-  }).catch(function() {
+  }).catch(function(e) {
     /* ⚠ Retry reads the email from _LST_PROFILE (set at the top of this function) rather
        than interpolating it into the onclick. HARD RULE: never splice a value into an
        inline handler string — esc() turns a quote into &#39;, the attribute parser decodes
        it back BEFORE the JS parses, and the handler dies. That is the "Bri'an Key" bug.
        A static handler reading module state cannot break, whatever the value contains. */
     c.innerHTML = errorState('Couldn’t load this rep’s profile.', {
-      icon:'people', retry:'_lstShowRepProfile(_LST_PROFILE)' });
+      icon:'people', code:errCode(e), retry:'_lstShowRepProfile(_LST_PROFILE)' });
   });
 }
 

@@ -221,6 +221,14 @@ function loadingState(msg, opts) {
   return opts.bare ? inner : '<div class="card"><div class="card-body">'+inner+'</div></div>';
 }
 
+/* Pull the stable code off a classified transport failure. _asFetch/_asParse set `.asCode`
+   on everything they throw, so a catch handler that keeps its argument can hand the rep a
+   code without knowing anything about the error taxonomy.
+   ⚠ Returns '' for an unclassified throw (a plain app bug), and errorState() then renders
+   no code line at all — better a card with no code than a card with a WRONG one, because a
+   code is a promise that the log contains a matching row. */
+function errCode(e) { return (e && e.asCode) || ''; }
+
 /* A fetch failed. `retry` is a JS expression put on a button's onclick — ALWAYS pass one
    if the caller can be re-run. An error the user cannot act on is a dead end.
 
