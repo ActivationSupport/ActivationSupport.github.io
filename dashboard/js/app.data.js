@@ -31,7 +31,17 @@ function skelLoader() {
         signing out actually removes the customer data from the device.
    ⚠ The "X ago" label (_updateLastUpdated) is what tells the user this is a cached paint.
      It is load-bearing here, not decoration — don't remove it. */
-var _MAIN_CACHE_MAX_AGE = 12 * 60 * 60 * 1000;   // 12h
+/* ⚠⚠ 12h WAS THE WRONG NUMBER AND IT DEFEATED THE WHOLE FEATURE.
+   The instant paint exists to kill the cold-load wait, and "first load of the day" is the
+   case it most needs to cover — but a rep finishing at 6pm and starting at 8am is a 14h
+   gap, so the cache was REFUSED every single morning. Monday after Friday is ~62h. The one
+   scenario this was built for was the one scenario it excluded.
+   72h covers overnight, a weekend, and a day off. Painting older data is safe here because
+   it is never presented as current: the region carries the .data-unconfirmed banner and the
+   "Updated Xh ago" label until the live fetch lands seconds later, and the per-user,
+   per-office and cleared-on-sign-out guards are unchanged. The alternative is not "fresher
+   data" — it is a blank skeleton for ~6s, which is not current either. */
+var _MAIN_CACHE_MAX_AGE = 72 * 60 * 60 * 1000;   // 72h
 
 function _mainDataUser() {
   return String((typeof SESSION !== 'undefined' && SESSION && SESSION.email) || '').trim().toLowerCase();
