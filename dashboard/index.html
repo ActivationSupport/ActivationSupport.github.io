@@ -67,7 +67,7 @@
     if (new URLSearchParams(location.search).get('office') !== 'salessupport') return;
     var l = document.createElement('link');
     l.rel = 'stylesheet';
-    l.href = 'app.ss.css?v=20260805a';
+    l.href = 'app.ss.css?v=20260805b';
     document.head.appendChild(l);
   })();
 </script>
@@ -394,7 +394,7 @@
 <!-- The shared slice of the old app.tickets.js: the office-switcher allowlist, the two
      symbols app.core.js reads at boot, and the _comboField / _ssAddPopup widgets that
      app.appts.js and app.calllogs.js call for EVERY office. Always loaded. -->
-<script defer src="js/app.sswidgets.js?v=20260804a"></script>
+<script defer src="js/app.sswidgets.js?v=20260805a"></script>
 <!-- The Sales Support ticketing UI (~82 KB raw / 23 KB gz) is loaded ONLY for its own
      office — the other six can never open it. Sales Support and Activation Support are
      separate entities; this is that rule expressed in code.
@@ -406,7 +406,7 @@
     var office = new URLSearchParams(location.search).get('office');
     if (office !== 'salessupport') return;
     var s = document.createElement('script');
-    s.src = 'js/app.tickets.js?v=20260805b';
+    s.src = 'js/app.tickets.js?v=20260805c';
     s.async = false;                       // keep it ordered against other injected scripts
     document.head.appendChild(s);
   })();

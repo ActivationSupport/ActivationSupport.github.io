@@ -191,7 +191,14 @@ function _comboAdd(id) {
 // A small console-styled popup: fields[{id,label,value}] → onSave({id:value,…}).
 // If onSave RETURNS a non-empty string, it's treated as a validation error: the popup
 // stays open and shows it, so a rejected value is never lost with the popup.
-function _ssAddPopup(title, fields, onSave) {
+/* `opts` is OPTIONAL and purely additive — {saveLabel, danger, intro}. Existing callers
+   (app.appts.js _abmAddCategory, app.calllogs.js _cancelReasonAddPopup) pass three
+   arguments and are unaffected.
+   ⚠ This file ships to EVERY office, so the change had to be backward-compatible by
+   construction rather than by convention. It is shared UI plumbing — which is what this
+   bundle is for — and it is a better answer than a third modal implementation. */
+function _ssAddPopup(title, fields, onSave, opts) {
+  opts = opts || {};
   var old = document.getElementById('ss-addpop'); if (old && old.parentNode) old.parentNode.removeChild(old);
   var wrap = document.createElement('div'); wrap.id = 'ss-addpop'; wrap.className = 'ss-addpop-bg';
   var fieldsHtml = fields.map(function(f){
@@ -202,10 +209,16 @@ function _ssAddPopup(title, fields, onSave) {
       : '<input class="ps-input" id="ssap-' + f.id + '" autocomplete="off" value="' + esc(f.value || '') + '">';
     return '<label class="ss-fld"><span class="ss-lbl">' + esc(f.label) + '</span>' + ctrl + '</label>';
   }).join('');
-  wrap.innerHTML = '<div class="ss-addpop card ss-card"><div class="ss-rule"></div>' +
+  wrap.innerHTML = '<div class="ss-addpop card ss-card' + (opts.danger ? ' is-danger' : '') + '"><div class="ss-rule"></div>' +
     '<h3 class="ss-h2" style="font-size:15px;margin:0 0 14px">' + esc(title) + '</h3>' +
+    /* ⚠⚠ NO `ss-sub` HERE. This bundle ships to EVERY office, but `.ss-sub` is styled only
+       in app.ss.css — so emitting it from shared code would render unstyled for the six
+       activation offices. `.ss-` IS NOT a Sales Support marker; that is precisely the trap
+       css_split_harness guards, and it caught this. Inline style instead: it is two
+       declarations, and it cannot depend on a sheet the caller may not have loaded. */
+    (opts.intro ? '<p style="color:var(--text2);font-size:13px;margin:-8px 0 12px">' + esc(opts.intro) + '</p>' : '') +
     '<div class="ss-addpop-fields">' + fieldsHtml + '</div>' +
-    '<div class="ss-actions"><button class="ps-btn" id="ssap-save">Add</button>' +
+    '<div class="ss-actions"><button class="ps-btn" id="ssap-save">' + esc(opts.saveLabel || 'Add') + '</button>' +
     '<button class="ps-btn secondary" id="ssap-cancel">Cancel</button>' +
     '<span id="ssap-status" class="ss-status"></span></div></div>';
   document.body.appendChild(wrap);

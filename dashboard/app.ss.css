@@ -414,3 +414,28 @@ html[data-office="salessupport"] #app .topbar::before{
   background:rgba(224,168,56,.14); color:#e0a838;
   font-size:.62rem; font-weight:700; letter-spacing:.08em; vertical-align:middle;
 }
+
+/* ── PER-ROW ACTIONS ────────────────────────────────────────────────────────
+   ⚠ white-space:nowrap so Archive/Delete/Edit never wrap onto two lines and shove the
+   row height around as the queue is filtered. */
+.ss-rowacts{ white-space:nowrap; text-align:right; width:1% }
+.ss-rowacts-h{ width:1% }
+.ss-ra{
+  background:transparent; border:0; cursor:pointer; padding:3px 7px; margin-left:4px;
+  border-radius:var(--r-sm,6px); color:var(--text2);
+  font-size:.72rem; font-weight:600; letter-spacing:.03em;
+  box-shadow:inset 0 0 0 1px var(--border);
+}
+.ss-ra:hover{ color:var(--text); box-shadow:inset 0 0 0 1px var(--blue2) }
+/* Delete is the only irreversible one, so it is the only one that turns red — and only on
+   hover. Red at rest would make the whole queue read as a wall of warnings. */
+.ss-ra-del:hover{ color:#ff6b6b; box-shadow:inset 0 0 0 1px rgba(255,107,107,.55) }
+.ss-addpop.is-danger{ border-top:2px solid #ff6b6b }
+.ss-addpop.is-danger #ssap-save{ background:linear-gradient(180deg,#d94141,#b32d2d); box-shadow:0 0 0 1px rgba(255,107,107,.45) }
+
+/* On mobile the table is already restacked into cards, so the actions become a row of
+   buttons under the ticket rather than a cramped right-hand column. */
+@media (max-width:900px){
+  html[data-office="salessupport"] #app .ss-table td.ss-rowacts{ text-align:left; padding-top:8px }
+  .ss-ra{ margin:0 6px 0 0 }
+}

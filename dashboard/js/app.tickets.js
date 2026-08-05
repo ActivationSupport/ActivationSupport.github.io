@@ -871,7 +871,8 @@ function _ticketTableHtml() {
     ? '<p class="ss-sub" style="margin:0">No tickets match your filters.</p>'
     : _ssEmpty('postedsales', 'No tickets yet', 'Log the first one from New Ticket.')) + '</div>';
   var head = '<tr>' + _ticketTh('Ticket','ticketId') + _ticketTh('Created','created') + _ticketTh('Agent','assigneeName') +
-    _ticketTh('Rep','requester') + _ticketTh('Office','office') + '<th>Category</th>' + _ticketTh('Subject','subject') + _ticketTh('Status','status') + '</tr>';
+    _ticketTh('Rep','requester') + _ticketTh('Office','office') + '<th>Category</th>' + _ticketTh('Subject','subject') + _ticketTh('Status','status') +
+    '<th class="ss-rowacts-h"></th></tr>';
   var body = rows.map(function(t){
     /* An archived row only appears when the filter asks for it, but it must still be
        obvious at a glance — otherwise "Include archived" silently mixes duplicates back
@@ -886,6 +887,7 @@ function _ticketTableHtml() {
       '<td data-label="Category">' + _ticketCat(t) + '</td>' +
       '<td data-label="Subject">' + esc(t.subject || '—') + '</td>' +
       '<td data-label="Status">' + _ticketStatusBadge(t.status) + '</td>' +
+      '<td data-label="" class="ss-rowacts">' + _ticketRowActions(t) + '</td>' +
     '</tr>';
   }).join('');
   return '<div class="card ss-card ss-tablewrap"><table class="tbl ss-table">' + head + body + '</table>' +
@@ -1313,6 +1315,86 @@ function _ticketDetailHtml(t, notes) {
   '</div>';
   return header + '<div class="ss-td-grid">' + main + side + '</div>';
 }
+/* ── PER-ROW ACTIONS ─────────────────────────────────────────────────────────
+   Archive (duplicate) · Delete · Edit, at the far right of every queue row.
+   ⚠⚠ EVERY HANDLER MUST stopPropagation(). The row itself carries
+   onclick="openTicketDetail(...)", so without it each button would ALSO open the modal it
+   just acted on — and Delete would open the detail of a ticket that no longer exists.
+   ⚠ The ticket id is interpolated into the handler, matching the surrounding file. That is
+   safe HERE and only here: ids are opaque SS-00000 strings with no quote, apostrophe or
+   user-entered text in them. Never do this with a name — see the Bri'an Key bug. */
+function _ticketRowActions(t) {
+  var id = esc(t.ticketId);
+  if (t.archived) {
+    return '<button class="ss-ra" title="Restore to the queue" onclick="event.stopPropagation();_tqRestore(\'' + id + '\')">Restore</button>' +
+           '<button class="ss-ra ss-ra-del" title="Delete permanently" onclick="event.stopPropagation();_tqDelete(\'' + id + '\')">Delete</button>';
+  }
+  return '<button class="ss-ra" title="Archive as a duplicate" onclick="event.stopPropagation();_tqArchive(\'' + id + '\')">Archive</button>' +
+         '<button class="ss-ra ss-ra-del" title="Delete permanently" onclick="event.stopPropagation();_tqDelete(\'' + id + '\')">Delete</button>' +
+         '<button class="ss-ra" title="Edit this ticket" onclick="event.stopPropagation();_tqEdit(\'' + id + '\')">Edit</button>';
+}
+
+/* Archive straight from the row. You identify the original by TYPING ITS TICKET NUMBER —
+   there is no automatic duplicate detection, by design (option A). */
+function _tqArchive(id) {
+  _ssAddPopup('Archive ' + id + ' as a duplicate',
+    [{ id:'dup', label:'Duplicate of (ticket number)', value:'' }],
+    function (v) {
+      var dup = String(v.dup || '').trim().toUpperCase();
+      if (!dup) return 'Enter the ticket number this duplicates, e.g. SS-00041.';
+      if (dup === String(id).toUpperCase()) return 'A ticket cannot be a duplicate of itself.';
+      if (!/^SS-\d+$/i.test(dup)) return 'That is not a ticket number — expected SS-00041.';
+      _ticketPost({ action:'archiveTicket', ticketId:id, duplicateOf:dup }).then(function (res) {
+        if (res && res.ok) _ticketSyncListRow(res.ticket);
+        else alert((res && res.error) || 'Could not archive.');
+      }).catch(function (e) { alert('Error: ' + e.message); });
+    },
+    { saveLabel:'Archive', intro:'It leaves the queue, the weekly report and the follow-up reminders. Reversible.' });
+}
+
+function _tqRestore(id) {
+  _ticketPost({ action:'unarchiveTicket', ticketId:id }).then(function (res) {
+    if (res && res.ok) _ticketSyncListRow(res.ticket);
+    else alert((res && res.error) || 'Could not restore.');
+  }).catch(function (e) { alert('Error: ' + e.message); });
+}
+
+/* ⚠⚠ THE ONLY ACTION WITH NO UNDO BUTTON, so it asks you to TYPE THE TICKET NUMBER rather
+   than click OK. A stray click cannot produce a matching string; a deliberate delete costs
+   four seconds. The backend enforces the same match, so this is a courtesy, not the guard. */
+function _tqDelete(id) {
+  _ssAddPopup('Delete ' + id + ' permanently',
+    [{ id:'confirm', label:'Type ' + id + ' to confirm', value:'' },
+     { id:'reason',  label:'Reason (optional)', value:'' }],
+    function (v) {
+      if (String(v.confirm || '').trim().toUpperCase() !== String(id).toUpperCase()) {
+        return 'Type the ticket number exactly to confirm.';
+      }
+      _ticketPost({ action:'deleteTicket', ticketId:id, confirm:v.confirm, reason:v.reason }).then(function (res) {
+        if (res && res.ok) {
+          // Drop it from the local list — there is no updated ticket to sync back.
+          _TICKETS.list = (_TICKETS.list || []).filter(function (x) { return x.ticketId !== id; });
+          var wrap = document.getElementById('ticket-tbody-wrap');
+          if (wrap) wrap.innerHTML = (_TICKETS.render || _ticketTableHtml)();
+        } else alert((res && res.error) || 'Could not delete.');
+      }).catch(function (e) { alert('Error: ' + e.message); });
+    },
+    { saveLabel:'Delete permanently', danger:true,
+      intro:'This removes the ticket and its notes from the queue for good. Archiving is the reversible option.' });
+}
+
+// Open the detail already in edit mode, rather than making it a two-click journey.
+function _tqEdit(id) {
+  openTicketDetail(id);
+  var tries = 0;
+  (function waitForLoad() {
+    if (_TICKETS.open && _TICKETS.open.ticket && _TICKETS.open.ticket.ticketId === id) {
+      _TICKETS.open.editing = true; _renderTicketDetail(); return;
+    }
+    if (++tries < 40) setTimeout(waitForLoad, 50);   // the detail is fetched, so poll briefly
+  })();
+}
+
 /* ── ARCHIVING A DUPLICATE ───────────────────────────────────────────────────
    🔴 ARCHIVE, NOT DELETE — and that is forced by the backend, not a preference.
    _nextTicketId() is max(existing)+1, so deleting the highest ticket makes the NEXT one
