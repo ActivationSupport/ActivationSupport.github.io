@@ -572,8 +572,19 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 /* The stable error code from app.errors.js, e.g. DATA-03. Monospaced on purpose: it reads
    as a machine identifier rather than prose, which is what stops a rep transposing it when
    they read it down a phone. tabular figures keep the digits aligned. Option C, chosen
-   2026-08-05 over a quiet line, a chip and a corner tag. */
-.empty-code{display:inline-block;margin-top:10px;padding:2px 8px;border-radius:var(--r-sm,6px);background:rgba(var(--blue2-rgb),.10);color:var(--text2);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;letter-spacing:.04em;font-variant-numeric:tabular-nums;user-select:all}
+   2026-08-05 over a quiet line, a chip and a corner tag.
+   ⚠ Uses --tint-2 + --rule-1, NOT a fixed rgba(--blue2-rgb) wash. Those two vars FLIP
+   POLARITY (white-alpha in dark, navy-alpha in light), so the tag matches the surrounding
+   surfaces in both themes for free. The first version hardcoded a blue wash tuned for
+   dark; in light it sat at 10% blue on a white card and read as a washed-out smudge that
+   belonged to no theme. Light is the OWNER's default view, so that is not cosmetic.
+   Measured: ink 7.03:1 dark / 5.06:1 light (AA normal needs 4.5 — this is ~11.5px and NOT
+   bold, so it is normal text, not large).
+   ⚠ The ring is `inset 0 0 0 1px`, never a real border: a border adds 2px regardless of
+   box-sizing and shifts the cards it sits in. It is there because the chip clears only
+   ~1.15:1 against the card, which is the threshold where a chip stops reading as a chip
+   and starts reading as a hole -- contrast-on-ink is only half the check. */
+.empty-code{display:inline-block;margin-top:10px;padding:2px 8px;border-radius:var(--r-sm,6px);background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);color:var(--text2);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;letter-spacing:.04em;font-variant-numeric:tabular-nums;user-select:all}
 /* A11y (V2): a visible keyboard-focus ring (office-accent) — shows only on keyboard
    focus via :focus-visible, so mouse/touch interaction is visually unchanged.
    ⚠⚠ THIS RULE EXISTED BUT NEVER FIRED WHERE IT MATTERED. 19 declarations across the
