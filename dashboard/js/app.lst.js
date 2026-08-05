@@ -29,7 +29,8 @@ function renderLiveSalesTracker() {
     _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     c.innerHTML = _lstBuild();
   }).catch(function() {
-    c.innerHTML = '<div class="empty">Failed to load sales data.</div>';
+    c.innerHTML = errorState('Couldn’t load sales data.', {
+      icon:'livesales', retry:'renderLiveSalesTracker()' });
   });
 }
 
@@ -556,7 +557,7 @@ function _lstKpiCurrentSales() {
 }
 
 function _lstKpiSalesTable(sales) {
-  if (!sales.length) return '<div class="empty">No sales in this period.</div>';
+  if (!sales.length) return noData('No sales in this period.', { icon:'livesales', bare:true });
   var roster = DATA.roster || {};
   var rows = sales.slice().sort(function(a,b){
     return (b.dateOfSale||'').localeCompare(a.dateOfSale||'') || (b.units||0)-(a.units||0);
@@ -577,7 +578,7 @@ function _lstKpiSalesTable(sales) {
 }
 
 function _lstKpiSellersTable(sales) {
-  if (!sales.length) return '<div class="empty">No sellers in this period.</div>';
+  if (!sales.length) return noData('No sellers in this period.', { icon:'people', bare:true });
   var roster = DATA.roster || {}, agg = {};
   sales.forEach(function(s){
     var e = s.repEmail;
@@ -983,7 +984,13 @@ function _lstShowRepProfile(email) {
     if (res[2] && res[2].actRateLines) _AR_LINES = res[2].actRateLines;
     c.innerHTML = _lstProfileHtml(email, lineStats, _LST_TBL_NAMES);
   }).catch(function() {
-    c.innerHTML = '<div class="empty">Failed to load rep profile.</div>';
+    /* ⚠ Retry reads the email from _LST_PROFILE (set at the top of this function) rather
+       than interpolating it into the onclick. HARD RULE: never splice a value into an
+       inline handler string — esc() turns a quote into &#39;, the attribute parser decodes
+       it back BEFORE the JS parses, and the handler dies. That is the "Bri'an Key" bug.
+       A static handler reading module state cannot break, whatever the value contains. */
+    c.innerHTML = errorState('Couldn’t load this rep’s profile.', {
+      icon:'people', retry:'_lstShowRepProfile(_LST_PROFILE)' });
   });
 }
 

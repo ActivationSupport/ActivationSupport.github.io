@@ -1912,3 +1912,15 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
   #main-content.data-unconfirmed::before{animation:none}
   #main-content.data-unconfirmed{transition:none}
 }
+/* ── LOADING / ERROR variants of the shared empty state ─────────────────────────
+   A tab has three ways to show no content: empty, loading, failed. They now share one
+   shape so the view does not jump when data lands. Only the icon treatment differs —
+   the message and layout are identical, which is the whole point.
+   ⚠ The error icon is tinted, NOT the message: text never wears the data colour. */
+.empty-state.is-loading .empty-ico{opacity:.65;animation:emptyPulse 1.5s ease-in-out infinite}
+.empty-state.is-error .empty-ico{color:var(--red,#e0685f);background:rgba(224,104,95,.10)}
+.empty-state.is-error .empty-msg{color:var(--text)}
+@keyframes emptyPulse{0%,100%{opacity:.45}50%{opacity:.9}}
+@media (prefers-reduced-motion: reduce){
+  .empty-state.is-loading .empty-ico{animation:none}
+}

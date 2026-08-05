@@ -189,17 +189,50 @@ function resetPersonPassword(email) {
   }).catch(function() { alert('Connection error. Try again.'); });
 }
 
-// Shared empty-state. noData(msg) still works; pass opts for polish:
-//   {icon:'<sprite id>'}  — contextual glyph (default 'inbox')
-//   {sub:'…'}             — a lighter explanatory line under the message
-//   {action:'<html>'}     — an optional call-to-action (raw HTML, e.g. a button)
+/* ── THE THREE "NOTHING TO SHOW" STATES ──────────────────────────────────────────────
+   A tab has exactly three ways to show no content — it is EMPTY, it is LOADING, or it
+   FAILED — and they were not treated as a family. noData() existed and was used 14 times,
+   while 39 more sites hand-rolled a bare <div class="empty">, so the same situation looked
+   different depending on which tab you were on.
+   🔑 The part that was an actual DEFECT, not untidiness: of the 8 hand-rolled ERROR states,
+   only 2 offered any way to recover. "Failed to load sales data." was a dead end — the
+   rep's only move was to guess at refreshing. errorState() therefore takes a retry
+   expression and is the reason this change was worth making at all.
+   ⚠ All three wrap themselves in a card by default, because most callers render straight
+   into #main-content. Pass {bare:true} where the caller is ALREADY inside a card, a modal
+   body or a table cell — double-wrapping is the easy mistake here. */
 function noData(msg, opts) {
   opts = opts || {};
   var sub = opts.sub ? '<div class="empty-sub">'+esc(opts.sub)+'</div>' : '';
   var action = opts.action ? '<div class="empty-action">'+opts.action+'</div>' : '';
-  return '<div class="card"><div class="card-body"><div class="empty-state">'+
+  var inner = '<div class="empty-state">'+
     '<div class="empty-ico">'+icon(opts.icon||'inbox')+'</div>'+
-    '<div class="empty-msg">'+esc(msg)+'</div>'+sub+action+'</div></div></div>';
+    '<div class="empty-msg">'+esc(msg)+'</div>'+sub+action+'</div>';
+  return opts.bare ? inner : '<div class="card"><div class="card-body">'+inner+'</div></div>';
+}
+
+// Waiting on a fetch. Same shape as noData so a tab doesn't jump when the data lands.
+function loadingState(msg, opts) {
+  opts = opts || {};
+  var sub = opts.sub ? '<div class="empty-sub">'+esc(opts.sub)+'</div>' : '';
+  var inner = '<div class="empty-state is-loading">'+
+    '<div class="empty-ico">'+icon(opts.icon||'clock')+'</div>'+
+    '<div class="empty-msg">'+esc(msg||'Loading…')+'</div>'+sub+'</div>';
+  return opts.bare ? inner : '<div class="card"><div class="card-body">'+inner+'</div></div>';
+}
+
+/* A fetch failed. `retry` is a JS expression put on a button's onclick — ALWAYS pass one
+   if the caller can be re-run. An error the user cannot act on is a dead end. */
+function errorState(msg, opts) {
+  opts = opts || {};
+  var sub = opts.sub ? '<div class="empty-sub">'+esc(opts.sub)+'</div>' : '';
+  var action = opts.retry
+    ? '<div class="empty-action"><button class="ps-btn" onclick="'+esc(opts.retry)+'">Try again</button></div>'
+    : (opts.action ? '<div class="empty-action">'+opts.action+'</div>' : '');
+  var inner = '<div class="empty-state is-error">'+
+    '<div class="empty-ico">'+icon(opts.icon||'issues')+'</div>'+
+    '<div class="empty-msg">'+esc(msg||'Something went wrong.')+'</div>'+sub+action+'</div>';
+  return opts.bare ? inner : '<div class="card"><div class="card-body">'+inner+'</div></div>';
 }
 
 // ── TEAMS TAB ─────────────────────────────────────────────────────────────
@@ -377,7 +410,8 @@ function _tmBuildList() {
     var _myTeam = ((roster[(SESSION.email||'').toLowerCase()])||{}).team || '';
     var _visIds = _tmDescendantIds(_tmTeamsLedByMe());
     teamArr = teamArr.filter(function(t){ return t && (t.name === _myTeam || _visIds[t.teamId]); });
-    if (!teamArr.length) return '<div class="card"><div class="card-body"><div class="empty">You&rsquo;re not on a team yet.</div></div></div>';
+    if (!teamArr.length) return noData('You’re not on a team yet.', {
+      icon:'teams', sub:'Ask a team lead or an admin to add you.' });
   }
 
   // Member counts
@@ -407,7 +441,8 @@ function _tmBuildList() {
   if (!teamArr.length) {
     return '<div class="card"><div class="card-body">' +
       '<div class="tm-header"><div><div class="tm-title">Teams</div><div class="tm-count">0 teams</div></div>'+createBtn+'</div>' +
-      '<hr class="tm-hr"><div class="empty">No teams yet.'+(canManage?' Click &ldquo;+ Create Team&rdquo; to get started.':'')+' </div>' +
+      '<hr class="tm-hr">' + noData('No teams yet.', { icon:'teams', bare:true,
+        sub: canManage ? 'Click “+ Create Team” to get started.' : '' }) +
       '</div></div>';
   }
 
@@ -651,11 +686,11 @@ function _tmSubTeamsHtml(teamId) {
 // but filtered to an arbitrary team's tableau names (the main one keys off the logged-in
 // user's role/team, so it can't render a team you're just viewing).
 function _tmArTableHtml(memberTabs) {
-  if (_AR_LINES === null) { _preloadArLines(); return '<div class="empty">Loading activation rates…</div>'; }
-  if (!_AR_LINES.length)  return '<div class="empty">No activation rate data.</div>';
+  if (_AR_LINES === null) { _preloadArLines(); return loadingState('Loading activation rates…', { icon:'actrates', bare:true }); }
+  if (!_AR_LINES.length)  return noData('No activation rate data.', { icon:'actrates', bare:true });
   var BKT_MAP = { '0-7 Days':'b0_7', '8-14 Days':'b8_14', '15-30 Days':'b15_30', '31-60 Days':'b31_60' };
   var lines = _AR_LINES.filter(function(l){ return memberTabs.indexOf(String(l.rep||'').trim().toLowerCase()) !== -1; });
-  if (!lines.length) return '<div class="empty">No activation rate data for this team.</div>';
+  if (!lines.length) return noData('No activation rate data for this team.', { icon:'actrates', bare:true });
   // Team view = team TOTAL only (drill into a rep via the leaderboard for per-rep AR).
   var totals = {b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
   lines.forEach(function(l){
@@ -702,7 +737,7 @@ function _tmArTableHtml(memberTabs) {
 // filterable by Rep / Status / Date. Order-grouped (one row per DSI).
 function _tmOrdersHtml(teamId) {
   var team = (DATA.teams||{})[teamId]; if (!team) return '';
-  if (_tmCombinedOrdersPending(teamId)) return '<div class="empty">Loading team orders…</div>';
+  if (_tmCombinedOrdersPending(teamId)) return loadingState('Loading team orders…', { icon:'myorders', bare:true });
   // Effective set: includes every sub-team that rolls up into this team.
   var memberTabs = _tmEffectiveMemberTabs(teamId);
   var orders = _tmCombinedOrders(teamId).filter(function(o){ return memberTabs.indexOf((o.rep||'').toLowerCase())!==-1; });

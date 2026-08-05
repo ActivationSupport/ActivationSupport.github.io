@@ -4,7 +4,7 @@ var _AR_LOADING = false;
 
 function renderActRates() {
   if (_AR_LINES) return _renderActRatesWithData();
-  if (_AR_LOADING) return '<div class="empty">Loading activation rates…</div>';
+  if (_AR_LOADING) return loadingState('Loading activation rates…', { icon:'actrates', bare:true });
   _AR_LOADING = true;
   api({ action: 'readActRateLines' }).then(function(resp) {
     _AR_LOADING = false;
@@ -17,7 +17,7 @@ function renderActRates() {
     _AR_LOADING = false;
     _AR_LINES = [];
   });
-  return '<div class="empty">Loading activation rates…</div>';
+  return loadingState('Loading activation rates…', { icon:'actrates', bare:true });
 }
 
 function _renderActRatesWithData() {
@@ -145,7 +145,7 @@ function _buildArTable(repFilter) {
     return '<tr><td class="ar-rep">'+esc(rep)+'</td>'+cell(d.b0_7,'b0_7',false)+cell(d.b8_14,'b8_14',false)+cell(d.b15_30,'b15_30',false)+cell(d.b31_60,'b31_60',false)+'</tr>';
   }).join('');
 
-  if (!repRows) return '<div class="empty">No data for the selected filters.</div>';
+  if (!repRows) return noData('No data for the selected filters.', { icon:'actrates', bare:true });
 
   var grandRow = '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+cell(totals.b0_7,'b0_7',true)+cell(totals.b8_14,'b8_14',true)+cell(totals.b15_30,'b15_30',true)+cell(totals.b31_60,'b31_60',true)+'</tr>';
 
@@ -1260,9 +1260,9 @@ function renderMyTeamGrouped(myTeamId) {
     var isSelf = (id === myTeamId);
     var body;
     if (pending) {
-      body = '<div class="empty" style="padding:16px">Loading '+esc(t.name)+' orders…</div>';
+      body = loadingState('Loading ' + t.name + ' orders…', { icon:'myorders', bare:true });
     } else if (!orders.length) {
-      body = '<div class="empty" style="padding:16px">No orders for this team.</div>';
+      body = noData('No orders for this team.', { icon:'myorders', bare:true });
     } else {
       body = _mtoFilterRow(id) +
         '<div class="call-table-wrap"><table class="call-table" id="mto-tbl-'+id+'"><thead><tr>'+_mtoHeaders()+'</tr></thead>' +

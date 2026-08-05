@@ -731,7 +731,7 @@ function renderTab(id) {
     case 'fibercal':     _FIB.monthOffset=0; renderFiberCalendarTab();                    break;  // always open on the current month
     case 'myappts':      renderMyAppointments();     break;   // Item 4: activator cross-office dashboard
     case 'training':     renderTrainingTab();       break;
-    default: c.innerHTML = '<div class="empty">Coming soon.</div>';
+    default: c.innerHTML = noData('Coming soon.', { icon:'clock' });
   }
   bindFilters();
 }

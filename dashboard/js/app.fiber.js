@@ -112,10 +112,10 @@ function renderFiberCalendarTab() {
     }).catch(function() {
       _FIB.flight = false;
       if (CURRENT_TAB === 'fibercal') document.getElementById('main-content').innerHTML =
-        '<div class="card"><div class="card-body"><div class="empty">Connection error. <a href="#" onclick="renderFiberCalendarTab()">Retry</a></div></div></div>';
+        errorState('Couldn’t load fiber installs.', { retry:'renderFiberCalendarTab()' });
     });
   }
-  c.innerHTML = '<div class="card"><div class="card-body"><div class="empty">Loading fiber installs…</div></div></div>';
+  c.innerHTML = loadingState('Loading fiber installs…', { icon:'delivered' });
 }
 
 function _fibPaint() {
@@ -250,7 +250,7 @@ function _fibBuild() {
   }
 
   var empty = (!all.length)
-    ? '<div class="empty">No fiber or new-internet installs found for this office.</div>' : '';
+    ? noData('No fiber or new-internet installs found for this office.', { icon:'delivered', bare:true }) : '';
 
   return '<div class="card"><div class="card-header dark">'+icon('globe')+' Fiber Install Calendar</div>' +
     '<div class="card-body">' + head + (empty || grid) + '</div></div>' + naSec;

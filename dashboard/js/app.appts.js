@@ -413,11 +413,12 @@ function renderAppointmentsTab() {
   var c = document.getElementById('main-content');
   var have = _APPT.appointments !== null;
   if (have) { c.innerHTML = _apptBuildView(); _apptBindEvents(); }   // instant from cache
-  else c.innerHTML = '<div class="empty">Loading appointments…</div>';
+  else c.innerHTML = loadingState('Loading appointments…', { icon:'appointments' });
   _apptFetchAll().then(function(ok) {
     if (CURRENT_TAB !== 'appointments') return;
     if (ok) { c.innerHTML = _apptBuildView(); _apptBindEvents(); }
-    else if (!have) c.innerHTML = '<div class="empty">Failed to load. Check your connection and try refreshing.</div>';
+    else if (!have) c.innerHTML = errorState('Couldn’t load appointments.', {
+    icon:'appointments', sub:'Check your connection, then try again.', retry:'renderAppointmentsTab()' });
   });
 }
 // Warm the Appointments cache in the background after login.
@@ -690,7 +691,9 @@ function _apptUpcomingTable(appts) {
   var rows = appts.filter(function(a){ return a.date>=floor; })
     .sort(function(a,b){ return a.date!==b.date?a.date.localeCompare(b.date):a.timeSlot.localeCompare(b.timeSlot); })
     .slice(0,50);
-  if (!rows.length) return '<div class="card" style="margin-top:16px"><div class="card-body"><div class="empty">No upcoming appointments.</div></div></div>';
+  // keeps its own card: the margin-top is load-bearing for the strip above it
+  if (!rows.length) return '<div class="card" style="margin-top:16px"><div class="card-body">' +
+    noData('No upcoming appointments.', { icon:'appointments', bare:true }) + '</div></div>';
   var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
   var h='<div class="card" style="margin-top:16px"><div class="card-header dark">Appointments</div>'+
     '<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
@@ -755,7 +758,8 @@ function _apptNav(dir){
 
 // All-Activators: one day, activators side by side as columns, time slots down.
 function _apptAllActGrid(appts, acts, dStr){
-  if(!acts.length) return '<div class="card" style="margin-bottom:16px"><div class="card-body"><div class="empty">No activators in this office.</div></div></div>';
+  if(!acts.length) return '<div class="card" style="margin-bottom:16px"><div class="card-body">' +
+    noData('No activators in this office.', { icon:'people', bare:true }) + '</div></div>';
   var slots = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00'];
   var dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
   var win = _apptWindow();
@@ -805,7 +809,8 @@ function _apptAllActGrid(appts, acts, dStr){
 function _apptDayAgenda(appts, acts, dStr){
   var rows = appts.filter(function(a){ return a.date===dStr && a.status!=='cancelled'; })
     .sort(function(a,b){ return (a.timeSlot||'').localeCompare(b.timeSlot||''); });
-  if(!rows.length) return '<div class="card" style="margin-bottom:16px"><div class="card-body"><div class="empty">No appointments scheduled for this day.</div></div></div>';
+  if(!rows.length) return '<div class="card" style="margin-bottom:16px"><div class="card-body">' +
+    noData('No appointments scheduled for this day.', { icon:'appointments', bare:true }) + '</div></div>';
   var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
   var today = _apptDateStr(new Date());
   var h='<div class="appt-agenda">';
@@ -1526,13 +1531,15 @@ function openApptSchedModal() {
   // Fetch the user's OWN schedule directly (not via _APPT.activators) so a
   // master-admin who has opted OUT of the booking pool — and is therefore no
   // longer in getActivators — can still open this modal and opt back in.
-  document.getElementById('appt-sched-body').innerHTML='<div class="empty">Loading your schedule…</div>';
+  document.getElementById('appt-sched-body').innerHTML=loadingState('Loading your schedule…', { icon:'appointments', bare:true });
   document.getElementById('appt-sched-modal').classList.add('open');
   _apptGet({action:'getActivatorSchedule',email:SESSION.email}).then(function(res){
     _renderSchedModal(res.schedule||{});
     _scLoadCalStatus();
   }).catch(function(){
-    document.getElementById('appt-sched-body').innerHTML='<div class="empty">Failed to load. Close and try again.</div>';
+    // bare: already inside the modal's own body, so it must not add another card
+    document.getElementById('appt-sched-body').innerHTML=errorState('Couldn’t load your schedule.', {
+      icon:'appointments', bare:true, retry:'openApptSchedModal()' });
   });
 }
 // Calendar-link self-check for My Schedule: tells the activator whether their Google
@@ -1748,7 +1755,7 @@ function _apptFindAppt(id){
 }
 function renderMyAppointments(){
   var c=document.getElementById('main-content'); if(!c) return;
-  c.innerHTML='<div class="empty">'+icon('clock')+' Loading your appointments…</div>';
+  c.innerHTML=loadingState('Loading your appointments…', { icon:'appointments' });
   var isMaster=SESSION.role==='master-admin';
   Promise.all([
     _apptGet({action:'getActivatorAppointments', email:(isMaster?'':SESSION.email)}),
@@ -1758,7 +1765,8 @@ function renderMyAppointments(){
     var m={}; (((res[1]||{}).activators)||[]).forEach(function(a){ m[a.email]={name:a.name,tz:a.timezone||''}; });
     _MYAPPT.actByEmail=m;
     if(CURRENT_TAB==='myappts') c.innerHTML=_myApptBuildView();
-  }).catch(function(){ if(CURRENT_TAB==='myappts') c.innerHTML='<div class="empty">Couldn’t load appointments. Try again.</div>'; });
+  }).catch(function(){ if(CURRENT_TAB==='myappts') c.innerHTML=errorState('Couldn’t load your appointments.', {
+    icon:'appointments', retry:'renderMyAppointments()' }); });
 }
 function _myApptActTz(email){ var e=_MYAPPT.actByEmail&&_MYAPPT.actByEmail[email]; return (e&&e.tz)||''; }
 function _myApptActName(email){ var e=_MYAPPT.actByEmail&&_MYAPPT.actByEmail[email]; return (e&&e.name)||email; }
@@ -1871,7 +1879,7 @@ function _myApptTh(label,key){
 // offices). Uses getCalendarLinkStatus with no email/office → the whole booking pool.
 function openCalOverview(){
   document.getElementById('modal-title').innerHTML='<div class="nm-dsi">Calendar links — all activators</div>';
-  document.getElementById('modal-body').innerHTML='<div class="empty">'+icon('clock')+' Checking calendars…</div>';
+  document.getElementById('modal-body').innerHTML=loadingState('Checking calendars…', { bare:true });
   document.getElementById('detail-modal').classList.add('open');
   _apptGet({action:'getCalendarLinkStatus'}).then(function(res){
     var st=(res.statuses||[]).slice().sort(function(a,b){
@@ -1888,7 +1896,8 @@ function openCalOverview(){
     document.getElementById('modal-body').innerHTML=
       (nNot?'<div class="sc-bookable-hint" style="margin-bottom:12px">'+nNot+' activator'+(nNot===1?'':'s')+' need to re-share their calendar with <code style="background:var(--surface2);padding:2px 6px;border-radius:5px">'+esc(APPT_CAL_SHARE_EMAIL)+'</code> (Make changes to events).</div>':'<div class="sc-bookable-hint" style="margin-bottom:12px">All activators are linked.</div>')+
       rows+'<div class="nm-actions" style="margin-top:14px"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
-  }).catch(function(){ document.getElementById('modal-body').innerHTML='<div class="empty">Couldn’t load calendar status. Try again.</div>'; });
+  }).catch(function(){ document.getElementById('modal-body').innerHTML=errorState('Couldn’t load calendar status.', {
+    bare:true, retry:'openCalOverview()' }); });   // bare: already inside the modal body
 }
 function _myApptClearFilters(){
   _MYAPPT.filters={};
@@ -1904,7 +1913,9 @@ function _myApptTableHtml(){
   });
   var title=isMaster?'All Appointments — every office':'My Appointments — every office';
   var head='<div class="card"><div class="card-header dark">'+title+' <span style="font-weight:400;color:var(--text2);font-size:.8rem">· '+rows.length+' shown</span></div>';
-  if(!rows.length) return head+'<div class="card-body"><div class="empty">'+icon('appointments')+' No appointments match these filters.</div></div></div>';
+  // `head` already opens the card, so this is bare and closes head's wrappers
+  if(!rows.length) return head+'<div class="card-body">' +
+    noData('No appointments match these filters.', { icon:'appointments', bare:true }) + '</div></div>';
   var badgeStyle='display:inline-block;padding:2px 8px;border-radius:10px;background:var(--inset-bg,rgba(127,127,127,.14));font-size:.72rem;font-weight:600';
   var h=head+'<div class="card-body" style="padding:0;overflow-x:auto"><table class="tbl"><thead><tr>'+
     _myApptTh('Date','date')+_myApptTh('Time','time')+_myApptTh('Office','office')+(isMaster?_myApptTh('Activator','activator'):'')+_myApptTh('Customer','customer')+_myApptTh('DSI','dsi')+_myApptTh('Lang','lang')+_myApptTh('Type','apptType')+_myApptTh('Services / Reason','services')+_myApptTh('Status','status')+_myApptTh('Outcome','outcome')+'<th>Actions</th>'+_myApptTh('Booked By','booker')+

@@ -18,7 +18,7 @@ function renderKnowledge() {
       '<div class="card-body"><div class="kb-err">' + esc(_KB_ERR) +
       '<button class="kb-retry" onclick="_kbLoad(true)">Retry</button></div></div></div>';
   }
-  if (_KB === null) { _kbLoad(); return '<div class="empty">Loading knowledge base…</div>'; }
+  if (_KB === null) { _kbLoad(); return loadingState('Loading knowledge base…', { icon:'training' }); }
   if (!_KB.length) return noData('No articles yet.', { icon: 'training' });
 
   var q = _KB_Q.toLowerCase();
@@ -152,7 +152,7 @@ function _kbLoad(force) {
   if (force) {
     _KB = null;
     var c0 = document.getElementById('main-content');
-    if (c0 && CURRENT_TAB === 'knowledge') c0.innerHTML = '<div class="empty">Loading knowledge base…</div>';
+    if (c0 && CURRENT_TAB === 'knowledge') c0.innerHTML = loadingState('Loading knowledge base…', { icon:'training' });
   }
   api({ action: 'readKnowledge' }).then(function(res) {
     _KB_LOADING = false;

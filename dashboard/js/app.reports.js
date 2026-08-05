@@ -32,7 +32,7 @@ function renderDailyReport() {
   // the same minute no longer trigger ten identical rebuilds.
   // The date picker still pulls older SAVED reports via drSelectDate (read-only).
   _DR_SEL_DATE = _drTodayStr();            // reset to today on every entry (handles midnight rollover)
-  if (_DR_LOADING) return '<div class="card"><div class="card-body"><div class="empty">Generating today’s report…</div></div></div>';
+  if (_DR_LOADING) return loadingState('Generating today’s report…', { icon:'dailyreport' });
   _DR_LOADING = true;
   _DR_DATA    = undefined;
   var selDate   = _DR_SEL_DATE;
@@ -58,7 +58,8 @@ function renderDailyReport() {
     _DR_DATA = null;
     var c = document.getElementById('main-content'); if (c) c.innerHTML = _drBuildHtml();
   });
-  return '<div class="card"><div class="card-body"><div class="empty">Generating today’s report for '+esc(CFG.officeName||CFG.officeId)+'… this may take a moment.</div></div></div>';
+  return loadingState('Generating today’s report for ' + (CFG.officeName||CFG.officeId) + '…', {
+    icon:'dailyreport', sub:'This may take a moment.' });
 }
 
 function drSelectDate(date) {
@@ -66,7 +67,7 @@ function drSelectDate(date) {
   _DR_DATA = undefined;
   _DR_LOADING = true;
   var c = document.getElementById('main-content');
-  if (c) c.innerHTML = '<div class="card"><div class="card-body"><div class="empty">Loading…</div></div></div>';
+  if (c) c.innerHTML = loadingState('Loading…', { icon:'dailyreport' });
   api({action:'readDailyReport', date:date}).then(function(r) {
     _DR_DATA = (r && r.report) ? r.report : null;
     _DR_LOADING = false;
@@ -78,7 +79,8 @@ function drRefresh() {
   _DR_LOADING = true;
   var selDate = _DR_SEL_DATE || _drTodayStr();
   var c = document.getElementById('main-content');
-  if (c) c.innerHTML = '<div class="card"><div class="card-body"><div class="empty">Generating report for '+esc(selDate)+'… this may take a moment.</div></div></div>';
+  if (c) c.innerHTML = loadingState('Generating report for ' + selDate + '…', {
+    icon:'dailyreport', sub:'This may take a moment.' });
   // force:true — Refresh is an explicit user request, so it must bypass the PERF-4 cache
   // and genuinely rebuild. Without this the button could silently return a cached build
   // and look broken. An un-redeployed backend ignores the extra field and rebuilds anyway.

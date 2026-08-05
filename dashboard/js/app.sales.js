@@ -1464,10 +1464,10 @@ function renderPostedSalesTab() {
     }).catch(function() {
       _PSV_FLIGHT = false;
       if (CURRENT_TAB === 'postedsales') document.getElementById('main-content').innerHTML =
-        '<div class="card"><div class="card-body"><div class="empty">Connection error. <a href="#" onclick="renderPostedSalesTab()">Retry</a></div></div></div>';
+        errorState('Couldn’t load posted sales.', { icon:'postedsales', retry:'renderPostedSalesTab()' });
     });
   }
-  c.innerHTML = '<div class="card"><div class="card-body"><div class="empty">Loading posted sales…</div></div></div>';
+  c.innerHTML = loadingState('Loading posted sales…', { icon:'postedsales' });
 }
 function _psvCanEditAll() {
   var r = (SESSION.role || '').toLowerCase();
