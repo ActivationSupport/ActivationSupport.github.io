@@ -19,7 +19,25 @@
 <link rel="apple-touch-icon" href="/favicon.png">
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="app.css?v=20260804d">
+<link rel="stylesheet" href="app.css?v=20260804e">
+<!-- The Sales Support skin (~30 KB raw / 7.6 KB gz) loads ONLY for its own office. app.css
+     is the one RENDER-BLOCKING asset, so these rules were delaying first paint for six
+     offices that can never render them. The CSS half of the separation rule, after PERF-1b
+     did the JS half.
+     ⚠ Appended during HEAD parsing on purpose: a stylesheet added here still blocks the
+     first paint, so Sales Support gets no flash of unstyled content. Do not defer it.
+     ⚠ Shared-widget styles (.ss-combo*, .ss-addpop*, .ss-card, .ss-fld, .ss-h2, .ss-lbl,
+     .ss-rule, .ss-status, #ssap-*) deliberately STAYED in app.css — app.sswidgets.js emits
+     them for every office's cancel-reason and order-issue pickers. -->
+<script>
+  (function () {
+    if (new URLSearchParams(location.search).get('office') !== 'salessupport') return;
+    var l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = 'app.ss.css?v=20260804a';
+    document.head.appendChild(l);
+  })();
+</script>
 </head>
 <body>
 
