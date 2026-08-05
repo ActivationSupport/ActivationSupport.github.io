@@ -223,7 +223,17 @@ function api(params) {
   params.key = API_KEY;
   params.officeId = CFG.officeId;
   if (SESSION && SESSION.token) params.token = SESSION.token;   // Phase 1 Stage B: carry the badge
-  var key = Object.keys(params).sort().map(function(k) { return k + '=' + params[k]; }).join('&');
+  /* ⚠⚠ THE DE-DUPE KEY MUST BE UNAMBIGUOUS, NOT JUST STABLE.
+     Two requirements, and an early version of this satisfied only the first:
+       · STABLE — sorted, so the same read requested with the params in a different order
+         shares one round trip. The OLD key used insertion order and quietly failed this.
+       · UNAMBIGUOUS — a naive k+'='+v join is not. With a value containing the delimiter,
+         {a:'1&b=2'} and {a:'1',b:'2'} both serialise to "a=1&b=2", so two DIFFERENT reads
+         collide and one caller receives the OTHER's response. "AT&T" in any filter value is
+         enough to trigger it. The old code was safe only because it URL-encoded; dropping
+         the URL dropped the encoding with it.
+     JSON.stringify over sorted pairs escapes the separators, so no value can forge a key. */
+  var key = JSON.stringify(Object.keys(params).sort().map(function(k) { return [k, params[k]]; }));
   if (_API_INFLIGHT[key]) return _API_INFLIGHT[key];
   var body = {};
   Object.keys(params).forEach(function(k) { body[k] = params[k]; });
