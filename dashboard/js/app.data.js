@@ -145,10 +145,14 @@ function _applyMainData(res, ts) {
 }
 function loadData(forceFresh) {
   TAB_CACHE = {};
-  // Fire the independent secondary fetches NOW (parallel with the main blob) instead
-  // of waiting for it to resolve first.
-  _bgRefreshLst();
-  _preloadArLines();
+  /* ⚠⚠ THE MAIN BLOB IS ISSUED FIRST — see below. This used to fire _bgRefreshLst() and
+     _preloadArLines() here, on the stated reasoning that they run "parallel with the main
+     blob instead of waiting for it to resolve". That premise does not hold: APPS SCRIPT
+     SERIALISES CONCURRENT REQUESTS FROM THE SAME USER, so they do not run alongside the
+     blob — they run BEFORE it, and the screen waits out both at ~2s each.
+     Issuing order is execution order, so the blob goes first and these follow immediately
+     after. They are still in flight early; they just no longer queue in front of the one
+     request the visible tab depends on. */
   // Instant paint from the cached blob (skipped on a manual refresh).
   var painted = false;
   if (!forceFresh) {
@@ -161,7 +165,17 @@ function loadData(forceFresh) {
         // Real data, instantly — but say plainly that it is last session's until the
         // fetch below confirms it. Cleared by _applyMainData on the fresh response.
         _markDataStale();
-        _preloadTabs();
+        /* 🔴 DO NOT _preloadTabs() HERE. It warms People/Appointments/Training, which is
+           several more Apps Script calls, and APPS SCRIPT SERIALISES CONCURRENT REQUESTS
+           FROM THE SAME USER — so they do not run "in parallel", they QUEUE, and the main
+           blob below (the only thing the screen is actually waiting for) ends up behind
+           all of them at ~2s each.
+           This is what made the first load and hard refresh slow: before the cache started
+           hitting reliably, `painted` was false on a cold tab and the preloads only ran
+           AFTER the blob landed. Making the cache hit more often moved the whole storm in
+           front of the thing the user is waiting for.
+           The .then() below still calls _preloadTabs() once the blob is in — warming a tab
+           the rep has not opened yet is never more urgent than the tab they are looking at. */
       } catch (e) { painted = false; }
     }
     // Only one blob per device is worth keeping; drop other users'/offices' leftovers.
@@ -170,7 +184,10 @@ function loadData(forceFresh) {
   if (!painted) document.getElementById('main-content').innerHTML = skelLoader();
   _CACHE.mainFlight = true;
   var _reqOffice = CFG.officeId;
-  api({}).then(function(res) {
+  var _mainP = api({});                  // FIRST in the queue — the visible tab needs it
+  _bgRefreshLst();                       // then the secondaries, behind it rather than ahead
+  _preloadArLines();
+  _mainP.then(function(res) {
     _CACHE.mainFlight = false;
     // Office switched while this fetch was in flight — discard it so we never apply,
     // cache, or render one office's data under another.
