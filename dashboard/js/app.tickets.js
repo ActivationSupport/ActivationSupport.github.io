@@ -1359,18 +1359,15 @@ function _tqRestore(id) {
   }).catch(function (e) { alert('Error: ' + e.message); });
 }
 
-/* ⚠⚠ THE ONLY ACTION WITH NO UNDO BUTTON, so it asks you to TYPE THE TICKET NUMBER rather
-   than click OK. A stray click cannot produce a matching string; a deliberate delete costs
-   four seconds. The backend enforces the same match, so this is a courtesy, not the guard. */
+/* A plain "are you sure?" — no typing, no reason field (user's call, 2026-08-05).
+   ⚠ The backend still REQUIRES `confirm` to equal the ticket id, and that check stays: it
+   is no longer a UX speed bump but an API-level guard, so a malformed or replayed call from
+   anything that is not this UI cannot delete a ticket. The UI simply supplies it.
+   🔑 That split is why this change needed NO backend redeploy. */
 function _tqDelete(id) {
-  _ssAddPopup('Delete ' + id + ' permanently',
-    [{ id:'confirm', label:'Type ' + id + ' to confirm', value:'' },
-     { id:'reason',  label:'Reason (optional)', value:'' }],
-    function (v) {
-      if (String(v.confirm || '').trim().toUpperCase() !== String(id).toUpperCase()) {
-        return 'Type the ticket number exactly to confirm.';
-      }
-      _ticketPost({ action:'deleteTicket', ticketId:id, confirm:v.confirm, reason:v.reason }).then(function (res) {
+  _ssAddPopup('Delete ' + id + '?', [],
+    function () {
+      _ticketPost({ action:'deleteTicket', ticketId:id, confirm:id }).then(function (res) {
         if (res && res.ok) {
           // Drop it from the local list — there is no updated ticket to sync back.
           _TICKETS.list = (_TICKETS.list || []).filter(function (x) { return x.ticketId !== id; });
@@ -1379,8 +1376,8 @@ function _tqDelete(id) {
         } else alert((res && res.error) || 'Could not delete.');
       }).catch(function (e) { alert('Error: ' + e.message); });
     },
-    { saveLabel:'Delete permanently', danger:true,
-      intro:'This removes the ticket and its notes from the queue for good. Archiving is the reversible option.' });
+    { saveLabel:'Yes, delete it', danger:true,
+      intro:'This permanently removes the ticket and its notes. Archiving is the reversible option.' });
 }
 
 // Open the detail already in edit mode, rather than making it a two-click journey.

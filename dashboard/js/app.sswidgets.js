@@ -237,7 +237,11 @@ function _ssAddPopup(title, fields, onSave, opts) {
     }
     close();
   };
-  var first = document.getElementById('ssap-' + fields[0].id); if (first) first.focus();
+  /* ⚠ `fields` may legitimately be EMPTY — a plain confirm dialog has nothing to fill in.
+     This used to read fields[0].id unconditionally and threw on an empty array, which made
+     the shell unusable for exactly the simplest case it should support. */
+  if (fields.length) { var first = document.getElementById('ssap-' + fields[0].id); if (first) first.focus(); }
+  else { var okBtn = document.getElementById('ssap-save'); if (okBtn) okBtn.focus(); }
 }
 
 function _comboKey(id, e) {
