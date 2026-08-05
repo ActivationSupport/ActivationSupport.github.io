@@ -10,18 +10,56 @@ function skelLoader() {
 }
 
 // ── Stale-while-revalidate cache for the main data blob ──
-// The Apps Script fetch is the slow part. We stash each office's last data blob in
-// sessionStorage so a reload / office-switch / return paints INSTANTLY from the last
-// copy, then a fresh fetch runs in the background and re-renders. Cleared on sign-out.
-function _mainDataKey() { return 'as_data_' + CFG.officeId; }
+// The Apps Script fetch is the slow part. We stash the last data blob per (office, user)
+// so a reload / office-switch / return / NEXT MORNING paints INSTANTLY from the last copy,
+// then a fresh fetch runs in the background and re-renders. Cleared on sign-out.
+/* ── INSTANT PAINT ACROSS SESSIONS ───────────────────────────────────────────────────
+   This cache used to live in sessionStorage, which dies with the tab — so there was NO
+   instant paint on the first login of the day, a new tab, a browser restart, or after iOS
+   Safari discarded a backgrounded tab. Every one of those fell through to skelLoader() and
+   blocked on the full blob (~5.8s cold). Reps ate that every morning.
+   It is now localStorage, so yesterday's data paints immediately and the live blob swaps in
+   behind it. FOUR GUARDS make that safe:
+     1. PER USER — the key carries the signed-in email. localStorage is shared by everyone
+        on the device, and these are shared handhelds. Without this, rep B opening the
+        portal would paint rep A's orders. The blob is ROLE-SCOPED server-side, so this is
+        not cosmetic.
+     2. PER OFFICE — the existing office stamp, still proved before painting.
+     3. MAX AGE — never paint anything older than _MAIN_CACHE_MAX_AGE. Stale-but-labelled
+        is useful; yesterday-morning's data silently presented as current is not.
+     4. CLEARED ON SIGN-OUT — logout and the inactivity/forced re-auth paths wipe it, so
+        signing out actually removes the customer data from the device.
+   ⚠ The "X ago" label (_updateLastUpdated) is what tells the user this is a cached paint.
+     It is load-bearing here, not decoration — don't remove it. */
+var _MAIN_CACHE_MAX_AGE = 12 * 60 * 60 * 1000;   // 12h
+
+function _mainDataUser() {
+  return String((typeof SESSION !== 'undefined' && SESSION && SESSION.email) || '').trim().toLowerCase();
+}
+function _mainDataKey() { return 'as_data_' + CFG.officeId + '_' + _mainDataUser(); }
 function _cacheMainData(res) {
   // Stamp the blob with the office it belongs to so the reader can prove it before
   // painting (office-isolation guard — see _readCachedMainData).
-  try { sessionStorage.setItem(_mainDataKey(), JSON.stringify({ ts: Date.now(), office: CFG.officeId, data: res })); } catch (e) {}
+  // Never write an unattributed blob: without an email the key would be shared by every
+  // user on the device, which is the one thing the per-user guard exists to prevent.
+  if (!_mainDataUser()) return;
+  try {
+    localStorage.setItem(_mainDataKey(), JSON.stringify({
+      ts: Date.now(), office: CFG.officeId, user: _mainDataUser(), data: res
+    }));
+  } catch (e) {
+    // Quota is the expected failure (the blob is large and localStorage is ~5MB).
+    // Drop our own older entries and retry once; if it still fails, we simply have no
+    // instant paint — which is exactly the old behaviour, so failing here is harmless.
+    try { _pruneDataCache(); localStorage.setItem(_mainDataKey(), JSON.stringify({
+      ts: Date.now(), office: CFG.officeId, user: _mainDataUser(), data: res })); } catch (e2) {}
+  }
 }
 function _readCachedMainData() {
   try {
-    var raw = sessionStorage.getItem(_mainDataKey());
+    var me = _mainDataUser();
+    if (!me) return null;                      // not signed in yet — nothing may be painted
+    var raw = localStorage.getItem(_mainDataKey());
     if (!raw) return null;
     var o = JSON.parse(raw);
     // OFFICE-ISOLATION GUARD: never instant-paint a blob that isn't stamped for the
@@ -30,14 +68,45 @@ function _readCachedMainData() {
     // we just fall back to the loading skeleton, so a fresh login can never flash
     // another office's orders.
     if (!o || !o.data || o.office !== CFG.officeId) return null;
+    // USER-ISOLATION GUARD: the key already carries the email, but prove it from the
+    // payload too. localStorage outlives the session and these are shared devices, so a
+    // key collision must never be able to paint someone else's orders.
+    if (String(o.user || '') !== me) return null;
+    // AGE GUARD: stale-but-labelled is useful, silently-ancient is not.
+    if (!o.ts || (Date.now() - o.ts) > _MAIN_CACHE_MAX_AGE) return null;
     return o;
   } catch (e) { return null; }
 }
+
+/* Housekeeping. localStorage persists, so without this the device slowly accumulates a
+   blob per (office, user) that was signed into on it. Drops everything except the current
+   user's entry for the current office. */
+function _pruneDataCache(keepCurrent) {
+  try {
+    var keep = keepCurrent === false ? null : _mainDataKey();
+    var rm = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('as_data_') === 0 && k !== keep) rm.push(k);
+    }
+    rm.forEach(function(k) { localStorage.removeItem(k); });
+  } catch (e) {}
+}
+/* Called by logout AND by _forceReauth (expired badge / inactivity sign-out).
+   ⚠⚠ MUST clear localStorage now, not sessionStorage. The blob holds customer orders and
+   now OUTLIVES the tab, so signing out is the moment it has to leave the device — that is
+   the whole basis on which persisting it is acceptable. Clearing the old sessionStorage
+   keys too, so a browser that still has pre-change entries is cleaned up on first sign-out. */
 function _clearDataCache() {
   try {
     var rm = [];
-    for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf('as_data_') === 0) rm.push(k); }
-    rm.forEach(function(k) { sessionStorage.removeItem(k); });
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('as_data_') === 0) rm.push(k); }
+    rm.forEach(function(k) { localStorage.removeItem(k); });
+  } catch (e) {}
+  try {
+    var rs = [];
+    for (var j = 0; j < sessionStorage.length; j++) { var sk = sessionStorage.key(j); if (sk && sk.indexOf('as_data_') === 0) rs.push(sk); }
+    rs.forEach(function(k) { sessionStorage.removeItem(k); });
   } catch (e) {}
 }
 function _applyMainData(res, ts) {
@@ -85,8 +154,18 @@ function loadData(forceFresh) {
   if (!forceFresh) {
     var cached = _readCachedMainData();
     if (cached) {
-      try { _applyMainData(cached.data, cached.ts); switchTab(CURRENT_TAB); painted = true; _preloadTabs(); } catch (e) { painted = false; }
+      // ts is the CACHED blob's timestamp, so "Updated 7h ago" appears immediately and the
+      // user can see this is yesterday's data until the live fetch below swaps it out.
+      try {
+        _applyMainData(cached.data, cached.ts); switchTab(CURRENT_TAB); painted = true;
+        // Real data, instantly — but say plainly that it is last session's until the
+        // fetch below confirms it. Cleared by _applyMainData on the fresh response.
+        _markDataStale();
+        _preloadTabs();
+      } catch (e) { painted = false; }
     }
+    // Only one blob per device is worth keeping; drop other users'/offices' leftovers.
+    _pruneDataCache();
   }
   if (!painted) document.getElementById('main-content').innerHTML = skelLoader();
   _CACHE.mainFlight = true;
@@ -99,6 +178,7 @@ function loadData(forceFresh) {
     if (res.error) { if (!painted) document.getElementById('main-content').innerHTML = '<div class="spinner">Error: ' + esc(res.error) + '</div>'; return; }
     var firstPaint = !painted;
     _applyMainData(res, Date.now());
+    _markDataFresh();   // confirmed — drop the cached-data treatment
     _cacheMainData(res);
     if (firstPaint) {
       switchTab(CURRENT_TAB);
@@ -111,8 +191,28 @@ function loadData(forceFresh) {
     _preloadTabs();
   }).catch(function() {
     _CACHE.mainFlight = false;
+    // Same reasoning as _bgRefreshMain: don't let one failure buy a full TTL of silence.
+    _CACHE.mainDataTs = Date.now() - (_CACHE.MAIN_TTL - 15000);
     if (!painted) document.getElementById('main-content').innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="loadData()">Retry</a></div>';
   });
+}
+
+/* ── "SHOWING CACHED DATA" TREATMENT ─────────────────────────────────────────────────
+   The practical version of "hold the numbers until they're confirmed". Painting the layout
+   with values blanked would mean teaching ~10 tab renderers a values-empty mode — and the
+   rep still could not act on it, so it buys nothing over the skeleton it replaced.
+   Instead: paint the real cached data immediately (no waiting) and mark the whole region as
+   not-yet-confirmed until the live fetch lands. One class on one container, no renderer
+   changes, and it is honest about what is on screen.
+   ⚠ It must be cleared by EVERY path that lands fresh data, or the portal would sit there
+   looking permanently unconfirmed. */
+function _markDataStale() {
+  var mc = document.getElementById('main-content');
+  if (mc) mc.classList.add('data-unconfirmed');
+}
+function _markDataFresh() {
+  var mc = document.getElementById('main-content');
+  if (mc) mc.classList.remove('data-unconfirmed');
 }
 
 function refreshData() {
@@ -140,9 +240,14 @@ function _bgRefreshMain() {
   api({}).then(function(res) {
     _CACHE.mainFlight = false;
     if (CFG.officeId !== _reqOffice) return;   // office switched mid-refresh — discard (no cross-office DATA)
-    if (res.error) return;
+    /* ⚠ A FAILED REFRESH USED TO COST A FULL TTL. mainDataTs was left untouched, so the
+       next attempt waited the whole 90s and one failure put us at ~183s behind — outside
+       the 2-minute budget on a single hiccup. Back the clock off instead, so the next tick
+       (≤15s away) retries. */
+    if (res.error) { _CACHE.mainDataTs = Date.now() - (_CACHE.MAIN_TTL - 15000); return; }
     DATA = res;
     _CACHE.mainDataTs = Date.now();
+    _markDataFresh();
     var me = (DATA.roster || {})[SESSION.email];
     if (me) SESSION.tableauName = me.tableauName || SESSION.tableauName;
     _updateLastUpdated();
@@ -349,6 +454,59 @@ function _preloadTabs() {
 // One main-refresh tick — shared by the 15s interval and the visibilitychange
 // catch-up below, so a backgrounded tab stops polling but refreshes the moment
 // the user comes back to it.
+/* ── FRESHNESS BUDGET ────────────────────────────────────────────────────────────────
+   REQUIREMENT (user, 2026-08-04): nothing on screen may be more than 2 MINUTES behind.
+   🔴 The background cycle used to refresh exactly THREE things — the main blob, notes and
+   the Live Sales Tracker. Everything else (Appointments, Training, Posted Sales,
+   activation-rate lines, Team orders) was fetched once at preload or first open and then
+   ONLY cleared by a manual Refresh, an office switch, or a mutation the rep made
+   themselves. A rep sitting on the Appointments tab was looking at data from whenever they
+   logged in — hours, not minutes. That was the real violation, far bigger than any cache.
+   These surfaces are now age-stamped and invalidated, so the next render refetches. */
+/* Budget arithmetic: 15s tick granularity + 75s TTL + ~3s fetch ≈ 93s worst case, which
+   leaves real headroom under the 2-minute rule. Don't raise this past ~95s without redoing
+   that sum. */
+var _SECONDARY_TTL = 75000;
+var _SEC_TS = {};
+function _secStale(name) { return !!_SEC_TS[name] && (Date.now() - _SEC_TS[name]) >= _SECONDARY_TTL; }
+
+/* Each entry: the cache to drop, and how to tell whether it currently holds anything.
+   Dropping the cache is enough — every one of these renderers refetches when its cache is
+   null, which is the same path a manual Refresh already uses and is therefore proven. */
+function _invalidateStaleSecondary() {
+  var dropped = [];
+  /* SELF-STAMPING. These surfaces are populated in five different bundles, and threading a
+     _secTouch() call into every one of them is five files of edits for a timestamp we can
+     observe here instead. First tick that SEES data stamps it; the clock starts then. The
+     only cost is up to one tick (15s) of imprecision, which the budget above accounts for.
+     ⚠ Stamp-then-return, never stamp-and-drop — otherwise freshly loaded data would be
+     thrown away on the very first tick that noticed it. */
+  function drop(name, has, clear) {
+    if (!has()) { delete _SEC_TS[name]; return; }   // gone already (mutation/office switch)
+    if (!_SEC_TS[name]) { _SEC_TS[name] = Date.now(); return; }
+    if (!_secStale(name)) return;
+    clear(); delete _SEC_TS[name]; dropped.push(name);
+  }
+  try {
+    drop('appointments',
+      function(){ return typeof _APPT !== 'undefined' && _APPT && _APPT.appointments; },
+      function(){ _APPT.appointments = null; });
+    drop('training',
+      function(){ return typeof _TRAINING_ORDERS !== 'undefined' && _TRAINING_ORDERS; },
+      function(){ _TRAINING_ORDERS = null; });
+    drop('postedsales',
+      function(){ return typeof _PSV_SALES !== 'undefined' && _PSV_SALES; },
+      function(){ _PSV_SALES = null; });
+    drop('arlines',
+      function(){ return typeof _AR_LINES !== 'undefined' && _AR_LINES; },
+      function(){ _AR_LINES = null; if (typeof _AR_LOADING !== 'undefined') _AR_LOADING = false; });
+    drop('teamorders',
+      function(){ return typeof _TM_ORDERS !== 'undefined' && _TM_ORDERS && Object.keys(_TM_ORDERS).length; },
+      function(){ _TM_ORDERS = {}; if (typeof _TM_ORD_LOADING !== 'undefined') _TM_ORD_LOADING = {}; });
+  } catch (e) {}
+  return dropped;
+}
+
 function _bgTick() {
   if (document.hidden) return;   // background tab — skip (catch-up runs on return)
   if (document.getElementById('app').style.display === 'none') return;
@@ -359,6 +517,14 @@ function _bgTick() {
   }
   if (Date.now() - _CACHE.mainDataTs >= _CACHE.MAIN_TTL) _bgRefreshMain();
   if (Date.now() - _CACHE.lstSalesTs  >= _CACHE.LST_TTL)  _bgRefreshLst();
+
+  /* Whatever the rep is LOOKING AT has to come back inside the budget too. Re-render only
+     the tabs that are safe to repaint under someone — the same exclusion list the main
+     refresh already uses, because those manage their own form/scroll state. Excluded tabs
+     still get their cache dropped above, so opening one always refetches. */
+  var dropped = _invalidateStaleSecondary();
+  var skipRender = { postsale:1, postedsales:1, dailyreport:1, training:1 };
+  if (dropped.length && !skipRender[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
 }
 
 function _startBgRefresh() {

@@ -2279,3 +2279,20 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
   .ss-nt-wrap{ flex-direction:column }
   .ss-rp-rail{ flex:1 1 auto; width:100%; max-width:860px; position:static }
 }
+
+/* ── PERF: data painted from the previous session, not yet reconfirmed ───────────
+   Set on #main-content by _markDataStale() when loadData() instant-paints a cached
+   blob, cleared by _markDataFresh() the moment the live fetch lands (usually 2-4s).
+   Deliberately QUIET: this is REAL data the rep can start reading, not an error --
+   it must not shout, and it must not shift layout (no borders, no size changes).
+   Honours prefers-reduced-motion: the pulse is decoration, the dimming is the signal. */
+#main-content.data-unconfirmed{opacity:.72;transition:opacity .25s ease}
+#main-content.data-unconfirmed::before{content:'Showing your last session\2019 s data \2014  updating\2026 ';
+  display:block;margin:0 0 10px;padding:6px 11px;border-radius:var(--r-sm,6px);
+  background:var(--tint-1);color:var(--text2);font-size:.74rem;letter-spacing:.02em;
+  animation:dataUnconfirmedPulse 1.6s ease-in-out infinite}
+@keyframes dataUnconfirmedPulse{0%,100%{opacity:.75}50%{opacity:1}}
+@media (prefers-reduced-motion: reduce){
+  #main-content.data-unconfirmed::before{animation:none}
+  #main-content.data-unconfirmed{transition:none}
+}
