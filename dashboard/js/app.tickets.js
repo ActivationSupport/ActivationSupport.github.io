@@ -1,23 +1,23 @@
-// â”€â”€ SALES SUPPORT â€” TICKETING ("Jedi" office) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SALES SUPPORT — TICKETING ("Jedi" office) ──────────────────────────────
 // A self-contained feature area for the `salessupport` office. Unlike every other
 // office (Tableau-fed sales dashboards), this is a Zendesk-style ticket/interaction
-// log: agents record rep calls & texts, categorize them (General â†’ Specific), work
+// log: agents record rep calls & texts, categorize them (General → Specific), work
 // them as a note thread, and chase a follow-up queue. NO Tableau data.
 //
 // It plugs into the shared portal via tiny branch-hooks (all guarded on
 // CFG.officeId === 'salessupport', so every other office is byte-for-byte unchanged):
-//   â€¢ app.core.js  buildNav/_activeTabs â†’ swaps TABS for SALESSUPPORT_TABS
-//   â€¢ app.core.js  showApp             â†’ calls initTicketApp() instead of loadData()
-//   â€¢ app.data.js  renderTab           â†’ delegates to renderTicketTab(id)
-//   â€¢ app.css      html[data-office="salessupport"] â†’ deep-space dark palette
+//   • app.core.js  buildNav/_activeTabs → swaps TABS for SALESSUPPORT_TABS
+//   • app.core.js  showApp             → calls initTicketApp() instead of loadData()
+//   • app.data.js  renderTab           → delegates to renderTicketTab(id)
+//   • app.css      html[data-office="salessupport"] → deep-space dark palette
 // Login/roster/session all reuse the portal exactly as-is.
 //
 // Backend (Slice 2+): its OWN standalone Apps Script project (separate /exec), reached
-// through _ticketGet/_ticketPost below â€” same session-token pattern as app.appts.js.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// through _ticketGet/_ticketPost below — same session-token pattern as app.appts.js.
+// ───────────────────────────────────────────────────────────────────────────
 
-// Each agent's home timezone â†’ the "You" side of the office dual-clock.
-// Gavon/Ryan/Amber = Pacific Â· Jada (New England) = Eastern Â· Cammy (Louisiana) = Central.
+// Each agent's home timezone → the "You" side of the office dual-clock.
+// Gavon/Ryan/Amber = Pacific · Jada (New England) = Eastern · Cammy (Louisiana) = Central.
 var SALESSUPPORT_AGENT_TZ = {
   'gavonfuller2024@gmail.com':'America/Los_Angeles', 'ryan.turner.50@gmail.com':'America/Los_Angeles',
   'amb3ranastasia@gmail.com':'America/Los_Angeles', 'jadwil893@gmail.com':'America/New_York',
@@ -35,7 +35,7 @@ var _TICKETS = {
   _loaded: false
 };
 
-// Canonical statuses â†” display labels (backend stores the canonical code).
+// Canonical statuses ↔ display labels (backend stores the canonical code).
 var TICKET_STATUS = [
   { code:'pending',  label:'Pending / Open' },
   { code:'followup', label:'Follow-up (Need Response)' },
@@ -44,7 +44,7 @@ var TICKET_STATUS = [
 var TICKET_CHANNELS = ['Calling', 'Texting'];
 var TICKET_SARA = ['Pre', 'During', 'Post'];
 
-// â”€â”€ Separate ticketing backend (wired in Slice 2 once the script is deployed) â”€â”€
+// ── Separate ticketing backend (wired in Slice 2 once the script is deployed) ──
 // Mirror of app.appts.js _apptGet/_apptPost: carry the shared key + portal session
 // token, follow redirects, text/plain body (no CORS preflight), route auth-expiry
 // back to login via _authIntercept.
@@ -107,12 +107,12 @@ function _ticketPost(body) {
   }).then(_ticketParse);
 }
 
-// Entry point from showApp() â€” renders whatever tab we landed on. (Data fetching for
+// Entry point from showApp() — renders whatever tab we landed on. (Data fetching for
 // the queue/detail/follow-ups arrives with those slices; the scaffold just paints.)
 // We also set the sidebar username here because salessupport skips loadData/_applyMainData
 // (where every other office sets it).
 function initTicketApp() {
-  var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(46);   // OUTLINE wordmark â€” same as the login page (a touch larger + a glow, added in CSS, keep it legible)
+  var sb = document.getElementById('sb-office-name'); if (sb) sb.innerHTML = _ssLogoSvg(46);   // OUTLINE wordmark — same as the login page (a touch larger + a glow, added in CSS, keep it legible)
   var nameEl = document.getElementById('sb-user-name');
   if (nameEl) nameEl.innerHTML = '<div class="ss-sb-role">' + esc(SESSION.role || 'agent') + '</div>' +
     '<div class="ss-sb-email" title="' + esc(SESSION.email || '') + '">' + esc(SESSION.email || '') + '</div>';
@@ -122,12 +122,12 @@ function initTicketApp() {
   if (!_TICKETS._clockTimer) _TICKETS._clockTimer = setInterval(_ssTickClocks, 20000);    // keep every office/you clock live
   switchTab(CURRENT_TAB || 'newticket');
 }
-// The Millennium-Falcon DOME windscreen frame â€” our own SVG (crisp; gradient-drawn CSS moires), handed to
+// The Millennium-Falcon DOME windscreen frame — our own SVG (crisp; gradient-drawn CSS moires), handed to
 // CSS as --ss-canopy (used by html[data-office=salessupport] #app .content::after). Matches the schematic
 // shape: an OPEN central circular port + concentric arches + radial ribs (ribs start at the port rim so the
 // port stays a clean window) fanning up from the console point (cx,cy). Rendered as real, top-LIT metal:
-// wide dark base (gap/shadow) â†’ body â†’ a vertical steel gradient (bright up top, dark below = overhead light)
-// â†’ thin bright spine, with bolt rivets at the archâ†”rib intersections. Idempotent (once per session).
+// wide dark base (gap/shadow) → body → a vertical steel gradient (bright up top, dark below = overhead light)
+// → thin bright spine, with bolt rivets at the arch↔rib intersections. Idempotent (once per session).
 function _ssInstallCanopy() {
   var cx = 800, cy = 840;
   var arches = [175, 370, 560, 755, 970];                                   // innermost = the open port
@@ -151,7 +151,7 @@ function _ssInstallCanopy() {
       '</linearGradient>' +
       '<g id="s" fill="none" stroke-linecap="round" stroke-linejoin="round">' + shapes + '</g>' +
     '</defs>' +
-    '<use href="#s" stroke="#12171a" stroke-width="36"/>' +        /* wide dark base â€” the gap/shadow between beams */
+    '<use href="#s" stroke="#12171a" stroke-width="36"/>' +        /* wide dark base — the gap/shadow between beams */
     '<use href="#s" stroke="#333c42" stroke-width="26"/>' +        /* body */
     '<use href="#s" stroke="url(#ssLit)" stroke-width="17"/>' +    /* top-lit steel gradient (overhead light) */
     '<use href="#s" stroke="#aeb8bc" stroke-width="3" opacity="0.7"/>' +   /* thin bright spine */
@@ -162,8 +162,8 @@ function _ssInstallCanopy() {
 }
 // An original Alderaan-style world (NOT anyone's photo) for the view out the windscreen: a LIT sphere
 // with a teal ocean base, procedural GREEN landmasses + heavy WHITE cloud swirls (two fractal-noise
-// layers), a day/night terminator, and an atmosphere rim â€” all clipped to the disc. Set as CSS var
-// --ss-planet â†’ a background layer on .content (behind the starfield + frame), slightly right of centre.
+// layers), a day/night terminator, and an atmosphere rim — all clipped to the disc. Set as CSS var
+// --ss-planet → a background layer on .content (behind the starfield + frame), slightly right of centre.
 function _ssInstallPlanet() {
   var p = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">' +
     '<defs>' +
@@ -172,7 +172,7 @@ function _ssInstallPlanet() {
         '<stop offset="40%" stop-color="#3f8ca2"/><stop offset="64%" stop-color="#1e5a70"/>' +
         '<stop offset="85%" stop-color="#0c3044"/><stop offset="100%" stop-color="#051622"/>' +
       '</radialGradient>' +
-      '<radialGradient id="pT" cx="32%" cy="27%" r="92%">' +   /* dayâ†’night terminator (dark on the far side) */
+      '<radialGradient id="pT" cx="32%" cy="27%" r="92%">' +   /* day→night terminator (dark on the far side) */
         '<stop offset="0" stop-color="rgba(0,0,0,0)"/><stop offset="52%" stop-color="rgba(0,0,0,0)"/>' +
         '<stop offset="82%" stop-color="rgba(2,7,11,.55)"/><stop offset="100%" stop-color="rgba(0,2,5,.92)"/>' +
       '</radialGradient>' +
@@ -201,7 +201,7 @@ function _ssInstallPlanet() {
 }
 
 // Router for the three screens (called from app.data.js renderTab when the office is
-// salessupport). Slices 3â€“6 replace each placeholder with the real screen.
+// salessupport). Slices 3–6 replace each placeholder with the real screen.
 function renderTicketTab(id) {
   var c = document.getElementById('main-content');
   if (!c) return;
@@ -212,7 +212,7 @@ function renderTicketTab(id) {
   else                          c.innerHTML = _ticketScaffold('Sales Support', 'Select a screen from the sidebar.', '');
 }
 
-// â”€â”€ NEW TICKET (Slice 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── NEW TICKET (Slice 3) ────────────────────────────────────────────────────
 // One-screen intake. Office / Rep / General / Specific are save-as-you-go via native
 // <datalist> (free-type + autocomplete from prior values; new values are remembered
 // server-side on create). Assignee defaults to the current agent.
@@ -241,9 +241,9 @@ function _ntField(label, controlHtml, cls) {
 }
 function _ntSec(title) { return '<div class="ss-form-seclabel">' + esc(title) + '</div>'; }
 function _newTicketFormHtml() {
-  var chan = '<select id="nt-channel" class="ps-select"><option value="">â€”</option>' +
+  var chan = '<select id="nt-channel" class="ps-select"><option value="">—</option>' +
     TICKET_CHANNELS.map(function(x){ return '<option>' + esc(x) + '</option>'; }).join('') + '</select>';
-  var sara = '<select id="nt-sara" class="ps-select"><option value="">â€”</option>' +
+  var sara = '<select id="nt-sara" class="ps-select"><option value="">—</option>' +
     TICKET_SARA.map(function(x){ return '<option>' + esc(x) + '</option>'; }).join('') + '</select>';
   var me = (SESSION && (SESSION.name || SESSION.email)) || '';
   var assignee = '<select id="nt-assignee" class="ps-select"><option value="' + esc((SESSION&&SESSION.email)||'') + '" selected>' + esc(me || 'Me') + '</option></select>';
@@ -251,11 +251,11 @@ function _newTicketFormHtml() {
   '<div class="card ss-card ss-form-card" style="max-width:860px">' +
     '<div class="ss-rule"></div>' +
     '<h2 class="ss-h2">New Ticket</h2>' +
-    '<p class="ss-sub">Log a rep call or text. Rep, office, subject and categories remember what you type â€” pick an existing one or create a new one inline.</p>' +
+    '<p class="ss-sub">Log a rep call or text. Rep, office, subject and categories remember what you type — pick an existing one or create a new one inline.</p>' +
     '<div class="ss-form-sec">' + _ntSec('Contact') +
       '<div class="ss-grid">' +
         _ntField('Requester (Rep)', _comboField('nt-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:function(){ _ntAutofillRep('nt'); _ssSyncRequesterPanel('nt'); }, onInput:function(){ _ssSyncRequesterPanel('nt'); }, onAdd:function(t){ _ssRepAddPopup(t, 'nt'); } })) +
-        _ntField('Office', _comboField('nt-office', { placeholder:'Owner â€” Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:function(){ _ntOfficeChange('nt'); _ssSyncRequesterPanel('nt'); }, onAdd:function(t){ _ssOfficeAddPopup(t, 'nt'); } })) +
+        _ntField('Office', _comboField('nt-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:function(){ _ntOfficeChange('nt'); _ssSyncRequesterPanel('nt'); }, onAdd:function(t){ _ssOfficeAddPopup(t, 'nt'); } })) +
         _ntField('Channel', chan) +
         _ntField('Phone #', _comboField('nt-phone', { placeholder:'Called / texted in from', options:_ntKnownPhones, onChange:function(){ _ntPhoneLookup('nt'); _ssSyncRequesterPanel('nt'); }, onInput:function(){ _ntPhoneLookup('nt'); _ssSyncRequesterPanel('nt'); }, onBlur:function(){ _ssPhoneBlur('nt-phone'); _ssSyncRequesterPanel('nt'); }, noAdd:true })) +
       '</div>' +
@@ -288,7 +288,7 @@ function _newTicketFormHtml() {
           '<label class="ss-chk"><input type="radio" name="nt-subtype" value="followup"> Follow-up / Response Needed</label>' +
         '</div>' +
       '</div>' +
-      _ntField('Notes', '<textarea id="nt-note" class="ps-textarea" rows="4" placeholder="What happened / whatâ€™s needed"></textarea>') +
+      _ntField('Notes', '<textarea id="nt-note" class="ps-textarea" rows="4" placeholder="What happened / what’s needed"></textarea>') +
     '</div>' +
     '<div class="ss-actions">' +
       '<button id="nt-submit" class="ps-btn" onclick="_ticketCreate(event)">Create Ticket</button>' +
@@ -298,13 +298,13 @@ function _newTicketFormHtml() {
 }
 
 // Fetch the save-as-you-go lists + agents (once). The comboboxes read their options
-// live from _TICKETS.lookups, so there's nothing to "fill" â€” just the Assignee <select>.
+// live from _TICKETS.lookups, so there's nothing to "fill" — just the Assignee <select>.
 function _ticketLoadFormData() {
-  if (!TICKET_SCRIPT_URL) { _ntStatus('Preview mode â€” backend not connected yet (dropdowns fill once it is).', false); return; }
+  if (!TICKET_SCRIPT_URL) { _ntStatus('Preview mode — backend not connected yet (dropdowns fill once it is).', false); return; }
   Promise.all([
     _ticketGet({ action:'getLookups' }),
     _ticketGet({ action:'getAgents' }),
-    _ticketGet({ action:'getTickets' })   // repâ†’last-phone map + the requester panel's history
+    _ticketGet({ action:'getTickets' })   // rep→last-phone map + the requester panel's history
   ]).then(function(r) {
     if (r[0] && r[0].lookups) _TICKETS.lookups = r[0].lookups;
     if (r[1] && r[1].agents)  _TICKETS.agents  = r[1].agents;
@@ -315,7 +315,7 @@ function _ticketLoadFormData() {
   }).catch(function(){ /* leave the form usable with empty lists */ });
 }
 // Build { rep(lc) -> {phone, office} } from each rep's most recent ticket that HAS each value,
-// then let the manually-maintained Rep Contacts directory (_TICKETS.contacts) override â€” it's
+// then let the manually-maintained Rep Contacts directory (_TICKETS.contacts) override — it's
 // the source of truth for reps who've never opened a ticket or whose info changed.
 function _ticketBuildRepProfiles() {
   var byRep = {}, byPhone = {};
@@ -340,7 +340,7 @@ function _ticketBuildRepProfiles() {
   });
   _TICKETS._repProfile = {};
   Object.keys(byRep).forEach(function(rk){ _TICKETS._repProfile[rk] = { phone: byRep[rk].phone, office: byRep[rk].office }; });
-  _TICKETS._phoneProfile = byPhone;   // reverse: phone â†’ { rep, office }
+  _TICKETS._phoneProfile = byPhone;   // reverse: phone → { rep, office }
 }
 // On picking an existing Rep, auto-fill Phone + Office from their profile (each still editable).
 // `prefix` selects which field family to read/write ('nt' = New Ticket, 'ted' = ticket-edit modal).
@@ -351,18 +351,18 @@ function _ntAutofillRep(prefix) {
   if (p.phone) _ntSetVal(prefix + '-phone', _ssFmtPhone(p.phone));
   if (p.office) { _ntSetVal(prefix + '-office', p.office); _ntOfficeChange(prefix); }
 }
-// â”€â”€ Phone numbers â€” ONE universal format â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Phone numbers — ONE universal format ────────────────────────────────────
 // Every number this office stores or shows is "(555) 123-4567". Agents may type one
-// however they like â€” dots, dashes, spaces, a leading 1, +1 â€” and it is canonicalized
+// however they like — dots, dashes, spaces, a leading 1, +1 — and it is canonicalized
 // at the moment of save, with legacy values formatted on their way to the screen.
 // A number must be 10 digits (or 11 starting with 1); anything else is REFUSED at save
-// rather than stored, which is what keeps the phoneâ†’rep map trustworthy.
+// rather than stored, which is what keeps the phone→rep map trustworthy.
 //   _ssPhoneDigits  the 10 significant digits, or '' if it isn't a valid US number
-//   _ssPhoneOk      valid to save? (blank counts as valid â€” phone is an optional field)
+//   _ssPhoneOk      valid to save? (blank counts as valid — phone is an optional field)
 //   _ssFmtPhone     canonical form. A non-conforming value comes back AS TYPED, so odd
 //                   legacy data still displays and is never silently rewritten.
-//   _ssNormPhone    digits-only MATCH key. Collapses 1-555â€¦ and 555â€¦ onto ONE key, so
-//                   the repâ†”phone lookup spans both old and new stored formats.
+//   _ssNormPhone    digits-only MATCH key. Collapses 1-555… and 555… onto ONE key, so
+//                   the rep↔phone lookup spans both old and new stored formats.
 function _ssPhoneDigits(p) {
   var d = String(p == null ? '' : p).replace(/\D/g, '');
   if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1);
@@ -376,7 +376,7 @@ function _ssFmtPhone(p) {
 }
 function _ssNormPhone(p) { return _ssPhoneDigits(p) || String(p == null ? '' : p).replace(/\D/g, ''); }
 // What every surface says when a typed number isn't 10 digits.
-var SS_PHONE_ERR = 'Phone must be 10 digits â€” e.g. (555) 123-4567.';
+var SS_PHONE_ERR = 'Phone must be 10 digits — e.g. (555) 123-4567.';
 // Snap a field to the canonical format as the agent leaves it. Blank and invalid values
 // are left alone, so the save-time error can quote back exactly what they typed.
 function _ssPhoneBlur(id) {
@@ -392,11 +392,11 @@ function _ntPhoneLookup(prefix) {
   if (!_ntVal(prefix + '-requester') && p.rep) _ntSetVal(prefix + '-requester', p.rep);
   if (!_ntVal(prefix + '-office') && p.office) { _ntSetVal(prefix + '-office', p.office); _ntOfficeChange(prefix); }
 }
-// Known phone numbers for the Phone # combobox â€” { val:number, label:"number Â· rep â€” office" }.
+// Known phone numbers for the Phone # combobox — { val:number, label:"number · rep — office" }.
 function _ntKnownPhones() {
   var pp = _TICKETS._phoneProfile || {};
   return Object.keys(pp).map(function(k){ var x = pp[k], n = _ssFmtPhone(x.phone || k);
-    return { val: n, label: n + (x.rep ? '  Â·  ' + x.rep + (x.office ? ' â€” ' + x.office : '') : '') }; });
+    return { val: n, label: n + (x.rep ? '  ·  ' + x.rep + (x.office ? ' — ' + x.office : '') : '') }; });
 }
 function _ticketFillAgents() {
   var sel = document.getElementById('nt-assignee'); if (!sel || !_TICKETS.agents.length) return;
@@ -415,8 +415,8 @@ function _ticketSpecificOptions() {
   return filtered.map(function(s){ return s.value; });
 }
 
-// â”€â”€ Office directory + timezones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// The Office field is a picklist of "Owner â€” Company" from a pre-loaded ICD directory;
+// ── Office directory + timezones ─────────────────────────────────────────────
+// The Office field is a picklist of "Owner — Company" from a pre-loaded ICD directory;
 // picking one shows a live "their time vs your time" clock. New offices are added inline
 // (with City/State so we can derive their timezone) and persist to the backend.
 var _SS_STATE_TZ = { CA:'PT',WA:'PT',OR:'PT',NV:'PT', CO:'MT',UT:'MT',NM:'MT',ID:'MT',WY:'MT',MT:'MT', AZ:'AZ',
@@ -435,13 +435,13 @@ function _ssTzForStateCity(state, city) {
 function _ssTzLabel(iana) { return _SS_IANA_LABEL[iana] || String(iana||'').split('/').pop().replace(/_/g,' '); }
 function _ssTimeInZone(iana) {
   try { return new Intl.DateTimeFormat('en-US', { timeZone:iana, hour:'numeric', minute:'2-digit' }).format(new Date()); }
-  catch (e) { return 'â€”'; }
+  catch (e) { return '—'; }
 }
 function _ssYourIana() {
   var e = String((SESSION && SESSION.email) || '').toLowerCase();
   return SALESSUPPORT_AGENT_TZ[e] || (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'America/Los_Angeles';
 }
-function _ssOfficeLabel(o) { o = o || {}; return (o.owner ? o.owner + ' â€” ' : '') + (o.company || ''); }
+function _ssOfficeLabel(o) { o = o || {}; return (o.owner ? o.owner + ' — ' : '') + (o.company || ''); }
 function _ssSetOffices(list) {
   _TICKETS.offices = list || [];
   var byLabel = {}, labels = [];
@@ -455,8 +455,8 @@ function _ssLoadOffices() {
   _ticketGet({ action:'getOffices' }).then(function(r){ _ssSetOffices((r && r.offices) || []); })
     .catch(function(){}).then(function(){ _TICKETS._officesLoading = false; });
 }
-// Pre-load the Rep Contacts directory (once) so Rep/Phone autofill works everywhere â€”
-// New Ticket, the ticket-edit modal, and the Rep Contacts tab â€” even before any ticket exists.
+// Pre-load the Rep Contacts directory (once) so Rep/Phone autofill works everywhere —
+// New Ticket, the ticket-edit modal, and the Rep Contacts tab — even before any ticket exists.
 function _ssLoadContacts() {
   if (_TICKETS._contactsLoaded || _TICKETS._contactsLoading || !TICKET_SCRIPT_URL) return;
   _TICKETS._contactsLoading = true;
@@ -482,7 +482,7 @@ function _ssTickClocks() {
   var els = document.querySelectorAll('.ss-clock');
   for (var i = 0; i < els.length; i++) { var t = els[i].querySelector('.ss-clock-time'); if (t) t.textContent = _ssTimeInZone(els[i].getAttribute('data-iana')); }
 }
-// Refresh the office clock strip when the office changes (only New Ticket has one â€” the
+// Refresh the office clock strip when the office changes (only New Ticket has one — the
 // ticket-edit modal's #ted-clock lookup is just a harmless no-op there).
 function _ntOfficeChange(prefix) {
   prefix = prefix || 'nt';
@@ -491,7 +491,7 @@ function _ntOfficeChange(prefix) {
   el.innerHTML = meta ? _ssClockPairHtml(meta) : '';
 }
 // Add-an-office popup: Owner/Company/City/State (+ optional Address/ZIP). Derives the timezone
-// from State (+ split-state city), fills the Office field with "Owner â€” Company", and persists it.
+// from State (+ split-state city), fills the Office field with "Owner — Company", and persists it.
 function _ssUniqOfficeVals(key) {
   var seen = {}, out = [];
   (_TICKETS.offices || []).forEach(function(o){ var v = String(o[key]||'').trim(); if (v && !seen[v.toLowerCase()]) { seen[v.toLowerCase()] = 1; out.push(v); } });
@@ -536,7 +536,7 @@ function _ticketRememberValue(type, value, parent) {
 }
 function _ntSetVal(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; }
 // Add-a-rep popup: captures name + phone + office; fills the three ticket fields (each still editable)
-// and saves it as a real Rep Contacts entry, so it's there for everyone next time â€” no ticket required.
+// and saves it as a real Rep Contacts entry, so it's there for everyone next time — no ticket required.
 function _ssRepAddPopup(typed, prefix) {
   prefix = prefix || 'nt';
   _ssAddPopup('Add Rep', [
@@ -551,7 +551,7 @@ function _ssRepAddPopup(typed, prefix) {
     _ntSetVal(prefix + '-phone', v.phone);
     _ntSetVal(prefix + '-office', v.office);
     _ntOfficeChange(prefix);   // if the office matches a directory entry, the clock lights up
-    // persist the rep + office to the dropdowns, and link repâ†’phone/office locally so re-picking
+    // persist the rep + office to the dropdowns, and link rep→phone/office locally so re-picking
     // fills them even before a ticket is saved (backed by the Rep Contacts directory).
     _ticketRememberValue('rep', v.name, '');
     if (v.office) _ticketRememberValue('office', v.office, '');
@@ -583,7 +583,7 @@ function _ntContactStatus(msg, isError) {
   el.textContent = msg || '';
   el.style.color = isError ? 'var(--red)' : 'var(--accent2b)';
 }
-// Save the current Rep/Office/Phone as a Rep Contacts entry WITHOUT creating a ticket â€”
+// Save the current Rep/Office/Phone as a Rep Contacts entry WITHOUT creating a ticket —
 // for pre-loading a rep's info before they ever call in, or fixing it on the spot.
 function _ntSaveContactLink(ev) {
   if (ev && ev.preventDefault) ev.preventDefault();
@@ -592,14 +592,14 @@ function _ntSaveContactLink(ev) {
   if (!phone && !office) { _ntContactStatus('Add a phone or an office to save.', true); return; }
   if (!_ssPhoneOk(phone)) { _ntContactStatus(SS_PHONE_ERR, true); return; }
   phone = _ssFmtPhone(phone); _ntSetVal('nt-phone', phone);
-  if (!TICKET_SCRIPT_URL) { _ntContactStatus('Preview mode â€” backend not connected.', true); return; }
+  if (!TICKET_SCRIPT_URL) { _ntContactStatus('Preview mode — backend not connected.', true); return; }
   var btn = document.getElementById('nt-save-contact');
-  if (btn) { btn.disabled = true; btn.textContent = 'Savingâ€¦'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   _ntContactStatus('', false);
   _ticketPost({ action:'saveContactLink', rep:rep, phone:phone, office:office }).then(function(res) {
     if (btn) { btn.disabled = false; btn.textContent = 'Save Link'; }
     if (res && res.ok) {
-      _ntContactStatus('Saved âœ¦', false);
+      _ntContactStatus('Saved ✦', false);
       var rk = rep.toLowerCase(), found = false;
       (_TICKETS.contacts = _TICKETS.contacts || []).forEach(function(c){ if (String(c.rep).toLowerCase() === rk) { c.phone = phone; c.office = office; found = true; } });
       if (!found) _TICKETS.contacts.push({ rep:rep, phone:phone, office:office });
@@ -686,8 +686,8 @@ function _ticketCreate(ev) {
   if (!_ssPhoneOk(payload.phone)) { _ntStatus(SS_PHONE_ERR, true); return; }
   payload.phone = _ssFmtPhone(payload.phone); _ntSetVal('nt-phone', payload.phone);
   var btn = document.getElementById('nt-submit');
-  if (!TICKET_SCRIPT_URL) { _ntStatus('Preview mode â€” backend not connected, so this canâ€™t save yet.', true); return; }
-  if (btn) { btn.disabled = true; btn.textContent = 'Savingâ€¦'; }
+  if (!TICKET_SCRIPT_URL) { _ntStatus('Preview mode — backend not connected, so this can’t save yet.', true); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   _ntStatus('', false);
   _ntCaptureDraft();   // hold everything BEFORE the round-trip; nothing below can lose it
 
@@ -701,8 +701,8 @@ function _ticketCreate(ev) {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Ticket'; }
     if (res && res.ok) {
       _ntStatus(res.duplicate
-        ? 'Already saved as ticket ' + res.ticketId + ' — no duplicate was created. âœ¦'
-        : 'Ticket ' + res.ticketId + ' created. âœ¦', false);
+        ? 'Already saved as ticket ' + res.ticketId + ' — no duplicate was created. ✦'
+        : 'Ticket ' + res.ticketId + ' created. ✦', false);
       _NT_CLIENT_KEY = null;   // next ticket gets a fresh key
       _ticketResetForm();
       // remember any freshly-typed values locally so the datalists update without a refetch
@@ -730,12 +730,12 @@ function _ticketRememberLocal(p) {
   }
 }
 
-// â”€â”€ TICKET QUEUE (Slice 4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── TICKET QUEUE (Slice 4) ──────────────────────────────────────────────────
 function renderTicketQueue() {
   var c = document.getElementById('main-content'); if (!c) return;
   if (!TICKET_SCRIPT_URL) { c.innerHTML = _ticketScaffold('Ticket Queue', 'Backend not connected in this preview.', ''); return; }
   if (!_TICKETS.sort || !_TICKETS.sort.key) _TICKETS.sort = { key:'created', dir:'desc' };   // newest first
-  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2>' + _ssLoading('Loading ticketsâ€¦') + '</div>';
+  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2>' + _ssLoading('Loading tickets…') + '</div>';
   Promise.all([
     _ticketGet({ action:'getTickets' }),
     _ticketGet({ action:'getLookups' }),
@@ -763,7 +763,7 @@ function _ticketQueueView() {
     TICKET_STATUS.map(function(s){ return '<option value="' + s.code + '"' + (s.code === f.status ? ' selected' : '') + '>' + esc(s.label) + '</option>'; }).join('') + '</select>';
   return '<div class="card ss-card"><div class="ss-rule"></div>' +
     '<div class="ss-qbar">' +
-      '<input id="tq-q" class="ps-input ss-qf ss-qf-search" placeholder="Search ticket, rep, subject, office, DSIâ€¦" value="' + esc(f.q || '') + '" oninput="_ticketQueueFilter()">' +
+      '<input id="tq-q" class="ps-input ss-qf ss-qf-search" placeholder="Search ticket, rep, subject, office, DSI…" value="' + esc(f.q || '') + '" oninput="_ticketQueueFilter()">' +
       statusSel +
       sel('tq-assignee', f.assignee, _TICKETS.agents || [], 'All agents', function(a){ return a.email; }, function(a){ return a.name || a.email; }) +
       sel('tq-office', f.office, _TICKETS.lookups.office || [], 'All offices') +
@@ -811,13 +811,13 @@ function _ticketSort(key) {
   var wrap = document.getElementById('ticket-tbody-wrap'); if (wrap) wrap.innerHTML = _ticketTableHtml();
 }
 function _ticketTh(label, key) {
-  var s = _TICKETS.sort; var ind = s.key === key ? (s.dir === 'asc' ? ' â–²' : ' â–¼') : '';
+  var s = _TICKETS.sort; var ind = s.key === key ? (s.dir === 'asc' ? ' ▲' : ' ▼') : '';
   return '<th onclick="_ticketSort(\'' + key + '\')" style="cursor:pointer;white-space:nowrap">' + esc(label) + ind + '</th>';
 }
 
 function _ticketStatusLabel(code) {
   for (var i = 0; i < TICKET_STATUS.length; i++) if (TICKET_STATUS[i].code === code) return TICKET_STATUS[i].label;
-  return code || 'â€”';
+  return code || '—';
 }
 function _ticketStatusColor(code) { return { pending:'var(--blue2)', followup:'#e0a838', solved:'var(--green)' }[code] || 'var(--text2)'; }
 function _ticketStatusBadge(code) {
@@ -826,10 +826,10 @@ function _ticketStatusBadge(code) {
 }
 function _ticketCat(t) {
   var g = t.generalCategory || '', sp = t.specificCategory || '';
-  if (g && sp) return esc(g) + ' <span style="opacity:.55">â€º</span> ' + esc(sp);
-  return esc(g || sp || 'â€”');
+  if (g && sp) return esc(g) + ' <span style="opacity:.55">›</span> ' + esc(sp);
+  return esc(g || sp || '—');
 }
-// â”€â”€ Shared UI bits (Pass 2 polish) â”€â”€
+// ── Shared UI bits (Pass 2 polish) ──
 function _ssInitials(name) {
   var s = String(name || '').trim(); if (!s) return '?';
   var p = s.split(/\s+/);
@@ -840,13 +840,13 @@ function _ssAvatar(name) {   // deterministic muted-color circle with initials
   for (i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
   return '<span class="ss-av" style="background:hsl(' + (h % 360) + ',42%,34%)">' + esc(_ssInitials(name)) + '</span>';
 }
-function _ssAgentCell(name) { return '<span class="ss-agentcell">' + _ssAvatar(name) + '<span>' + esc(name || 'â€”') + '</span></span>'; }
+function _ssAgentCell(name) { return '<span class="ss-agentcell">' + _ssAvatar(name) + '<span>' + esc(name || '—') + '</span></span>'; }
 function _ssEmpty(sym, title, sub) {
   return '<div class="ss-empty"><svg class="ss-empty-svg" viewBox="0 0 24 24"><use href="#i-' + sym + '"></use></svg>' +
     '<div class="ss-empty-t">' + esc(title) + '</div>' + (sub ? '<div class="ss-empty-s">' + esc(sub) + '</div>' : '') + '</div>';
 }
 function _ssLoading(label) {   // console scanning bar + label
-  return '<div class="ss-loading"><div class="ss-loading-bar"></div><div class="ss-loading-lbl">' + esc(label || 'Loadingâ€¦') + '</div></div>';
+  return '<div class="ss-loading"><div class="ss-loading-bar"></div><div class="ss-loading-lbl">' + esc(label || 'Loading…') + '</div></div>';
 }
 
 function _ticketTableHtml() {
@@ -863,10 +863,10 @@ function _ticketTableHtml() {
       '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
       '<td data-label="Created" class="ss-mono" style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
       '<td data-label="Agent">' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
-      '<td data-label="Rep">' + esc(t.requester || 'â€”') + '</td>' +
-      '<td data-label="Office">' + esc(t.office || 'â€”') + '</td>' +
+      '<td data-label="Rep">' + esc(t.requester || '—') + '</td>' +
+      '<td data-label="Office">' + esc(t.office || '—') + '</td>' +
       '<td data-label="Category">' + _ticketCat(t) + '</td>' +
-      '<td data-label="Subject">' + esc(t.subject || 'â€”') + '</td>' +
+      '<td data-label="Subject">' + esc(t.subject || '—') + '</td>' +
       '<td data-label="Status">' + _ticketStatusBadge(t.status) + '</td>' +
     '</tr>';
   }).join('');
@@ -874,11 +874,11 @@ function _ticketTableHtml() {
     '<p class="ss-sub" style="margin:10px 0 0">' + rows.length + ' of ' + _TICKETS.list.length + ' ticket' + (_TICKETS.list.length === 1 ? '' : 's') + '</p></div>';
 }
 
-// â”€â”€ REQUESTER PANEL â€” who's on the phone, and everything they've called about â”€
+// ── REQUESTER PANEL — who's on the phone, and everything they've called about ─
 // The duplicate-ticket fix. Before an agent logs a NEW ticket, show every ticket this rep has
-// already opened â€” newest first, one click from the real thing. If they're calling back about
+// already opened — newest first, one click from the real thing. If they're calling back about
 // the same order, the agent adds a note to THAT ticket instead of starting another one.
-// Reads `_TICKETS.list`, which New Ticket already fetches for the repâ†’phone map, so the whole
+// Reads `_TICKETS.list`, which New Ticket already fetches for the rep→phone map, so the whole
 // feature is client-side: no new backend action, nothing to redeploy.
 
 // Every ticket for a rep, newest first. `excludeId` drops the one you're already looking at.
@@ -888,7 +888,7 @@ function _ssRepHistory(rep, excludeId) {
     return String(t.requester || '').trim().toLowerCase() === key && (!excludeId || t.ticketId !== excludeId);
   }).sort(function(a, b) { return String(b.created || '').localeCompare(String(a.created || '')); });
 }
-// Who is the New Ticket form about? The rep they typed â€” or, while that's still blank, whoever
+// Who is the New Ticket form about? The rep they typed — or, while that's still blank, whoever
 // owns the phone number they entered (the same reverse lookup that autofills the form).
 function _ssPanelRep(prefix) {
   var rep = _ntVal(prefix + '-requester'); if (rep) return rep;
@@ -896,7 +896,7 @@ function _ssPanelRep(prefix) {
   return (p && p.rep) || '';
 }
 // One history row per ticket. The id rides in a data-attr and the handler reads it off the
-// element â€” never interpolated into an inline JS string (the "Bri'an Key" notes bug).
+// element — never interpolated into an inline JS string (the "Bri'an Key" notes bug).
 function _ssHistoryListHtml(rows) {
   if (!rows.length) return '<p class="ss-sub ss-rp-none">No earlier tickets for this rep.</p>';
   return '<div class="ss-rp-hist">' + rows.map(function(t) {
@@ -905,10 +905,10 @@ function _ssHistoryListHtml(rows) {
       '<span class="ss-rp-dot" style="background:' + _ticketStatusColor(t.status) + '"></span>' +
       '<span class="ss-rp-body">' +
         '<span class="ss-rp-subj">' + esc(label) + '</span>' +
-        '<span class="ss-rp-meta"><span class="ss-mono">' + esc(_ticketFmtDate(t.created)) + '</span> Â· ' +
+        '<span class="ss-rp-meta"><span class="ss-mono">' + esc(_ticketFmtDate(t.created)) + '</span> · ' +
           esc(_ticketStatusLabel(t.status)) + '</span>' +
       '</span>' +
-      '<span class="ss-rp-go">â€º</span>' +
+      '<span class="ss-rp-go">›</span>' +
     '</button>';
   }).join('') + '</div>';
 }
@@ -923,7 +923,7 @@ function _ssHistoryHeadHtml(n) {
 // Identity block: avatar + name, then the facts an agent needs mid-call. Phone/office fall back
 // to the rep's saved profile when the form fields are still empty.
 // NO local-time row on purpose: the form already shows the Them/You clock strip under Contact,
-// and it appears on OFFICE alone â€” so the form's is the one that always works. Repeating it here
+// and it appears on OFFICE alone — so the form's is the one that always works. Repeating it here
 // just listed the same two times twice on one screen.
 function _ssRequesterFactsHtml(rep, opts) {
   var prof   = (_TICKETS._repProfile || {})[String(rep).trim().toLowerCase()] || {};
@@ -931,8 +931,8 @@ function _ssRequesterFactsHtml(rep, opts) {
   var phone  = _ssFmtPhone(opts.phone || prof.phone || '');
   return '<div class="ss-rp-who">' + _ssAvatar(rep) + '<span class="ss-rp-name">' + esc(rep) + '</span></div>' +
     '<div class="ss-side-grp">' +
-      _dt('Phone', phone ? esc(phone) : 'â€”') +
-      _dt('Office', office ? esc(office) : 'â€”') +
+      _dt('Phone', phone ? esc(phone) : '—') +
+      _dt('Office', office ? esc(office) : '—') +
     '</div>';
 }
 // The New Ticket rail. Rendered even with nobody identified, so the layout never jumps.
@@ -941,7 +941,7 @@ function _ssRequesterPanelHtml(rep, opts) {
   var rows = rep ? _ssRepHistory(rep, opts.excludeId) : [];
   var inner = rep
     ? _ssRequesterFactsHtml(rep, opts) + _ssHistoryHeadHtml(rows.length) + _ssHistoryListHtml(rows)
-    : '<p class="ss-sub ss-rp-none">Pick a rep â€” or type a phone number we already know â€” to see every ticket they have opened.</p>';
+    : '<p class="ss-sub ss-rp-none">Pick a rep — or type a phone number we already know — to see every ticket they have opened.</p>';
   return '<div class="card ss-card ss-rp"><div class="ss-rule"></div>' +
     '<h2 class="ss-h2 ss-rp-h">Requester</h2>' + inner + '</div>';
 }
@@ -950,7 +950,7 @@ function _ssRequesterPanelHtml(rep, opts) {
 function _ssSyncRequesterPanel(prefix) {
   prefix = prefix || 'nt';
   // The rail belongs to the New Ticket form. Calls carrying the modal's 'ted' prefix are
-  // no-ops â€” otherwise editing a ticket would repaint the form's rail with the modal's rep.
+  // no-ops — otherwise editing a ticket would repaint the form's rail with the modal's rep.
   if (prefix !== 'nt') return;
   var el = document.getElementById('nt-reqpanel'); if (!el) return;
   el.innerHTML = _ssRequesterPanelHtml(_ssPanelRep(prefix),
@@ -958,12 +958,12 @@ function _ssSyncRequesterPanel(prefix) {
 }
 
 function _ticketFmtDate(iso) {
-  if (!iso) return 'â€”';
+  if (!iso) return '—';
   var d = new Date(iso); if (isNaN(d.getTime())) return String(iso);
   return (d.getMonth() + 1) + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(2) + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
 }
 
-// â”€â”€ FOLLOW-UPS (Slice 6) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── FOLLOW-UPS (Slice 6) ────────────────────────────────────────────────────
 // The queue pre-filtered to status=followup, oldest-first (most overdue on top) with an
 // age column. Same tickets the daily 06:00-PT reminder emails. Reuses openTicketDetail;
 // marking one Solved in the modal drops it from this list in place (via _TICKETS.render).
@@ -971,8 +971,8 @@ function renderTicketFollowups() {
   var c = document.getElementById('main-content'); if (!c) return;
   if (!TICKET_SCRIPT_URL) { c.innerHTML = _ticketScaffold('Follow-Ups', 'Backend not connected in this preview.', ''); return; }
   var hdr = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2>' +
-    '<p class="ss-sub">Tickets marked â€œFollow-up (Need Response),â€ oldest first. These feed the daily 6:00 AM reminder.</p></div>';
-  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2>' + _ssLoading('Loadingâ€¦') + '</div>';
+    '<p class="ss-sub">Tickets marked “Follow-up (Need Response),” oldest first. These feed the daily 6:00 AM reminder.</p></div>';
+  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2>' + _ssLoading('Loading…') + '</div>';
   Promise.all([ _ticketGet({ action:'getTickets' }), _ticketGet({ action:'getAgents' }) ]).then(function(r) {
     _TICKETS.list = (r[0] && r[0].tickets) || [];
     if (r[1] && r[1].agents) _TICKETS.agents = r[1].agents;
@@ -990,7 +990,7 @@ function _ageDays(iso) {
 function _followupTableHtml() {
   var rows = (_TICKETS.list || []).filter(function(t){ return String(t.status) === 'followup'; });
   rows.sort(function(a, b){ var av = String(a.lastUpdated || a.created || ''), bv = String(b.lastUpdated || b.created || ''); return av < bv ? -1 : (av > bv ? 1 : 0); });   // oldest first
-  if (!rows.length) return '<div class="card ss-card">' + _ssEmpty('completed', 'No open follow-ups', 'The Order rests. âœ¦') + '</div>';
+  if (!rows.length) return '<div class="card ss-card">' + _ssEmpty('completed', 'No open follow-ups', 'The Order rests. ✦') + '</div>';
   var head = '<tr><th>Ticket</th><th>Age</th><th>Rep</th><th>Office</th><th>Subject</th><th>Assignee</th></tr>';
   var body = rows.map(function(t){
     var age = _ageDays(t.lastUpdated || t.created);
@@ -998,9 +998,9 @@ function _followupTableHtml() {
     return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
       '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
       '<td data-label="Age" class="ss-mono" style="white-space:nowrap;color:' + col + '">' + age + 'd</td>' +
-      '<td data-label="Rep">' + esc(t.requester || 'â€”') + '</td>' +
-      '<td data-label="Office">' + esc(t.office || 'â€”') + '</td>' +
-      '<td data-label="Subject">' + esc(t.subject || 'â€”') + '</td>' +
+      '<td data-label="Rep">' + esc(t.requester || '—') + '</td>' +
+      '<td data-label="Office">' + esc(t.office || '—') + '</td>' +
+      '<td data-label="Subject">' + esc(t.subject || '—') + '</td>' +
       '<td data-label="Assignee">' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
     '</tr>';
   }).join('');
@@ -1008,15 +1008,15 @@ function _followupTableHtml() {
     '<p class="ss-sub" style="margin:10px 0 0">' + rows.length + ' open follow-up' + (rows.length === 1 ? '' : 's') + '</p></div>';
 }
 
-// â”€â”€ REP CONTACTS â€” Rep â†” Phone â†” Office directory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── REP CONTACTS — Rep ↔ Phone ↔ Office directory ───────────────────────────
 // A standalone place to add a rep (with phone/office) before they've ever made a ticket,
 // or fix their saved info. Backed by _ContactLinks_salessupport (getContactLinks/saveContactLink);
 // every add/edit here also feeds the Rep/Office pickers (via _rememberLookup on the backend) and
-// the Repâ†’Phone/Office autofill profiles used on New Ticket + the ticket-edit modal.
+// the Rep→Phone/Office autofill profiles used on New Ticket + the ticket-edit modal.
 function renderRepContacts() {
   var c = document.getElementById('main-content'); if (!c) return;
   if (!TICKET_SCRIPT_URL) { c.innerHTML = _ticketScaffold('Rep Contacts', 'Backend not connected in this preview.', ''); return; }
-  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Rep Contacts</h2>' + _ssLoading('Loadingâ€¦') + '</div>';
+  c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Rep Contacts</h2>' + _ssLoading('Loading…') + '</div>';
   Promise.all([
     _ticketGet({ action:'getContactLinks' }),
     _ticketGet({ action:'getLookups' }),
@@ -1032,7 +1032,7 @@ function renderRepContacts() {
     c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Rep Contacts</h2><p class="ss-sub" style="color:var(--red)">Could not load: ' + esc(e.message) + '</p></div>';
   });
 }
-// Merge saved contact links with any rep names that only exist from ticket history/lookups â€”
+// Merge saved contact links with any rep names that only exist from ticket history/lookups —
 // those get their phone/office pre-filled from _repProfile (built from past tickets) and are
 // flagged `saved:false` so "Save All" can backfill them into real Contact Links rows.
 function _ssContactRows() {
@@ -1057,7 +1057,7 @@ function _repContactsView() {
     '<p class="ss-sub">Add a rep before they ever call in, or fix a saved phone/office. These feed the Rep, Office and Phone # pickers on every ticket.</p>' +
     '<div class="ss-grid">' +
       _ntField('Rep name', '<input id="rc-rep" class="ps-input" autocomplete="off" placeholder="Rep name">') +
-      _ntField('Office', _comboField('rc-office', { placeholder:'Owner â€” Company', options:function(){ return _TICKETS._officeLabels || []; }, onAdd:function(t){ _ssOfficeAddPopup(t, 'rc'); } })) +
+      _ntField('Office', _comboField('rc-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onAdd:function(t){ _ssOfficeAddPopup(t, 'rc'); } })) +
       _ntField('Phone #', '<input id="rc-phone" class="ps-input" autocomplete="off" placeholder="(555) 123-4567" onblur="_ssPhoneBlur(\'rc-phone\')">') +
     '</div>' +
     '<div class="ss-actions"><button class="ps-btn" id="rc-add-btn" onclick="_rcAdd()">Add / Update Contact</button><span id="rc-status" class="ss-status"></span></div>' +
@@ -1069,17 +1069,17 @@ function _repContactsView() {
     var unsaved = rows.filter(function(r){ return !r.saved && (r.phone || r.office); }).length;
     var head = '<tr><th>Rep</th><th>Phone</th><th>Office</th><th></th></tr>';
     var body = rows.map(function(r, i){
-      var tag = (!r.saved && (r.phone || r.office)) ? ' <span class="ss-rc-unsaved" title="From ticket history â€” not yet saved to Rep Contacts">from tickets</span>' : '';
+      var tag = (!r.saved && (r.phone || r.office)) ? ' <span class="ss-rc-unsaved" title="From ticket history — not yet saved to Rep Contacts">from tickets</span>' : '';
       return '<tr class="ss-row ss-rc-row" data-i="' + i + '">' +
         '<td data-label="Rep">' + esc(r.rep) + '</td>' +
-        '<td data-label="Phone">' + esc(_ssFmtPhone(r.phone) || 'â€”') + tag + '</td>' +
-        '<td data-label="Office">' + esc(r.office || 'â€”') + '</td>' +
+        '<td data-label="Phone">' + esc(_ssFmtPhone(r.phone) || '—') + tag + '</td>' +
+        '<td data-label="Office">' + esc(r.office || '—') + '</td>' +
         '<td data-label="" style="white-space:nowrap"><button class="ps-btn secondary" onclick="_rcEditRow(' + i + ')">Edit</button></td>' +
       '</tr>';
     }).join('');
     tableHtml = '<div class="card ss-card ss-tablewrap">' +
       '<div class="ss-actions" style="margin-top:0;justify-content:space-between">' +
-        '<p class="ss-sub" style="margin:0">' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + (unsaved ? ' Â· ' + unsaved + ' from ticket history not yet saved' : '') + '</p>' +
+        '<p class="ss-sub" style="margin:0">' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + (unsaved ? ' · ' + unsaved + ' from ticket history not yet saved' : '') + '</p>' +
         (unsaved ? '<span><button class="ps-btn secondary" id="rc-saveall-btn" onclick="_rcSaveAll()">Save All (' + unsaved + ')</button></span>' : '') +
       '</div>' +
       '<table class="tbl ss-table">' + head + body + '</table></div>';
@@ -1104,14 +1104,14 @@ function _rcAdd() {
   if (!phone && !office) { _rcStatus('Add a phone or an office.', true); return; }
   if (!_ssPhoneOk(phone)) { _rcStatus(SS_PHONE_ERR, true); return; }
   phone = _ssFmtPhone(phone); _ntSetVal('rc-phone', phone);
-  var btn = document.getElementById('rc-add-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Savingâ€¦'; }
+  var btn = document.getElementById('rc-add-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   _rcStatus('', false);
   _ticketPost({ action:'saveContactLink', rep:rep, phone:phone, office:office }).then(function(res) {
     if (btn) { btn.disabled = false; btn.textContent = 'Add / Update Contact'; }
     if (res && res.ok) {
       _rcSyncLocal(rep, phone, office);
       var c = document.getElementById('main-content'); if (c) c.innerHTML = _repContactsView();
-      _rcStatus('Saved âœ¦', false);
+      _rcStatus('Saved ✦', false);
     } else { _rcStatus((res && res.error) || 'Could not save.', true); }
   }).catch(function(e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Add / Update Contact'; }
@@ -1119,27 +1119,27 @@ function _rcAdd() {
   });
 }
 // Backfill every rep we already have a phone/office for (derived from past tickets) into real,
-// persisted Rep Contacts rows â€” so info that only lived in ticket history survives independently.
+// persisted Rep Contacts rows — so info that only lived in ticket history survives independently.
 // Names the rows a batch had to leave behind, so a skip is always visible and actionable.
 function _rcBadPhoneNote(bad) {
   var names = bad.slice(0, 3).map(function(r){ return r.rep; }).join(', ');
   return bad.length + ' rep' + (bad.length === 1 ? '' : 's') + ' whose phone isn\'t 10 digits (' +
-    names + (bad.length > 3 ? ', +' + (bad.length - 3) + ' more' : '') + ') â€” fix with Edit, then save again.';
+    names + (bad.length > 3 ? ', +' + (bad.length - 3) + ' more' : '') + ') — fix with Edit, then save again.';
 }
 function _rcSaveAll() {
   var all = (_TICKETS._contactRowsCache || []).filter(function(r){ return !r.saved && (r.phone || r.office); });
   // A legacy number that isn't 10 digits can't be canonicalized, so it is SKIPPED and named
-  // rather than written as-is â€” one bad row must not block the batch, or slip through it.
+  // rather than written as-is — one bad row must not block the batch, or slip through it.
   var bad  = all.filter(function(r){ return !_ssPhoneOk(r.phone); });
   var rows = all.filter(function(r){ return  _ssPhoneOk(r.phone); })
                 .map(function(r){ return { rep:r.rep, phone:_ssFmtPhone(r.phone), office:r.office }; });
   if (!rows.length) {
-    _rcStatus(bad.length ? 'Nothing saved â€” skipped ' + _rcBadPhoneNote(bad)
-                         : 'Nothing to save â€” every rep with a phone or office is already saved.', !!bad.length);
+    _rcStatus(bad.length ? 'Nothing saved — skipped ' + _rcBadPhoneNote(bad)
+                         : 'Nothing to save — every rep with a phone or office is already saved.', !!bad.length);
     return;
   }
-  var btn = document.getElementById('rc-saveall-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Savingâ€¦'; }
-  _rcStatus('Saving ' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + 'â€¦', false);
+  var btn = document.getElementById('rc-saveall-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  _rcStatus('Saving ' + rows.length + ' rep' + (rows.length === 1 ? '' : 's') + '…', false);
   Promise.all(rows.map(function(r){ return _ticketPost({ action:'saveContactLink', rep:r.rep, phone:r.phone, office:r.office }); }))
     .then(function(results) {
       var ok = 0;
@@ -1156,7 +1156,7 @@ function _rcSaveAll() {
       _rcStatus('Error: ' + e.message, true);
     });
 }
-// Swap one row into edit mode (Phone + Office only â€” the rep name is the lookup key, so it
+// Swap one row into edit mode (Phone + Office only — the rep name is the lookup key, so it
 // isn't renamed in place; add a new contact above if a rep needs a different name on file).
 function _rcEditRow(i) {
   var rows = _TICKETS._contactRowsCache || [], r = rows[i]; if (!r) return;
@@ -1164,7 +1164,7 @@ function _rcEditRow(i) {
   tr.innerHTML =
     '<td data-label="Rep">' + esc(r.rep) + '</td>' +
     '<td data-label="Phone"><input id="rc-e-phone-' + i + '" class="ps-input ss-ted-inp" value="' + esc(_ssFmtPhone(r.phone)) + '" onblur="_ssPhoneBlur(\'rc-e-phone-' + i + '\')"></td>' +
-    '<td data-label="Office">' + _comboField('rc-e-office-' + i, { placeholder:'Owner â€” Company', noAdd:true, options:function(){ return _TICKETS._officeLabels || []; } }) + '</td>' +
+    '<td data-label="Office">' + _comboField('rc-e-office-' + i, { placeholder:'Owner — Company', noAdd:true, options:function(){ return _TICKETS._officeLabels || []; } }) + '</td>' +
     '<td style="white-space:nowrap"><button class="ps-btn" onclick="_rcSaveRow(' + i + ')">Save</button> <button class="ps-btn secondary" onclick="_rcCancelEdit()">Cancel</button></td>';
   _ntSetVal('rc-e-office-' + i, r.office || '');
 }
@@ -1178,19 +1178,19 @@ function _rcSaveRow(i) {
     if (res && res.ok) {
       _rcSyncLocal(r.rep, phone, office);
       var c = document.getElementById('main-content'); if (c) c.innerHTML = _repContactsView();
-      _rcStatus('Saved âœ¦', false);
+      _rcStatus('Saved ✦', false);
     } else { _rcStatus((res && res.error) || 'Could not save.', true); }
   }).catch(function(e) { _rcStatus('Error: ' + e.message, true); });
 }
 
-// â”€â”€ Ticket detail (Slice 5: interactive â€” status / reassign / toggles / note thread) â”€â”€
+// ── Ticket detail (Slice 5: interactive — status / reassign / toggles / note thread) ──
 // The open ticket + its notes live in _TICKETS.open; every action posts to the backend,
 // then updates that state + the queue row in place (no full refetch).
 function openTicketDetail(id) {
   var modal = document.getElementById('ticket-modal'); if (!modal) return;
   var body = document.getElementById('ticket-modal-body'), title = document.getElementById('ticket-modal-title');
   if (title) title.textContent = 'Ticket ' + id;
-  if (body) body.innerHTML = _ssLoading('Loadingâ€¦');
+  if (body) body.innerHTML = _ssLoading('Loading…');
   modal.classList.add('open');
   _ticketGet({ action:'getTicket', ticketId:id }).then(function(res){
     if (!res || !res.ticket) { body.innerHTML = '<p style="color:var(--red)">Could not load ticket.</p>'; return; }
@@ -1206,12 +1206,12 @@ function _renderTicketDetail() {
   var body = document.getElementById('ticket-modal-body');
   if (!body || !_TICKETS.open) return;
   body.innerHTML = _ticketDetailHtml(_TICKETS.open.ticket, _TICKETS.open.notes);
-  if (_TICKETS.open.editing) {   // comboboxes render valueless â€” seed them from the ticket
+  if (_TICKETS.open.editing) {   // comboboxes render valueless — seed them from the ticket
     var t = _TICKETS.open.ticket;
     _ntSetVal('ted-requester', t.requester); _ntSetVal('ted-office', t.office); _ntSetVal('ted-phone', _ssFmtPhone(t.phone));
   }
 }
-function _dt(label, valHtml) { return '<div class="ss-dt"><span class="ss-lbl">' + esc(label) + '</span><span>' + (valHtml || 'â€”') + '</span></div>'; }
+function _dt(label, valHtml) { return '<div class="ss-dt"><span class="ss-lbl">' + esc(label) + '</span><span>' + (valHtml || '—') + '</span></div>'; }
 function _dtCombo(label, comboHtml) { return '<div class="ss-dt"><span class="ss-lbl">' + esc(label) + '</span>' + comboHtml + '</div>'; }
 function _ticketDetailHtml(t, notes) {
   var editing = !!(_TICKETS.open && _TICKETS.open.editing);
@@ -1225,30 +1225,30 @@ function _ticketDetailHtml(t, notes) {
     : '<h4 class="ss-dsubj">' + (t.subject ? esc(t.subject) : '<span style="opacity:.55">(no subject)</span>') + '</h4>';
   var header = '<div class="ss-td-head">' +
     '<div class="ss-td-headmain">' + subjEl +
-      '<div class="ss-td-sub"><span class="ss-tid">' + esc(t.ticketId) + '</span> Â· opened by ' + esc(t.createdByName || t.createdBy || 'â€”') + ' Â· ' + esc(_ticketFmtDate(t.created)) + '</div>' +
+      '<div class="ss-td-sub"><span class="ss-tid">' + esc(t.ticketId) + '</span> · opened by ' + esc(t.createdByName || t.createdBy || '—') + ' · ' + esc(_ticketFmtDate(t.created)) + '</div>' +
     '</div>' + _ticketStatusBadge(t.status) +
   '</div>';
   var notesHtml = notes.length ? notes.map(function(n){
       var who = n.authorName || n.author;
-      return '<div class="ss-note"><div class="ss-note-hd">' + _ssAvatar(who) + '<span>' + esc(who) + ' Â· ' + esc(_ticketFmtDate(n.timestamp)) + '</span></div><div class="ss-note-body">' + esc(n.body).replace(/\n/g, '<br>') + '</div></div>';
-    }).join('') : '<p class="ss-sub" style="margin:0 0 6px">No notes yet â€” add the first one below.</p>';
+      return '<div class="ss-note"><div class="ss-note-hd">' + _ssAvatar(who) + '<span>' + esc(who) + ' · ' + esc(_ticketFmtDate(n.timestamp)) + '</span></div><div class="ss-note-body">' + esc(n.body).replace(/\n/g, '<br>') + '</div></div>';
+    }).join('') : '<p class="ss-sub" style="margin:0 0 6px">No notes yet — add the first one below.</p>';
   var main = '<div class="ss-td-main">' +
     '<div class="ss-lbl" style="margin-bottom:8px">Conversation</div>' +
     '<div class="ss-td-thread">' + notesHtml + '</div>' +
-    '<textarea id="td-note" class="ps-textarea" rows="3" placeholder="Add a note to the threadâ€¦"></textarea>' +
+    '<textarea id="td-note" class="ps-textarea" rows="3" placeholder="Add a note to the thread…"></textarea>' +
     '<div class="ss-actions"><button class="ps-btn" onclick="_ticketAddNote()">Add Note</button><span id="td-status" class="ss-status"></span></div>' +
   '</div>';
   // Properties: read-only + an "Edit" button, OR editable inputs + Save/Cancel (all agents may edit any ticket).
   var propGrp;
   if (editing) {
     var inp = function(id, val){ return '<input id="' + id + '" class="ps-input ss-ted-inp" value="' + esc(val || '') + '">'; };
-    var chanSel = '<select id="ted-channel" class="ps-select"><option value="">â€”</option>' +
+    var chanSel = '<select id="ted-channel" class="ps-select"><option value="">—</option>' +
       TICKET_CHANNELS.map(function(x){ return '<option' + (x === t.channel ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>';
-    var saraSel = '<select id="ted-sara" class="ps-select"><option value="">â€”</option>' +
+    var saraSel = '<select id="ted-sara" class="ps-select"><option value="">—</option>' +
       TICKET_SARA.map(function(x){ return '<option' + (x === t.saraPlus ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>';
     propGrp = '<div class="ss-side-grp">' +
       _dtCombo('Requester (Rep)', _comboField('ted-requester', { placeholder:'Rep name', options:function(){ return _TICKETS.lookups.rep || []; }, onChange:function(){ _ntAutofillRep('ted'); }, onAdd:function(typ){ _ssRepAddPopup(typ, 'ted'); } })) +
-      _dtCombo('Office', _comboField('ted-office', { placeholder:'Owner â€” Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:function(){ _ntOfficeChange('ted'); }, onAdd:function(typ){ _ssOfficeAddPopup(typ, 'ted'); } })) +
+      _dtCombo('Office', _comboField('ted-office', { placeholder:'Owner — Company', options:function(){ return _TICKETS._officeLabels || []; }, onChange:function(){ _ntOfficeChange('ted'); }, onAdd:function(typ){ _ssOfficeAddPopup(typ, 'ted'); } })) +
       _dt('Channel', chanSel) +
       _dtCombo('Phone', _comboField('ted-phone', { placeholder:'Called / texted in from', options:_ntKnownPhones, onChange:function(){ _ntPhoneLookup('ted'); }, onInput:function(){ _ntPhoneLookup('ted'); }, onBlur:function(){ _ssPhoneBlur('ted-phone'); }, noAdd:true })) +
       _dt('General Category', inp('ted-general', t.generalCategory)) +
@@ -1275,7 +1275,7 @@ function _ticketDetailHtml(t, notes) {
     '</div>' +
     '<button class="ps-btn secondary ss-ted-edit" onclick="_ticketToggleEdit()">Edit ticket details</button>';
   }
-  // This rep's OTHER tickets, newest first â€” so an agent working one ticket can see the rest of
+  // This rep's OTHER tickets, newest first — so an agent working one ticket can see the rest of
   // the conversation and jump straight there. Read-only mode only: while editing, the panel is
   // already a form ending in Save/Cancel, and a list under those buttons reads as part of them.
   var histGrp = '';
@@ -1302,7 +1302,7 @@ function _ticketSaveEdit() {
   var st = document.getElementById('ted-status');
   if (!_ssPhoneOk(v('ted-phone'))) { if (st) { st.textContent = SS_PHONE_ERR; st.style.color = 'var(--red)'; } return; }
   _ntSetVal('ted-phone', _ssFmtPhone(v('ted-phone')));
-  if (st) { st.textContent = 'Savingâ€¦'; st.style.color = 'var(--text2)'; }
+  if (st) { st.textContent = 'Saving…'; st.style.color = 'var(--text2)'; }
   _ticketPost({ action:'updateTicket', ticketId:id,
     subject:v('ted-subject'), requester:v('ted-requester'), office:v('ted-office'), channel:v('ted-channel'),
     phone:v('ted-phone'), generalCategory:v('ted-general'), specificCategory:v('ted-specific'),
@@ -1315,7 +1315,7 @@ function _ticketSaveEdit() {
   }).catch(function(e){ if (st) { st.textContent = 'Error: ' + e.message; st.style.color = 'var(--red)'; } });
 }
 
-// â”€â”€ Detail actions (in-place; every agent can modify any ticket) â”€â”€
+// ── Detail actions (in-place; every agent can modify any ticket) ──
 function _tdStatus(msg, isErr) { var el = document.getElementById('td-status'); if (el) { el.textContent = msg || ''; el.style.color = isErr ? 'var(--red)' : 'var(--text2)'; } }
 function _ticketSyncListRow(u) {
   if (!u) return;
@@ -1324,14 +1324,14 @@ function _ticketSyncListRow(u) {
 }
 function _ticketOpenId() { return _TICKETS.open && _TICKETS.open.ticket ? _TICKETS.open.ticket.ticketId : null; }
 function _ticketSetStatus(code) {
-  var id = _ticketOpenId(); if (!id) return; _tdStatus('Savingâ€¦');
+  var id = _ticketOpenId(); if (!id) return; _tdStatus('Saving…');
   _ticketPost({ action:'setTicketStatus', ticketId:id, status:code }).then(function(res){
     if (res && res.ok && res.ticket) { _TICKETS.open.ticket = res.ticket; _ticketSyncListRow(res.ticket); _renderTicketDetail(); }
     else _tdStatus((res && res.error) || 'Could not update status.', true);
   }).catch(function(e){ _tdStatus('Error: ' + e.message, true); });
 }
 function _ticketReassign(email) {
-  var id = _ticketOpenId(); if (!id) return; _tdStatus('Savingâ€¦');
+  var id = _ticketOpenId(); if (!id) return; _tdStatus('Saving…');
   _ticketPost({ action:'reassignTicket', ticketId:id, assignee:email }).then(function(res){
     if (res && res.ok && res.ticket) { _TICKETS.open.ticket = res.ticket; _ticketSyncListRow(res.ticket); _renderTicketDetail(); }
     else _tdStatus((res && res.error) || 'Could not reassign.', true);
@@ -1341,7 +1341,7 @@ function _ticketAddNote() {
   var id = _ticketOpenId(); if (!id) return;
   var ta = document.getElementById('td-note'); var text = ta ? ta.value.trim() : '';
   if (!text) { _tdStatus('Write a note first.', true); return; }
-  _tdStatus('Addingâ€¦');
+  _tdStatus('Adding…');
   _ticketPost({ action:'addTicketNote', ticketId:id, note:text }).then(function(res){
     if (res && res.ok && res.note) {
       _TICKETS.open.notes.push(res.note);
@@ -1358,7 +1358,7 @@ function _ticketAddNote() {
   if (m) m.addEventListener('click', function(e){ if (e.target === this) closeTicketModal(); });
 })();
 
-// A themed placeholder card â€” deep-space panel, lightsaber-blue title, green accent
+// A themed placeholder card — deep-space panel, lightsaber-blue title, green accent
 // rule, small Jedi flourish. Purely a scaffold marker; replaced screen-by-screen.
 function _ticketScaffold(title, body, note) {
   return '' +
@@ -1367,7 +1367,7 @@ function _ticketScaffold(title, body, note) {
       '<h2 style="color:var(--blue2);margin:0 0 8px">' + esc(title) + '</h2>' +
       '<p style="color:var(--text2);line-height:1.55;margin:0 0 14px">' + esc(body) + '</p>' +
       (note ? '<div class="badge" style="background:var(--blue2-fade);color:var(--blue2);border:1px solid var(--border)">' + esc(note) + '</div>' : '') +
-      '<p style="color:var(--text2);opacity:.6;margin:18px 0 0;font-size:12px;letter-spacing:.3px">The Order is assembling. âœ¦</p>' +
+      '<p style="color:var(--text2);opacity:.6;margin:18px 0 0;font-size:12px;letter-spacing:.3px">The Order is assembling. ✦</p>' +
     '</div>';
 }
 
