@@ -393,3 +393,24 @@ html[data-office="salessupport"] #app .topbar::before{
   .ss-nt-wrap{ flex-direction:column }
   .ss-rp-rail{ flex:1 1 auto; width:100%; max-width:860px; position:static }
 }
+
+/* ── ARCHIVED DUPLICATES (2026-08-05) ───────────────────────────────────────
+   Lives in app.ss.css, not app.css: only Sales Support has tickets, and the six
+   activation offices already carry ~190 rules of this skin they can never render.
+   Sales Support is forced dark, so there is no light polarity to handle here. */
+.ss-arch-box{ margin-top:14px }
+.ss-arch-row{ display:flex; gap:8px; align-items:center; margin-top:4px }
+.ss-arch-row .ps-input{ flex:1; min-width:0 }
+/* An archived ticket's panel is amber-edged, so an open duplicate never reads as a live
+   ticket. Amber, not red — this is a resolved state, not an error. */
+.ss-arch-box.is-archived{ border-left:3px solid #e0a838; padding-left:11px }
+
+/* A DUP row is dimmed but still legible. ⚠ Not `display:none` — the row only appears when
+   the filter explicitly asks for it, and hiding it there would make the filter a no-op. */
+.ss-row-arch{ opacity:.62 }
+.ss-row-arch:hover{ opacity:.9 }
+.ss-arch-tag{
+  display:inline-block; margin-left:6px; padding:1px 5px; border-radius:4px;
+  background:rgba(224,168,56,.14); color:#e0a838;
+  font-size:.62rem; font-weight:700; letter-spacing:.08em; vertical-align:middle;
+}

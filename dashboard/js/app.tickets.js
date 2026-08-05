@@ -769,6 +769,13 @@ function _ticketQueueView() {
       sel('tq-office', f.office, _TICKETS.lookups.office || [], 'All offices') +
       sel('tq-general', f.general, _TICKETS.lookups.generalCat || [], 'All categories') +
       sel('tq-channel', f.channel, TICKET_CHANNELS, 'Any channel') +
+      /* Archived duplicates are hidden by default; this is the way back to them, so they
+         are never unreachable. Labels say what you will SEE, not what is filtered out. */
+      '<select id="tq-archived" class="ps-select ss-qf" onchange="_ticketQueueFilter()">' +
+        ['', 'all', 'only'].map(function (v) {
+          var lab = { '': 'Hide archived', 'all': 'Include archived', 'only': 'Archived only' }[v];
+          return '<option value="' + v + '"' + (v === (f.archived || '') ? ' selected' : '') + '>' + lab + '</option>';
+        }).join('') + '</select>' +
       '<span class="ss-qf-dates">From <input type="date" id="tq-from" class="ps-input ss-qf-date" value="' + esc(f.from || '') + '" onchange="_ticketQueueFilter()"> to <input type="date" id="tq-to" class="ps-input ss-qf-date" value="' + esc(f.to || '') + '" onchange="_ticketQueueFilter()"></span>' +
       '<button class="ps-btn secondary ss-qf-btn" onclick="renderTicketQueue()">Refresh</button>' +
     '</div></div>' +
@@ -779,11 +786,18 @@ function _ticketQueueFilter() {
   var f = _TICKETS.filters;
   f.q = _ntVal('tq-q'); f.status = _ntVal('tq-status'); f.assignee = _ntVal('tq-assignee');
   f.office = _ntVal('tq-office'); f.general = _ntVal('tq-general'); f.channel = _ntVal('tq-channel');
-  f.from = _ntVal('tq-from'); f.to = _ntVal('tq-to');
+  f.from = _ntVal('tq-from'); f.to = _ntVal('tq-to'); f.archived = _ntVal('tq-archived');
   var wrap = document.getElementById('ticket-tbody-wrap'); if (wrap) wrap.innerHTML = _ticketTableHtml();
 }
 
 function _ticketMatch(t, f) {
+  /* ⚠ Archived duplicates are hidden by DEFAULT — that is the whole point of archiving
+     them. `f.archived` is a deliberate three-state: '' = hide (default), 'only' = just the
+     archive, 'all' = both. Hidden-and-unreachable would be a delete with extra steps, so
+     there is always a way back to them. */
+  var arch = f.archived || '';
+  if (arch === 'only') { if (!t.archived) return false; }
+  else if (arch !== 'all') { if (t.archived) return false; }
   if (f.status && String(t.status) !== f.status) return false;
   if (f.assignee && String(t.assignee) !== f.assignee) return false;
   if (f.office && String(t.office) !== f.office) return false;
@@ -859,8 +873,12 @@ function _ticketTableHtml() {
   var head = '<tr>' + _ticketTh('Ticket','ticketId') + _ticketTh('Created','created') + _ticketTh('Agent','assigneeName') +
     _ticketTh('Rep','requester') + _ticketTh('Office','office') + '<th>Category</th>' + _ticketTh('Subject','subject') + _ticketTh('Status','status') + '</tr>';
   var body = rows.map(function(t){
-    return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
-      '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
+    /* An archived row only appears when the filter asks for it, but it must still be
+       obvious at a glance — otherwise "Include archived" silently mixes duplicates back
+       into a list people count. */
+    return '<tr class="ss-row' + (t.archived ? ' ss-row-arch' : '') + '" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
+      '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) +
+        (t.archived ? ' <span class="ss-arch-tag" title="Duplicate of ' + esc(t.duplicateOf || '') + '">DUP</span>' : '') + '</td>' +
       '<td data-label="Created" class="ss-mono" style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
       '<td data-label="Agent">' + _ssAgentCell(t.assigneeName || t.assignee) + '</td>' +
       '<td data-label="Rep">' + esc(t.requester || '—') + '</td>' +
@@ -995,8 +1013,12 @@ function _followupTableHtml() {
   var body = rows.map(function(t){
     var age = _ageDays(t.lastUpdated || t.created);
     var col = age >= 2 ? '#e0a838' : 'var(--text2)';
-    return '<tr class="ss-row" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
-      '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) + '</td>' +
+    /* An archived row only appears when the filter asks for it, but it must still be
+       obvious at a glance — otherwise "Include archived" silently mixes duplicates back
+       into a list people count. */
+    return '<tr class="ss-row' + (t.archived ? ' ss-row-arch' : '') + '" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
+      '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) +
+        (t.archived ? ' <span class="ss-arch-tag" title="Duplicate of ' + esc(t.duplicateOf || '') + '">DUP</span>' : '') + '</td>' +
       '<td data-label="Age" class="ss-mono" style="white-space:nowrap;color:' + col + '">' + age + 'd</td>' +
       '<td data-label="Rep">' + esc(t.requester || '—') + '</td>' +
       '<td data-label="Office">' + esc(t.office || '—') + '</td>' +
@@ -1273,7 +1295,8 @@ function _ticketDetailHtml(t, notes) {
       _dt('DSI / Account', esc(t.dsi)) +
       _dt('Tags', esc(t.tags)) +
     '</div>' +
-    '<button class="ps-btn secondary ss-ted-edit" onclick="_ticketToggleEdit()">Edit ticket details</button>';
+    '<button class="ps-btn secondary ss-ted-edit" onclick="_ticketToggleEdit()">Edit ticket details</button>' +
+    _ticketArchiveBoxHtml(t);
   }
   // This rep's OTHER tickets, newest first — so an agent working one ticket can see the rest of
   // the conversation and jump straight there. Read-only mode only: while editing, the panel is
@@ -1290,6 +1313,76 @@ function _ticketDetailHtml(t, notes) {
   '</div>';
   return header + '<div class="ss-td-grid">' + main + side + '</div>';
 }
+/* ── ARCHIVING A DUPLICATE ───────────────────────────────────────────────────
+   🔴 ARCHIVE, NOT DELETE — and that is forced by the backend, not a preference.
+   _nextTicketId() is max(existing)+1, so deleting the highest ticket makes the NEXT one
+   reuse its id; notes are keyed by TicketID in a separate tab, so the dead ticket's notes
+   would silently reattach to a brand-new unrelated ticket. The row therefore stays,
+   flagged: out of the queue, out of the weekly report, fully reversible.
+   ⚠ "Duplicate of" is REQUIRED. An archive with no target is indistinguishable from a
+   mistake six months later, and recording which ticket survived is the entire point. */
+function _ticketArchiveBoxHtml(t) {
+  if (t.archived) {
+    return '<div class="ss-side-grp ss-arch-box is-archived">' +
+      '<div class="ss-lbl">Archived duplicate</div>' +
+      '<p class="ss-sub" style="margin:.35rem 0 .6rem">Duplicate of <b class="ss-tid">' + esc(t.duplicateOf || '—') + '</b>' +
+        (t.archivedBy ? '<br>by ' + esc(t.archivedBy) : '') +
+        (t.archivedAt ? ' · ' + esc(_ticketFmtDate(t.archivedAt)) : '') +
+      '</p>' +
+      '<button class="ps-btn secondary" onclick="_ticketUnarchive()">Restore to the queue</button>' +
+      '<span id="td-arch-status" class="ss-status"></span></div>';
+  }
+  return '<div class="ss-side-grp ss-arch-box">' +
+    '<div class="ss-lbl">Archive as a duplicate</div>' +
+    '<p class="ss-sub" style="margin:.35rem 0 .5rem">Hides it from the queue and the weekly report. Reversible.</p>' +
+    '<div class="ss-arch-row">' +
+      '<input id="td-dupof" class="ps-input" placeholder="Duplicate of… e.g. ' + esc(_ticketDupHint(t)) + '">' +
+      '<button class="ps-btn secondary" onclick="_ticketArchive()">Archive</button>' +
+    '</div>' +
+    '<span id="td-arch-status" class="ss-status"></span></div>';
+}
+
+/* A useful default for the "duplicate of" box: the newest OTHER ticket from the same rep,
+   which is what a duplicate almost always pairs with. Only a placeholder — never
+   pre-filled, because a wrong id silently recorded is worse than an empty box. */
+function _ticketDupHint(t) {
+  var best = '';
+  (_TICKETS.list || []).forEach(function (o) {
+    if (o.ticketId === t.ticketId || o.archived) return;
+    if (String(o.requester || '') !== String(t.requester || '')) return;
+    if (!best || String(o.created || '') > best.created) best = { ticketId:o.ticketId, created:String(o.created || '') };
+  });
+  return (best && best.ticketId) || 'SS-00001';
+}
+
+function _tdArchStatus(msg, isErr) {
+  var el = document.getElementById('td-arch-status');
+  if (el) { el.textContent = msg || ''; el.style.color = isErr ? 'var(--red)' : 'var(--text2)'; }
+}
+
+function _ticketArchive() {
+  var id = _ticketOpenId(); if (!id) return;
+  var el = document.getElementById('td-dupof');
+  var dup = el ? String(el.value || '').trim().toUpperCase() : '';
+  // Validate here as well as server-side: a round trip to be told "required" is a poor trade.
+  if (!dup) { _tdArchStatus('Enter the ticket this duplicates.', true); if (el) el.focus(); return; }
+  if (dup === String(id).toUpperCase()) { _tdArchStatus('A ticket cannot duplicate itself.', true); return; }
+  _tdArchStatus('Archiving…');
+  _ticketPost({ action:'archiveTicket', ticketId:id, duplicateOf:dup }).then(function (res) {
+    if (res && res.ok) { _tdArchStatus(''); _ticketSyncListRow(res.ticket); closeTicketModal(); }
+    else _tdArchStatus((res && res.error) || 'Could not archive.', true);
+  }).catch(function (e) { _tdArchStatus('Error: ' + e.message, true); });
+}
+
+function _ticketUnarchive() {
+  var id = _ticketOpenId(); if (!id) return;
+  _tdArchStatus('Restoring…');
+  _ticketPost({ action:'unarchiveTicket', ticketId:id }).then(function (res) {
+    if (res && res.ok) { _tdArchStatus(''); _ticketSyncListRow(res.ticket); closeTicketModal(); }
+    else _tdArchStatus((res && res.error) || 'Could not restore.', true);
+  }).catch(function (e) { _tdArchStatus('Error: ' + e.message, true); });
+}
+
 // Toggle the detail modal between read-only + edit; Save posts the whole property set to updateTicket.
 function _ticketToggleEdit() {
   if (!_TICKETS.open) return;
