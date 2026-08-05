@@ -49,11 +49,45 @@ var TICKET_SARA = ['Pre', 'During', 'Post'];
 // token, follow redirects, text/plain body (no CORS preflight), route auth-expiry
 // back to login via _authIntercept.
 var TICKET_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDYl69QuAHVlTBLSiNujtgA-e4cm686cnJ-90ZctjqZz-8FDAUWYZboaCETi3Rvfqk/exec';   // standalone Sales Support Ticketing backend
+/* ⚠⚠ NEVER CALL r.json() DIRECTLY ON AN APPS SCRIPT RESPONSE.
+   This is the bug reps were hitting: `/exec` does not always return JSON. Google serves an
+   HTML page for an execution error, a timeout, a quota trip or an auth interstitial, and
+   r.json() then throws a PARSER error whose text leaks straight to the user. On iOS Safari
+   that text is "The string did not match the expected pattern." — which is what the rep
+   screenshotted, and which tells them nothing.
+   Two further consequences that made it worse:
+     · _authIntercept only ever sees PARSED JSON, so an expired badge arriving as an HTML
+       login page could never be routed to a clean re-login.
+     · The caller could not tell "definitely not saved" from "maybe saved" — the difference
+       between safely retrying and creating a duplicate.
+   So: read TEXT, parse it ourselves, and classify the failure. */
+function _ticketParse(r) {
+  return r.text().then(function(t) {
+    var j = null;
+    try { j = JSON.parse(t); } catch (e) { j = null; }
+    if (j) return _authIntercept(j);
+
+    var body = String(t || '');
+    var err;
+    if (/<form[^>]+accounts\.google\.com|ServiceLogin|signin\/v2/i.test(body)) {
+      err = new Error('Your sign-in expired. Please sign in again — your ticket has NOT been saved.');
+      err.ticketAuth = true;
+    } else if (/exceeded|quota|too many/i.test(body)) {
+      err = new Error('Sales Support is rate-limited right now. Wait a moment and press Create Ticket again — it is safe to retry.');
+      err.ticketRetryable = true;
+    } else {
+      err = new Error('The Sales Support server did not answer properly (HTTP ' + r.status + '). Your details are still here — press Create Ticket again.');
+      err.ticketRetryable = true;
+    }
+    err.ticketTransport = true;   // "we never got a usable answer", NOT "the server said no"
+    throw err;
+  });
+}
 function _ticketGet(params) {
   var p = Object.assign({}, params, { key: API_KEY, officeId: CFG.officeId });
   if (SESSION && SESSION.token) p.token = SESSION.token;
   var qs = Object.keys(p).map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(p[k] == null ? '' : p[k]); }).join('&');
-  return fetch(TICKET_SCRIPT_URL + '?' + qs, { redirect:'follow' }).then(function(r){ return r.json(); }).then(_authIntercept);
+  return fetch(TICKET_SCRIPT_URL + '?' + qs, { redirect:'follow' }).then(_ticketParse);
 }
 function _ticketPost(body) {
   var extra = (SESSION && SESSION.token) ? { key: API_KEY, token: SESSION.token, officeId: CFG.officeId } : { key: API_KEY, officeId: CFG.officeId };
@@ -61,7 +95,7 @@ function _ticketPost(body) {
     method:'POST', redirect:'follow',
     headers:{ 'Content-Type':'text/plain;charset=utf-8' },
     body: JSON.stringify(Object.assign({}, body, extra))
-  }).then(function(r){ return r.json(); }).then(_authIntercept);
+  }).then(_ticketParse);
 }
 
 // Entry point from showApp() â€” renders whatever tab we landed on. (Data fetching for
@@ -178,6 +212,18 @@ function renderNewTicket() {
   // Form + the requester rail beside it (stacks underneath on narrow screens).
   c.innerHTML = '<div class="ss-nt-wrap">' + _newTicketFormHtml() +
     '<aside id="nt-reqpanel" class="ss-rp-rail">' + _ssRequesterPanelHtml('') + '</aside></div>';
+  // Put back anything a previous render was holding. This is what makes leaving the tab,
+  // an expired badge, or an iOS tab-reload non-destructive.
+  if (_ntRestoreDraft()) {
+    _ntStatus('Your unsaved ticket was restored — press Create Ticket when ready.', false);
+    _ssSyncRequesterPanel('nt');
+  }
+  // Keep the draft current as they type, so nothing depends on remembering to capture.
+  var wrap = c.querySelector('.ss-nt-wrap');
+  if (wrap) {
+    wrap.addEventListener('input', _ntCaptureDraft);
+    wrap.addEventListener('change', _ntCaptureDraft);
+  }
   _ticketLoadFormData();   // populate datalists + assignee (no-op until the backend URL is set)
 }
 
@@ -558,7 +604,62 @@ function _ntSaveContactLink(ev) {
     _ntContactStatus('Error: ' + e.message, true);
   });
 }
+/* ── DRAFT PRESERVATION ──────────────────────────────────────────────────────────────
+   Reps reported losing an entire ticket. Every path that can empty this form does it by
+   rebuilding the markup — switchTab re-runs renderNewTicket(), a forced re-login repaints
+   the app, and iOS Safari discards and reloads a backgrounded tab under memory pressure.
+   The typed values live only in the DOM, so any of those wipes them.
+   🔑 IN MEMORY, NOT localStorage. A draft holds a customer DSI and free-text notes; these
+   are shared/handheld devices, and persisting that to disk outlives the session and the
+   user. A module variable survives every re-render above, which is the actual failure, and
+   dies with the tab — which is the correct lifetime for customer data. */
+var _NT_FIELDS = ['nt-requester','nt-office','nt-phone','nt-subject','nt-general','nt-specific',
+                  'nt-dsi','nt-tags','nt-note','nt-channel','nt-sara','nt-assignee'];
+var _NT_DRAFT = null;
+var _NT_CLIENT_KEY = null;   // idempotency key, held across retries of the SAME ticket
+
+/* forbidden_office was the sign-in bug's face: reps saw the raw token. Say what to do. */
+function _ticketErrText(err) {
+  var e = String(err || '');
+  if (e === 'forbidden_office') return 'Your account is not set up for Sales Support yet. Ask Gavon to add you to the Sales Support roster, then sign out and back in.';
+  if (e === 'auth_required')    return 'Your sign-in expired. Sign in again — your details are still here.';
+  if (/^busy/i.test(e))         return 'Sales Support is busy. Press Create Ticket again — it is safe to retry.';
+  return e || 'Could not create the ticket.';
+}
+
+function _ntCaptureDraft() {
+  var d = {}, any = false;
+  _NT_FIELDS.forEach(function(id) {
+    var el = document.getElementById(id); if (!el) return;
+    var v = String(el.value || '');
+    d[id] = v; if (v.trim()) any = true;
+  });
+  var st = document.querySelector('input[name="nt-subtype"]:checked');
+  if (st) d._subtype = st.value;
+  _NT_DRAFT = any ? d : null;   // an all-blank form is not worth restoring
+  return _NT_DRAFT;
+}
+
+function _ntRestoreDraft() {
+  if (!_NT_DRAFT) return false;
+  var restored = false;
+  _NT_FIELDS.forEach(function(id) {
+    var el = document.getElementById(id); if (!el) return;
+    var v = _NT_DRAFT[id];
+    // Don't stomp a value the fresh render legitimately supplied (e.g. a default assignee)
+    // with a blank one from the draft.
+    if (v == null || (!v && el.value)) return;
+    el.value = v; if (v) restored = true;
+  });
+  if (_NT_DRAFT._subtype) {
+    var st = document.querySelector('input[name="nt-subtype"][value="' + _NT_DRAFT._subtype + '"]');
+    if (st) st.checked = true;
+  }
+  return restored;
+}
+
 function _ticketResetForm() {
+  _NT_DRAFT = null;   // the ticket is saved — the draft has done its job
   ['nt-requester','nt-office','nt-phone','nt-subject','nt-general','nt-specific','nt-dsi','nt-tags','nt-note','nt-channel','nt-sara'].forEach(function(id){ var el=document.getElementById(id); if (el) el.value=''; });
   var st = document.querySelector('input[name="nt-subtype"][value="solved"]'); if (st) st.checked = true;
   _ssSyncRequesterPanel('nt');   // nobody is on the phone any more
@@ -579,17 +680,34 @@ function _ticketCreate(ev) {
   if (!TICKET_SCRIPT_URL) { _ntStatus('Preview mode â€” backend not connected, so this canâ€™t save yet.', true); return; }
   if (btn) { btn.disabled = true; btn.textContent = 'Savingâ€¦'; }
   _ntStatus('', false);
+  _ntCaptureDraft();   // hold everything BEFORE the round-trip; nothing below can lose it
+
+  /* One key per ATTEMPT, reused across retries of the same ticket, so a retry after an
+     ambiguous failure returns the original ticket instead of creating a second one.
+     Cleared only on a confirmed save (below). */
+  if (!_NT_CLIENT_KEY) _NT_CLIENT_KEY = 'nt-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+  payload.clientKey = _NT_CLIENT_KEY;
+
   _ticketPost(payload).then(function(res) {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Ticket'; }
     if (res && res.ok) {
-      _ntStatus('Ticket ' + res.ticketId + ' created. âœ¦', false);
+      _ntStatus(res.duplicate
+        ? 'Already saved as ticket ' + res.ticketId + ' — no duplicate was created. âœ¦'
+        : 'Ticket ' + res.ticketId + ' created. âœ¦', false);
+      _NT_CLIENT_KEY = null;   // next ticket gets a fresh key
       _ticketResetForm();
       // remember any freshly-typed values locally so the datalists update without a refetch
       _ticketRememberLocal(payload);
-    } else { _ntStatus((res && res.error) || 'Could not create the ticket.', true); }
+    } else {
+      // The server answered and REFUSED. The form is untouched, so they can fix and resend.
+      _ntStatus(_ticketErrText(res && res.error), true);
+    }
   }).catch(function(e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Ticket'; }
-    _ntStatus('Error: ' + e.message, true);
+    // Transport failure: we never got a usable answer, so we do NOT know whether it saved.
+    // The draft is intact and the clientKey is kept, which is what makes retrying safe.
+    _ntStatus(e && e.ticketTransport ? e.message
+      : 'Could not reach Sales Support. Your details are still here — press Create Ticket again.', true);
   });
 }
 // Mirror the server's save-as-you-go into local state so the next open shows new values.
