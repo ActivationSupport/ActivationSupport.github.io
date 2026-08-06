@@ -248,6 +248,37 @@ function _asParse(r, meta) {
     try { j = JSON.parse(t); } catch (e) { j = null; }
 
     if (j) {
+      /* ⚠⚠ `unauthorized` IS A TRANSPORT FAILURE, NOT A REFUSAL — THE ONE EXCEPTION TO THE
+         "a JSON {error:…} is the server saying no on purpose" RULE BELOW.
+         Measured 2026-08-06 from BOTH ENDS AT ONCE: `_Errors` carried 60 AUTH-02 rows across
+         19 people, 4 offices and both portals, while the backend's `_KeyFailures` recorded 63
+         requests that arrived as a bare GET with `params=0` and no post body — "the request
+         carried no key". Same events, opposite ends of the wire.
+         🔑 THE PROOF IS THAT A CLIENT CANNOT SEND A WRONG KEY. API_KEY is a build-time
+         constant in this file — never reassigned, never user-supplied, never per-office. So
+         the server answering `unauthorized` cannot mean "your key is wrong"; it can only mean
+         the key never arrived, i.e. Google dropped the POST body upstream of the script.
+         ⚠ THAT IS WHY THE 2026-08-06 TRANSPORT RETRY DID NOT COVER THIS. The script still
+         RAN and answered cleanly, so this comes back as tidy JSON rather than the HTML 404
+         handled below — it never looked like a transport failure to anything upstream.
+         ⚠ Same reads-retry/writes-do-not rule as everything else: this throws into the very
+         same _asMayRetry gate, so postSale is still never retried and validatePin — which
+         calls _recordPinFail and could lock a rep out — is still never retried.
+         ⚠⚠ ON THE FINAL ATTEMPT WE RETURN `j` UNCHANGED, exactly as today. Every caller
+         checks `res.error`; rejecting here instead would change the contract of every read in
+         the portal to diagnose one bug. The retry is added, the interface is not touched. */
+      if (j.error === 'unauthorized') {
+        if (meta.noReport) {                 // a retry is still coming — fail into it
+          var kerr = new Error(_ERR.label('AUTH-02') + ' — ' + _ERR.hint('AUTH-02'));
+          kerr.asCode = 'AUTH-02'; kerr.asTransport = true; kerr.asRetryable = true;
+          throw kerr;
+        }
+        _ERR.report('AUTH-02', { message: 'unauthorized' }, {
+          action: meta.action || '', kind: meta.write ? 'write' : 'read',
+          attempts: meta.attempts || 1
+        });
+        return _authIntercept(j);
+      }
       if (j.error && !_asExpectedRefusal(j, meta)) _asReportJsonError(j.error, meta);
       return _authIntercept(j);
     }
