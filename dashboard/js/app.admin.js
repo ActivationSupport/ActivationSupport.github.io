@@ -19,9 +19,31 @@
 
 var _ADMIN = {
   errors: [], total: 0, loaded: false, loading: false, err: '',
-  filters: { code: '', office: '', entity: '', q: '' },
+  filters: { code: '', office: '', entity: '', q: '', status: '' },
   openKey: null, detail: null, detailLoading: false,
-  lastLoad: 0, timer: null
+  lastLoad: 0, timer: null,
+  currentCoreVersion: '', saving: false, saveErr: ''
+};
+
+/* ── THE "ALREADY WORKED ON" MARK ────────────────────────────────────────────
+   ⚠⚠ A MARK BELONGS TO THE SIGNATURE, NOT THE ROW. One bug produces dozens of rows;
+   marking them one at a time would never finish, and the _Errors ring buffer deletes
+   the oldest at 5000 anyway. The backend computes the signature and ships it as
+   e.sig — the client NEVER recomputes it, because two implementations of "the same
+   error" would drift apart and a mark that silently stops matching reads as "fixed"
+   forever while the bug keeps landing rows.
+
+   🔑 REGRESSION vs STALE CACHE is the reason this is worth building rather than just
+   hiding rows. Once a signature is marked fixed in a known app.core ?v, a NEW row of
+   that signature from an OLDER bundle is a rep on a stale cache (expected, quiet)
+   and one from a NEWER bundle means the fix did not hold (loud). Those two are
+   otherwise indistinguishable, and treating the first as the second is how a fixed
+   bug gets fixed twice. */
+var _ADMIN_STATUS = {
+  open:    { label: 'Open',        cls: 'ae-fx-open' },
+  working: { label: 'Working on it', cls: 'ae-fx-working' },
+  fixed:   { label: 'Fixed',       cls: 'ae-fx-fixed' },
+  ignore:  { label: 'Ignored',     cls: 'ae-fx-ignore' }
 };
 
 /* The Error Log reads LIVE, not from the 5-minute admin snapshot the other admin surfaces
@@ -61,6 +83,7 @@ function _adminLoadErrors() {
     } else {
       _ADMIN.errors = res.errors || [];
       _ADMIN.total = res.total || 0;
+      _ADMIN.currentCoreVersion = res.currentCoreVersion || '';
       _ADMIN.loaded = true; _ADMIN.lastLoad = Date.now();
     }
     if (CURRENT_TAB === 'adminerrors') _adminPaint();
@@ -83,6 +106,11 @@ function _adminMatch(e, f) {
   if (f.code && e.code !== f.code) return false;
   if (f.entity && e.entity !== f.entity) return false;
   if (f.office && e.office !== f.office) return false;
+  /* 'todo' is the working view: everything not yet dealt with, PLUS anything that has
+     come back after being marked fixed. A regression hiding behind a stale "Fixed" mark
+     is the one outcome this whole feature exists to prevent. */
+  if (f.status === 'todo' && !(_adminFixOf(e) === 'open' || e.regression)) return false;
+  if (f.status && f.status !== 'todo' && _adminFixOf(e) !== f.status) return false;
   if (f.q) {
     var hay = [e.code, e.label, e.message, e.user, e.office, e.tab, e.source].join(' ').toLowerCase();
     if (hay.indexOf(f.q.toLowerCase()) === -1) return false;
@@ -93,8 +121,16 @@ function _adminFilter() {
   var f = _ADMIN.filters;
   f.code = _adminVal('ae-code'); f.entity = _adminVal('ae-entity');
   f.office = _adminVal('ae-office'); f.q = _adminVal('ae-q');
+  f.status = _adminVal('ae-status');
   var w = document.getElementById('ae-body-wrap');
   if (w) w.innerHTML = _adminRowsHtml();
+}
+
+// The stored status, defaulting to 'open' — an unmarked error is simply one nobody
+// has looked at yet, which is a status, not a missing value.
+function _adminFixOf(e) {
+  var s = String((e && e.fixStatus) || 'open');
+  return _ADMIN_STATUS[s] ? s : 'open';
 }
 function _adminVal(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
 
@@ -130,8 +166,18 @@ function _adminErrorsHtml() {
       list.map(function (v) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('') +
       '</select>';
   };
+  /* ⚠ Not built from _adminUniq: the status list must offer every state even when
+     nothing currently has it — a filter that only lists what is already there cannot
+     be used to check "is anything still open?" on a quiet day. */
+  var statusSel = '<select id="ae-status" class="ps-select ae-f" onchange="_adminFilter()">' +
+    [['', 'Any status'], ['todo', 'Needs attention'], ['working', 'Working on it'],
+     ['fixed', 'Fixed'], ['ignore', 'Ignored']].map(function (o) {
+      return '<option value="' + o[0] + '"' + (o[0] === f.status ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+    }).join('') + '</select>';
+
   var bar = '<div class="card"><div class="card-body ae-bar">' +
     '<input id="ae-q" class="ps-input ae-f ae-f-q" placeholder="Search code, message, user, office…" value="' + esc(f.q) + '" oninput="_adminFilter()">' +
+    statusSel +
     sel('ae-code', f.code, _adminUniq('code'), 'All codes') +
     sel('ae-entity', f.entity, _adminUniq('entity'), 'Both portals') +
     sel('ae-office', f.office, _adminUniq('office'), 'All offices') +
@@ -149,9 +195,17 @@ function _adminRowsHtml() {
   }
   var body = rows.map(function (e) {
     var open = _ADMIN.openKey === e.rowKey;
-    return '<tr class="ae-row' + (open ? ' is-open' : '') + '" onclick="_adminOpen(\'' + esc(e.rowKey) + '\')">' +
+    var st = _adminFixOf(e);
+    /* A handled row is DIMMED, not hidden. Hiding is what the filter is for; dimming
+       keeps the history readable while making the unhandled rows the ones your eye
+       lands on. ⚠ A regression is never dimmed even though its mark says 'fixed' —
+       that mark is precisely what has just been proven wrong. */
+    var dim = (st === 'fixed' || st === 'ignore') && !e.regression;
+    return '<tr class="ae-row' + (open ? ' is-open' : '') + (dim ? ' ae-r-done' : '') +
+        (e.regression ? ' ae-r-regress' : '') + '" onclick="_adminOpen(\'' + esc(e.rowKey) + '\')">' +
       '<td data-label="When" class="ae-when">' + esc(_adminAgo(e.ts)) + '</td>' +
-      '<td data-label="Code"><span class="ae-code ' + _adminCodeClass(e.code) + '">' + esc(e.code) + '</span></td>' +
+      '<td data-label="Code"><span class="ae-code ' + _adminCodeClass(e.code) + '">' + esc(e.code) + '</span>' +
+        _adminFixPill(e) + '</td>' +
       '<td data-label="Portal"><span class="ae-ent ae-ent-' + esc(e.entity) + '">' +
         esc(e.entity === 'salessupport' ? 'Sales Support' : 'Activation') + '</span></td>' +
       '<td data-label="Office">' + esc(e.office || '—') + '</td>' +
@@ -164,6 +218,24 @@ function _adminRowsHtml() {
   var head = '<tr><th>When</th><th>Code</th><th>Portal</th><th>Office</th><th>Who</th><th>Tab</th><th>What</th></tr>';
   return '<div class="card"><table class="tbl ae-table">' + head + body + '</table>' +
     '<p class="ae-count">' + rows.length + ' of ' + _ADMIN.total + ' error' + (_ADMIN.total === 1 ? '' : 's') + '</p></div>';
+}
+
+/* The mark as it appears on a row. An OPEN error gets no pill at all — the common case
+   must stay quiet or the column becomes a wall of identical badges saying "nobody has
+   looked at this", which is what an empty space already says. */
+function _adminFixPill(e) {
+  if (e.regression) {
+    return '<span class="ae-fx ae-fx-regress" title="This was marked fixed in ' +
+      esc(e.fixedIn || '?') + ', but this one came from a NEWER bundle (' +
+      esc(e.coreVersion || '?') + ') — the fix did not hold.">Came back</span>';
+  }
+  var st = _adminFixOf(e);
+  if (st === 'open') return '';
+  var meta = _ADMIN_STATUS[st];
+  var tip = st === 'fixed' && e.fixedIn
+    ? 'Marked fixed in app.core ' + e.fixedIn + '. Rows on that bundle or older are stale caches.'
+    : (e.fixNote || meta.label);
+  return '<span class="ae-fx ' + meta.cls + '" title="' + esc(tip) + '">' + esc(meta.label) + '</span>';
 }
 
 function _adminOpen(rowKey) {
@@ -204,6 +276,7 @@ function _adminDetailRow() {
           '<textarea class="ae-d-snap" readonly onclick="this.select()">' + esc(d.snapshot) + '</textarea></div>'
       : '';
     inner = '<div class="ae-detail">' +
+      _adminFixPanel() +
       blk('Stack', d.stack, true) +
       blk('Breadcrumbs — what they did just before', d.breadcrumbs, true) +
       blk('Data loaded at the time', d.dataShape, true) +
@@ -216,6 +289,112 @@ function _adminDetailRow() {
     '</div>';
   }
   return '<tr class="ae-drow"><td colspan="7">' + inner + '</td></tr>';
+}
+
+// The row currently expanded, or null. Module state — never passed through an onclick.
+function _adminOpenRow() {
+  var k = _ADMIN.openKey;
+  if (!k) return null;
+  for (var i = 0; i < (_ADMIN.errors || []).length; i++) {
+    if (_ADMIN.errors[i].rowKey === k) return _ADMIN.errors[i];
+  }
+  return null;
+}
+
+/* The marking controls, inside the opened row.
+   ⚠⚠ EVERY BUTTON PASSES A LITERAL ENUM, never an interpolated value. The signature
+   and the note are read from module state and the DOM at click time. This is the
+   2026-07-24 apostrophe rule: esc() turns ' into &#39;, the attribute parser decodes
+   it back BEFORE the JS parser sees it, and a signature contains arbitrary message
+   text — it is exactly the kind of value that would break it. */
+function _adminFixPanel() {
+  var e = _adminOpenRow();
+  if (!e) return '';
+  var st = _adminFixOf(e);
+  var n = Number(e.sigCount || 1);
+  var scope = n > 1
+    ? 'Marks all <b>' + n + '</b> errors with this signature — not just this one.'
+    : 'Marks this error, and any future one that matches it.';
+
+  var btn = function (status, label) {
+    var on = (st === status);
+    return '<button class="ps-btn ' + (on ? '' : 'secondary ') + 'ae-fx-btn"' +
+      (on ? ' disabled' : '') + ' onclick="event.stopPropagation();_adminSetFix(\'' + status + '\')">' +
+      esc(label) + '</button>';
+  };
+
+  var known = st !== 'open'
+    ? '<div class="ae-fx-known">Currently <b>' + esc(_ADMIN_STATUS[st].label) + '</b>' +
+        (e.fixedIn ? ' in app.core <code>' + esc(e.fixedIn) + '</code>' : '') +
+        (e.fixBy ? ' — ' + esc(e.fixBy) : '') +
+        (e.fixNote ? '<div class="ae-fx-note-read">' + esc(e.fixNote) + '</div>' : '') +
+      '</div>'
+    : '';
+
+  var regress = e.regression
+    ? '<div class="ae-fx-warn">This was marked fixed in <code>' + esc(e.fixedIn || '?') +
+      '</code>, but this occurrence came from <code>' + esc(e.coreVersion || '?') +
+      '</code> — a newer bundle. The fix did not hold.</div>'
+    : '';
+
+  /* The fixed-in version is PREFILLED from the newest ?v the log has seen, because the
+     value being right is what makes every later regression check meaningful, and asking
+     someone to type a version string from memory is how it ends up wrong. */
+  return '<div class="ae-d-blk ae-fx-panel" onclick="event.stopPropagation()">' +
+    '<div class="ae-d-lbl">Have we handled this?</div>' +
+    regress + known +
+    '<div class="ae-fx-scope">' + scope + '</div>' +
+    '<div class="ae-fx-row">' +
+      btn('working', 'Working on it') + btn('fixed', 'Fixed') + btn('ignore', 'Ignore') +
+      (st !== 'open' ? btn('open', 'Reopen') : '') +
+    '</div>' +
+    '<div class="ae-fx-row">' +
+      '<input id="ae-fx-ver" class="ps-input ae-fx-ver" placeholder="fixed in app.core ?v" value="' +
+        esc(_ADMIN.currentCoreVersion || '') + '">' +
+      '<input id="ae-fx-note" class="ps-input ae-fx-note" placeholder="Note — what was it, what did you change?" value="' +
+        esc(e.fixNote || '') + '">' +
+    '</div>' +
+    (_ADMIN.saving ? '<div class="ae-fx-saving">Saving…</div>' : '') +
+    (_ADMIN.saveErr ? '<div class="ae-fx-warn">' + esc(_ADMIN.saveErr) + '</div>' : '') +
+  '</div>';
+}
+
+function _adminSetFix(status) {
+  var e = _adminOpenRow();
+  if (!e || _ADMIN.saving) return;
+  _ADMIN.saving = true; _ADMIN.saveErr = '';
+  var note = _adminVal('ae-fx-note');
+  var ver = _adminVal('ae-fx-ver');
+  _adminPaintRows();
+
+  apiPost({
+    action: 'setErrorFix',
+    sig: e.sig, entity: e.entity, status: status,
+    fixedIn: status === 'fixed' ? ver : '',
+    note: note, code: e.code, sampleMessage: e.message,
+    by: (typeof SESSION !== 'undefined' && SESSION && SESSION.email) ? SESSION.email : ''
+  }).then(function (res) {
+    _ADMIN.saving = false;
+    if (!res || res.error) { _ADMIN.saveErr = (res && res.error) || 'It did not save.'; _adminPaintRows(); return; }
+    /* ⚠⚠ APPLY THE MARK TO EVERY ROW OF THIS SIGNATURE, not just the clicked one.
+       A repaint that updated one row would show the other occurrences still unmarked
+       and read as a failed save — and the next refresh would silently "fix" it, which
+       is worse: it teaches you to distrust what you just did. */
+    var n = 0;
+    (_ADMIN.errors || []).forEach(function (x) {
+      if (x.sig !== e.sig || x.entity !== e.entity) return;
+      n++;
+      x.fixStatus = res.status; x.fixedIn = res.fixedIn || '';
+      x.fixNote = note; x.fixWhen = res.when || '';
+      x.regression = (res.status === 'fixed') && !!res.fixedIn && !!x.coreVersion &&
+                     /^\d{8}[a-z]?$/.test(x.coreVersion) && x.coreVersion > res.fixedIn;
+    });
+    _adminPaintRows();
+  }).catch(function (err) {
+    _ADMIN.saving = false;
+    _ADMIN.saveErr = (err && err.message) ? err.message : 'It did not save.';
+    _adminPaintRows();
+  });
 }
 
 /* Live-ish refresh while the tab is open. ⚠ Stops when the tab is left and when the window

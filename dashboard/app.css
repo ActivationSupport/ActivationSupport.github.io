@@ -1992,7 +1992,49 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
 .ae-d-snap{width:100%;min-height:90px;max-height:200px;background:var(--tint-1);color:var(--text2);
   border:1px solid var(--rule-1);border-radius:var(--r-sm,6px);padding:8px 10px;
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;line-height:1.45}
+/* ── the "already worked on" mark ───────────────────────────────────────────
+   ⚠⚠ Every colour here is a token or an alpha wash over the surface, never a flat
+   literal tuned against one theme. The .empty-code blue was hardcoded rgba tuned by
+   eye in dark and read as a washed-out smudge in light; the tint and rule tokens
+   flip polarity (white-alpha dark, navy-alpha light) and track the portal in both.
+   ⚠ Ring is inset box-shadow, never border — a real border adds 2px regardless of
+   box-sizing and shifts the table columns beside it. */
+.ae-fx{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:var(--r-pill);
+  font-size:.66rem;font-weight:700;letter-spacing:.03em;white-space:nowrap;vertical-align:middle;
+  box-shadow:inset 0 0 0 1px var(--rule-1);color:var(--text2);background:var(--tint-1)}
+.ae-fx-working{color:#e0a838;background:rgba(224,168,56,.12);box-shadow:inset 0 0 0 1px rgba(224,168,56,.34)}
+.ae-fx-fixed{color:var(--green,#5aab6e);background:rgba(90,171,110,.12);box-shadow:inset 0 0 0 1px rgba(90,171,110,.34)}
+.ae-fx-ignore{opacity:.75}
+/* A regression is the one state that must never be quiet: it means a mark that says
+   "handled" has just been proven wrong. */
+.ae-fx-regress{color:var(--red,#e0685f);background:rgba(224,104,95,.16);
+  box-shadow:inset 0 0 0 1px rgba(224,104,95,.42)}
+
+/* Handled rows are DIMMED, not hidden — the filter is for hiding. ⚠ Applied to the
+   cells, not the row: a <tr> opacity would fade the hover background with it. */
+.ae-row.ae-r-done td{opacity:.55}
+.ae-row.ae-r-done:hover td{opacity:1}
+.ae-row.ae-r-regress td{box-shadow:inset 3px 0 0 -1px transparent}
+.ae-row.ae-r-regress td:first-child{box-shadow:inset 3px 0 0 0 var(--red,#e0685f)}
+
+.ae-fx-panel{background:var(--tint-1);border-radius:var(--r-sm,6px);padding:12px 14px;
+  box-shadow:inset 0 0 0 1px var(--rule-1)}
+.ae-fx-scope{font-size:.78rem;color:var(--text2);margin:2px 0 9px;line-height:1.45}
+.ae-fx-known{font-size:.8rem;color:var(--text);margin-bottom:8px;line-height:1.5}
+.ae-fx-note-read{font-size:.78rem;color:var(--text2);margin-top:3px}
+.ae-fx-warn{font-size:.78rem;line-height:1.5;color:var(--red,#e0685f);
+  background:rgba(224,104,95,.10);box-shadow:inset 0 0 0 1px rgba(224,104,95,.3);
+  border-radius:var(--r-sm,6px);padding:8px 10px;margin-bottom:9px}
+.ae-fx-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.ae-fx-btn{font-size:.78rem}
+.ae-fx-ver{flex:0 1 200px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem}
+.ae-fx-note{flex:1 1 280px;font-size:.8rem}
+.ae-fx-saving{font-size:.78rem;color:var(--text2);margin-top:8px}
+.ae-fx-panel code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:var(--tint-2);padding:1px 5px;border-radius:var(--r-sm);font-size:.9em}
+
 @media (max-width:768px){
   .ae-stamp{margin-left:0;width:100%}
   .ae-detail{padding:12px}
+  .ae-fx-ver,.ae-fx-note{flex:1 1 100%}
 }
