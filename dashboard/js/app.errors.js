@@ -202,6 +202,26 @@ var AS_ERR = (function (w, d) {
     } catch (e) {}
   }
 
+  /* ⚠⚠ ERRORS FROM BROWSER EXTENSIONS ARE NOT OUR ERRORS. A rep's ad-blocker,
+     password manager or screen-reader extension throws inside our page and the
+     window handler cannot tell whose code it was. Measured 2026-08-06: the log
+     carried "Invalid call to runtime.sendMessage(). Tab not found." — a Chrome
+     extension talking to its own background page, nothing to do with the portal.
+
+     🔑 Matched on the EXTENSION APIS and URL SCHEMES, which no portal code can
+     ever legitimately contain, rather than on message wording. We cannot fix an
+     extension, we cannot reproduce it, and a rep cannot act on it — so logging it
+     only makes the real errors harder to find.
+     ⚠ Deliberately narrow. Anything we are not sure about stays REPORTED: a
+     missed noise row costs a line in a table, a wrongly-filtered real error costs
+     us the only evidence we would ever get. */
+  var _FOREIGN = /\b(chrome|moz|safari|webkit)-extension:|\bchrome\.runtime\b|\bruntime\.sendMessage\b|\bbrowser\.runtime\b/i;
+  function _notOurs(message, where) {
+    try {
+      return _FOREIGN.test(_s(message)) || _FOREIGN.test(_s(where));
+    } catch (e) { return false; }
+  }
+
   /* Identify an element without quoting anything a user typed or a customer
      owns: tag, classes, and the NAMES of its data-* attributes (never their
      values — those carry DSIs and emails). */
@@ -504,6 +524,7 @@ var AS_ERR = (function (w, d) {
             report('APP-02', { message: 'Failed to load ' + _s(ev.target.src || ev.target.href) });
             return;
           }
+          if (_notOurs(ev && ev.message, ev && ev.filename)) return;
           report('APP-01', {
             message: ev && ev.message, stack: ev && ev.error && ev.error.stack,
             filename: ev && ev.filename, lineno: ev && ev.lineno, colno: ev && ev.colno
@@ -517,6 +538,7 @@ var AS_ERR = (function (w, d) {
           // A classified transport failure already reported itself with a
           // precise code; re-reporting it here would double-count it as APP-01.
           if (r && r.asCode) return;
+          if (_notOurs(r && r.message || r, r && r.stack)) return;
           report('APP-01', { message: 'Unhandled rejection: ' + _s(r && r.message || r), stack: r && r.stack });
         } catch (e) {}
       });

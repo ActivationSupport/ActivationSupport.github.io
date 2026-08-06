@@ -248,7 +248,7 @@ function _asParse(r, meta) {
     try { j = JSON.parse(t); } catch (e) { j = null; }
 
     if (j) {
-      if (j.error) _asReportJsonError(j.error, meta);
+      if (j.error && !_asExpectedRefusal(j, meta)) _asReportJsonError(j.error, meta);
       return _authIntercept(j);
     }
 
@@ -266,12 +266,42 @@ function _asParse(r, meta) {
     err.asCode = code;
     err.asTransport = true;         // "we never got a usable answer", NOT "the server said no"
     err.asRetryable = code !== 'AUTH-01';
-    _ERR.report(code, err, {
-      action: meta.action || '', http: r.status, kind: meta.write ? 'write' : 'read',
-      bodyStart: body.slice(0, 200), bodyLen: body.length
-    });
+    // ⚠ noReport = this attempt is about to be retried. Report only on the last one, or
+    // the log fills with failures the rep never saw and the real ones stop standing out.
+    if (!meta.noReport) {
+      _ERR.report(code, err, {
+        action: meta.action || '', http: r.status, kind: meta.write ? 'write' : 'read',
+        bodyStart: body.slice(0, 200), bodyLen: body.length,
+        attempts: meta.attempts || 1
+      });
+    }
     throw err;
   });
+}
+
+/* ⚠⚠ NOT EVERY `{error:…}` IS A DEFECT. Measured 2026-08-06: a rep mistyping their PIN
+   produced 8 rows of "That did not save", and the post-a-sale duplicate guard WORKING
+   ("already posted — it is saved, no need to re-submit") was filed as a failed write.
+   Neither is a bug; both are the system correctly telling someone something.
+
+   🔑 THE DISCRIMINATOR IS THE SERVER'S OWN VERDICT, not a list of message strings. These
+   responses carry ok:true / valid:false / duplicate:true — the request was HANDLED, and
+   `error` is the human-readable reason. A message allow-list would have to be updated
+   every time anyone rewords a sentence, and would silently start logging noise again.
+
+   ⚠ auth_required BEFORE THE REP HAS SIGNED IN is the same thing: the portal fires
+   background reads while the login card is on screen (48 rows in a day), and the server
+   is right to refuse them. Once a session exists, auth_required means the badge died
+   mid-session — that one IS worth knowing about, so it is still reported. */
+function _asExpectedRefusal(j, meta) {
+  try {
+    if (j.ok === true || j.duplicate === true) return true;
+    if (String(j.error) === 'auth_required') {
+      var haveSession = !!(typeof SESSION !== 'undefined' && SESSION && SESSION.token);
+      return !haveSession;                 // not signed in yet ⇒ expected, not a fault
+    }
+    return false;
+  } catch (_) { return false; }
 }
 
 /* A JSON `{error:…}` is the server saying no, on purpose. We still want it CODED and
@@ -292,14 +322,21 @@ function _asReportJsonError(e, meta) {
 
 /* fetch() itself rejected — we never reached the server at all (offline, DNS, TLS, a
    blocked request). Distinct from _asParse, which had a response to look at. */
-function _asNetworkError(e, action, write) {
+function _asNetworkError(e, action, write, meta) {
   try {
+    meta = meta || {};
     var offline = (navigator && navigator.onLine === false);
     var code = offline ? 'NET-02' : (write ? 'WRITE-02' : 'NET-01');
     var err = new Error(_ERR.label(code) + ' — ' + _ERR.hint(code));
     err.asCode = code; err.asTransport = true; err.asRetryable = true;
-    _ERR.report(code, { message: String(e && e.message || e), stack: e && e.stack },
-                  { action: action || '', kind: write ? 'write' : 'read' });
+    /* ⚠ Same rule as _asParse: quiet while a retry is still coming. iOS alone produced 42
+       "Load failed" rows in a day — Safari aborting in-flight reads when the phone locks
+       or the tab backgrounds — and most of those recover on the next attempt. */
+    if (!meta.noReport) {
+      _ERR.report(code, { message: String(e && e.message || e), stack: e && e.stack },
+                    { action: action || '', kind: write ? 'write' : 'read',
+                      attempts: meta.attempts || 1 });
+    }
     return err;
   } catch (_) { return e; }
 }
@@ -308,8 +345,44 @@ function _asNetworkError(e, action, write) {
    ⚠ The breadcrumb pair is not decoration — AS_ERR uses in-flight count + time-since-last
    to decide when the network is quiet enough to flush a report, which is what keeps an
    error POST from queueing in front of the main blob. */
+/* ⚠⚠ GOOGLE INTERMITTENTLY ANSWERS /exec WITH AN HTML ERROR PAGE INSTEAD OF JSON.
+   Measured 2026-08-06 from the real error log: ~50 occurrences across 13 people in one
+   day, both entities, every action — the body is the Google Docs error page and the
+   status is usually 404. On iOS Safari the old r.json() worded that as "The string did
+   not match the expected pattern.", which is the screenshot the reps sent.
+   🔑 IT HITS LOGIN. checkEmail ×5 and validatePin ×3 came back as 404-HTML, which is
+   what a rep experiences as "I can't sign in". It is transport flakiness, not a refusal
+   — the very next attempt usually succeeds.
+
+   ⚠⚠ READS RETRY, WRITES DO NOT. A 404-HTML tells us nothing about whether the server
+   ALREADY ACTED, and that distinction is the whole reason WRITE-02 exists. Re-sending a
+   write that did land creates a duplicate — worse than the error we are fixing.
+   ⚠ checkEmail is the ONE write on the allow-list: it only looks a roster address up.
+   🔴 validatePin is deliberately NOT on it — it calls _recordPinFail, so a retry could
+   burn a second PIN attempt and lock a rep out of their own account.
+   ⚠ Intermediate attempts are NOT reported as errors, only breadcrumbed. An error log
+   that fills up with failures the user never saw is one people stop reading; the report
+   fires only when we finally give up, and carries the attempt count. */
+var _AS_RETRY_BACKOFF = [400, 1200];
+var _AS_RETRY_SAFE_WRITES = { checkEmail: 1 };
+
+function _asMayRetry(meta) {
+  if (!meta || !meta.write) return true;                       // reads are idempotent
+  return !!_AS_RETRY_SAFE_WRITES[String(meta.action || '')];
+}
+
 function _asFetch(url, payload, meta) {
+  return _asAttempt(url, payload, meta || {}, 0);
+}
+
+function _asAttempt(url, payload, meta, attempt) {
   var act = meta.action || 'read', t0 = Date.now();
+  var isLast = !_asMayRetry(meta) || attempt >= _AS_RETRY_BACKOFF.length;
+  var m = {};
+  for (var k in meta) if (Object.prototype.hasOwnProperty.call(meta, k)) m[k] = meta[k];
+  m.noReport = !isLast;                 // stay quiet until we are actually giving up
+  if (attempt) m.attempts = attempt + 1;
+
   _ERR.netStart(act);
   return fetch(url, {
     method: 'POST',
@@ -318,10 +391,18 @@ function _asFetch(url, payload, meta) {
     body: JSON.stringify(payload)
   }).then(function (r) {
     _ERR.netEnd(act, r.ok, Date.now() - t0);
-    return _asParse(r, meta);
+    return _asParse(r, m);
   }, function (e) {
     _ERR.netEnd(act, false, Date.now() - t0);
-    throw _asNetworkError(e, act, meta.write);
+    throw _asNetworkError(e, act, meta.write, m);
+  }).catch(function (err) {
+    /* Only TRANSPORT failures retry. A JSON {error:…} is the server deliberately saying
+       no — asking again just asks again. asRetryable is already false for AUTH-01, the
+       HTML login interstitial, where a retry cannot help either. */
+    if (isLast || !err || !err.asTransport || err.asRetryable === false) throw err;
+    _ERR.crumb('retry', act + ' after ' + (err.asCode || '?'));
+    return new Promise(function (resolve) { setTimeout(resolve, _AS_RETRY_BACKOFF[attempt]); })
+      .then(function () { return _asAttempt(url, payload, meta, attempt + 1); });
   });
 }
 
