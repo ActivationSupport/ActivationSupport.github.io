@@ -38,12 +38,16 @@ var _ADMIN = {
    that signature from an OLDER bundle is a rep on a stale cache (expected, quiet)
    and one from a NEWER bundle means the fix did not hold (loud). Those two are
    otherwise indistinguishable, and treating the first as the second is how a fixed
-   bug gets fixed twice. */
+   bug gets fixed twice.
+
+   ⚠ TWO marked states only, by decision (2026-08-06): "Needs work" and "Fixed".
+   'open' is the third value but it is the ABSENCE of a mark, not a state anyone
+   sets — it is what an error has before anyone has looked at it, and what
+   clearing a mark returns it to. */
 var _ADMIN_STATUS = {
-  open:    { label: 'Open',        cls: 'ae-fx-open' },
-  working: { label: 'Working on it', cls: 'ae-fx-working' },
-  fixed:   { label: 'Fixed',       cls: 'ae-fx-fixed' },
-  ignore:  { label: 'Ignored',     cls: 'ae-fx-ignore' }
+  open:    { label: 'Open',       cls: 'ae-fx-open' },
+  working: { label: 'Needs work', cls: 'ae-fx-working' },
+  fixed:   { label: 'Fixed',      cls: 'ae-fx-fixed' }
 };
 
 /* The Error Log reads LIVE, not from the 5-minute admin snapshot the other admin surfaces
@@ -106,10 +110,12 @@ function _adminMatch(e, f) {
   if (f.code && e.code !== f.code) return false;
   if (f.entity && e.entity !== f.entity) return false;
   if (f.office && e.office !== f.office) return false;
-  /* 'todo' is the working view: everything not yet dealt with, PLUS anything that has
-     come back after being marked fixed. A regression hiding behind a stale "Fixed" mark
-     is the one outcome this whole feature exists to prevent. */
-  if (f.status === 'todo' && !(_adminFixOf(e) === 'open' || e.regression)) return false;
+  /* 'todo' is the working view: everything except what is genuinely done. With two
+     states that is the clean complement of Fixed — unmarked errors AND ones marked
+     "Needs work" both still need work. ⚠ A regression stays in, even though its mark
+     says Fixed: that mark is exactly what has just been proven wrong, and a regression
+     hiding behind it is the outcome this whole feature exists to prevent. */
+  if (f.status === 'todo' && _adminFixOf(e) === 'fixed' && !e.regression) return false;
   if (f.status && f.status !== 'todo' && _adminFixOf(e) !== f.status) return false;
   if (f.q) {
     var hay = [e.code, e.label, e.message, e.user, e.office, e.tab, e.source].join(' ').toLowerCase();
@@ -170,8 +176,8 @@ function _adminErrorsHtml() {
      nothing currently has it — a filter that only lists what is already there cannot
      be used to check "is anything still open?" on a quiet day. */
   var statusSel = '<select id="ae-status" class="ps-select ae-f" onchange="_adminFilter()">' +
-    [['', 'Any status'], ['todo', 'Needs attention'], ['working', 'Working on it'],
-     ['fixed', 'Fixed'], ['ignore', 'Ignored']].map(function (o) {
+    [['', 'Any status'], ['todo', 'Needs attention'], ['working', 'Needs work'],
+     ['fixed', 'Fixed']].map(function (o) {
       return '<option value="' + o[0] + '"' + (o[0] === f.status ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
     }).join('') + '</select>';
 
@@ -200,7 +206,7 @@ function _adminRowsHtml() {
        keeps the history readable while making the unhandled rows the ones your eye
        lands on. ⚠ A regression is never dimmed even though its mark says 'fixed' —
        that mark is precisely what has just been proven wrong. */
-    var dim = (st === 'fixed' || st === 'ignore') && !e.regression;
+    var dim = st === 'fixed' && !e.regression;
     return '<tr class="ae-row' + (open ? ' is-open' : '') + (dim ? ' ae-r-done' : '') +
         (e.regression ? ' ae-r-regress' : '') + '" onclick="_adminOpen(\'' + esc(e.rowKey) + '\')">' +
       '<td data-label="When" class="ae-when">' + esc(_adminAgo(e.ts)) + '</td>' +
@@ -344,9 +350,12 @@ function _adminFixPanel() {
     '<div class="ae-d-lbl">Have we handled this?</div>' +
     regress + known +
     '<div class="ae-fx-scope">' + scope + '</div>' +
+    /* ⚠ "Clear" is not a third state — it returns the error to unmarked. Without it a
+       mark made by mistake would be permanent, and a wrong "Fixed" is the single worst
+       thing this feature can hold: it makes a live bug read as handled. */
     '<div class="ae-fx-row">' +
-      btn('working', 'Working on it') + btn('fixed', 'Fixed') + btn('ignore', 'Ignore') +
-      (st !== 'open' ? btn('open', 'Reopen') : '') +
+      btn('working', 'Needs work') + btn('fixed', 'Fixed') +
+      (st !== 'open' ? btn('open', 'Clear') : '') +
     '</div>' +
     '<div class="ae-fx-row">' +
       '<input id="ae-fx-ver" class="ps-input ae-fx-ver" placeholder="fixed in app.core ?v" value="' +

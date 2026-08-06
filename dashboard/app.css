@@ -2004,7 +2004,6 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
   box-shadow:inset 0 0 0 1px var(--rule-1);color:var(--text2);background:var(--tint-1)}
 .ae-fx-working{color:#e0a838;background:rgba(224,168,56,.12);box-shadow:inset 0 0 0 1px rgba(224,168,56,.34)}
 .ae-fx-fixed{color:var(--green,#5aab6e);background:rgba(90,171,110,.12);box-shadow:inset 0 0 0 1px rgba(90,171,110,.34)}
-.ae-fx-ignore{opacity:.75}
 /* A regression is the one state that must never be quiet: it means a mark that says
    "handled" has just been proven wrong. */
 .ae-fx-regress{color:var(--red,#e0685f);background:rgba(224,104,95,.16);
