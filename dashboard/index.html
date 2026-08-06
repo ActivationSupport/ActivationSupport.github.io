@@ -52,7 +52,7 @@
 <link rel="apple-touch-icon" href="/favicon.png">
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="app.css?v=20260805b">
+<link rel="stylesheet" href="app.css?v=20260805c">
 <!-- The Sales Support skin (~30 KB raw / 7.6 KB gz) loads ONLY for its own office. app.css
      is the one RENDER-BLOCKING asset, so these rules were delaying first paint for six
      offices that can never render them. The CSS half of the separation rule, after PERF-1b
@@ -376,13 +376,13 @@
      no dependencies precisely so it can hold this slot — do not "tidy" it next to its
      alphabetical neighbours or below app.core.js. -->
 <script defer src="js/app.errors.js?v=20260805a"></script>
-<script defer src="js/app.core.js?v=20260805a"></script>
+<script defer src="js/app.core.js?v=20260805b"></script>
 <!-- Keyboard reachability for the 77 clickable div/span/tr elements that carry an inline
      onclick and no tabindex. Applied by MutationObserver, so no render site changes and
      new markup is covered as it appears. Order-independent (DOM APIs only), but kept next
      to core because it is foundational rather than a feature. -->
 <script defer src="js/app.a11y.js?v=20260803a"></script>
-<script defer src="js/app.data.js?v=20260804e"></script>
+<script defer src="js/app.data.js?v=20260805a"></script>
 <script defer src="js/app.calllogs.js?v=20260804a"></script>
 <script defer src="js/app.reports.js?v=20260804b"></script>
 <script defer src="js/app.knowledge.js?v=20260804a"></script>
@@ -391,6 +391,11 @@
 <script defer src="js/app.lst.js?v=20260805a"></script>
 <script defer src="js/app.appts.js?v=20260805a"></script>
 <script defer src="js/app.fiber.js?v=20260805a"></script>
+<!-- Admin Portal (master-admin only). Loaded UNCONDITIONALLY like every other bundle: a
+     role is not known until after login while the defer chain is fixed at parse time, and
+     conditional loading is the trap app.tickets.js fell into. The tab's roles list hides
+     the nav item; readErrorLog/readErrorDetail are gated server-side in _READ_ROLES. -->
+<script defer src="js/app.admin.js?v=20260805a"></script>
 <!-- The shared slice of the old app.tickets.js: the office-switcher allowlist, the two
      symbols app.core.js reads at boot, and the _comboField / _ssAddPopup widgets that
      app.appts.js and app.calllogs.js call for EVERY office. Always loaded. -->

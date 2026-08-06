@@ -1940,3 +1940,59 @@ html[data-theme="light"] .appt-oc-glyph.oc-canc{color:#7a2118}
 @media (prefers-reduced-motion: reduce){
   .empty-state.is-loading .empty-ico{animation:none}
 }
+
+/* ── ADMIN PORTAL · ERROR LOG (2026-08-05) ───────────────────────────────────
+   ⚠ Uses the tint, rule and text2 vars throughout rather than fixed rgba, because those
+   FLIP POLARITY between themes (white-alpha in dark, navy-alpha in light). A master-admin
+   ⚠⚠ NEVER write a glob like "tint-star-slash-rule" inside a CSS comment — the star-slash
+   sequence CLOSES the comment, the rest parses as garbage, and CSS error recovery silently
+   eats the next declaration. That is exactly how a white page shipped once; css_parse_check
+   caught the identical mistake being made again here.
+   defaults to dark today, but owners default to light and the theme is user-switchable, so
+   a dark-tuned literal here would be the .empty-code mistake again. */
+.ae-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ae-f{min-width:0}
+.ae-f-q{flex:1 1 260px}
+.ae-stamp{font-size:.76rem;color:var(--text2);margin-left:auto}
+.ae-table{width:100%}
+.ae-table th{white-space:nowrap}
+.ae-row{cursor:pointer}
+.ae-row:hover td{background:var(--tint-1)}
+.ae-row.is-open td{background:var(--tint-2)}
+.ae-when{white-space:nowrap;color:var(--text2);font-size:.8rem;font-variant-numeric:tabular-nums}
+/* The code is the thing you scan for, so it gets the monospace treatment the error card
+   uses — one visual vocabulary for a code wherever it appears. */
+.ae-code{display:inline-block;padding:2px 8px;border-radius:var(--r-sm,6px);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;
+  font-weight:700;letter-spacing:.04em;white-space:nowrap;font-variant-numeric:tabular-nums}
+/* Colour carries the CLASS of failure so a wall of rows is triageable at a glance:
+   red = our bug or a lost write · amber = auth · blue = transport/data. */
+.ae-c-red{background:rgba(224,104,95,.14);color:var(--red,#e0685f)}
+.ae-c-amber{background:rgba(224,168,56,.14);color:#e0a838}
+.ae-c-blue{background:rgba(var(--blue2-rgb),.14);color:var(--blue2)}
+/* ⚠ var(--r-pill), not a literal 999px — the radius scale exists and scale_harness enforces
+   it (only 50% and 0 may be literals, because a circle must track its element's size). */
+.ae-ent{display:inline-block;padding:1px 7px;border-radius:var(--r-pill);font-size:.68rem;font-weight:700;
+  letter-spacing:.03em;white-space:nowrap;box-shadow:inset 0 0 0 1px var(--rule-1);color:var(--text2)}
+.ae-ent-salessupport{color:#e0a838;box-shadow:inset 0 0 0 1px rgba(224,168,56,.35)}
+.ae-msg{font-size:.78rem;color:var(--text2);margin-top:3px;line-height:1.4}
+.ae-count{font-size:.8rem;color:var(--text2);margin:10px 14px 12px}
+.ae-drow td{background:var(--tint-1);padding:0}
+.ae-detail{padding:14px 16px;display:grid;gap:12px}
+.ae-d-blk{min-width:0}
+.ae-d-lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);
+  font-weight:700;margin-bottom:4px}
+.ae-d-hint{text-transform:none;letter-spacing:0;font-weight:400;opacity:.8}
+.ae-d-val{font-size:.82rem;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.ae-d-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.74rem;
+  background:var(--tint-1);border-radius:var(--r-sm,6px);padding:8px 10px;max-height:220px;overflow:auto}
+/* ⚠ The snapshot is offered as COPYABLE TEXT, never rendered inline — injecting captured
+   markup into the live page would let a captured style or an unclosed tag bleed into the
+   portal's own layout. error_replay.html renders it in an isolated document. */
+.ae-d-snap{width:100%;min-height:90px;max-height:200px;background:var(--tint-1);color:var(--text2);
+  border:1px solid var(--rule-1);border-radius:var(--r-sm,6px);padding:8px 10px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;line-height:1.45}
+@media (max-width:768px){
+  .ae-stamp{margin-left:0;width:100%}
+  .ae-detail{padding:12px}
+}

@@ -783,6 +783,10 @@ function renderTab(id) {
     case 'knowledge':   c.innerHTML = renderKnowledge(); break;
     case 'escalations': c.innerHTML = renderEscalationsTable(); break;
     case 'churn':       c.innerHTML = renderChurn();       break;
+    /* Admin Portal — the Error Log reads LIVE rather than from DATA, so it paints a
+       loading state and fills itself in. _adminStartTimer refreshes while the tab is
+       open and stops the moment it is left or the window loses focus. */
+    case 'adminerrors': c.innerHTML = renderAdminErrors(); _adminStartTimer(); break;
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
     case 'postsale':    c.innerHTML = renderPostSale();    break;
     case 'rehash':      c.innerHTML = renderRehashTab();   break;

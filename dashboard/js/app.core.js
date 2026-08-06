@@ -921,6 +921,11 @@ var TABS = [
   { id: 'churn',       label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },
   { id: 'completed',   label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
   { id: 'training',    label: 'Training & Tracking',   roles: ROLES_PAYROLL, group: 'Payroll',  sub: 'Every posted order + payout tracking' },
+  /* ── ADMIN PORTAL (phase 1) ──
+     ⚠⚠ `roles` HIDES A NAV ITEM; IT DOES NOT PROTECT THE DATA. readErrorLog and
+     readErrorDetail are gated in _READ_ROLES on the backend against the badge's
+     server-verified rank. Never rely on this list alone for anything sensitive. */
+  { id: 'adminerrors', label: 'Error Log',             roles: ['master-admin'], group: 'Admin', sub: 'Live client errors across every portal' },
   { id: 'people',       label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
   { id: 'teams',        label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
 ];
