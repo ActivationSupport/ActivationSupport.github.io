@@ -144,7 +144,12 @@ function _psStep1Html() {
   h += '<div class="ps-toggle' + (d.underSomeoneCodes === 'No' ? ' active' : '') + '" onclick="_psToggleRerender(\'underSomeoneCodes\',\'No\')">No</div>';
   h += '</div>';
   if (d.underSomeoneCodes === 'Yes') {
-    h += '<div class="ps-sub-field"><div class="ps-label">WHOSE CODES?</div>';
+    /* ⚠ "WHO MADE THE SALE?", not "WHOSE CODES?" — the field holds a PERSON, and the answer
+       feeds `codesUsedBy`. Asking for the codes invited a code/ID; asking who made the sale
+       matches the placeholder ("Name or email...") and the value the sheet actually wants.
+       ⚠ Keep this identical to the edit modal's copy of the label (_pseForm) — the same field
+       asking two different questions depending on where it is opened is how it drifted before. */
+    h += '<div class="ps-sub-field"><div class="ps-label">WHO MADE THE SALE?</div>';
     h += '<input class="ps-input" type="text" placeholder="Name or email..." value="' + esc(d.codesUsedBy) + '" oninput="_PS_DATA.codesUsedBy=this.value"></div>';
   }
   h += '<div class="ps-label">ADDITIONAL NOTES <span style="font-weight:400;text-transform:none;color:var(--text2);letter-spacing:0">(optional)</span></div>';
@@ -1593,7 +1598,8 @@ function _pseFormHtml() {
   h += '<div class="ps-label">TRAINEE?</div><div class="ps-toggle-row">' + tog('trainee','Yes','Yes') + tog('trainee','No','No') + '</div>';
   if (d.trainee === 'Yes') h += '<div class="ps-sub-field"><div class="ps-label">WHO?</div><input class="ps-input" type="text" value="' + esc(d.traineeName) + '" oninput="_pseSet(\'traineeName\',this.value)"></div>';
   h += '<div class="ps-label">UNDER SOMEONE ELSE\'S CODES?</div><div class="ps-toggle-row">' + tog('underSomeoneCodes','Yes','Yes') + tog('underSomeoneCodes','No','No') + '</div>';
-  if (d.underSomeoneCodes === 'Yes') h += '<div class="ps-sub-field"><div class="ps-label">WHOSE CODES?</div><input class="ps-input" type="text" value="' + esc(d.codesUsedBy) + '" oninput="_pseSet(\'codesUsedBy\',this.value)"></div>';
+  // ⚠ Must match the wizard's label in _psStep1 verbatim — same field, same question.
+  if (d.underSomeoneCodes === 'Yes') h += '<div class="ps-sub-field"><div class="ps-label">WHO MADE THE SALE?</div><input class="ps-input" type="text" value="' + esc(d.codesUsedBy) + '" oninput="_pseSet(\'codesUsedBy\',this.value)"></div>';
   h += '<div class="ps-label" style="margin-top:14px">PRODUCTS SOLD</div><div class="pse-prods">';
   h += _psePc('air', 'Internet Air', '');
   var wd = '';
