@@ -1514,7 +1514,10 @@ function _ticketAddNote() {
   var ta = document.getElementById('td-note'); var text = ta ? ta.value.trim() : '';
   if (!text) { _tdStatus('Write a note first.', true); return; }
   _tdStatus('Adding…');
-  _ticketPost({ action:'addTicketNote', ticketId:id, note:text }).then(function(res){
+  /* ⚠ The backend now dedupes this on clientKey, but nothing retries it automatically yet:
+     _ticketPost is a RAW fetch, not _asFetch, so Sales Support gets no retry and no timeout.
+     The key is sent regardless so the guard is live the moment that transport is unified. */
+  _ticketPost({ action:'addTicketNote', ticketId:id, note:text, clientKey:_clientKey('tnote') }).then(function(res){
     if (res && res.ok && res.note) {
       _TICKETS.open.notes.push(res.note);
       _TICKETS.open.ticket.lastUpdated = res.note.timestamp;

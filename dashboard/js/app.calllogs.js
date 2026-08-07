@@ -498,6 +498,7 @@ function modalAddCancelRequest() {
                 linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
   } else {
     apiPost({ action:'addNote', dsi:_modalDsi, noteText:noteText, noteType:'cancel',
+              clientKey:_clientKey('note'),
               authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
   }
 }
@@ -696,7 +697,7 @@ function modalAddNote(noteType) {
     DATA.notes[_modalDsi].push(entry);
     var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
     if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
-    apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, linesActivated:lines, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
+    apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, linesActivated:lines, clientKey:_clientKey('note'), authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
   }
 }
 

@@ -427,7 +427,21 @@ function _asNetworkError(e, action, write, meta, timeoutMs) {
    that fills up with failures the user never saw is one people stop reading; the report
    fires only when we finally give up, and carries the attempt count. */
 var _AS_RETRY_BACKOFF = [400, 1200];
-var _AS_RETRY_SAFE_WRITES = { checkEmail: 1 };
+/* ⚠⚠ A WRITE EARNS A PLACE HERE ONLY BY BEING SAFE TO REPEAT — never because retrying it would
+   be convenient. Two ways to qualify, and nothing else:
+     · checkEmail — it only LOOKS AN ADDRESS UP. Nothing is written at all.
+     · addNote    — the backend dedupes on `clientKey`, so a repeat returns the FIRST note
+                    instead of appending a second (see _idemKey in Code.gs). This is the whole
+                    reason the key exists: it converts "we cannot tell if it saved" (WRITE-02,
+                    3 rows in one evening from one iOS rep) into a retry that simply works.
+   🔴 postSale is NOT here even though it has a natural-key guard: that guard answers with an
+   ERROR the rep must read, not a silent success, so an automatic retry would surface a
+   confusing "already posted" on a write they never saw fail.
+   🔴 validatePin is NOT here and must never be — it calls _recordPinFail, so a retry could burn
+   an attempt and lock a rep out of their own account.
+   ⚠ Adding an action here WITHOUT a server-side guard reintroduces duplicate sales/notes. The
+   guard comes first, always. */
+var _AS_RETRY_SAFE_WRITES = { checkEmail: 1, addNote: 1 };
 
 function _asMayRetry(meta) {
   if (!meta || !meta.write) return true;                       // reads are idempotent
@@ -571,6 +585,18 @@ function api(params) {
   var clear = function() { delete _API_INFLIGHT[key]; };
   p.then(clear, clear);
   return p;
+}
+
+/* 🔑 IDEMPOTENCY KEY for a write that appends. The backend records key→result on the first
+   successful write and returns that same result for any repeat, which is what makes the write
+   safe to auto-retry (see _AS_RETRY_SAFE_WRITES).
+   ⚠⚠ GENERATED AT THE CALL SITE, ONCE, AND THAT IS THE WHOLE TRICK — `_asAttempt` retries with
+   the SAME payload object, so every attempt carries the same key without anyone tracking it.
+   A key made per-attempt would defeat the entire mechanism while looking correct.
+   ⚠ NOT a security token: it only has to be unique per submit, so Date.now()+random is right;
+   crypto.randomUUID is not available on the older iOS these reps carry. */
+function _clientKey(prefix) {
+  return (prefix || 'ck') + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
 }
 
 function apiPost(body) {

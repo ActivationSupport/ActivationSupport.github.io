@@ -376,14 +376,14 @@
      no dependencies precisely so it can hold this slot — do not "tidy" it next to its
      alphabetical neighbours or below app.core.js. -->
 <script defer src="js/app.errors.js?v=20260806b"></script>
-<script defer src="js/app.core.js?v=20260807a"></script>
+<script defer src="js/app.core.js?v=20260807b"></script>
 <!-- Keyboard reachability for the 77 clickable div/span/tr elements that carry an inline
      onclick and no tabindex. Applied by MutationObserver, so no render site changes and
      new markup is covered as it appears. Order-independent (DOM APIs only), but kept next
      to core because it is foundational rather than a feature. -->
 <script defer src="js/app.a11y.js?v=20260803a"></script>
 <script defer src="js/app.data.js?v=20260805a"></script>
-<script defer src="js/app.calllogs.js?v=20260804a"></script>
+<script defer src="js/app.calllogs.js?v=20260807a"></script>
 <script defer src="js/app.reports.js?v=20260804b"></script>
 <script defer src="js/app.knowledge.js?v=20260804a"></script>
 <script defer src="js/app.people.js?v=20260805a"></script>
@@ -411,7 +411,7 @@
     var office = new URLSearchParams(location.search).get('office');
     if (office !== 'salessupport') return;
     var s = document.createElement('script');
-    s.src = 'js/app.tickets.js?v=20260805d';
+    s.src = 'js/app.tickets.js?v=20260807a';
     s.async = false;                       // keep it ordered against other injected scripts
     document.head.appendChild(s);
   })();
