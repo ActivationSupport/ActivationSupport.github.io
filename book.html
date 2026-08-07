@@ -283,7 +283,7 @@
     return { report: report, parse: parse, netFail: netFail, say: say, codes: CODES };
   })();
   var OFFICE = String((new URLSearchParams(location.search)).get("office") || "").toLowerCase();
-  var OFFICE_NAMES = { elevate:"Elevate", midspire:"Midspire", viridian:"Viridian", vanguard:"Vanguard", bayview:"Bayview Horizons", leadsphere:"LeadSphere Solutions" };
+  var OFFICE_NAMES = { elevate:"Elevate", midspire:"Midspire", viridian:"Viridian", vanguard:"Vanguard", bayview:"New Office", leadsphere:"LeadSphere Solutions" };
   var PRODUCTS = ["Wireless", "Air", "Fiber - Self Install"];
   var qty = {};
   var win = null, selectedSlot = "", loadingSlots = false, ACTS = [];
@@ -314,7 +314,7 @@
     midspire: {accent:'#4FB0FF',accent2:'#80C8FF',dim:'#123047',deep:'#1E78C4',on:'#06243b',glow:'#143650',logo:'midspire-logo-symbol.png'},
     viridian: {accent:'#D9C87E',accent2:'#E8DBA6',dim:'#2b2a18',deep:'#A98F45',on:'#1b2814',glow:'#27301d',logo:'viridian-logo-full.png'},
     vanguard: {accent:'#2652D7',accent2:'#5277E6',dim:'#15203f',deep:'#1B3AAE',on:'#ffffff',glow:'#141b33',logo:'vanguard-logo-symbol-reverse.png'},
-    bayview:  {accent:'#CDAB5A',accent2:'#E0C77E',dim:'#1b2740',deep:'#143055',on:'#0F2439',glow:'#152033',logo:'bayview-logo-symbol.png',logoBg:'#D3B364'},
+    bayview:  {accent:'#64748B',accent2:'#94A3B8',dim:'#1e293b',deep:'#475569',on:'#ffffff',glow:'#1e293b',logo:''},
     leadsphere:{accent:'#2B6AFF',accent2:'#5E8CFF',dim:'#132a45',deep:'#1B4EC4',on:'#ffffff',glow:'#152740',logo:'leadsphere-logo-symbol.png'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
@@ -323,12 +323,15 @@
     r.setProperty('--accent',t.accent); r.setProperty('--accent2',t.accent2);
     r.setProperty('--accentdim',t.dim); r.setProperty('--accent-deep',t.deep);
     r.setProperty('--on-accent',t.on); r.setProperty('--glow',t.glow);
-    var wm = $("wm"); if(wm) wm.src = BASE_ASSET + t.logo;
+    // ⚠ An office may legitimately have NO logo (the skeleton slot). Empty `logo` must render
+    // NOTHING — `BASE_ASSET + ''` is the assets directory, which paints a broken-image icon
+    // on a customer-facing page.
+    var wm = $("wm"); if(wm){ if(t.logo){ wm.src = BASE_ASSET + t.logo; wm.style.display=''; } else wm.style.display='none'; }
     var lg = $("logo");
     if(lg){
-      lg.innerHTML = '<img src="' + BASE_ASSET + t.logo + '" alt="">';
-      // Bayview ships a NAVY mark; on the dark tile it is invisible to the customer.
-      // logoBg paints the brand-gold panel behind it, exactly as the staff portal does.
+      lg.innerHTML = t.logo ? '<img src="' + BASE_ASSET + t.logo + '" alt="">' : '';
+      // A DARK-ink mark is invisible on the dark tile, so logoBg paints a pale panel behind
+      // it, exactly as the staff portal does. Optional — most marks are already reversed.
       lg.style.background  = t.logoBg || '';
       lg.style.borderColor = t.logoBg ? 'rgba(19,36,58,.25)' : '';
     }

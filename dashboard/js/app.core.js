@@ -49,13 +49,26 @@ var OFFICE_CONFIG = {
     logos:{ full:'assets/vanguard-logo-full-reverse.png', emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 },
     bookTint:'#2652D7', bookLogo:'vanguard-logo-symbol.png'
   },
+  /* ── 🦴 OFFICE SKELETON — the working template for onboarding the next office ─────────
+     Bayview Horizons was wired through all four projects and then never launched (2026-08-06,
+     user). Its slot is kept as a live PLACEHOLDER rather than deleted, because every
+     integration point is already threaded — which is exactly what a new office needs and
+     what took the longest to get right the last two times.
+     🔑 TO ONBOARD: rename this key, fill in name/colors, add a `logos` block, then mirror the
+     SAME key into the other THREE projects — portal `Code.gs` (OFFICE_CONFIG + the
+     weekly-report schedule), Appointment Scheduler (tz + emailBrand), Customer Booking
+     (tz + the THEMES table in all three public pages). Miss one and the office half-works.
+     ⚠ Neutral slate ON PURPOSE: unbranded should LOOK unbranded, not like a broken brand.
+     ⚠ NO `logos` BLOCK, and that is the correct unbranded state — `loadConfig` and
+     `_setSidebarOfficeLogo` both fall back to the office NAME when there is no logo.
+     ⚠ `bookLogo:''` is a proven-safe value (salessupport ships it).
+     ⚠⚠ `bookTint` MUST stay set — app.appts.js uses it for the cross-office booked-slot
+     tint, which is the DOUBLE-BOOKING GUARD, not decoration. */
   bayview: {
-    // NAVY structure + GOLD accent; gold fills take navy text (onAccent); lightInk for light mode. logoBg = gold panel behind the navy logo.
-    name:'Bayview Horizons', color:'#CDAB5A',
-    theme:{ btn:'#0F2439', accent:'#CDAB5A', dark:'#15233a', hover:'#0a1a2c', glow:'#173a63', band:'#0F2439', onBand:'#ffffff', sidebar:'#0d1a29', loginAccent:'#CDAB5A', onAccent:'#0F2439', lightInk:'#8C6E22' },
-    reportBrand:{ band:'#0F2439', headerText:'#ffffff', headerSub:'#c9b58a', accent:'#CDAB5A', accentText:'#8C6E22', logo:'bayview-logo-full.png', logoH:48 },
-    logos:{ full:'assets/bayview-logo-full.png', emblem:'assets/bayview-logo-symbol.png', sidebarH:78, loginH:92, logoBg:'#D3B364' },
-    bookTint:'#1E4D7B', bookLogo:'bayview-logo-symbol.png'
+    name:'New Office', color:'#64748B',
+    theme:{ btn:'#334155', accent:'#64748B', dark:'#1e293b', hover:'#475569', glow:'#1e293b', band:'#334155', onBand:'#ffffff', sidebar:'#1e293b' },
+    reportBrand:{ band:'#334155', headerText:'#ffffff', headerSub:'#cbd5e1', accent:'#64748B', accentText:'#475569', logo:'', logoH:40 },
+    bookTint:'#64748B', bookLogo:''
   },
   leadsphere: {
     // NAVY structure + BRIGHT-BLUE buttons/accent. White logo on dark chrome.
@@ -95,7 +108,7 @@ function applyOfficeTheme(officeId) {
   var t = OFFICE_THEME[officeId]; if (!t) return;
   var r = document.documentElement.style;
   r.setProperty('--blue', t.btn);
-  // In LIGHT mode, gold offices (Viridian/Bayview) swap their pale accent for a darker
+  // In LIGHT mode, gold offices (Viridian) swap their pale accent for a darker
   // "ink" so accent TEXT/borders stay legible on the white surfaces; the accent FILLS then
   // need white on-accent text. One pair of var swaps cascades to every --blue2 usage.
   var isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -165,10 +178,13 @@ function loadConfig() {
     var _logoEl = document.getElementById('login-office-logo');
     _logoEl.innerHTML = '<img src="'+_lg.full+'" alt="'+CFG.officeName+'" style="max-width:230px;max-height:'+(_lg.loginH||66)+'px;object-fit:contain">';
     _logoEl.style.display = 'block';
-    // Bayview: gold login-card background (same layout as other offices) — navy text +
-    // white inputs via .lc-gold so it stays readable; the navy logo sits on the gold.
+    /* A pale-panel office (logoBg) gets the light login card: dark text + white inputs via
+       .lc-gold, so a dark-on-pale mark stays readable. Same mechanism as .sb-gold below.
+       ⚠⚠ WAS HARDCODED TO `officeId === 'bayview'` and is now driven by `logoBg`, like the
+       sidebar already was. Per the house rule, nothing keys off a specific office — and the
+       hardcode would have silently done nothing for the next office to ship a pale mark. */
     var _lcard = document.querySelector('.login-card');
-    if (_lcard) _lcard.classList.toggle('lc-gold', officeId === 'bayview');
+    if (_lcard) _lcard.classList.toggle('lc-gold', !!_lg.logoBg);
     document.getElementById('login-office-name').style.display = 'none';
   } else {
     document.getElementById('login-office-name').textContent = CFG.officeName;
@@ -897,8 +913,8 @@ function _setSidebarOfficeLogo(officeId) {
   var lg = OFFICE_LOGOS[officeId];
   if (lg && lg.full) {
     if (lg.logoBg) {
-      // Bayview: the whole sidebar is gold (.sb-gold), so the logo just sits on it,
-      // centered + larger. (Logo art unchanged.)
+      // A pale-panel office: the whole sidebar takes that panel colour (.sb-gold), so the
+      // logo just sits on it, centered + larger. (Logo art unchanged.)
       el.style.cssText = 'display:block;margin:4px 0;text-align:center';
       el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:100%;object-fit:contain">';
     } else {
@@ -907,7 +923,7 @@ function _setSidebarOfficeLogo(officeId) {
   } else {
     el.textContent = OFFICE_NAMES[officeId] || '—';
   }
-  // Bayview: flip the whole sidebar to gold + navy text (offices with logoBg).
+  // Flip the whole sidebar to the pale panel + dark text (offices with logoBg).
   var _sb = document.querySelector('.sidebar');
   if (_sb) _sb.classList.toggle('sb-gold', !!(lg && lg.logoBg));
 }

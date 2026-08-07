@@ -594,7 +594,7 @@ var ATX_OFFICE_NUMBER = {
   viridian:  '314 789 1988',
   vanguard:  '813 524 7081',
   leadsphere:'417 429 7242',   // from Gabe, 2026-07-30
-  bayview:   ''    // office paused, no number needed
+  bayview:   ''    // 🦴 skeleton slot — fill in when the next office launches
 };
 
 // key -> message body. Each entry is a function of the merge fields (see _atxFields) and

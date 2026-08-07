@@ -440,8 +440,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .login-card.lc-gold .pw-req li.ok{color:#1f7a44}
 .login-back{font-size:.8rem;color:var(--text2);text-align:center;margin-top:12px;cursor:pointer}
 .login-back:hover{color:var(--blue2)}
-/* Bayview = GOLD login box (same layout as other offices). Flip card text to navy +
-   inputs to white so they stay readable on the gold; the navy logo sits on the gold. */
+/* PALE-PANEL LOGIN BOX — for an office whose mark is DARK ink and needs a light panel
+   behind it (same layout as every other office). Flips card text to dark + inputs to white
+   so they stay readable on the panel. Toggled by `.lc-gold` from `logoBg` in OFFICE_CONFIG.
+   ⚠⚠ CURRENTLY UNUSED — no office sets `logoBg` since Bayview became the skeleton. Kept
+   because a dark-mark brand cannot ship without it, and this took real iteration to get right.
+   🔴 THE PANEL COLOUR #D3B364 IS HARDCODED HERE AND IN THE 20-ODD .sb-gold RULES BELOW.
+   The JS toggle is generic (any office with `logoBg`), the CSS is NOT — so the next
+   pale-brand office would be painted Bayview's gold. Swap these to a var driven from
+   `logoBg` when a second one arrives; a one-office hardcode was not worth the indirection. */
 .login-card.lc-gold{background:#D3B364;border-color:rgba(19,36,58,.25);border-top-color:#13243a}
 .login-card.lc-gold h1{color:#13243a}
 .login-card.lc-gold p{color:#3c4a5d}
@@ -479,9 +486,10 @@ nav{flex:1;padding:10px 0}
 .ico-fill svg{width:1em;height:1em;fill:currentColor;stroke:none}
 .nav-group-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.25);padding:14px 16px 4px;user-select:none}
 .sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08)}
-/* Bayview = GOLD sidebar with NAVY text (toggled via .sb-gold on the sidebar). Use
-   SOLID navy (not translucent — alpha over gold goes muddy) and LIGHT highlights for
-   hover/active (lighten the gold, rather than darken it to olive) so it reads clean. */
+/* PALE-PANEL SIDEBAR with DARK text (toggled via .sb-gold from `logoBg`). Use SOLID dark
+   ink (not translucent — alpha over a pale panel goes muddy) and LIGHT highlights for
+   hover/active (lighten the panel rather than darken it to olive) so it reads clean.
+   ⚠ Unused today — see the .lc-gold note above, including the hardcoded #D3B364. */
 .sidebar.sb-gold{background:#D3B364;color:#13243a}
 .sidebar.sb-gold .sidebar-header{border-bottom-color:rgba(19,36,58,.28)}
 .sidebar.sb-gold .sidebar-office{color:#6a5526;font-weight:800}

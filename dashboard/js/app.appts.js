@@ -121,6 +121,9 @@ function _apptActName(email) {
 }
 // Per-office timezone — mirrors the backend AppointmentScheduler.gs OFFICE_TZ.
 // Used to label appointment times so reps/customers know which zone they're in.
+// ⚠⚠ `bayview` is the 🦴 SKELETON slot and KEEPS A TIMEZONE ON PURPOSE. Availability must
+// FAIL CLOSED, and an office with no zone is the shape of a slot that reads as free
+// everywhere. Set the real zone when the next office launches; do not blank it.
 var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York', leadsphere:'America/Chicago' };
 // Activators share their Google Calendar with THIS account (the Appointment
 // Scheduler's deploy-owner) to enable two-way sync. One constant → shown in the
