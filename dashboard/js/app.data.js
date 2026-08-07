@@ -246,6 +246,16 @@ function loadData(forceFresh) {
       var skipRender = { postsale:1, postedsales:1, dailyreport:1, training:1 };
       if (!skipRender[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
     }
+    /* Notes are no longer in the blob (see the note where it used to be built). Fetch them NOW
+       rather than waiting up to 25s for the next poll tick, so the "last called" column resolves
+       within a second of first paint instead of a rep staring at placeholders.
+       ⚠⚠ ISSUED AFTER THE BLOB HAS LANDED, NEVER ALONGSIDE IT. Apps Script serialises same-user
+       requests, so anything sent earlier executes earlier — firing this in parallel would put it
+       IN FRONT of the payload the whole screen is waiting on. That mistake has been made here
+       before, when a caching win reordered _preloadTabs() ahead of the main blob.
+       ⚠ _bgRefreshNotes gates on _notesTabActive(), so a tab that shows no notes still pays
+       nothing — which is the point of taking it out of the blob. */
+    _bgRefreshNotes();
     _preloadTabs();
   }).catch(function() {
     _CACHE.mainFlight = false;
@@ -398,6 +408,16 @@ function _softRefreshTab(tab) {
   return true;
 }
 
+/* ⚠⚠ "NOT YET LOADED" IS NOT "NO NOTES", AND CONFLATING THEM RENDERS A LIE.
+   `notes` left the main blob on 2026-08-07 (307 KB and a whole extra sheet read — the single
+   most expensive key). It now arrives a beat later, which means there is a window where
+   DATA.notes is genuinely EMPTY rather than genuinely known-to-be-empty.
+   In that window `_daysSinceLastNote` would return null for every DSI, `_lastCallCell` would
+   print "Never" on EVERY ROW, and the lastCalled filter would treat the whole table as
+   never-called. That is confidently wrong, which is worse than blank — a rep would act on it.
+   🔑 This flag is what lets those three places say "not yet" instead of "never". */
+var _NOTES_LOADED = false;
+
 // ── NOTES POLL (frequent + non-disruptive) ────────────────────────────────
 // Notes are the one thing that needs to reach everyone fast. We poll the small
 // readNotes endpoint every ~25s ONLY where notes are shown, and update the note
@@ -416,8 +436,17 @@ function _bgRefreshNotes() {
     _CACHE.notesFlight = false;
     if (!res || res.error || !res.notes) return;
     DATA.notes = res.notes;
+    var first = !_NOTES_LOADED;
+    _NOTES_LOADED = true;
     _applyNoteCounts();
     _refreshOpenNotesModal();
+    /* The FIRST arrival changes what the table should say — every "last called" cell was
+       showing the not-yet-known placeholder, and the lastCalled filter was standing down.
+       Repaint once so those become real. Later polls only need the counts updated in place. */
+    if (first && typeof renderTab === 'function' && typeof CURRENT_TAB !== 'undefined') {
+      var skip = { postsale:1, postedsales:1, dailyreport:1, training:1 };
+      if (!skip[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
+    }
   }).catch(function() { _CACHE.notesFlight = false; });
 }
 // Update the NOTES button counts in the current table without rebuilding it.

@@ -718,7 +718,10 @@ function _applyView() {
     }
     if (_activeFilters.dateFrom && o.orderDate < _activeFilters.dateFrom) return false;
     if (_activeFilters.dateTo   && o.orderDate > _activeFilters.dateTo)   return false;
-    if (_activeFilters.lastCalled) {
+    // ⚠ Stand down entirely until notes exist. Filtering on "days since last call" before we
+    //   know it would hide rows on evidence we do not have — 'never' would match everything and
+    //   the other three would match nothing.
+    if (_activeFilters.lastCalled && (typeof _NOTES_LOADED === 'undefined' || _NOTES_LOADED)) {
       var d = o._daysSince === undefined ? _daysSinceLastNote(o.dsi) : o._daysSince;
       if (_activeFilters.lastCalled === 'recent'  && !(d !== null && d <= 2))  return false;
       if (_activeFilters.lastCalled === 'mid'     && !(d !== null && d >= 3 && d <= 7)) return false;
@@ -1781,7 +1784,13 @@ function buildOrderLookup() {
 }
 
 // ── NO ANSWER ─────────────────────────────────────────────────────────────
+/* Returns: a NUMBER of days · null = genuinely never called · undefined = NOT YET KNOWN.
+   ⚠⚠ The third case is new and load-bearing. `notes` is fetched after the main blob now, so
+   between first paint and its arrival we do not know when anyone was last called. Returning
+   null there would print "Never" on every row and make the lastCalled filter act on a table it
+   cannot yet judge. Callers must treat undefined as "no opinion", not as "never". */
 function _daysSinceLastNote(dsi) {
+  if (typeof _NOTES_LOADED !== 'undefined' && !_NOTES_LOADED) return undefined;
   var notes = (DATA.notes||{})[dsi];
   if (!notes || !notes.length) return null;
   var latest = notes.reduce(function(max, n) {
@@ -1795,7 +1804,12 @@ function _daysSinceLastNote(dsi) {
 function _lastCallCell(o) {
   var days = _daysSinceLastNote(o.dsi);
   var label, style;
-  if (days === null) {
+  if (days === undefined) {
+    // Notes have not arrived yet — say nothing rather than "Never". A dash reads as
+    // "unknown"; "Never" reads as a fact, and a rep would work the list off it.
+    label = '·';
+    style = 'background:var(--control-bg);color:#666';
+  } else if (days === null) {
     label = 'Never';
     style = 'background:var(--control-bg);color:#888';
   } else if (days <= 2) {
