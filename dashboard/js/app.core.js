@@ -369,9 +369,16 @@ function _asReportJsonError(e, meta) {
 
 /* fetch() itself rejected — we never reached the server at all (offline, DNS, TLS, a
    blocked request). Distinct from _asParse, which had a response to look at. */
-function _asNetworkError(e, action, write, meta) {
+function _asNetworkError(e, action, write, meta, timeoutMs) {
   try {
     meta = meta || {};
+    /* A timeout we caused looks like any other rejected fetch, so name it in the log — otherwise
+       "No answer from the server" cannot be told apart from "we hung up on it", and those have
+       opposite fixes (Google being slow vs. our bound being too tight).
+       ⚠ The CODE stays NET-01/WRITE-02 deliberately: for a READ "no answer" is literally true,
+       and for a WRITE we still cannot tell whether the server acted — which is exactly what
+       WRITE-02 means and why an aborted write must never be silently retried. */
+    var aborted = !!(e && (e.name === 'AbortError' || e.code === 20));
     var offline = (navigator && navigator.onLine === false);
     var code = offline ? 'NET-02' : (write ? 'WRITE-02' : 'NET-01');
     var err = new Error(_ERR.label(code) + ' — ' + _ERR.hint(code));
@@ -380,9 +387,11 @@ function _asNetworkError(e, action, write, meta) {
        "Load failed" rows in a day — Safari aborting in-flight reads when the phone locks
        or the tab backgrounds — and most of those recover on the next attempt. */
     if (!meta.noReport) {
-      _ERR.report(code, { message: String(e && e.message || e), stack: e && e.stack },
+      _ERR.report(code, { message: aborted ? ('timed out after ' + timeoutMs + 'ms') : String(e && e.message || e),
+                          stack: e && e.stack },
                     { action: action || '', kind: write ? 'write' : 'read',
-                      attempts: meta.attempts || 1 });
+                      attempts: meta.attempts || 1,
+                      timedOut: aborted || undefined, timeoutMs: aborted ? timeoutMs : undefined });
     }
     return err;
   } catch (_) { return e; }
@@ -418,8 +427,46 @@ function _asMayRetry(meta) {
   return !!_AS_RETRY_SAFE_WRITES[String(meta.action || '')];
 }
 
+/* ⚠⚠ A REQUEST THAT HANGS NEVER FAILS, SO NOTHING ABOVE CAN REACT TO IT.
+   `fetch` has no native timeout: with no AbortController the promise simply never settles, the
+   spinner never stops, and the retry below never fires because nothing was ever rejected.
+   Measured 2026-08-06 against the live portal: 60 pre-auth reads, median 3.7s — and a MAX OF
+   166 SECONDS. That is ~3 minutes of a rep staring at a spinner, and it is NOT the "No answer
+   from the server" error they also report; it is the silent one that looks like a dead page.
+
+   🔑 TWO SEPARATE BOUNDS, AND THEY DO DIFFERENT JOBS:
+     · TIMEOUT  caps ONE attempt, so a hang becomes a fast failure the retry can act on.
+     · DEADLINE caps ALL attempts, because a per-attempt timeout alone makes things WORSE —
+       3 × 10s plus backoff is ~32s before the rep sees anything, which is worse than the
+       error they get today. The deadline is what keeps a bad request from eating the session.
+   ⚠ The deadline almost never bites in the common case: Google's HTML-404 comes back in ~2s,
+   so three attempts plus backoff is ~8s and retry behaviour is unchanged. It only engages when
+   attempts are genuinely slow, which is exactly when giving up early is the kind thing to do.
+
+   ⚠⚠ THE MAIN DATA BLOB GETS A LONGER LEASH ON PURPOSE — it is 652KB and legitimately takes
+   seconds to build server-side, and Apps Script SERIALISES same-user requests, so under load it
+   waits behind other work. Timing it out at the same bound as a small read would abort a
+   request that was going to succeed and then retry it, tripling load on the very thing that is
+   already the bottleneck.
+   ⚠ `api({})` — no action — IS the main blob (app.data.js `loadData`), which is why the test is
+   `action === 'read'`. Asserted in transport_retry_harness so a renamed action cannot silently
+   put the blob on the short bound.
+   ⚠ NO AbortController (very old iOS) degrades to NO timeout, never to a throw. Losing the
+   timeout costs us a hang; throwing here would break every read and write in the portal. */
+var _AS_TIMEOUT_MS    = 10000;   // one attempt, ordinary request
+var _AS_TIMEOUT_BLOB  = 20000;   // one attempt, main data blob
+var _AS_DEADLINE_MS   = 20000;   // all attempts, ordinary request
+var _AS_DEADLINE_BLOB = 30000;   // all attempts, main data blob
+
+function _asIsMainBlob(meta) { return !meta.write && String(meta.action || 'read') === 'read'; }
+function _asTimeoutMs(meta)  { return _asIsMainBlob(meta) ? _AS_TIMEOUT_BLOB  : _AS_TIMEOUT_MS; }
+function _asDeadlineMs(meta) { return _asIsMainBlob(meta) ? _AS_DEADLINE_BLOB : _AS_DEADLINE_MS; }
+
 function _asFetch(url, payload, meta) {
-  return _asAttempt(url, payload, meta || {}, 0);
+  var m = {};
+  for (var k in (meta || {})) if (Object.prototype.hasOwnProperty.call(meta, k)) m[k] = meta[k];
+  m.deadlineAt = Date.now() + _asDeadlineMs(m);      // copied, not mutated — callers reuse meta
+  return _asAttempt(url, payload, m, 0);
 }
 
 function _asAttempt(url, payload, meta, attempt) {
@@ -430,23 +477,44 @@ function _asAttempt(url, payload, meta, attempt) {
   m.noReport = !isLast;                 // stay quiet until we are actually giving up
   if (attempt) m.attempts = attempt + 1;
 
+  var tmo = _asTimeoutMs(meta);
+  var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  /* ⚠ Cleared the moment the RESPONSE arrives, not when parsing finishes. Aborting mid-`r.text()`
+     would reject outside _asNetworkError and arrive unclassified; and Apps Script sends the body
+     in one go, so time-to-response is where the 166s actually lives. */
+  var timer = ctl ? setTimeout(function () { try { ctl.abort(); } catch (_) {} }, tmo) : null;
+  var stopTimer = function () { if (timer) { clearTimeout(timer); timer = null; } };
+
   _ERR.netStart(act);
   return fetch(url, {
     method: 'POST',
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // no CORS preflight
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    signal: ctl ? ctl.signal : undefined
   }).then(function (r) {
+    stopTimer();
     _ERR.netEnd(act, r.ok, Date.now() - t0);
     return _asParse(r, m);
   }, function (e) {
+    stopTimer();
     _ERR.netEnd(act, false, Date.now() - t0);
-    throw _asNetworkError(e, act, meta.write, m);
+    throw _asNetworkError(e, act, meta.write, m, tmo);
   }).catch(function (err) {
     /* Only TRANSPORT failures retry. A JSON {error:…} is the server deliberately saying
        no — asking again just asks again. asRetryable is already false for AUTH-01, the
        HTML login interstitial, where a retry cannot help either. */
     if (isLast || !err || !err.asTransport || err.asRetryable === false) throw err;
+    /* ⚠⚠ AND NOT PAST THE DEADLINE. Without this a slow request costs 3 × the timeout plus
+       backoff before the rep sees anything — the retry would be making the wait worse, which is
+       the opposite of the point. Re-report so the log records the real, final attempt count. */
+    if (meta.deadlineAt && Date.now() >= meta.deadlineAt) {
+      if (m.noReport) _ERR.report(err.asCode || 'NET-01', err, {
+        action: act, kind: meta.write ? 'write' : 'read',
+        attempts: attempt + 1, gaveUp: 'deadline'
+      });
+      throw err;
+    }
     _ERR.crumb('retry', act + ' after ' + (err.asCode || '?'));
     return new Promise(function (resolve) { setTimeout(resolve, _AS_RETRY_BACKOFF[attempt]); })
       .then(function () { return _asAttempt(url, payload, meta, attempt + 1); });
