@@ -570,6 +570,12 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .skel-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:16px}
 .skel-hdr{height:12px;width:160px;margin-bottom:20px}
 .skel-line{height:11px;margin-bottom:12px}
+/* The skeleton never changes, so it says nothing about whether a load is slow or dead — which
+   is what makes a rep hard-refresh. This is the admission. Muted on purpose: it informs, it
+   does not alarm, and it is not an error state.
+   ⚠ --tint-2 / --rule-1 / --text2 FLIP POLARITY between themes, so this tracks light and dark
+   with no theme-specific rule (same pattern as .empty-code). */
+.skel-note{font-size:.85rem;color:var(--text2);margin:0 0 14px;padding:10px 14px;background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);border-radius:var(--r-sm)}
 .empty{text-align:center;padding:40px;color:var(--text2);font-size:.88rem}
 /* Shared empty-state (icon in a soft accent circle + message + optional sub/action). */
 .empty-state{text-align:center;padding:46px 24px;color:var(--text2)}

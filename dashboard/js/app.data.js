@@ -5,8 +5,36 @@ function skelLoader() {
   function lines(widths) {
     return widths.map(function(w){ return '<div class="skel skel-line" style="width:'+w+'%"></div>'; }).join('');
   }
-  return '<div class="skel-card"><div class="skel skel-hdr"></div>'+lines([80,55,70,45,85,60,75,50])+'</div>' +
+  return '<div id="skel-note" class="skel-note" style="display:none"></div>' +
+         '<div class="skel-card"><div class="skel skel-hdr"></div>'+lines([80,55,70,45,85,60,75,50])+'</div>' +
          '<div class="skel-card"><div class="skel skel-hdr"></div>'+lines([70,50,65,40,80,55])+'</div>';
+}
+
+/* ⚠⚠ THE SKELETON LOOKS IDENTICAL AT 2s AND AT 40s, AND THAT IS WHY IT READS AS BROKEN.
+   A rep reported the portal "loading endlessly" on a first load — it was not endless, but a
+   shimmer that never changes gives you no way to tell a slow load from a dead one, so the
+   rational move is to hard-refresh. This says out loud what is happening.
+   🔑 Measured: the blob is ~2.3s warm / ~5.8s cold, so 6s genuinely IS unusual — the first
+   message is not crying wolf. The second lands before the 20s attempt timeout so the rep is
+   told they may act before the transport gives up on its own.
+   ⚠ NOT a timeout and it cancels nothing — purely what the screen admits to. The actual
+   bounds live in _AS_TIMEOUT_* / _AS_DEADLINE_* in app.core.js.
+   ⚠ Must be cleared by EVERY exit path or a stale "still trying" outlives the load. */
+var _SKEL_TIMERS = [];
+function _skelClearNote() {
+  _SKEL_TIMERS.forEach(clearTimeout); _SKEL_TIMERS = [];
+}
+function _skelStartNote() {
+  _skelClearNote();
+  var say = function (msg) {
+    return function () {
+      var el = document.getElementById('skel-note');
+      if (!el) return;                    // skeleton already replaced — nothing to say
+      el.textContent = msg; el.style.display = 'block';
+    };
+  };
+  _SKEL_TIMERS.push(setTimeout(say('Taking longer than usual — still loading your data…'), 6000));
+  _SKEL_TIMERS.push(setTimeout(say('Still trying. You can keep waiting, or reload the page.'), 15000));
 }
 
 // ── Stale-while-revalidate cache for the main data blob ──
@@ -191,7 +219,9 @@ function loadData(forceFresh) {
     // Only one blob per device is worth keeping; drop other users'/offices' leftovers.
     _pruneDataCache();
   }
-  if (!painted) document.getElementById('main-content').innerHTML = skelLoader();
+  // Only when the skeleton is what the rep is actually staring at — a cached paint already
+  // shows real data and carries its own "Updated X ago" treatment.
+  if (!painted) { document.getElementById('main-content').innerHTML = skelLoader(); _skelStartNote(); }
   _CACHE.mainFlight = true;
   var _reqOffice = CFG.officeId;
   var _mainP = api({});                  // FIRST in the queue — the visible tab needs it
@@ -199,6 +229,7 @@ function loadData(forceFresh) {
   _preloadArLines();
   _mainP.then(function(res) {
     _CACHE.mainFlight = false;
+    _skelClearNote();                    // settled — nothing left to narrate
     // Office switched while this fetch was in flight — discard it so we never apply,
     // cache, or render one office's data under another.
     if (CFG.officeId !== _reqOffice) return;
@@ -218,6 +249,7 @@ function loadData(forceFresh) {
     _preloadTabs();
   }).catch(function() {
     _CACHE.mainFlight = false;
+    _skelClearNote();                    // settled — the error message below takes over
     // Same reasoning as _bgRefreshMain: don't let one failure buy a full TTL of silence.
     _CACHE.mainDataTs = Date.now() - (_CACHE.MAIN_TTL - 15000);
     if (!painted) document.getElementById('main-content').innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="loadData()">Retry</a></div>';

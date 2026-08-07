@@ -498,7 +498,18 @@ function _asAttempt(url, payload, meta, attempt) {
   m.noReport = !isLast;                 // stay quiet until we are actually giving up
   if (attempt) m.attempts = attempt + 1;
 
-  var tmo = _asTimeoutMs(meta);
+  /* 🔴 THE DEADLINE ONLY BOUNDED THE RETRY *COUNT*, NOT THE WALL-CLOCK — and its name says
+     otherwise, which is how I shipped it believing the worst case was 30s.
+     It was checked only AFTER an attempt finished, so each attempt still ran its FULL timeout
+     first: blob 20s + 20s = ~40s before the rep saw anything, on a "30s deadline". For a first
+     load that is 40 seconds of shimmer, which is indistinguishable from broken and is the
+     "loads endlessly" a rep actually reported.
+     🔑 Clamping the attempt to whatever budget REMAINS makes the deadline mean what it says.
+     ⚠ Floored at 2s: the measured transport floor is 2.1–3.7s for a request that does NO work,
+     so a smaller budget cannot succeed and a sub-second attempt would just burn a retry. If
+     less than that is left, this is the last attempt regardless. */
+  var _left = meta.deadlineAt ? (meta.deadlineAt - Date.now()) : Infinity;
+  var tmo = Math.max(2000, Math.min(_asTimeoutMs(meta), _left));
   var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   /* ⚠ Cleared the moment the RESPONSE arrives, not when parsing finishes. Aborting mid-`r.text()`
      would reject outside _asNetworkError and arrive unclassified; and Apps Script sends the body
