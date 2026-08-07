@@ -1750,7 +1750,7 @@ function closeApptSchedModal() { document.getElementById('appt-sched-modal').cla
 // scheduler uses the row's office), and a DSI entered for a customer self-booking is
 // backfilled onto the row (Item 5 keeps notes universal — the call-logs Notes store).
 var _MYAPPT = { appointments:null, actByEmail:null, filters:null, sort:null };
-function _apptRefreshCurrent(){ if (CURRENT_TAB==='myappts') renderMyAppointments(); else renderAppointmentsTab(); }
+
 function _apptFindAppt(id){
   var a=(_APPT.appointments||[]).find(function(x){return x.appointmentId===id;});
   if(!a) a=(_MYAPPT.appointments||[]).find(function(x){return x.appointmentId===id;});

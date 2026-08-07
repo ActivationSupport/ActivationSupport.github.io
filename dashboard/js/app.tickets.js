@@ -570,7 +570,7 @@ function _ssRepAddPopup(typed, prefix) {
   });
 }
 function _ntVal(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
-function _ntChk(id) { var el = document.getElementById(id); return !!(el && el.checked); }
+
 // Submission type = the ticket's starting status: 'solved' or 'followup' (defaults to solved).
 function _ntSubType() { var el = document.querySelector('input[name="nt-subtype"]:checked'); return (el && el.value) || 'solved'; }
 function _ntStatus(msg, isError) {

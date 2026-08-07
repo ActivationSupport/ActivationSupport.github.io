@@ -52,7 +52,7 @@
 <link rel="apple-touch-icon" href="/favicon.png">
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="app.css?v=20260807a">
+<link rel="stylesheet" href="app.css?v=20260807b">
 <!-- The Sales Support skin (~30 KB raw / 7.6 KB gz) loads ONLY for its own office. app.css
      is the one RENDER-BLOCKING asset, so these rules were delaying first paint for six
      offices that can never render them. The CSS half of the separation rule, after PERF-1b
@@ -376,7 +376,7 @@
      no dependencies precisely so it can hold this slot — do not "tidy" it next to its
      alphabetical neighbours or below app.core.js. -->
 <script defer src="js/app.errors.js?v=20260806b"></script>
-<script defer src="js/app.core.js?v=20260807c"></script>
+<script defer src="js/app.core.js?v=20260807d"></script>
 <!-- Keyboard reachability for the 77 clickable div/span/tr elements that carry an inline
      onclick and no tabindex. Applied by MutationObserver, so no render site changes and
      new markup is covered as it appears. Order-independent (DOM APIs only), but kept next
@@ -389,7 +389,7 @@
 <script defer src="js/app.people.js?v=20260805a"></script>
 <script defer src="js/app.sales.js?v=20260806a"></script>
 <script defer src="js/app.lst.js?v=20260805a"></script>
-<script defer src="js/app.appts.js?v=20260806a"></script>
+<script defer src="js/app.appts.js?v=20260807a"></script>
 <script defer src="js/app.fiber.js?v=20260805a"></script>
 <!-- Admin Portal (master-admin only). Loaded UNCONDITIONALLY like every other bundle: a
      role is not known until after login while the defer chain is fixed at parse time, and
@@ -411,7 +411,7 @@
     var office = new URLSearchParams(location.search).get('office');
     if (office !== 'salessupport') return;
     var s = document.createElement('script');
-    s.src = 'js/app.tickets.js?v=20260807a';
+    s.src = 'js/app.tickets.js?v=20260807b';
     s.async = false;                       // keep it ordered against other injected scripts
     document.head.appendChild(s);
   })();

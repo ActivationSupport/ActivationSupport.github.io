@@ -17,7 +17,7 @@ var API_KEY = 'activation-dash-2026-secret';
 // glow, band/onBand=header; gold offices add lightInk for legible light-mode accent
 // text; loginAccent/onAccent/btnText/accent2b optional); reportBrand (Daily-Report
 // EMAIL brand, mirror of Code.gs OFFICE_BRAND); logos ({full,emblem,sidebarH?,loginH?,
-// logoBg?} — files must exist in dashboard/assets/); bookTint + bookLogo (booking UI).
+// } — files must exist in dashboard/assets/); bookTint + bookLogo (booking UI).
 var OFFICE_CONFIG = {
   midspire: {
     name:'Midspire', color:'#0E7BD4',
@@ -178,13 +178,6 @@ function loadConfig() {
     var _logoEl = document.getElementById('login-office-logo');
     _logoEl.innerHTML = '<img src="'+_lg.full+'" alt="'+CFG.officeName+'" style="max-width:230px;max-height:'+(_lg.loginH||66)+'px;object-fit:contain">';
     _logoEl.style.display = 'block';
-    /* A pale-panel office (logoBg) gets the light login card: dark text + white inputs via
-       .lc-gold, so a dark-on-pale mark stays readable. Same mechanism as .sb-gold below.
-       ⚠⚠ WAS HARDCODED TO `officeId === 'bayview'` and is now driven by `logoBg`, like the
-       sidebar already was. Per the house rule, nothing keys off a specific office — and the
-       hardcode would have silently done nothing for the next office to ship a pale mark. */
-    var _lcard = document.querySelector('.login-card');
-    if (_lcard) _lcard.classList.toggle('lc-gold', !!_lg.logoBg);
     document.getElementById('login-office-name').style.display = 'none';
   } else {
     document.getElementById('login-office-name').textContent = CFG.officeName;
@@ -1024,20 +1017,10 @@ function _setSidebarOfficeLogo(officeId) {
   var el = document.getElementById('sb-office-name');
   var lg = OFFICE_LOGOS[officeId];
   if (lg && lg.full) {
-    if (lg.logoBg) {
-      // A pale-panel office: the whole sidebar takes that panel colour (.sb-gold), so the
-      // logo just sits on it, centered + larger. (Logo art unchanged.)
-      el.style.cssText = 'display:block;margin:4px 0;text-align:center';
-      el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:100%;object-fit:contain">';
-    } else {
-      el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:200px;object-fit:contain;object-position:left center">';
-    }
+    el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:200px;object-fit:contain;object-position:left center">';
   } else {
     el.textContent = OFFICE_NAMES[officeId] || '—';
   }
-  // Flip the whole sidebar to the pale panel + dark text (offices with logoBg).
-  var _sb = document.querySelector('.sidebar');
-  if (_sb) _sb.classList.toggle('sb-gold', !!(lg && lg.logoBg));
 }
 
 function buildOfficeSwitcher() { updateOfficeDropdown(); }
