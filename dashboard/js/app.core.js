@@ -232,10 +232,13 @@ var _ERR = (typeof AS_ERR !== 'undefined' && AS_ERR) || {
    whose text leaks straight to the user — on iOS Safari that reads "The string did not match
    the expected pattern.", which tells a rep nothing and tells us nothing either.
 
-   This was fixed for Sales Support in 2026-08-04 (_ticketParse, app.tickets.js:64) — but
-   since the PERF-1b split that bundle only loads for ?office=salessupport, so the SIX
-   ACTIVATION OFFICES still had the raw r.json(). This is that fix, ported to the shared
-   transports, which is where it should have lived in the first place.
+   This was fixed for Sales Support in 2026-08-04 (`_ticketParse`) — but since the PERF-1b
+   split that bundle only loads for ?office=salessupport, so the FIVE ACTIVATION OFFICES
+   still had the raw r.json(). This is that fix, ported to the shared transports, which is
+   where it should have lived in the first place.
+   ✅ 2026-08-07: the debt was paid in BOTH directions — `_ticketParse` is now deleted and
+   `_ticketGet`/`_ticketPost` route through `_asFetch` like everything else, so Sales
+   Support finally gets the timeout, deadline, retry and error codes too. One transport.
 
    Contract, deliberately narrow so the 58 call sites do not change:
      · A JSON response behaves EXACTLY as before — including `{error:…}`, which is still
@@ -294,7 +297,21 @@ function _asParse(r, meta) {
 
     var body = String(t || ''), code;
     if (/<form[^>]+accounts\.google\.com|ServiceLogin|signin\/v2/i.test(body)) code = 'AUTH-01';
-    else if (/exceeded|quota|too many requests|rate limit/i.test(body))       code = 'NET-03';
+    /* ⚠⚠ `too many`, NOT `too many requests` — GOOGLE'S REAL QUOTA PAGE SAYS NEITHER "quota"
+       NOR "requests". The wording Apps Script actually serves is
+         "Service invoked too many times for one day: urlfetch."
+       which matches none of `exceeded`, `quota`, `too many requests` or `rate limit`, so it
+       fell through to NET-01 ("No answer from the server") for a read and WRITE-02 ("that may
+       not have saved — check before saving again") for a write. Both tell a rep to do the
+       WRONG thing: the right advice for a quota trip is simply to wait, and NET-03 says so.
+       🔑 THE CORRECT PATTERN WAS ALREADY IN THE CODEBASE AND WAS LOST IN THE PORT. Sales
+       Support's `_ticketParse` had `/exceeded|quota|too many/i` from 2026-08-04; when that
+       idea moved into this shared parser on 2026-08-06 the alternation was "tidied" to
+       `too many requests`, which is HTTP 429 phrasing, not Google's. The narrowing was
+       invisible because nothing tests against a real quota body.
+       ⚠ Bare `too many` is safe here: this branch only ever sees a NON-JSON body we already
+       failed to parse, i.e. a Google error page. Covered in salessupport_fixes_harness. */
+    else if (/exceeded|quota|too many|rate limit/i.test(body))                code = 'NET-03';
     else if (!r.ok)                                                          code = 'NET-01';
     else                                                                     code = 'DATA-01';
 
@@ -306,6 +323,10 @@ function _asParse(r, meta) {
     err.asCode = code;
     err.asTransport = true;         // "we never got a usable answer", NOT "the server said no"
     err.asRetryable = code !== 'AUTH-01';
+    /* ⚠ The status is already in the REPORT below; this puts it on the ERROR too, for the one
+       caller that words it for a human (_ticketTransportMsg). Reading it off the response here
+       is the only place it exists — `r` is gone by the time a .catch() sees this. */
+    err.asHttp = r.status;
     /* ⚠ noReport = this attempt is about to be retried. Report only on the last one, or the log
        fills with failures the rep never saw and the real ones stop standing out.
        🔴🔴 …BUT "about to be retried" IS AN ASSUMPTION, AND FOR AUTH-01 IT IS FALSE. A
@@ -434,7 +455,23 @@ var _AS_RETRY_BACKOFF = [400, 1200];
    an attempt and lock a rep out of their own account.
    ⚠ Adding an action here WITHOUT a server-side guard reintroduces duplicate sales/notes. The
    guard comes first, always. */
-var _AS_RETRY_SAFE_WRITES = { checkEmail: 1, addNote: 1 };
+/* 🔑 SALES SUPPORT (2026-08-07). Both earn their place the same way `addNote` did — a
+   SERVER-SIDE clientKey guard that already exists and that the client already feeds:
+     · createTicket  — Ticketing Code.gs:400. Records key→ticketId INSIDE the booking lock
+                       and only AFTER the append succeeds, so a failed write leaves the key
+                       unclaimed and the retry genuinely creates the ticket. A repeat comes
+                       back `{ok:true, duplicate:true}` with the ORIGINAL id, which the UI
+                       already words as "Already saved as ticket N — no duplicate created".
+     · addTicketNote — Ticketing Code.gs:742. Same shape, caches the note itself.
+   ⚠ The client side was already right and unused: `_NT_CLIENT_KEY` is generated once and
+   held until a CONFIRMED save, and the note key is built into the payload literal — so both
+   survive a retry without anyone tracking them. The guard has been live since 2026-08-04
+   waiting for a retry that never came, because Sales Support was on a raw fetch.
+   🔴 THE OTHER NINE TICKET WRITES STAY OFF THIS LIST. archiveTicket/unarchiveTicket/
+   setTicketStatus/reassignTicket/saveContactLink LOOK naturally idempotent — they set a
+   field to a value — but "looks idempotent" is not the standard this list uses, and
+   deleteTicket/addLookup/addOffice are not even that. The guard comes first, always. */
+var _AS_RETRY_SAFE_WRITES = { checkEmail: 1, addNote: 1, createTicket: 1, addTicketNote: 1 };
 
 function _asMayRetry(meta) {
   if (!meta || !meta.write) return true;                       // reads are idempotent

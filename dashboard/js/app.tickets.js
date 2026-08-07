@@ -49,62 +49,68 @@ var TICKET_SARA = ['Pre', 'During', 'Post'];
 // token, follow redirects, text/plain body (no CORS preflight), route auth-expiry
 // back to login via _authIntercept.
 var TICKET_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDYl69QuAHVlTBLSiNujtgA-e4cm686cnJ-90ZctjqZz-8FDAUWYZboaCETi3Rvfqk/exec';   // standalone Sales Support Ticketing backend
-/* ⚠⚠ NEVER CALL r.json() DIRECTLY ON AN APPS SCRIPT RESPONSE.
-   This is the bug reps were hitting: `/exec` does not always return JSON. Google serves an
-   HTML page for an execution error, a timeout, a quota trip or an auth interstitial, and
-   r.json() then throws a PARSER error whose text leaks straight to the user. On iOS Safari
-   that text is "The string did not match the expected pattern." — which is what the rep
-   screenshotted, and which tells them nothing.
-   Two further consequences that made it worse:
-     · _authIntercept only ever sees PARSED JSON, so an expired badge arriving as an HTML
-       login page could never be routed to a clean re-login.
-     · The caller could not tell "definitely not saved" from "maybe saved" — the difference
-       between safely retrying and creating a duplicate.
-   So: read TEXT, parse it ourselves, and classify the failure. */
-function _ticketParse(r) {
-  return r.text().then(function(t) {
-    var j = null;
-    try { j = JSON.parse(t); } catch (e) { j = null; }
-    if (j) return _authIntercept(j);
+/* 🔑 SALES SUPPORT SHARES THE PORTAL'S TRANSPORT — `_asFetch`, not a hand-rolled fetch.
+   Until 2026-08-07 these two were the LAST raw transport in the portal: `fetch(...)` piped
+   into a local `_ticketParse`, with no timeout, no deadline, no retry and no error code.
+   Every transport fix of 2026-08-06/07 landed in `_asFetch` and therefore skipped Sales
+   Support completely — the 10s per-attempt abort, the 20s deadline, the retry on Google's
+   HTML-404, and the `_ERR` classification that puts a row in the Error Log.
+   ⚠⚠ THAT WAS THE WORST PLACE TO SKIP. The measured HTML-404 flakiness hits `/exec`
+   whatever script sits behind it (~50 occurrences across 13 people in one day, BOTH
+   entities), and a Sales Support agent has no dashboard to fall back on — the ticket IS
+   the work. Sales Support carried the whole risk with none of the mitigation, and because
+   nothing was ever reported it was also the one surface with no evidence it was happening.
 
-    var body = String(t || '');
-    var err;
-    if (/<form[^>]+accounts\.google\.com|ServiceLogin|signin\/v2/i.test(body)) {
-      err = new Error('Your sign-in expired. Please sign in again — your ticket has NOT been saved.');
-      err.ticketAuth = true;
-    } else if (/exceeded|quota|too many/i.test(body)) {
-      err = new Error('Sales Support is rate-limited right now. Wait a moment and press Create Ticket again — it is safe to retry.');
-      err.ticketRetryable = true;
-    } else {
-      err = new Error('The Sales Support server did not answer properly (HTTP ' + r.status + '). Your details are still here — press Create Ticket again.');
-      err.ticketRetryable = true;
-    }
-    err.ticketTransport = true;   // "we never got a usable answer", NOT "the server said no"
-    throw err;
-  });
+   ⚠ `_ticketParse` is DELETED, not wrapped. `_asParse` does the same job — read TEXT, parse
+   it ourselves, `_authIntercept` on JSON, classify the HTML — and does it with a code
+   attached. Two definitions of "what counts as a transport failure" is how they drift.
+   🔑 THE SALES SUPPORT WORDING SURVIVES VERBATIM — see `_ticketTransportMsg`. Only the
+   plumbing is shared; the sentences an agent reads are still about tickets.
+   ⚠ This does NOT breach [[feedback-salessupport-separate]]. The two entities stay separate
+   in DATA, ROUTING and BACKEND — this is still its own `/exec`, its own key path, its own
+   office. A shared retry helper is not shared data. */
+
+/* `_asParse` builds its message from the error CODE, which is right for the portal and
+   wrong here — "the server" means nothing to someone who is mid-ticket. These are the
+   pre-2026-08-07 Sales Support sentences, kept word for word so nothing an agent reads
+   changes on this commit.
+   ⚠ Deliberately NOT promising "a duplicate cannot be created", even though createTicket
+   and addTicketNote are now auto-retried BECAUSE the backend dedupes them on `clientKey`.
+   That guard is a 15-minute CacheService TTL (Code.gs `_IDEMPOTENCY_TTL`), so it covers a
+   human retrying now — not one coming back after lunch. A safety promise that expires on a
+   timer is worse than no promise. */
+function _ticketTransportMsg(e, verb) {
+  var code = (e && e.asCode) || '';
+  if (code === 'AUTH-01') return 'Your sign-in expired. Please sign in again — your ticket has NOT been saved.';
+  if (code === 'NET-03')  return 'Sales Support is rate-limited right now. Wait a moment and press ' + verb + ' again — it is safe to retry.';
+  if (e && e.asTransport) return 'The Sales Support server did not answer properly (HTTP ' + (e.asHttp || '—') + '). Your details are still here — press ' + verb + ' again.';
+  return 'Could not reach Sales Support. Your details are still here — press ' + verb + ' again.';
 }
+
 /* POSTed, not GET — see the note on api() in app.core.js. A GET would put the live session
    badge in the URL, and Apps Script gives no access to request headers. `_read:true` routes
    into the ticketing backend's doGet verbatim.
    🔴 Requires the redeployed Sales Support Ticketing backend (verified 2026-08-04).
-   ⚠ Still goes through _ticketParse, so a non-JSON response is still classified rather than
-   leaking a WebKit parser string to the rep. */
+   ⚠⚠ `action` MUST BE PASSED AND MUST NEVER BE THE STRING 'read'. `_asIsMainBlob` treats a
+   read whose action is 'read' as the 652KB main data blob and hands it the LONG bounds
+   (20s attempt / 30s deadline) instead of the short ones — so a hung ticket list would take
+   three times as long to fail, on the surface least able to absorb it. The fallback below is
+   a NAME, not 'read', for exactly that reason. Asserted in transport_retry_harness. */
 function _ticketGet(params) {
   var p = Object.assign({}, params, { key: API_KEY, officeId: CFG.officeId, _read: true });
   if (SESSION && SESSION.token) p.token = SESSION.token;
-  return fetch(TICKET_SCRIPT_URL, {
-    method:'POST', redirect:'follow',
-    headers:{ 'Content-Type':'text/plain;charset=utf-8' },   // no CORS preflight
-    body: JSON.stringify(p)
-  }).then(_ticketParse);
+  return _asFetch(TICKET_SCRIPT_URL, p,
+    { action: String((params && params.action) || 'ticketRead'), write: false });
 }
+/* ⚠⚠ ONE PAYLOAD OBJECT, BUILT ONCE — that is what makes the retry safe. `_asAttempt`
+   re-sends the SAME object, so a `clientKey` a caller put in `body` rides every attempt
+   unchanged. Rebuilding the payload per attempt would defeat the idempotency guard while
+   looking identical. */
 function _ticketPost(body) {
-  var extra = (SESSION && SESSION.token) ? { key: API_KEY, token: SESSION.token, officeId: CFG.officeId } : { key: API_KEY, officeId: CFG.officeId };
-  return fetch(TICKET_SCRIPT_URL, {
-    method:'POST', redirect:'follow',
-    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({}, body, extra))
-  }).then(_ticketParse);
+  var p = Object.assign({}, body, { key: API_KEY, officeId: CFG.officeId });
+  if (SESSION && SESSION.token) p.token = SESSION.token;
+  return _asFetch(TICKET_SCRIPT_URL, p,
+    { action: String((body && body.action) || 'ticketWrite'), write: true });
 }
 
 // Entry point from showApp() — renders whatever tab we landed on. (Data fetching for
@@ -713,10 +719,12 @@ function _ticketCreate(ev) {
     }
   }).catch(function(e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Ticket'; }
-    // Transport failure: we never got a usable answer, so we do NOT know whether it saved.
-    // The draft is intact and the clientKey is kept, which is what makes retrying safe.
-    _ntStatus(e && e.ticketTransport ? e.message
-      : 'Could not reach Sales Support. Your details are still here — press Create Ticket again.', true);
+    /* Transport failure: we never got a usable answer, so we do NOT know whether it saved.
+       The draft is intact and the clientKey is kept, which is what makes retrying safe.
+       ⚠ By the time we land here `_asFetch` has ALREADY retried this twice on our behalf
+       (createTicket is on _AS_RETRY_SAFE_WRITES), so this is a genuine give-up, not a first
+       stumble — and the Error Log already has the row with the real attempt count. */
+    _ntStatus(_ticketTransportMsg(e, 'Create Ticket'), true);
   });
 }
 // Mirror the server's save-as-you-go into local state so the next open shows new values.
