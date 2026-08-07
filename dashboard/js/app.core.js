@@ -313,9 +313,16 @@ function _asParse(r, meta) {
     err.asCode = code;
     err.asTransport = true;         // "we never got a usable answer", NOT "the server said no"
     err.asRetryable = code !== 'AUTH-01';
-    // ⚠ noReport = this attempt is about to be retried. Report only on the last one, or
-    // the log fills with failures the rep never saw and the real ones stop standing out.
-    if (!meta.noReport) {
+    /* ⚠ noReport = this attempt is about to be retried. Report only on the last one, or the log
+       fills with failures the rep never saw and the real ones stop standing out.
+       🔴🔴 …BUT "about to be retried" IS AN ASSUMPTION, AND FOR AUTH-01 IT IS FALSE. A
+       non-retryable error is thrown straight out of the .catch below without a second attempt,
+       so on attempt 0 `noReport` was true, nothing reported, and the error then left for good —
+       THE HTML LOGIN INTERSTITIAL WAS NEVER LOGGED AT ALL. That is the one failure mode this
+       whole pass exists to make visible (it is the long-unexplained intermittent sign-in), and
+       it was the single case guaranteed to stay invisible.
+       🔑 The condition is "is a retry actually coming", not "is this the last attempt". */
+    if (!meta.noReport || err.asRetryable === false) {
       _ERR.report(code, err, {
         action: meta.action || '', http: r.status, kind: meta.write ? 'write' : 'read',
         bodyStart: body.slice(0, 200), bodyLen: body.length,

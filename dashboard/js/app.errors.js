@@ -555,12 +555,23 @@ var AS_ERR = (function (w, d) {
         try { if (d.visibilityState === 'hidden' && _queue.length) _flush(true); } catch (e) {}
       });
 
-      // Drain anything the inline <head> bootstrap buffered before we ran.
+      /* Drain anything the inline <head> bootstrap buffered before we ran.
+         ⚠⚠ THE FILTER HAS TO BE APPLIED HERE TOO. The live handlers above call _notOurs, but
+         this path did not — so an extension error thrown BEFORE app.errors.js parsed bypassed
+         it completely. Found in the log 2026-08-07: "Unhandled rejection: Invalid call to
+         runtime.sendMessage(). Tab not found." — the exact string the filter was written for,
+         landing a full day after the filter shipped. Extensions inject at document_start, which
+         is precisely the window this buffer exists to cover, so this is the LIKELIEST source of
+         extension noise, not an edge case.
+         🔑 The bootstrap stores the already-composed message ("Unhandled rejection: …") and its
+         own `filename`/`stack`, so match against both the way the live handlers do. */
       try {
         var pre = w.__AS_ERR_PRE;
         if (pre && pre.length) {
           for (var i = 0; i < pre.length; i++) {
-            report(pre[i].code || 'APP-01', pre[i]);
+            var rec = pre[i] || {};
+            if (_notOurs(rec.message, rec.filename || rec.stack)) continue;
+            report(rec.code || 'APP-01', rec);
           }
           w.__AS_ERR_PRE = [];
         }
