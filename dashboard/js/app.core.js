@@ -65,6 +65,12 @@ var OFFICE_CONFIG = {
      ⚠⚠ `bookTint` MUST stay set — app.appts.js uses it for the cross-office booked-slot
      tint, which is the DOUBLE-BOOKING GUARD, not decoration. */
   bayview: {
+    /* 🦴 SKELETON SLOT — retired, NOT an office. `skeleton:true` keeps it out of every
+       user-facing office list (the master-admin switcher, the People permission checkboxes).
+       ⚠ ONBOARDING = DELETE THIS ONE LINE. Do NOT infer skeleton-ness from a missing logo:
+       a REAL office can be live before its artwork lands (see project-logos-pending), and
+       inferring would silently hide it. */
+    skeleton:true,
     name:'New Office', color:'#64748B',
     theme:{ btn:'#334155', accent:'#64748B', dark:'#1e293b', hover:'#475569', glow:'#1e293b', band:'#334155', onBand:'#ffffff', sidebar:'#1e293b' },
     reportBrand:{ band:'#334155', headerText:'#ffffff', headerSub:'#cbd5e1', accent:'#64748B', accentText:'#475569', logo:'', logoH:40 },
@@ -94,6 +100,11 @@ var OFFICE_CONFIG = {
 // Legacy per-map views, DERIVED from OFFICE_CONFIG (downstream code + key order unchanged).
 function _ocfg(field){ var o={}; for (var k in OFFICE_CONFIG) o[k] = OFFICE_CONFIG[k][field]; return o; }
 var OFFICE_NAMES        = _ocfg('name');
+/* 🦴 A retired/unfilled slot must never appear in a list a PERSON reads. The office switcher
+   and the People permission checkboxes both enumerated OFFICE_NAMES, so "New Office" showed up
+   as switchable and as a tickable permission. Onboarding = drop `skeleton:true` and it returns. */
+function _isSkeletonOffice(o) { return !!(OFFICE_CONFIG[o] && OFFICE_CONFIG[o].skeleton); }
+function _liveOfficeIds()     { return Object.keys(OFFICE_NAMES).filter(function(o){ return !_isSkeletonOffice(o); }); }
 var OFFICE_COLORS       = _ocfg('color');
 var OFFICE_THEME        = _ocfg('theme');
 var OFFICE_REPORT_BRAND = _ocfg('reportBrand');
@@ -1065,8 +1076,8 @@ function buildOfficeSwitcher() { updateOfficeDropdown(); }
 function updateOfficeDropdown() {
   var wrap = document.getElementById('office-dd-wrap'); if (!wrap) return;
   var permitted = SESSION.role === 'master-admin'
-    ? Object.keys(OFFICE_NAMES)
-    : (SESSION.permissions || CFG.officeId).split(',').map(function(o){ return o.trim(); }).filter(function(o){ return OFFICE_NAMES[o]; });
+    ? _liveOfficeIds()                                  // 🦴 never offer the skeleton slot
+    : (SESSION.permissions || CFG.officeId).split(',').map(function(o){ return o.trim(); }).filter(function(o){ return OFFICE_NAMES[o] && !_isSkeletonOffice(o); });
   // Sales Support is switcher-visible ONLY to its own people (allowlist email OR 'salessupport'
   // in permissions) — never to other master-admins — but for them it shows from ANY office.
   var _ssEmail = String(SESSION.email || '').toLowerCase();

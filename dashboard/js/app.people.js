@@ -97,7 +97,13 @@ function buildPersonForm(email, person) {
   var teamOpts = '<option value="">— No team —</option>' +
     _pfTeams.map(function(n){ return '<option value="'+esc(n)+'"'+(n===_pfCurTeam?' selected':'')+'>'+esc(n)+'</option>'; }).join('') +
     ((_pfCurTeam && _pfTeams.indexOf(_pfCurTeam)===-1) ? '<option value="'+esc(_pfCurTeam)+'" selected>'+esc(_pfCurTeam)+' (former team)</option>' : '');
-  var officeChecks = Object.keys(OFFICE_NAMES).map(function(o){
+  /* 🦴 Don't OFFER the retired skeleton slot as a grantable office — but DO still render it when
+     this person already holds it, so an admin can see and untick it. Filtering it out entirely
+     would be silently destructive: the checkbox list IS the submitted value, so a hidden
+     permission would be dropped on the next unrelated save with nobody told. */
+  var _officeOpts = _liveOfficeIds().concat(
+    Object.keys(OFFICE_NAMES).filter(function(o){ return _isSkeletonOffice(o) && perms.indexOf(o) !== -1; }));
+  var officeChecks = _officeOpts.map(function(o){
     return '<label style="display:flex;align-items:center;gap:6px;margin:4px 0;font-size:.85rem"><input type="checkbox" value="'+o+'"'+(perms.indexOf(o)!==-1?' checked':'')+(canPerms?'':' disabled')+'>'+OFFICE_NAMES[o]+'</label>';
   }).join('');
   var isEdit = !!email;
