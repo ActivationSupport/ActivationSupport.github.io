@@ -555,6 +555,18 @@ function _preloadTabs() {
    leaves real headroom under the 2-minute rule. Don't raise this past ~95s without redoing
    that sum. */
 var _SECONDARY_TTL = 75000;
+/* Per-surface override. APPOINTMENTS is the one secondary surface where OTHER people's
+   writes have to surface promptly — customer self-bookings and other reps' bookings land
+   continuously, and a slot that is already taken reading as free is the single worst thing
+   this tab can show. The rep's OWN book/cancel/reschedule already null the cache and repaint
+   on the spot (app.appts.js), so this window never governed their own actions — only how
+   long they wait to see everyone else's.
+   30s ⇒ 15s tick + 30s TTL + ~3s fetch ≈ 48s worst case, well inside the 2-minute rule above.
+   ⚠ Deliberately NOT global. The other four surfaces change slowly; giving them the same
+   short window would refetch on a timer for data nobody is waiting on — the exact shape of
+   the live slowdown recorded in _bgTick. Only the tab actually in view ever refetches. */
+var _SECONDARY_TTL_BY = { appointments: 30000 };
+function _secTtl(name) { return _SECONDARY_TTL_BY[name] || _SECONDARY_TTL; }
 var _SEC_TS = {};
 
 /* Which secondary surface each tab actually reads. A tab absent from this map reads only
@@ -573,7 +585,7 @@ var _TAB_SURFACE = {
   teams:        'teamorders',
   myteam:       'teamorders'
 };
-function _secStale(name) { return !!_SEC_TS[name] && (Date.now() - _SEC_TS[name]) >= _SECONDARY_TTL; }
+function _secStale(name) { return !!_SEC_TS[name] && (Date.now() - _SEC_TS[name]) >= _secTtl(name); }
 
 /* Each entry: the cache to drop, and how to tell whether it currently holds anything.
    Dropping the cache is enough — every one of these renderers refetches when its cache is
