@@ -12,7 +12,8 @@ document.getElementById('detail-modal').addEventListener('click', function(e) { 
 // ── V2 a11y slice 2: keyboard support for every .modal-bg dialog (generic + additive) ──
 // Esc closes the open modal (clicks its .modal-close so the correct teardown runs); Tab is
 // trapped inside the dialog; focus moves into the dialog on open and restores on close.
-// The wallboard (#wallboard, not a .modal-bg) keeps its own Esc/arrow handler — no overlap.
+// (A fullscreen wallboard used to sit outside this system with its own Esc/arrow handler;
+//  it was removed 2026-08-10, so every Esc-closable surface now goes through this one path.)
 (function () {
   var _modalPrevFocus = null;
   function openModalEl() { return document.querySelector('.modal-bg.open'); }

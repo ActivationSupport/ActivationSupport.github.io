@@ -52,7 +52,7 @@
 <link rel="apple-touch-icon" href="/favicon.png">
 <link rel="preconnect" href="https://script.google.com" crossorigin>
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="app.css?v=20260807b">
+<link rel="stylesheet" href="app.css?v=20260810a">
 <!-- The Sales Support skin (~30 KB raw / 7.6 KB gz) loads ONLY for its own office. app.css
      is the one RENDER-BLOCKING asset, so these rules were delaying first paint for six
      offices that can never render them. The CSS half of the separation rule, after PERF-1b
@@ -299,18 +299,6 @@
 
 <div id="dsi-toast"></div>
 
-<!-- WALLBOARD / TV MODE -->
-<div id="wallboard" class="wb-hidden">
-  <div class="wb-top">
-    <div class="wb-office" id="wb-office">—</div>
-    <div class="wb-title" id="wb-title">Live Sales</div>
-    <div class="wb-clock" id="wb-clock">—</div>
-    <button class="wb-close" onclick="closeWallboard()" title="Exit (Esc)"><span class="ico"><svg><use href="#i-x"></use></svg></span></button>
-  </div>
-  <div class="wb-stage" id="wb-stage"></div>
-  <div class="wb-dots" id="wb-dots"></div>
-</div>
-
 <!-- DETAIL MODAL -->
 <div class="modal-bg" id="detail-modal">
   <div class="modal">
@@ -387,8 +375,8 @@
 <script defer src="js/app.reports.js?v=20260804b"></script>
 <script defer src="js/app.knowledge.js?v=20260804a"></script>
 <script defer src="js/app.people.js?v=20260810a"></script>
-<script defer src="js/app.sales.js?v=20260807a"></script>
-<script defer src="js/app.lst.js?v=20260805a"></script>
+<script defer src="js/app.sales.js?v=20260810a"></script>
+<script defer src="js/app.lst.js?v=20260810a"></script>
 <script defer src="js/app.appts.js?v=20260807a"></script>
 <script defer src="js/app.fiber.js?v=20260805a"></script>
 <!-- Admin Portal (master-admin only). Loaded UNCONDITIONALLY like every other bundle: a

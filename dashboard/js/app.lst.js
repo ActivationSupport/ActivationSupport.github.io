@@ -271,27 +271,18 @@ function _lstBuild() {
   var tAgg = _lstTeamAgg(repAgg, teams);
   var todayIdx = _lstTodayIdx();
 
-  var role = SESSION.role;
-  var isTeamScoped = role === 'leader';   // jd is office-wide (manager-equivalent)
-  var lstTeamName = '';
+  /* 🔑 EVERYONE SEES THE WHOLE OFFICE. User, 2026-08-10: "All reps can see everyone on the
+     live sales tracker."
+     Team Leaders (`role === 'leader'`) were the ONLY scoped role — client-reps, managers, JDs,
+     owners and admins were already office-wide — so a leader uniquely saw a board containing
+     just their own team, titled "<TEAM> LEADERBOARD" instead of "OFFICE LEADERBOARD". A board
+     whose whole purpose is ranking the office cannot be filtered per viewer.
+     ⚠ `kpiTeamSet` is kept because it is still the parameter `_lstKpiCards` accepts; null means
+     no filter, so the KPI cards roll up office-wide for everyone too.
+     ⚠ This does NOT change the drill-down gate — `drillable` still excludes client-reps from
+     opening another rep's profile (AR / churn / line stats / orders). Seeing someone on the
+     board and opening their record are separate permissions. */
   var kpiTeamSet = null;
-  if (isTeamScoped) {
-    var lstTeam = _myTeam();
-    if (lstTeam) {
-      lstTeamName = lstTeam.name;
-      var teamEmailSet = {};
-      _teamEmails(lstTeamName).forEach(function(e) { teamEmailSet[e] = true; });
-      kpiTeamSet = teamEmailSet;
-      var filteredRepAgg = {};
-      Object.keys(repAgg).forEach(function(e) {
-        if (teamEmailSet[e]) filteredRepAgg[e] = repAgg[e];
-      });
-      repAgg = filteredRepAgg;
-      var filteredTAgg = {};
-      if (tAgg[lstTeamName]) filteredTAgg[lstTeamName] = tAgg[lstTeamName];
-      tAgg = filteredTAgg;
-    }
-  }
 
   var all = Object.keys(repAgg).map(function(e) { return { email: e, d: repAgg[e] }; })
     .sort(function(a, b) { return b.d.units - a.d.units || b.d.orders - a.d.orders; });
@@ -303,99 +294,13 @@ function _lstBuild() {
   var totOrd = all.reduce(function(s, x) { return s + x.d.orders; }, 0);
   var totUni = all.reduce(function(s, x) { return s + x.d.units; }, 0);
 
-  var boardTitle = (isTeamScoped && lstTeamName) ? lstTeamName.toUpperCase() + ' LEADERBOARD' : 'OFFICE LEADERBOARD';
+  var boardTitle = 'OFFICE LEADERBOARD';   // always office-wide — no per-viewer title
 
   return '<div class="lst-wrap">' +
-    '<div class="lst-wb-bar"><button class="lst-wb-btn" onclick="openWallboard()">'+icon('monitor')+' Wallboard</button></div>' +
     _lstKpiCards(_LST_SALES, roster, _LST_VIEW, kpiTeamSet) +
     _lstTopPerf(all.slice(0, 3), tArr.slice(0, 3)) +
     _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) +
     '</div>';
-}
-
-// ── WALLBOARD / TV MODE ───────────────────────────────────────
-// Full-screen, big-type, auto-cycling office display for a TV. Reuses the LST
-// data (_LST_SALES), office-wide. Panels: This Week (KPIs) → Top Performers → Teams.
-var _WB = { panel:0, timer:null, clock:null, n:3 };
-
-function _wbData() {
-  var roster=DATA.roster||{}, teams=DATA.teams||{};
-  var repAgg=_lstAgg(_LST_SALES||[], roster);
-  var tAgg=_lstTeamAgg(repAgg, teams);
-  var all=Object.keys(repAgg).map(function(e){return {email:e,d:repAgg[e]};})
-    .sort(function(a,b){return b.d.units-a.d.units||b.d.orders-a.d.orders;});
-  var tArr=Object.keys(tAgg).map(function(k){return tAgg[k];})
-    .sort(function(a,b){return b.units-a.units||b.orders-a.orders;});
-  var totOrd=all.reduce(function(s,x){return s+x.d.orders;},0);
-  var totUni=all.reduce(function(s,x){return s+x.d.units;},0);
-  var sellers=all.filter(function(x){return x.d.orders>0;}).length;
-  return {all:all,tArr:tArr,totOrd:totOrd,totUni:totUni,sellers:sellers};
-}
-
-function openWallboard() {
-  var wb=document.getElementById('wallboard'); if(!wb) return;
-  document.getElementById('wb-office').textContent=(CFG.officeId||'').toUpperCase();
-  _WB.panel=0;
-  wb.classList.remove('wb-hidden');
-  _wbRender();
-  _wbStartTimer();
-  _wbTickClock(); _WB.clock=setInterval(_wbTickClock,1000);
-  document.addEventListener('keydown', _wbKey);
-  if(wb.requestFullscreen){ try{ wb.requestFullscreen(); }catch(e){} }
-}
-function closeWallboard() {
-  var wb=document.getElementById('wallboard'); if(!wb) return;
-  wb.classList.add('wb-hidden');
-  if(_WB.timer){clearInterval(_WB.timer);_WB.timer=null;}
-  if(_WB.clock){clearInterval(_WB.clock);_WB.clock=null;}
-  document.removeEventListener('keydown', _wbKey);
-  if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
-}
-function _wbKey(e){ if(e.key==='Escape') closeWallboard(); else if(e.key==='ArrowRight') _wbGo(_WB.panel+1); else if(e.key==='ArrowLeft') _wbGo(_WB.panel-1); }
-function _wbStartTimer(){ if(_WB.timer)clearInterval(_WB.timer); _WB.timer=setInterval(function(){ _wbGo(_WB.panel+1); },12000); }
-function _wbGo(i){ _WB.panel=((i%_WB.n)+_WB.n)%_WB.n; _wbRender(); _wbStartTimer(); }
-function _wbTickClock(){ var el=document.getElementById('wb-clock'); if(!el)return; var d=new Date(),h=d.getHours(),m=d.getMinutes(); el.textContent=((h%12)||12)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM'); }
-
-function _wbHead(label){
-  return '<div class="wb-row wb-head"><div class="wb-rank">#</div>'+
-    '<div class="wb-name">'+label+'</div>'+
-    '<div class="wb-ord">Orders</div>'+
-    '<div class="wb-units">Units</div></div>';
-}
-function _wbRow(rank,name,orders,units){
-  var medal = rank<3?medalSvg(rank):(rank+1);
-  return '<div class="wb-row"><div class="wb-rank">'+medal+'</div>'+
-    '<div class="wb-name">'+name+'</div>'+
-    '<div class="wb-ord">'+orders+'</div>'+
-    '<div class="wb-units">'+units+'</div></div>';
-}
-function _wbKpi(label,val,color){
-  return '<div class="wb-kpi"><div class="wb-kpi-val" style="color:'+color+'">'+val+'</div><div class="wb-kpi-lbl">'+label+'</div></div>';
-}
-function _wbRender(){
-  var data=_wbData();
-  var titles=['This Week','Top Performers','Team Standings'];
-  var tEl=document.getElementById('wb-title'); if(tEl) tEl.textContent=titles[_WB.panel]||'Live Sales';
-  var stage=document.getElementById('wb-stage'); if(!stage) return;
-  var html='';
-  if(_WB.panel===0){
-    var upo=data.totOrd?(data.totUni/data.totOrd):0;
-    html='<div class="wb-kpis">'+
-      _wbKpi('Orders', data.totOrd, '#5B9BD5')+
-      _wbKpi('Units', data.totUni, '#70AD47')+
-      _wbKpi('Units / Order', upo.toFixed(2), '#ED7D31')+
-      _wbKpi('Active Sellers', data.sellers, '#FFC000')+
-    '</div>';
-  } else if(_WB.panel===1){
-    var top=data.all.slice(0,5);
-    html='<div class="wb-list">'+(top.length?_wbHead('Rep')+top.map(function(x,i){return _wbRow(i,esc(x.d.name),x.d.orders,x.d.units);}).join(''):'<div class="wb-empty">No sales yet this week.</div>')+'</div>';
-  } else {
-    var tt=data.tArr.slice(0,8);
-    html='<div class="wb-list">'+(tt.length?_wbHead('Team')+tt.map(function(t,i){return _wbRow(i,(t.emoji?esc(t.emoji)+' ':'')+esc(t.name),t.orders,t.units);}).join(''):'<div class="wb-empty">No team sales yet this week.</div>')+'</div>';
-  }
-  stage.innerHTML=html;
-  var dots=document.getElementById('wb-dots');
-  if(dots) dots.innerHTML=[0,1,2].map(function(i){return '<span class="wb-dot'+(i===_WB.panel?' wb-dot-on':'')+'" onclick="_wbGo('+i+')"></span>';}).join('');
 }
 
 // ── KPI SUMMARY CARDS (client-side over _LST_SALES; respects role scoping) ──
@@ -742,7 +647,7 @@ function _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) {
 function _lstDaysTbl(leaders, reps, todayIdx) {
   // Ranks by TOTAL production, most to least, within each group.
   // ⚠ This used to default to TODAY's column, which is why the board could disagree with
-  // everything around it: _lstBuild, the Top Performers cards and the wallboard all rank
+  // everything around it: _lstBuild and the Top Performers cards both rank
   // on the week-to-date total, so the table's #1 was often not the card's #1. Ranking by
   // total makes the whole tab tell one story. Early in the week it also stops the order
   // looking arbitrary — on a Monday morning every "today" figure is 0.
