@@ -241,6 +241,12 @@ function loadData(forceFresh) {
   _preloadArLines();
   _mainP.then(function(res) {
     _CACHE.mainFlight = false;
+    /* A live main fetch has now completed at least once. _notesKickOnTab gates on this:
+       the CACHED paint above calls switchTab() while mainFlight is still false and BEFORE
+       api({}) is issued, so without this flag the notes kick would queue itself IN FRONT of
+       the blob — the exact storm the comment above forbids. Set here rather than on success
+       so a failed blob still lets later tab switches fetch notes. */
+    _CACHE.mainSettled = true;
     _skelClearNote();                    // settled — nothing left to narrate
     // Office switched while this fetch was in flight — discard it so we never apply,
     // cache, or render one office's data under another.
@@ -479,6 +485,12 @@ function _bgRefreshNotes() {
    and has already been made once here. The blob's own call site fires notes after it lands,
    so the first-load path is covered and skipping here costs nothing. */
 function _notesKickOnTab() {
+  /* ⚠⚠ BOTH HALVES MATTER. mainFlight alone is NOT enough: the instant-paint-from-cache path
+     calls switchTab() while mainFlight is still FALSE and before api({}) has even been issued,
+     so gating only on it would queue readNotes ahead of the blob — precisely the reordering
+     that _preloadTabs() is banned from that same block for. mainSettled says a live main fetch
+     has actually completed, which is the real precondition. */
+  if (!_CACHE.mainSettled) return;                       // boot still painting — stay out of the queue
   if (_CACHE.mainFlight || _CACHE.notesFlight) return;   // never in front of the blob
   if (!_notesTabActive()) return;                        // same gate the poll uses
   var age = _CACHE.notesAt ? (Date.now() - _CACHE.notesAt) : Infinity;
