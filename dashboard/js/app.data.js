@@ -119,13 +119,76 @@ function _readCachedMainData() {
 /* Housekeeping. localStorage persists, so without this the device slowly accumulates a
    blob per (office, user) that was signed into on it. Drops everything except the current
    user's entry for the current office. */
+/* ⚠⚠ NOTES NEED THEIR OWN CACHE, AND THE KEY PREFIX IS LOAD-BEARING.
+   The blob is cached so the portal instant-paints, but it has carried NO `notes` key since
+   `a3f3612` — so notes began every single load from NOTHING and could not appear until their
+   own fetch returned (which deliberately waits for the blob, to stay out of its queue). The
+   result a rep sees: everything paints at once, the notes look like they were never entered,
+   then they populate seconds later. Reported 2026-08-11 as "everything but the notes load…
+   it shows as no notes had ever been inputted".
+   🔑 THE `as_data_` PREFIX IS DELIBERATE: _clearDataCache() removes every `as_data_*` key on
+   logout and on _forceReauth, so notes — which are CUSTOMER CONTENT and now outlive the tab
+   exactly like the blob — leave the device at sign-out for free. A prettier `as_notes_`
+   prefix would have silently created a data-retention hole on shared machines. */
+function _notesCacheKey() { return 'as_data_notes_' + CFG.officeId + '_' + _mainDataUser(); }
+function _cacheNotes(notes) {
+  if (!_mainDataUser() || !notes) return;
+  var payload = function () {
+    return JSON.stringify({ ts: Date.now(), office: CFG.officeId, user: _mainDataUser(), notes: notes });
+  };
+  try {
+    localStorage.setItem(_notesCacheKey(), payload());
+  } catch (e) {
+    /* Quota. Drop OTHER offices'/users' notes and retry once. ⚠ Never prune the blob to make
+       room for notes — losing the blob's instant paint costs far more than a late note count,
+       and the blob is written first precisely so it wins the space. Failing here is harmless:
+       it is exactly the behaviour that existed before this cache. */
+    try { _pruneNotesCache(); localStorage.setItem(_notesCacheKey(), payload()); } catch (e2) {}
+  }
+}
+function _readCachedNotes() {
+  try {
+    var me = _mainDataUser();
+    if (!me) return null;                                   // not signed in — nothing may be painted
+    var raw = localStorage.getItem(_notesCacheKey());
+    if (!raw) return null;
+    var o = JSON.parse(raw);
+    // SAME office + user isolation as the blob, and FAILING CLOSED for the same reason:
+    // these are shared devices, and notes name customers.
+    if (!o || !o.notes || o.office !== CFG.officeId || String(o.user || '') !== me) return null;
+    return o.notes;
+  } catch (e) { return null; }
+}
+function _pruneNotesCache() {
+  try {
+    var keep = _notesCacheKey(), rm = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('as_data_notes_') === 0 && k !== keep) rm.push(k);
+    }
+    rm.forEach(function(k) { localStorage.removeItem(k); });
+  } catch (e) {}
+}
+/* Paint the last known notes so the first frame carries counts instead of a confident zero.
+   ⚠ _applyMainData preserves DATA.notes across the wholesale swap, so calling this ONCE up
+   front covers both the instant-paint and the cold-load path. */
+function _paintCachedNotes() {
+  var n = _readCachedNotes();
+  if (!n) return false;
+  DATA.notes = n;
+  _NOTES_LOADED = true;     // we DO know these, as of a timestamp — the unknown state is over
+  return true;
+}
 function _pruneDataCache(keepCurrent) {
   try {
     var keep = keepCurrent === false ? null : _mainDataKey();
+    // ⚠ The notes cache shares the as_data_ prefix (so logout clears it); it must NOT be
+    // collected here or every prune would throw away the thing this cache exists to keep.
+    var keepNotes = _notesCacheKey();
     var rm = [];
     for (var i = 0; i < localStorage.length; i++) {
       var k = localStorage.key(i);
-      if (k && k.indexOf('as_data_') === 0 && k !== keep) rm.push(k);
+      if (k && k.indexOf('as_data_') === 0 && k !== keep && k !== keepNotes) rm.push(k);
     }
     rm.forEach(function(k) { localStorage.removeItem(k); });
   } catch (e) {}
@@ -203,6 +266,11 @@ function loadData(forceFresh) {
      Issuing order is execution order, so the blob goes first and these follow immediately
      after. They are still in flight early; they just no longer queue in front of the one
      request the visible tab depends on. */
+  /* Notes are not in the blob, so without this they start from nothing on EVERY load and the
+     screen says "no notes" until their fetch returns. Called before the paint below so the
+     first frame already carries counts; _applyMainData preserves DATA.notes across the swap,
+     so one call covers the instant-paint and cold-load paths alike. */
+  _paintCachedNotes();
   // Instant paint from the cached blob (skipped on a manual refresh).
   var painted = false;
   if (!forceFresh) {
@@ -455,6 +523,7 @@ function _bgRefreshNotes() {
     if (!res || res.error || !res.notes) return;
     DATA.notes = res.notes;
     _CACHE.notesAt = Date.now();          // when notes were last KNOWN good — see _notesKickOnTab
+    _cacheNotes(res.notes);               // so the NEXT load opens with notes already on screen
     var first = !_NOTES_LOADED;
     _NOTES_LOADED = true;
     _applyNoteCounts();
