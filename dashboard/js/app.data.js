@@ -727,13 +727,10 @@ function _teamTableauNames(teamName) {
   });
   return tns;
 }
-function _teamEmails(teamName) {
-  if (!teamName) return [];
-  var roster = DATA.roster || {};
-  return Object.keys(roster).filter(function(email) {
-    return (roster[email].team || '') === teamName;
-  });
-}
+/* _teamEmails(teamName) lived here and was removed 2026-08-11. Its ONLY caller was the LST's
+   Team-Leader scoping (`isTeamScoped`), deleted when the board went office-wide for everyone.
+   ⚠ Do not confuse it with _myTeam()/_myTeamId()/_teamTableauNames(), which are all still live
+   in call-logs and this file. */
 
 // ── REP FILTER ────────────────────────────────────────────────────────────
 function repFilter(orders) {
