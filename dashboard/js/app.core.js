@@ -1317,5 +1317,9 @@ function switchTab(id) {
   document.getElementById('page-title').textContent = tab ? tab.label : id;
   document.getElementById('page-subtitle').textContent = tab && tab.sub ? tab.sub : '';
   renderTab(id);
+  /* Notes live OUTSIDE the blob and their poll is gated on being on a notes tab, so entering
+     one has to re-arm the fetch or the notes simply are not there yet. See _notesKickOnTab —
+     it owns the staleness + in-flight rules, deliberately, so this stays one line. */
+  if (typeof _notesKickOnTab === 'function') _notesKickOnTab();
 }
 

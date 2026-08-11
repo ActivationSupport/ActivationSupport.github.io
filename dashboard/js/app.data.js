@@ -448,6 +448,7 @@ function _bgRefreshNotes() {
     _CACHE.notesFlight = false;
     if (!res || res.error || !res.notes) return;
     DATA.notes = res.notes;
+    _CACHE.notesAt = Date.now();          // when notes were last KNOWN good — see _notesKickOnTab
     var first = !_NOTES_LOADED;
     _NOTES_LOADED = true;
     _applyNoteCounts();
@@ -461,6 +462,30 @@ function _bgRefreshNotes() {
     }
   }).catch(function() { _CACHE.notesFlight = false; });
 }
+
+/* ⚠⚠ THE GATE HAD NO EDGE TRIGGER — THIS IS WHAT WAS MISSING.
+   _bgRefreshNotes() only ever fired on three events: once the main blob landed, on the 25s
+   timer, and on visibilitychange. All three are gated by _notesTabActive(). Nothing fired
+   when a tab BECAME active, so loading the portal on a tab that shows no notes (postsale,
+   lst, appointments, training…) meant the post-blob fetch hit that gate, returned without
+   fetching, and never re-armed. Switching to a notes tab then rendered the table with
+   DATA.notes still empty, and notes stayed missing for up to NOTES_TTL (25s) PLUS the round
+   trip. Reported 2026-08-11 as "sometimes the notes are not loading… they come back but it
+   takes a few seconds" — the intermittency IS the arrival path: land on a notes tab and the
+   blob call site covers you, arrive from a non-notes tab and nothing did.
+   ⚠⚠ NEVER FIRE THIS WHILE THE MAIN BLOB IS IN FLIGHT. Apps Script serialises same-user
+   requests, so a notes fetch issued alongside the blob EXECUTES FIRST and delays the payload
+   the whole screen is waiting on. That reordering trap is documented at the other call site
+   and has already been made once here. The blob's own call site fires notes after it lands,
+   so the first-load path is covered and skipping here costs nothing. */
+function _notesKickOnTab() {
+  if (_CACHE.mainFlight || _CACHE.notesFlight) return;   // never in front of the blob
+  if (!_notesTabActive()) return;                        // same gate the poll uses
+  var age = _CACHE.notesAt ? (Date.now() - _CACHE.notesAt) : Infinity;
+  if (_NOTES_LOADED && age < _CACHE.NOTES_TTL) return;   // still fresh — the poll has it
+  _bgRefreshNotes();
+}
+
 // Update the NOTES button counts in the current table without rebuilding it.
 function _applyNoteCounts() {
   var btns = document.querySelectorAll('.notes-btn[data-dsi]');
