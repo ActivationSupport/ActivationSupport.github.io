@@ -533,8 +533,8 @@ function openNotesModal(dsi, customer, rep, opts) {
   var repNotes = _notesNewestFirst(notes.filter(function(n){ return n.noteType==='rep' || n.noteType==='note'; }));
   var cancelNotes = _notesNewestFirst(notes.filter(function(n){ return n.noteType==='cancel'; }));
 
-  var actHistHtml = actNotes.length ? actNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No activation notes yet.</div>';
-  var repHistHtml = repNotes.length ? repNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No rep notes yet.</div>';
+  var actHistHtml = actNotes.length ? actNotes.map(_noteItemHtml).join('') : _notesEmptyHtml('activation');
+  var repHistHtml = repNotes.length ? repNotes.map(_noteItemHtml).join('') : _notesEmptyHtml('rep');
 
   // Only the activation team may SET ratings (mirrors the backend setRating gate);
   // everyone else sees the current rating read-only.
@@ -1044,12 +1044,30 @@ function _loadBookedAppts() {
 // onclick JS string, or a name with an apostrophe (e.g. "Bri'an Key") breaks the
 // handler: esc() encodes ' as &#39;, the browser decodes it back to ' inside the
 // attribute, and that prematurely closes the JS string → the button does nothing.
+/* ⚠⚠ "NOT LOADED YET" MUST NOT RENDER AS "NO NOTES" — the same rule _NOTES_LOADED already
+   enforces for _daysSinceLastNote and the lastCalled filter. Notes arrive on their own fetch,
+   so between first paint and that response every button would otherwise show the bare NOTES
+   pill: byte-for-byte identical to a record with nothing saved. That is the ONE question this
+   button exists to answer, and a confident wrong answer is worse than an honest "…".
+   🔑 Cleared by _applyNoteCounts on the first arrival — it drops the pill and the class. */
+function _notesPending() {
+  return (typeof _NOTES_LOADED !== 'undefined' && !_NOTES_LOADED);
+}
+/* ONE implementation of what an EMPTY notes list says, shared by the modal's first render and
+   its live refresh. Two copies would drift, and the drift would land in the exact place a rep
+   goes to check whether their note saved. */
+function _notesEmptyHtml(kind) {
+  return '<div class="nm-empty">' + (_notesPending() ? 'Loading notes…' : 'No ' + kind + ' notes yet.') + '</div>';
+}
 function notesBtnHtml(dsi, customer, rep, noteCount) {
   var safeId = String(dsi||'').replace(/\W/g,'_');
-  return '<button class="notes-btn'+(noteCount>0?' has-notes':'')+'" ' +
+  var pending = noteCount > 0 ? false : _notesPending();
+  return '<button class="notes-btn'+(noteCount>0?' has-notes':'')+(pending?' notes-pending':'')+'" ' +
     'data-dsi="'+esc(dsi)+'" data-customer="'+esc(customer||'')+'" data-rep="'+esc(rep||'')+'" ' +
+    (pending?'title="Notes still loading" ':'') +
     'onclick="openNotesFromEl(this)">NOTES' +
-    (noteCount>0?'<span class="notes-count" id="nc-'+safeId+'">'+noteCount+'</span>':'') +
+    (noteCount>0?'<span class="notes-count" id="nc-'+safeId+'">'+noteCount+'</span>'
+               : pending?'<span class="notes-count notes-count-pending" id="nc-'+safeId+'" aria-label="Notes still loading">…</span>':'') +
     '</button>';
 }
 function openNotesFromEl(el) {

@@ -505,6 +505,11 @@ function _applyNoteCounts() {
     var btn = btns[i], dsi = btn.getAttribute('data-dsi');
     var n = ((DATA.notes || {})[dsi] || []).length;
     var span = btn.querySelector('.notes-count');
+    /* Notes have now arrived, so the honest-unknown state is over: drop the pending pill and
+       its title. Whatever we render below is a real answer, including a real zero. */
+    btn.classList.remove('notes-pending');
+    btn.removeAttribute('title');
+    if (span && span.className.indexOf('notes-count-pending') !== -1) { span.parentNode.removeChild(span); span = null; }
     if (n > 0) {
       btn.classList.add('has-notes');
       if (span) span.textContent = n;
@@ -529,12 +534,12 @@ function _refreshOpenNotesModal() {
   var repNotes = _notesNewestFirst(notes.filter(function(n) { return n.noteType === 'rep' || n.noteType === 'note'; }));
   if (actHist) {
     var atTopA = actHist.scrollTop < 4;
-    actHist.innerHTML = actNotes.length ? actNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No activation notes yet.</div>';
+    actHist.innerHTML = actNotes.length ? actNotes.map(_noteItemHtml).join('') : _notesEmptyHtml('activation');
     if (atTopA) actHist.scrollTop = 0;
   }
   if (repHist) {
     var atTopR = repHist.scrollTop < 4;
-    repHist.innerHTML = repNotes.length ? repNotes.map(_noteItemHtml).join('') : '<div class="nm-empty">No rep notes yet.</div>';
+    repHist.innerHTML = repNotes.length ? repNotes.map(_noteItemHtml).join('') : _notesEmptyHtml('rep');
     if (atTopR) repHist.scrollTop = 0;
   }
   // A cancel request logged by someone else has to reach the open modal too — it's the
