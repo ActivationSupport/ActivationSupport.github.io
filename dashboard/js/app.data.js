@@ -148,7 +148,19 @@ function _clearDataCache() {
   } catch (e) {}
 }
 function _applyMainData(res, ts) {
+  /* 🔴🔴 NOTES MUST SURVIVE THIS SWAP — this is a WHOLESALE replace, not a merge.
+     Since `a3f3612` (2026-08-07) the blob deliberately carries NO `notes` key: notes are fetched
+     by their own `readNotes` action every ~25s. But `DATA = res` then dropped `DATA.notes` on the
+     floor every ~90s main refresh, so notes VANISHED AND REAPPEARED ON A LOOP — absent for up to
+     ~25s out of every ~90s, across every office. Reported 2026-08-11 as "notes are missing".
+     ⚠⚠ The DATA WAS NEVER AT RISK — `_Notes_<office>` held 2,962 rows throughout. A wholesale
+     object swap on the client looked exactly like data loss to the people using it.
+     🔑 The `_LST_SALES` line directly below does this same restore — the hazard was already known
+     and notes were simply missed when they moved out of the blob. **Anything fetched OUTSIDE the
+     blob must be re-attached here, or the next main refresh erases it.** */
+  var _keepNotes = DATA && DATA.notes;
   DATA = res;
+  if (_keepNotes && !DATA.notes) DATA.notes = _keepNotes;
   if (_LST_POSTED !== null) _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // re-merge legacy once the bundle (with legacyLstSales) is loaded
   _CACHE.mainDataTs = ts || Date.now();
   var roster = DATA.roster || {};
