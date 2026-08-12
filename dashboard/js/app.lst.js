@@ -1134,7 +1134,14 @@ function _lstLineStatsHtml(ls) {
   var pendN = ls.pending||0;
   var issueN = ls.orderIssues||0;
   var cancN = ls.canceled||0;
-  var goodP = _lstPct(goodN,total), pendP = _lstPct(pendN,total), issueP = _lstPct(issueN,total), cancP = _lstPct(cancN,total);
+  /* 🔴 DISCONNECTED HAD NO ROW. readRepLineStats has always returned it, and `pending` is computed
+     as total MINUS disconnected, so those lines counted toward the total and then appeared in no
+     bar at all: for one rep, 67+16+0+7 = 90 of 94 lines and 95% of the percentages. The four
+     missing lines were disconnects. ⚠ The Pending label even names Disconnected as something it
+     excludes — the exclusion was right, the missing row was the bug. */
+  var discN = ls.disconnected||0;
+  var goodP = _lstPct(goodN,total), pendP = _lstPct(pendN,total), issueP = _lstPct(issueN,total),
+      cancP = _lstPct(cancN,total), discP = _lstPct(discN,total);
 
   function pctRow(lbl, n, p, colorCls, barColor) {
     return '<div class="rp-pct-item">' +
@@ -1150,6 +1157,8 @@ function _lstLineStatsHtml(ls) {
   h += pctRow('Pending (not Active, Posted, Canceled, Disconnected, or Order Issue)', pendN, pendP, 'orange', '#fb923c');
   h += pctRow('Order Issues (BYOD, Porting Issue, Port Approved, Pending Order Port, Pending Valid Payment)', issueN, issueP, 'yellow', '#fbbf24');
   h += pctRow('Canceled', cancN, cancP, 'red', '#f87171');
+  // Terminal like Canceled, so it sits beside it — but a DIFFERENT outcome, so its own hue.
+  h += pctRow('Disconnected', discN, discP, 'purple', '#a78bfa');
   h += '</div></div>';
   return h;
 }

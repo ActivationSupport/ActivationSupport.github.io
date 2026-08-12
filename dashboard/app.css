@@ -1277,6 +1277,9 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .rp-pct-val.orange{color:#fb923c}
 .rp-pct-val.yellow{color:#fbbf24}
 .rp-pct-val.red{color:#f87171}
+/* Disconnected — terminal like Canceled but a different outcome, so it gets its own hue rather
+   than sharing red. Matches the bar fill in _lstLineStatsHtml. */
+.rp-pct-val.purple{color:#a78bfa}
 .rp-bar{height:5px;border-radius:var(--r-sm);background:var(--tint-2);overflow:hidden}
 .rp-bar-fill{height:100%;border-radius:var(--r-sm);transition:width .3s}
 .rp-tbl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
