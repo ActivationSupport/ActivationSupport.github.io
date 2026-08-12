@@ -1155,7 +1155,18 @@ function _lstLineStatsHtml(ls) {
 }
 
 function _lstRepArHtml(tableauName) {
-  if (!_AR_LINES || !_AR_LINES.length) return '<div class="rp-card"><div class="rp-card-title">Activation Rates</div><div class="rp-no-data">No data. Visit the Activation Rates tab first to load it.</div></div>';
+  /* ⚠⚠ "DIDN'T LOAD" AND "LOADED, GENUINELY EMPTY" ARE DIFFERENT STATES, AND NEITHER IS FIXED
+     BY VISITING ANOTHER TAB. _lstShowRepProfile fetches readActRateLines itself and renders
+     only after that settles, so by here the data has already been asked for. The old copy sent
+     the rep to the Activation Rates tab to "load it" — an instruction that could never help,
+     and the same not-loaded-vs-none conflation fixed for notes on 2026-08-11.
+     ⚠ null means the fetch came back without an actRateLines key; [] means there is no data. */
+  var _arCard = function (msg) {
+    return '<div class="rp-card"><div class="rp-card-title">Activation Rates</div>' +
+           '<div class="rp-no-data">' + msg + '</div></div>';
+  };
+  if (_AR_LINES === null)   return _arCard('Activation rates didn’t load. Refresh to try again.');
+  if (!_AR_LINES.length)    return _arCard('No activation rate data available.');
   // Same badge-table format + Tableau colors as the Activation Rates tab (_buildArTable),
   // scoped to this one rep (no Grand Total row — it would just duplicate the rep row).
   var BKT_MAP = {'0-7 Days':'b0_7','8-14 Days':'b8_14','15-30 Days':'b15_30','31-60 Days':'b31_60'};
@@ -1219,7 +1230,7 @@ function _lstRepChurnHtml(tableauName) {
     '</tr></tbody></table></div></div>';
 }
 
-// Order Log — this rep's individual orders from the Tableau order log (60-day
+// Order Log — this rep's individual orders from the Tableau order log (30-day
 // window, one row per DSI). Search by DSI + filter by Status / Date. Same table
 // format as Team Orders (_tmOrdersHtml) minus the Rep column (single-rep page).
 var _RP_ORD = { dsi:'', status:'', from:'', to:'' };   // Rep profile Order Log filters
@@ -1230,12 +1241,20 @@ function _rpOrdRerender(){
   var tn=((DATA.roster||{})[_LST_PROFILE]||{}).tableauName||'';
   w.outerHTML=_lstRepOrdersHtml(tn);
 }
-// This rep's orders (60-day Tableau log) for the current Order Log.
+/* ⚠⚠ ONE IMPLEMENTATION OF "THIS REP'S ORDERS", AND ONE OF ITS CAPTION.
+   There were two: the card built its own list and the live DSI search built another. When the
+   window moved to 30 days the search path would have silently served the full 60-day feed and
+   captioned it "last 60 days" — visible only while typing, which is the worst place to hide it.
+   Everything now routes through _rpOrdOrdersFor(), and the caption through _rpOrdCountText(). */
+function _rpOrdOrdersFor(tableauName){
+  var tnl=String(tableauName||'').toLowerCase();
+  return within29Days((DATA.masterTracker||[]).filter(function(o){ return (o.rep||'').toLowerCase()===tnl; }));
+}
 function _rpOrdOrders(){
   if(!_LST_PROFILE) return [];
-  var tnl=(((DATA.roster||{})[_LST_PROFILE]||{}).tableauName||'').toLowerCase();
-  return (DATA.masterTracker||[]).filter(function(o){ return (o.rep||'').toLowerCase()===tnl; });
+  return _rpOrdOrdersFor(((DATA.roster||{})[_LST_PROFILE]||{}).tableauName||'');
 }
+function _rpOrdCountText(n){ return n+' order'+(n!==1?'s':'')+' · last 30 days · all statuses'; }
 function _rpOrdFilter(orders){
   var q=String(_RP_ORD.dsi||'').trim().toLowerCase();
   return orders.filter(function(o){
@@ -1265,12 +1284,21 @@ function _rpOrdSearch(val){
   _RP_ORD.dsi=val;
   var rows=_rpOrdFilter(_rpOrdOrders());
   var tb=document.getElementById('rp-ord-tbody'); if(tb) tb.innerHTML=_rpOrdBody(rows);
-  var ct=document.getElementById('rp-ord-count'); if(ct) ct.textContent=rows.length+' order'+(rows.length!==1?'s':'')+' · last 60 days';
+  var ct=document.getElementById('rp-ord-count'); if(ct) ct.textContent=_rpOrdCountText(rows.length);
 }
 
 function _lstRepOrdersHtml(tableauName) {
   var tnl=(tableauName||'').toLowerCase();
-  var orders=(DATA.masterTracker||[]).filter(function(o){ return (o.rep||'').toLowerCase()===tnl; });
+  /* 30-DAY WINDOW, EVERY STATUS.
+     ⚠ The window is applied HERE, not upstream: DATA.masterTracker is a 60-day inclusive feed
+     (backend: today-59) SHARED with Master Tracker, My Orders and My Team, so narrowing it at
+     the source would silently halve those tabs too.
+     🔑 within29Days is the house 30-day-inclusive window — today plus the previous 29, the same
+     helper Delivered and Escalations use, and the same arithmetic as the backend's -59 for 60.
+     ONE helper on purpose, so these windows cannot drift apart.
+     🔑 NO STATUS FILTER, DELIBERATELY: _rpOrdFilter applies only what the viewer picks, so every
+     status shows by default. This log is "everything they sold", not a work queue. */
+  var orders=_rpOrdOrdersFor(tableauName);
 
   var stats={};
   orders.forEach(function(o){ Object.keys(o.statusCounts||{}).forEach(function(s){ if(s) stats[s]=true; }); });
@@ -1291,6 +1319,6 @@ function _lstRepOrdersHtml(tableauName) {
 
   return '<div class="rp-card" id="rp-ord-wrap"><div class="rp-card-title">Order Log</div>'+filters+
     '<div class="tbl-wrap"><table class="call-table"><thead><tr><th>DSI</th><th>Date</th><th>Products</th><th>Status</th><th>Notes</th></tr></thead><tbody id="rp-ord-tbody">'+body+'</tbody></table></div>'+
-    '<div id="rp-ord-count" style="font-size:11px;color:var(--text2);margin-top:8px">'+rows.length+' order'+(rows.length!==1?'s':'')+' · last 60 days</div></div>';
+    '<div id="rp-ord-count" style="font-size:11px;color:var(--text2);margin-top:8px">'+_rpOrdCountText(rows.length)+'</div></div>';
 }
 
