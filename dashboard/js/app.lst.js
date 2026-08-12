@@ -1247,25 +1247,45 @@ function _rpOrdRerender(){
    captioned it "last 60 days" — visible only while typing, which is the worst place to hide it.
    Everything now routes through _rpOrdOrdersFor(), and the caption through _rpOrdCountText(). */
 function _rpOrdOrdersFor(tableauName){
-  /* ⚠⚠ FAIL CLOSED ON A BLANK NAME. Without this, tnl==='' matches every order whose rep cell
-     is ALSO blank — one rep's profile silently listing orders that are not theirs. The profile
-     itself returns early when no Tableau name is linked, but _rpOrdOrders() can reach here from
-     the live search with an unlinked roster row, and "scope key is empty" is exactly the shape
-     of the office-scoping leak found 2026-08-07. Empty scope must return NOTHING, never
-     everything-that-is-also-empty.
-     🔑 TRIM BOTH SIDES: a trailing space in the Tableau export is invisible in the sheet and
-     would drop that order from the rep's own profile — "all of their orders" fails quietly. */
+  return within29Days(_rpOrdRepOrders(tableauName));
+}
+/* This rep's orders BEFORE the date window, and THE ONE PLACE THE SCOPE RULES LIVE.
+   ⚠⚠ FAIL CLOSED ON A BLANK NAME. Without the guard, tnl==='' matches every order whose rep
+   cell is ALSO blank — a profile silently listing orders that are not theirs. The profile
+   returns early when no Tableau name is linked, but the live DSI search reaches here directly,
+   so the guard belongs at this level. "Scope key is empty" is exactly the shape of the
+   office-scoping leak found 2026-08-07: empty scope returns NOTHING, never
+   everything-that-is-also-empty.
+   🔑 TRIM BOTH SIDES: a trailing space in the Tableau export is invisible in the sheet and would
+   drop that order from the rep's own profile — "all of their orders" failing quietly. */
+function _rpOrdRepOrders(tableauName){
   var tnl=String(tableauName||'').trim().toLowerCase();
   if(!tnl) return [];
-  return within29Days((DATA.masterTracker||[]).filter(function(o){
+  return (DATA.masterTracker||[]).filter(function(o){
     return String(o.rep||'').trim().toLowerCase()===tnl;
-  }));
+  });
 }
+/* ⚠ within29Days requires a PARSEABLE date and drops '—', blank and unrecognised values. That is
+   deliberate — '—' sorts GREATER than any date string, so undated rows would otherwise be
+   guaranteed to show (the No Answer bug). But a dropped order is still a MISSING order, and the
+   ask here was "all of their orders", so count them and say so in the caption. Decided with the
+   user 2026-08-11: keep dropping them, make the omission visible rather than silent.
+   🔑 Counted from the UNWINDOWED list: an order outside 30 days is legitimately excluded and must
+   not be reported as undated. */
+function _rpOrdUndatedCount(tableauName){
+  return _rpOrdRepOrders(tableauName).filter(function(o){ return !_isoDay(o.orderDate); }).length;
+}
+function _rpOrdTblName(){ return ((DATA.roster||{})[_LST_PROFILE]||{}).tableauName||''; }
 function _rpOrdOrders(){
   if(!_LST_PROFILE) return [];
-  return _rpOrdOrdersFor(((DATA.roster||{})[_LST_PROFILE]||{}).tableauName||'');
+  return _rpOrdOrdersFor(_rpOrdTblName());
 }
-function _rpOrdCountText(n){ return n+' order'+(n!==1?'s':'')+' · last 30 days · all statuses'; }
+function _rpOrdCountText(n, undated){
+  var s = n+' order'+(n!==1?'s':'')+' · last 30 days · all statuses';
+  // Only when there are some — a permanent "0 undated" would be noise nobody reads.
+  if (undated) s += ' · '+undated+' undated order'+(undated!==1?'s':'')+' not shown';
+  return s;
+}
 function _rpOrdFilter(orders){
   var q=String(_RP_ORD.dsi||'').trim().toLowerCase();
   return orders.filter(function(o){
@@ -1295,7 +1315,8 @@ function _rpOrdSearch(val){
   _RP_ORD.dsi=val;
   var rows=_rpOrdFilter(_rpOrdOrders());
   var tb=document.getElementById('rp-ord-tbody'); if(tb) tb.innerHTML=_rpOrdBody(rows);
-  var ct=document.getElementById('rp-ord-count'); if(ct) ct.textContent=_rpOrdCountText(rows.length);
+  var ct=document.getElementById('rp-ord-count');
+  if(ct) ct.textContent=_rpOrdCountText(rows.length, _rpOrdUndatedCount(_rpOrdTblName()));
 }
 
 function _lstRepOrdersHtml(tableauName) {
@@ -1330,6 +1351,6 @@ function _lstRepOrdersHtml(tableauName) {
 
   return '<div class="rp-card" id="rp-ord-wrap"><div class="rp-card-title">Order Log</div>'+filters+
     '<div class="tbl-wrap"><table class="call-table"><thead><tr><th>DSI</th><th>Date</th><th>Products</th><th>Status</th><th>Notes</th></tr></thead><tbody id="rp-ord-tbody">'+body+'</tbody></table></div>'+
-    '<div id="rp-ord-count" style="font-size:11px;color:var(--text2);margin-top:8px">'+_rpOrdCountText(rows.length)+'</div></div>';
+    '<div id="rp-ord-count" style="font-size:11px;color:var(--text2);margin-top:8px">'+_rpOrdCountText(rows.length, _rpOrdUndatedCount(tableauName))+'</div></div>';
 }
 
