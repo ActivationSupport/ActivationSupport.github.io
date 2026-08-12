@@ -445,9 +445,11 @@ function _asNetworkError(e, action, write, meta, timeoutMs) {
    ⚠⚠ READS RETRY, WRITES DO NOT. A 404-HTML tells us nothing about whether the server
    ALREADY ACTED, and that distinction is the whole reason WRITE-02 exists. Re-sending a
    write that did land creates a duplicate — worse than the error we are fixing.
-   ⚠ checkEmail is the ONE write on the allow-list: it only looks a roster address up.
-   🔴 validatePin is deliberately NOT on it — it calls _recordPinFail, so a retry could
-   burn a second PIN attempt and lock a rep out of their own account.
+   ⚠ checkEmail was the ONE write on the allow-list: it only looks a roster address up.
+   ✅ validatePin JOINED IT 2026-08-12 — but only AFTER a server-side clientKey guard was added
+   (see writeValidatePin in Code.gs). It calls _recordPinFail, so an unguarded retry could burn
+   a PIN attempt and lock a rep out; the guard returns the FIRST verdict and never records a
+   second failure. 🔑 The guard came first, as the rule below requires.
    ⚠ Intermediate attempts are NOT reported as errors, only breadcrumbed. An error log
    that fills up with failures the user never saw is one people stop reading; the report
    fires only when we finally give up, and carries the attempt count. */
@@ -462,8 +464,14 @@ var _AS_RETRY_BACKOFF = [400, 1200];
    🔴 postSale is NOT here even though it has a natural-key guard: that guard answers with an
    ERROR the rep must read, not a silent success, so an automatic retry would surface a
    confusing "already posted" on a write they never saw fail.
-   🔴 validatePin is NOT here and must never be — it calls _recordPinFail, so a retry could burn
-   an attempt and lock a rep out of their own account.
+     · validatePin — added 2026-08-12, and ONLY because writeValidatePin now dedupes on
+                    `clientKey` (scoped to the email) and returns the FIRST verdict without
+                    calling _recordPinFail again. Before that guard existed a retry could burn
+                    a PIN attempt and lock a rep out of their own account, which is why this
+                    entry was forbidden for so long. Measured cause: its successful p90 was
+                    9922ms against a 10000ms abort, so ~10% of sign-ins were being killed by
+                    the bound and the rep saw "Connection error. Try again."
+   ⚠⚠ IF THE SERVER-SIDE GUARD IS EVER REMOVED, THIS ENTRY MUST GO WITH IT.
    ⚠ Adding an action here WITHOUT a server-side guard reintroduces duplicate sales/notes. The
    guard comes first, always. */
 /* 🔑 SALES SUPPORT (2026-08-07). Both earn their place the same way `addNote` did — a
@@ -482,7 +490,7 @@ var _AS_RETRY_BACKOFF = [400, 1200];
    setTicketStatus/reassignTicket/saveContactLink LOOK naturally idempotent — they set a
    field to a value — but "looks idempotent" is not the standard this list uses, and
    deleteTicket/addLookup/addOffice are not even that. The guard comes first, always. */
-var _AS_RETRY_SAFE_WRITES = { checkEmail: 1, addNote: 1, createTicket: 1, addTicketNote: 1 };
+var _AS_RETRY_SAFE_WRITES = { checkEmail: 1, addNote: 1, createTicket: 1, addTicketNote: 1, validatePin: 1 };
 
 function _asMayRetry(meta) {
   if (!meta || !meta.write) return true;                       // reads are idempotent
@@ -515,7 +523,18 @@ function _asMayRetry(meta) {
    put the blob on the short bound.
    ⚠ NO AbortController (very old iOS) degrades to NO timeout, never to a throw. Losing the
    timeout costs us a hang; throwing here would break every read and write in the portal. */
-var _AS_TIMEOUT_MS    = 10000;   // one attempt, ordinary request
+/* ⚠⚠ 15s, RAISED FROM 10s ON MEASURED EVIDENCE (2026-08-12) — do not "tidy" it back.
+   4,459 round-trips parsed out of the error log's own breadcrumbs (dumpErrorLatency):
+     · 15% of requests that SUCCEEDED took longer than 10s — work this bound was throwing away
+     · 59% of all recorded failures landed within ±500ms of 10000ms, i.e. they WERE this bound
+       firing, not the server failing
+     · validatePin's successful p90 was 9922ms — 78ms under the old bound
+     · coverage of successful work: 10s → 85.5%, 15s → 90.6%, 20s → 92.8% (the knee is 15s)
+   🔑 THIS DOES NOT MAKE ANYONE WAIT LONGER. _AS_DEADLINE_MS still caps ALL attempts at 20s, so
+   the rep's worst case is unchanged — what changes is how that budget is SPENT: one attempt
+   that can actually finish, instead of two that were always going to be killed. Given the
+   server frequently needs more than 10s, one 15s attempt beats two doomed 10s ones. */
+var _AS_TIMEOUT_MS    = 15000;   // one attempt, ordinary request
 var _AS_TIMEOUT_BLOB  = 20000;   // one attempt, main data blob
 var _AS_DEADLINE_MS   = 20000;   // all attempts, ordinary request
 var _AS_DEADLINE_BLOB = 30000;   // all attempts, main data blob
@@ -860,7 +879,12 @@ function doLogin() {
   err.style.display = 'none';
   if (!pin) { err.textContent = 'Enter your PIN.'; err.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Signing in…';
-  apiPost({ action: 'validatePin', email: LOGIN_EMAIL, pin: pin }).then(function(res) {
+  /* ⚠⚠ THE clientKey IS WHAT MAKES THE RETRY SAFE — without it the server cannot dedupe and a
+     retry would burn a PIN attempt (see writeValidatePin). Generated per SUBMIT, not per
+     attempt, so the automatic retries of one sign-in share a key while a genuinely new attempt
+     gets a fresh one. If this is ever dropped, validatePin must come off _AS_RETRY_SAFE_WRITES
+     in the same edit. */
+  apiPost({ action: 'validatePin', email: LOGIN_EMAIL, pin: pin, clientKey: _clientKey('vp') }).then(function(res) {
     if (res.ok && res.valid) {
       SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
       if (res.rank) { SESSION.role = res.rank; SESSION._actualRole = res.rank; }
