@@ -1204,7 +1204,7 @@ function _lstRepArHtml(tableauName) {
     return c==='green'?'ar-green':c==='yellow'?'ar-yellow':c==='red'?'ar-red':'';
   }
   function cell(b, bktKey) {
-    if (b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-blue">(0/0)<br>—</div></td>';
+    if (b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-none">(0/0)<br>—</div></td>';
     var pct=Math.round(b.a/b.t*100);
     var cls = arColorCls(b.color) || bktCls(bktKey, pct);
     return '<td class="ar-cell"><div class="ar-badge '+cls+'">('+b.a+'/'+b.t+')<br>'+pct+'%</div></td>';
@@ -1231,7 +1231,7 @@ function _lstRepChurnHtml(tableauName) {
   if (!rows.length) return '<div class="rp-card"><div class="rp-card-title">Churn</div><div class="rp-no-data">No churn data for this rep.</div></div>';
   var rowMap = {}; rows.forEach(function(r){ rowMap[r.bucket]=r; });
   function cell(d) {
-    if (!d) return '<td class="ar-cell"></td>';
+    if (!d) return '<td class="ar-cell"><span class="ar-badge ar-none">—</span></td>';
     return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">('+fmtN(d.disconnects)+'/'+fmtN(d.activated)+')<br>'+fmtR(d.churnRate)+'</span></td>';
   }
   return '<div class="rp-card"><div class="rp-card-title">Churn</div>' +

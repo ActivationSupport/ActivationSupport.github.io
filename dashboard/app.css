@@ -600,6 +600,13 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .ar-yellow{background:#946a00;color:#ffe6a3}
 .ar-red{background:#b71c1c;color:#ffcdd2}
 .ar-blue{background:#0d47a1;color:#90caf9}
+/* NO DATA IN THIS BUCKET — deliberately neutral, and deliberately NOT ar-blue.
+   A filled blue tile reads as a measurement; an empty cell reads as a rendering failure. This is
+   the third thing: visibly present, visibly not a value. Used by Activation Rates (empty bucket)
+   AND Churn (missing bucket) so the two stop disagreeing where they sit side by side.
+   ⚠ ar-blue is left alone on purpose — churnFixedCls still returns it as a real fallback colour
+   for a Grand Total bucket with no coloured rows, which is a different meaning. */
+.ar-none{background:transparent;color:var(--text2);border:1px dashed var(--border);font-weight:600}
 .ar-rep{padding:10px 14px;font-size:.875rem;color:var(--text);vertical-align:middle}
 .ar-grand-row{border-top:2px solid var(--rule-2);border-bottom:2px solid var(--rule-2)}
 #ar-table-wrap th+th,#churn-table-wrap th+th,.dr-section .call-table th+th,.tm-rate-wrap th+th{text-align:center}

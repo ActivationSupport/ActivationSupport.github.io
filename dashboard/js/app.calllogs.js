@@ -134,7 +134,7 @@ function _buildArTable(repFilter) {
 
   function cell(b, bktKey, isTotal) {
     if (!isTotal && b.t===0) return '<td></td>';
-    if (b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-blue">(0/0)<br>—</div></td>';
+    if (b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-none">(0/0)<br>—</div></td>';
     var pct=Math.round(b.a/b.t*100);
     var cls = isTotal ? arTotalCls(bktKey, pct) : (arColorCls(b.color) || bktCls(bktKey, pct));
     return '<td class="ar-cell"><div class="ar-badge '+cls+'">('+b.a+'/'+b.t+')<br>'+pct+'%</div></td>';
@@ -2001,7 +2001,7 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
     return (n <= 1 ? n * 100 : n).toFixed(1) + '%';
   }
   function cell(d) {
-    if (!d) return '<td class="ar-cell"></td>';
+    if (!d) return '<td class="ar-cell"><span class="ar-badge ar-none">—</span></td>';
     return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">('+fmtN(d.disconnects)+'/'+fmtN(d.activated)+')<br>'+fmtRate(d.churnRate)+'</span></td>';
   }
   // Tableau colors each churn cell per bucket (lower rate = greener) but exports no
@@ -2043,7 +2043,7 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
   function totalCell(bkt) {
     var acts=0, disco=0;
     _gtList.forEach(function(rep){ var d=_gtMap[rep][bkt]; if(d){acts+=d.activated;disco+=d.disconnects;} });
-    if (!acts) return '<td class="ar-cell"></td>';
+    if (!acts) return '<td class="ar-cell"><span class="ar-badge ar-none">—</span></td>';
     var pct = disco/acts*100;
     var pctR = Math.round(pct*10)/10;
     var cls = churnTotalCls(bkt, pct, pctR);

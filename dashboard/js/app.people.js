@@ -746,7 +746,7 @@ function _tmArTableHtml(memberTabs) {
   }
   function cell(b,bk,isTotal){
     if(!isTotal&&b.t===0) return '<td></td>';
-    if(b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-blue">(0/0)<br>—</div></td>';
+    if(b.t===0) return '<td class="ar-cell"><div class="ar-badge ar-none">(0/0)<br>—</div></td>';
     var pct=Math.round(b.a/b.t*100);
     var cls=isTotal?arTotalCls(bk,pct):(arColorCls(b.color)||bktCls(bk,pct));
     return '<td class="ar-cell"><div class="ar-badge '+cls+'">('+b.a+'/'+b.t+')<br>'+pct+'%</div></td>';
