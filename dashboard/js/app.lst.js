@@ -1247,8 +1247,19 @@ function _rpOrdRerender(){
    captioned it "last 60 days" — visible only while typing, which is the worst place to hide it.
    Everything now routes through _rpOrdOrdersFor(), and the caption through _rpOrdCountText(). */
 function _rpOrdOrdersFor(tableauName){
-  var tnl=String(tableauName||'').toLowerCase();
-  return within29Days((DATA.masterTracker||[]).filter(function(o){ return (o.rep||'').toLowerCase()===tnl; }));
+  /* ⚠⚠ FAIL CLOSED ON A BLANK NAME. Without this, tnl==='' matches every order whose rep cell
+     is ALSO blank — one rep's profile silently listing orders that are not theirs. The profile
+     itself returns early when no Tableau name is linked, but _rpOrdOrders() can reach here from
+     the live search with an unlinked roster row, and "scope key is empty" is exactly the shape
+     of the office-scoping leak found 2026-08-07. Empty scope must return NOTHING, never
+     everything-that-is-also-empty.
+     🔑 TRIM BOTH SIDES: a trailing space in the Tableau export is invisible in the sheet and
+     would drop that order from the rep's own profile — "all of their orders" fails quietly. */
+  var tnl=String(tableauName||'').trim().toLowerCase();
+  if(!tnl) return [];
+  return within29Days((DATA.masterTracker||[]).filter(function(o){
+    return String(o.rep||'').trim().toLowerCase()===tnl;
+  }));
 }
 function _rpOrdOrders(){
   if(!_LST_PROFILE) return [];
