@@ -1190,7 +1190,12 @@ var TABS = [
   { id: 'postedsales', label: 'Posted Sales',         roles: ALL_ROLES,  group: 'Sales',       sub: 'View & correct posted sales' },
   { id: 'firstbill',   label: 'First Bill Calc',       roles: ROLES_REP,  group: 'Sales',       sub: "Estimate a customer's first bill" },
   { id: 'appointments', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
-  { id: 'myappts',      label: 'My Appointments',      roles: ['master-admin','activator'], group: 'Scheduling', sub: 'Your booked appointments across every office' },
+  /* ⚠ icon:'clock' is REQUIRED, not decoration. buildNav resolves `t.icon || t.id`, and there is
+     no `i-myappts` symbol — so without this the row rendered with NO ICON AT ALL and no error,
+     looking exactly like a tab that was never meant to have one. Reuses an existing sprite
+     symbol; `appointments` already owns the calendar, and this is the personal, time-based
+     subset of it. */
+  { id: 'myappts',      label: 'My Appointments',      roles: ['master-admin','activator'], group: 'Scheduling', sub: 'Your booked appointments across every office', icon: 'clock' },
   // Everyone sees the tab; client-reps are scoped SERVER-side to their own installs.
   { id: 'fibercal',     label: 'Fiber Install Calendar', roles: ALL_ROLES, group: 'Scheduling', sub: 'Fiber & new-internet installs by scheduled date', icon: 'globe' },
   { id: 'myorders',    label: 'My Orders',           roles: ['client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
@@ -1225,7 +1230,12 @@ var TABS = [
      ⚠⚠ `roles` HIDES A NAV ITEM; IT DOES NOT PROTECT THE DATA. readErrorLog and
      readErrorDetail are gated in _READ_ROLES on the backend against the badge's
      server-verified rank. Never rely on this list alone for anything sensitive. */
-  { id: 'adminerrors', label: 'Error Log',             roles: ['master-admin'], group: 'Admin', sub: 'Live client errors across every portal' },
+  /* ⚠ icon:'monitor' is REQUIRED for the same reason — there is no `i-adminerrors` symbol, so
+     this row rendered blank. `monitor` was already in the sprite and referenced by nothing, and
+     an admin monitoring console is what this tab is. ⚠ Deliberately NOT an alert glyph: issues
+     owns alert-triangle and escalations owns alert-octagon, and a third warning shape in the nav
+     would read as a third severity level rather than a place to look. */
+  { id: 'adminerrors', label: 'Error Log',             roles: ['master-admin'], group: 'Admin', sub: 'Live client errors across every portal', icon: 'monitor' },
   { id: 'people',       label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
   { id: 'teams',        label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
 ];
