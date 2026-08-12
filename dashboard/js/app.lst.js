@@ -1261,9 +1261,26 @@ function _rpOrdOrdersFor(tableauName){
 function _rpOrdRepOrders(tableauName){
   var tnl=String(tableauName||'').trim().toLowerCase();
   if(!tnl) return [];
-  return (DATA.masterTracker||[]).filter(function(o){
-    return String(o.rep||'').trim().toLowerCase()===tnl;
+  /* 🔴🔴 BOTH HALVES, OR THIS IS NOT "ALL ORDERS". masterTracker and completedOrders are DISJOINT
+     by construction in the backend: readMasterTracker DROPS any DSI whose lines are all
+     _isExcludedStatus (active / posted / *cancel* / *disco*), and readCompletedOrders keeps ONLY
+     those. Reading masterTracker alone therefore hides every finished order — a rep's Active,
+     Posted, Canceled and Disconnected work simply was not on their profile, which is what
+     "we are still not seeing all of a rep's orders regardless of status" meant.
+     ⚠⚠ The caption already claimed "all statuses" while this was true. It was not lying about a
+     filter — there was no filter — it was lying about the SOURCE.
+     🔑 Together the two sets partition every DSI in the 60-day window, so the union is complete.
+     ⚠ Both are _scopeOrders'd identically in the blob, so this adds no new scope surface.
+     ⚠ Deduped by DSI defensively — they cannot overlap today, but a change to either backend
+     definition must not silently double every row. Blank DSIs are never collapsed together. */
+  var out=[], seen={};
+  [].concat(DATA.masterTracker||[], DATA.completedOrders||[]).forEach(function(o){
+    if(String(o.rep||'').trim().toLowerCase()!==tnl) return;
+    var k=String(o.dsi||'');
+    if(k){ if(seen[k]) return; seen[k]=1; }
+    out.push(o);
   });
+  return out;
 }
 /* ⚠ within29Days requires a PARSEABLE date and drops '—', blank and unrecognised values. That is
    deliberate — '—' sorts GREATER than any date string, so undated rows would otherwise be
