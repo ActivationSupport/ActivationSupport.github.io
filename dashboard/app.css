@@ -1277,9 +1277,10 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .rp-pct-val.orange{color:#fb923c}
 .rp-pct-val.yellow{color:#fbbf24}
 .rp-pct-val.red{color:#f87171}
-/* Disconnected — terminal like Canceled but a different outcome, so it gets its own hue rather
-   than sharing red. Matches the bar fill in _lstLineStatsHtml. */
-.rp-pct-val.purple{color:#a78bfa}
+/* Disconnected — terminal like Canceled but a different outcome, so its own hue rather than
+   sharing red. The BAR is true maroon (#800000); this text tone is a lightened maroon because
+   #800000 on the dark theme fails contrast, and this card is dark-first like the rest. */
+.rp-pct-val.maroon{color:#cf6f7d}
 .rp-bar{height:5px;border-radius:var(--r-sm);background:var(--tint-2);overflow:hidden}
 .rp-bar-fill{height:100%;border-radius:var(--r-sm);transition:width .3s}
 .rp-tbl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}

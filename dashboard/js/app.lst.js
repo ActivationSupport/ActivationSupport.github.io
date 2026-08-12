@@ -1157,8 +1157,11 @@ function _lstLineStatsHtml(ls) {
   h += pctRow('Pending (not Active, Posted, Canceled, Disconnected, or Order Issue)', pendN, pendP, 'orange', '#fb923c');
   h += pctRow('Order Issues (BYOD, Porting Issue, Port Approved, Pending Order Port, Pending Valid Payment)', issueN, issueP, 'yellow', '#fbbf24');
   h += pctRow('Canceled', cancN, cancP, 'red', '#f87171');
-  // Terminal like Canceled, so it sits beside it — but a DIFFERENT outcome, so its own hue.
-  h += pctRow('Disconnected', discN, discP, 'purple', '#a78bfa');
+  /* Terminal like Canceled, so it sits beside it — but a DIFFERENT outcome, so its own hue.
+     ⚠ The BAR is true maroon; the TEXT is a lightened maroon. pctRow takes them separately for
+     exactly this reason: #800000 as text on the dark theme is unreadable, and every other row
+     here uses a light tone because this card was designed dark-first. */
+  h += pctRow('Disconnected', discN, discP, 'maroon', '#800000');
   h += '</div></div>';
   return h;
 }
