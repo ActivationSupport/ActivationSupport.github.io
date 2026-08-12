@@ -1197,7 +1197,12 @@ var TABS = [
   { id: 'myteam',      label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 120-day window" },
   // Everyone sees the tab; repFilter() scopes it — client-rep to their own lines, leader to
   // their team, everyone else office-wide (the server scopes masterTracker the same way).
-  { id: 'actsupport',  label: 'Activation Support',    roles: ALL_ROLES,  group: 'Orders',      sub: 'Pending & Activation sheets — Date → Rep → Product → Status' },
+  /* ⚠ The tab is named for what it SHOWS, not for the company. "Activation Support" is the
+     entity/product name — it stays in the page <title>, the login card and the activator scripts,
+     and renaming those would retitle the whole portal. Only this nav label changed (2026-08-12).
+     ⚠ `sub` no longer repeats the label; it was "Pending & Activation sheets — Date → …", which
+     read as the same words twice once the label said it. */
+  { id: 'actsupport',  label: 'Activation/Pending Sheets', roles: ALL_ROLES, group: 'Orders',    sub: 'Date → Rep → Product → Status' },
   // Activator-side counterpart to the reps' Rehash Text — customer-facing messages for the
   // call/appointment types activators work out of the Call Logs tabs.
   { id: 'acttext',     label: 'Activator Text',       roles: ['activator','master-admin'], group: 'Call Logs', sub: 'Customer texts for order issues & appointments', icon: 'smartphone' },
