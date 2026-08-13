@@ -226,7 +226,7 @@ function _forceReauth() {
   _cacheKeyDrop(_who);
   /* 🔴 AND SWEEP ANY PRE-ENCRYPTION *PLAINTEXT* NOTES RECORD, BECAUSE DROPPING THE KEY ONLY
      PROTECTS DATA THAT IS ACTUALLY CIPHERTEXT. The notes cache was plaintext until
-     2026-08-14 and rode entirely on the _clearDataCache() call this function used to make,
+     2026-08-13 and rode entirely on the _clearDataCache() call this function used to make,
      so the change above quietly left readable customer notes on the device across every
      expiry — and the expiry is the COMMON path (12h TTL ⇒ ~daily), while an explicit
      sign-out is the rare one. Measured on a real device: 257KB / 850 note groups.
@@ -873,6 +873,62 @@ function _cacheDecrypt(key, rec) {
     .catch(function () { return null; });
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+   STALE-TAB RELOAD — WHY A REP CAN RUN A WEEK-OLD BUNDLE
+   ════════════════════════════════════════════════════════════════════════════
+   🔴 MEASURED 2026-08-13 (`dumpBoundsByVersion`): SEVEN distinct `app.core` ?v were active in
+   ONE 24-hour window, spanning 08-07 → 08-14. The LARGEST cohort — 11 people — was on a
+   two-day-old bundle; three were on the newest. Two people on a three-day-old bundle produced
+   43 of the 64 "aborted at 10s" errors, against a bound retired days earlier.
+
+   THE CAUSE IS NOT HTTP CACHING. `index.html` is served `Cache-Control: max-age=600` and there
+   is no service worker — a reload always gets the current bundle within ten minutes.
+   🔑 THE CAUSE IS THAT NOTHING EVER RELOADS. Before this, the ONLY navigation in the entire
+   portal was the Sales Support office switch. `_forceReauth` and `signOut` both just hide #app
+   and show #login-screen IN THE SAME DOCUMENT, and signing back in calls showApp() — same
+   document again. So a tab opened on Monday still runs Monday's JavaScript on Friday, through
+   any number of expiries and re-logins. AUTH-01's own evidence had already shown this and it
+   was read as a curiosity: `up=63441s` is ONE page open for 17.6 hours.
+   ⚠⚠ THIS CORRUPTS EVERY MEASUREMENT TAKEN FROM THE ERROR LOG. It is why fixed bugs keep being
+   reported, and it is why a p90 that had stopped existing sent a whole session chasing it.
+
+   WHY SIGN-IN IS THE RIGHT MOMENT. The 12h SESSION_TTL guarantees every rep re-authenticates at
+   least daily, and at that instant nothing is in flight and no form holds unsaved input — unlike
+   `_forceReauth`, which fires mid-work when a request is refused and would destroy a half-typed
+   Post Sale. Reloading here caps fleet staleness at roughly one working day.
+
+   ⚠⚠ GATED ON DOCUMENT AGE, NOT ON A FLAG — AND THAT IS THE WHOLE DESIGN. The obvious guard is
+   a "have I reloaded yet" marker in sessionStorage, and it is WRONG: it survives for the life of
+   the tab, so the three-day-old tab this exists to fix would reload once and never again.
+   `performance.now()` IS document age by definition and it resets to zero on reload, so this is
+   loop-proof by construction rather than by bookkeeping.
+   ⚠ No `performance.now()` ⇒ NEVER reload. Failing safe means behaving exactly as before. */
+var _STALE_TAB_MS = 2 * 60 * 60 * 1000;   // a tab older than this gets a fresh bundle at sign-in
+/* 🔑 HELD SO THE RELOAD CAN WAIT FOR IT. `_cacheKeyDerive` is fired concurrently with
+   validatePin and deliberately not awaited (see doLogin). Reloading the instant the response
+   lands would throw that derivation away mid-flight — and the reloaded document CANNOT redo it,
+   because the password only exists during the sign-in that just ended. That tab would then have
+   no key: no instant paint, and `_cacheMainData` silently refusing to write for the rest of its
+   life. The wait is only ever paid on the reload path, which is already discarding the page. */
+var _KDF_INFLIGHT = null;
+
+function _tabAgeMs() {
+  try {
+    return (typeof performance !== 'undefined' && performance && typeof performance.now === 'function')
+      ? performance.now() : -1;
+  } catch (e) { return -1; }
+}
+/* Returns TRUE if a reload was started — callers must `return` immediately rather than fall
+   through to showApp(), whose work would be discarded a moment later anyway. */
+function _reloadIfStaleTab() {
+  var age = _tabAgeMs();
+  if (age < 0 || age < _STALE_TAB_MS) return false;
+  try {
+    Promise.resolve(_KDF_INFLIGHT).catch(function () {}).then(function () { location.reload(); });
+  } catch (e) { location.reload(); }
+  return true;
+}
+
 // ── AUTH ─────────────────────────────────────────────────────────────────
 var LOGIN_EMAIL = '';
 
@@ -1088,7 +1144,7 @@ function doLogin() {
      can be derived from it at all — and why it is never transmitted or stored server-side.
      ⚠ Deliberately not awaited and its failure is swallowed: a crypto problem must degrade to
      "no instant paint", never to "cannot sign in". */
-  try { _cacheKeyDerive(pin, String(LOGIN_EMAIL || '').toLowerCase()); } catch (e) {}
+  try { _KDF_INFLIGHT = _cacheKeyDerive(pin, String(LOGIN_EMAIL || '').toLowerCase()); } catch (e) {}
   apiPost({ action: 'validatePin', email: LOGIN_EMAIL, pin: pin, clientKey: _clientKey('vp') }).then(function(res) {
     if (res.ok && res.valid) {
       SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
@@ -1096,7 +1152,11 @@ function doLogin() {
       SESSION.isMaster = res.rank === 'master-admin';
       if (res.token) { SESSION.token = res.token; SESSION.tokenExpires = res.tokenExpires; }   // Phase 1 Stage B: keep the badge
       _reauthing = false;   // fresh session — re-arm the expiry handler
+      /* ⚠⚠ THE SESSION IS STASHED BEFORE THE RELOAD, AND THE ORDER IS LOAD-BEARING. The
+         reloaded document restores SESSION from this exact key on boot; reload first and the
+         rep lands back on the login screen having just signed in successfully. */
       sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
+      if (_reloadIfStaleTab()) return;   // week-old tab → take the current bundle instead
       showApp();
     } else if (res.mustUpgrade) {
       // Fallback: a correct old PIN reached the sign-in path (e.g. checkEmail's
@@ -1127,7 +1187,12 @@ function _adoptSession(res) {
   SESSION.isMaster = res.rank === 'master-admin';
   if (res.token) { SESSION.token = res.token; SESSION.tokenExpires = res.tokenExpires; }
   _reauthing = false;
+  // Same ordering rule as doLogin: stash the session, THEN consider reloading.
   sessionStorage.setItem('as_session_' + CFG.officeId, JSON.stringify(SESSION));
+  /* ⚠ This path (set-password / upgrade / reset) never derives a cache key — `_cacheKeyDerive`
+     has exactly one call site, in doLogin — so there is nothing in flight to wait for and the
+     reloaded tab is no worse off than it already was. */
+  if (_reloadIfStaleTab()) return;
   showApp();
 }
 

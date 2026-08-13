@@ -172,11 +172,11 @@ function _readCachedMainData() {
    prefix would have silently created a data-retention hole on shared machines. */
 function _notesCacheKey() { return 'as_data_notes_' + CFG.officeId + '_' + _mainDataUser(); }
 /* ⚠⚠ ENCRYPTED BEFORE IT TOUCHES DISK, EXACTLY LIKE THE BLOB — AND FOR THE SAME REASON.
-   🔴 THIS CACHE WAS PLAINTEXT UNTIL 2026-08-14, AND ITS ONLY PROTECTION WAS A CALL THAT
+   🔴 THIS CACHE WAS PLAINTEXT UNTIL 2026-08-13, AND ITS ONLY PROTECTION WAS A CALL THAT
    `d49f189` DELETED. That commit encrypted the blob and changed _forceReauth to drop the KEY
    instead of the data — correct for ciphertext, but the notes cache took the `as_data_` prefix
    (see above) specifically so _clearDataCache() would sweep it, and _forceReauth was the only
-   thing firing that sweep on the common path. Measured on a real device 2026-08-14:
+   thing firing that sweep on the common path. Measured on a real device 2026-08-13:
    **257KB / 850 note groups of readable customer notes**, surviving every badge expiry.
    Notes NAME CUSTOMERS — _readCachedNotes says so two guards down — so this is the same class
    of data the blob encryption exists for, and it now gets the same treatment.
@@ -389,7 +389,7 @@ function loadData(forceFresh) {
      after. They are still in flight early; they just no longer queue in front of the one
      request the visible tab depends on. */
   /* 🔴 MIGRATION, AND IT RUNS FIRST. Every device in the fleet is carrying a PLAINTEXT notes
-     record written before 2026-08-14 (257KB / 850 note groups on the machine this was found
+     record written before 2026-08-13 (257KB / 850 note groups on the machine this was found
      on). Sweeping on every boot — not once behind a flag — is deliberate: a flag is another
      thing that can be wrong, and this loop is a handful of localStorage keys. */
   _purgeLegacyPlainNotes();
