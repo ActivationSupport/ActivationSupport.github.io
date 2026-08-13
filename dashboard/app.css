@@ -1296,6 +1296,13 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .rp-save-btn{padding:9px 18px;border-radius:var(--r-md);border:none;background:var(--blue2);color:var(--on-accent);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .rp-save-btn:disabled{opacity:.4;cursor:not-allowed}
 .rp-no-data{font-size:13px;color:var(--text2);font-style:italic}
+/* A clarifier under a card title, for when the COLUMN HEADINGS are ambiguous and the data is
+   not. Used by the rep-profile Churn card, whose buckets are tenure rather than recency.
+   ⚠ Deliberately quiet — muted, small, no border, no icon. It explains a heading; it is not a
+   warning and must not compete with the numbers underneath it. Uses --text2 like .rp-no-data
+   so both theme polarities are inherited rather than re-specified. */
+.rp-hint{font-size:12px;color:var(--text2);line-height:1.5;margin:-2px 0 10px;max-width:68ch}
+.rp-hint strong{color:var(--text);font-weight:600}
 /* Sales Breakdown modal, opened by clicking a rep's ROW on the LST board */
 .lst-tbl tbody tr.lst-row-click{cursor:pointer}
 .lst-tbl tbody tr.lst-row-click:hover td{background:rgba(var(--blue2-rgb),.09)}

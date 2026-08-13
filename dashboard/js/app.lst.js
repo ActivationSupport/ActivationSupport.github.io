@@ -1234,7 +1234,13 @@ function _lstRepChurnHtml(tableauName) {
     if (!d) return '<td class="ar-cell"><span class="ar-badge ar-none">—</span></td>';
     return '<td class="ar-cell"><span class="ar-badge '+_churnCls(d.color)+'">('+fmtN(d.disconnects)+'/'+fmtN(d.activated)+')<br>'+fmtR(d.churnRate)+'</span></td>';
   }
+  /* ⚠⚠ THESE COLUMNS ARE TENURE, NOT RECENCY, AND READING THEM AS RECENCY BURNED MOST OF A
+     SESSION. "30 Day" means disconnected within 30 days of ACTIVATION — it is not "churn in
+     the last 30 days". That misreading made Churn look like it contradicted the Order Log
+     directly above it, which windows on ORDER DATE, and the two were reconciled only after a
+     long detour. One line of prose is cheaper than repeating that. */
   return '<div class="rp-card"><div class="rp-card-title">Churn</div>' +
+    '<div class="rp-hint">Buckets are <strong>tenure</strong> — disconnected within that many days of <strong>activation</strong>, not in the last that many days.</div>' +
     '<div class="tbl-wrap"><table class="call-table"><thead><tr>' +
     CHURN_BUCKETS.map(function(b){ return '<th style="min-width:110px">'+esc(b)+'</th>'; }).join('') +
     '</tr></thead><tbody><tr>' +
@@ -1326,8 +1332,30 @@ function _rpOrdFilter(orders){
     return true;
   }).slice().sort(_byOrderDateDesc);
 }
+/* Is the viewer actually filtering anything? Read from _RP_ORD rather than passed in, because
+   BOTH render paths need the answer and only one of them had it: _lstRepOrdersHtml computed an
+   `anyFilter` local TWO LINES AFTER it built the body, and _rpOrdSearch (the per-keystroke
+   repaint) never computed one at all. One helper, so the table and the Clear button can never
+   disagree about whether a filter is set. */
+function _rpOrdAnyFilter(){ return !!(_RP_ORD.dsi||_RP_ORD.status||_RP_ORD.from||_RP_ORD.to); }
 function _rpOrdBody(rows){
-  return rows.length ? rows.map(function(o){
+  /* 🔴 THIS SAID "No orders match this search." UNCONDITIONALLY — including when there was no
+     search. A rep with a genuinely quiet 30 days was told their filter had excluded everything,
+     while the Clear button two lines below was correctly NOT rendered because nothing was set:
+     the table blamed a filter the UI already knew did not exist.
+     🔑 An empty window and an over-narrow filter need DIFFERENT sentences because they need
+     different actions — one is "nothing happened", the other is "you hid it". Same
+     emptier-≠-broken distinction the empty-bucket tiles settled.
+     ⚠ "these filters", not "this search": status and the two date inputs are filters too, so
+     the old wording was wrong even when a filter WAS set, as long as it was not the DSI box.
+     ⚠ Window wording is kept in step with _rpOrdCountText's "last 30 days" on purpose — two
+     different spans on one card would read as a discrepancy in the DATA. */
+  if (!rows.length) {
+    var msg = _rpOrdAnyFilter() ? 'No orders match these filters.'
+                                : 'No orders in the last 30 days.';
+    return '<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--text2)">'+esc(msg)+'</td></tr>';
+  }
+  return rows.map(function(o){
     var nc=((DATA.notes||{})[o.dsi]||[]).length, sid=String(o.dsi||'').replace(/\W/g,'_');
     return '<tr>'+
       '<td>'+esc(o.dsi)+'</td>'+
@@ -1336,7 +1364,7 @@ function _rpOrdBody(rows){
       '<td>'+statusBreakdown(o.statusCounts,false)+'</td>'+
       '<td>'+notesBtnHtml(o.dsi, o.spe, o.rep, nc)+'</td>'+
     '</tr>';
-  }).join('') : '<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--text2)">No orders match this search.</td></tr>';
+  }).join('');
 }
 // Live DSI search: update only the table body + count so the search box keeps focus
 // (a full rerender via outerHTML would drop the caret on every keystroke).
@@ -1368,7 +1396,7 @@ function _lstRepOrdersHtml(tableauName) {
   var rows=_rpOrdFilter(orders);
   var body=_rpOrdBody(rows);
 
-  var anyFilter=_RP_ORD.dsi||_RP_ORD.status||_RP_ORD.from||_RP_ORD.to;
+  var anyFilter=_rpOrdAnyFilter();      // shared with _rpOrdBody — see the note there
   var cS='width:auto;min-width:140px;max-width:220px';
   var filters='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
     '<input class="ps-input" style="flex:1;min-width:180px;max-width:280px" type="text" value="'+esc(_RP_ORD.dsi)+'" oninput="_rpOrdSearch(this.value)" placeholder="🔍 Search DSI…">'+
