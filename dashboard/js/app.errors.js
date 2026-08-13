@@ -76,9 +76,23 @@ var AS_ERR = (function (w, d) {
     // they are themselves auth failures; see the backend note about
     // _PREAUTH_ACTIONS. If these could not report, we would be blind to
     // exactly the class of bug that is currently unexplained.
-    'AUTH-01': { label: 'Your sign-in expired',        hint: 'Sign in again — nothing you did was lost.' },
+    /* ⚠⚠ AUTH-01 AND AUTH-04 ARE THE SAME EVENT TO THE PERSON AND DIFFERENT EVENTS TO US.
+       They used to share one code, and the shared code was ~10% of the whole error log and
+       100% noise. Measured 2026-08-13 by dumpAuthSignouts: 74 AUTH-01 rows, and 68 of them
+       carried `badgeAge:'none'` — the client held NO BADGE AT ALL, so nothing could have
+       succeeded. That is the session lifecycle working, logged as if it were a fault.
+       🔑 THE SPLIT IS ON WHETHER THE BADGE STILL HAD TIME LEFT (see _asReportJsonError):
+         · AUTH-04 — no badge, or one that had already expired. Routine. Expect these.
+         · AUTH-01 — a badge with time REMAINING was refused, or Google served its own
+           sign-in interstitial. Neither should ever happen. **Expect ZERO.**
+       ⚠ THE USER-FACING COPY FOR AUTH-04 IS DELIBERATELY THE OLD AUTH-01 WORDING, VERBATIM.
+       Every occurrence happening today is the routine case, so nobody sees any change — the
+       split is diagnostic, not cosmetic, and a rep being signed out should not read a scarier
+       message because we got better at classifying it. */
+    'AUTH-01': { label: 'Sign-in stopped working',     hint: 'Sign in again — nothing you did was lost. If this repeats, tell an admin.' },
     'AUTH-02': { label: 'Sign-in was refused',         hint: 'Tell an admin this code — your access may need updating.' },
     'AUTH-03': { label: 'Wrong office for this badge', hint: 'Switch back to your own office, or sign in again.' },
+    'AUTH-04': { label: 'Your sign-in expired',        hint: 'Sign in again — nothing you did was lost.' },
 
     // NET — we never got an answer.
     'NET-01': { label: 'No answer from the server', hint: 'Check your connection, then press Try again.' },

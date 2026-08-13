@@ -383,13 +383,43 @@ function _asExpectedRefusal(j, meta) {
   } catch (_) { return false; }
 }
 
+/* 🔑 ROUTINE EXPIRY (AUTH-04) vs A LIVE BADGE BEING REFUSED (AUTH-01).
+   `auth_required` used to always mean AUTH-01, which made one code cover the session
+   lifecycle AND a genuine fault. Measured 2026-08-13 with dumpAuthSignouts: of 74 AUTH-01
+   rows, 68 carried `badgeAge:'none'` — no badge on the client at all — and the rest were
+   badges that had already expired. Zero were a live badge refused. So the code that was
+   supposed to mean "something is wrong with auth" was, in practice, 100% normal behaviour,
+   and it was ~10% of the error log people scan to find real problems.
+
+   THE TEST IS SIMPLY WHETHER THE BADGE STILL HAD TIME LEFT AT THE MOMENT OF REFUSAL.
+     · no tokenExpires, unparseable, or already past  ⇒ AUTH-04. Routine. Expected.
+     · time remaining                                 ⇒ AUTH-01. The server refused a session
+       the client had every reason to believe in. **This should never happen.**
+   ⚠⚠ FAILS TOWARD 'ROUTINE' ON PURPOSE, AND THAT IS THE CONSERVATIVE DIRECTION HERE. If we
+   cannot tell, calling it routine keeps AUTH-01 meaning "definitely anomalous" — a code that
+   is sometimes noise is a code people stop reading, which is the exact failure we are undoing.
+   The cost of a miscall is one under-reported oddity; the cost of the opposite is losing the
+   signal again.
+   ⚠ Date.parse, NOT Number — `tokenExpires` is an ISO STRING, and Number() on it is NaN. That
+   mistake silently wrote "NaNmin-left" into every error row for months (see app.errors.js
+   badgeAge). Making the same mistake here would send every refusal to AUTH-04 forever, and it
+   would look like it was working. */
+function _authCodeForRefusal() {
+  try {
+    var exp = (typeof SESSION !== 'undefined' && SESSION) ? SESSION.tokenExpires : null;
+    if (!exp) return 'AUTH-04';                       // no badge at all — cannot be a live refusal
+    var left = Date.parse(exp) - Date.now();
+    return (isNaN(left) || left <= 0) ? 'AUTH-04' : 'AUTH-01';
+  } catch (_) { return 'AUTH-04'; }
+}
+
 /* A JSON `{error:…}` is the server saying no, on purpose. We still want it CODED and
    COUNTED — "9 reps hit forbidden_office this week" is the kind of fact that is invisible
    today — but the value is returned to the caller unchanged. */
 function _asReportJsonError(e, meta) {
   try {
     var s = String(e || ''), code;
-    if (s === 'auth_required')       code = 'AUTH-01';
+    if (s === 'auth_required')       code = _authCodeForRefusal();
     else if (s === 'unauthorized')   code = 'AUTH-02';
     else if (s === 'forbidden_office') code = 'AUTH-03';
     else if (/busy|retry/i.test(s))  code = 'NET-03';
