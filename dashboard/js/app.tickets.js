@@ -113,6 +113,62 @@ function _ticketPost(body) {
     { action: String((body && body.action) || 'ticketWrite'), write: true });
 }
 
+/* ⚠⚠ ONE UNLUCKY READ MUST NOT BLANK A SCREEN THE OTHER READS ALREADY FILLED.
+   Every ticket screen fetches 2–3 things with Promise.all under a .catch that replaces the
+   WHOLE card. Promise.all rejects on the FIRST rejection, so `getAgents` — which only fills
+   an assignee dropdown — failing threw away a ticket list that had arrived perfectly, and
+   the agent saw "Could not load tickets" sitting on top of data we were holding in memory.
+
+   🔴 THIS IS THE REAL AMPLIFIER, AND THE HANDOFF'S DIAGNOSIS OF IT WAS WRONG.
+   The recorded theory was that the boot fan-out QUEUES, because "Apps Script serialises
+   same-user requests", and that the fix was to stagger it. Measured 2026-08-13 against BOTH
+   backends, 6 requests fired in the same millisecond, each timed on its own:
+     · ticketing backend: wall 2300ms and 2497ms against a 1620/1644ms solo — 1.42× and 1.52×.
+       Serialised would be 6.00×; a per-request staircase would spread 5.00 baselines, and
+       the observed spread was 0.30 and 0.53.
+     · portal backend: 6 concurrent finished in 5.3s against a 4.7s solo median.
+   There is no queue, and no mechanism for one — none of these reads takes a LockService lock
+   and 6 executions is nowhere near the 30-simultaneous cap. **A stagger would fix nothing.**
+   What IS true is that the backend's latency is EPISODIC: solo reads measured 4.5s, 7s, 15s
+   and 34.8s within minutes of each other. Each read is an independent draw from that, so on
+   any given load the chance that at least one of N is slow is high — and Promise.all turned
+   "one unlucky read" into "this screen is broken". Fewer draws and softer failure is the fix;
+   see _ticketSoft's callers. (Probes: _private/preview/perf_ticketing_shape.js.)
+
+   🔑 RESOLVES, NEVER REJECTS. Returns null for anything unusable so Promise.all always
+   fulfils, and each caller decides what a missing slot means for IT — a screen with no
+   tickets still has to say so, a screen with tickets but no agent list does not.
+   ⚠⚠ A JSON {error:…} COUNTS AS UNUSABLE TOO, and folding it in here is a real fix, not
+   tidying. _asParse deliberately RETURNS a server error rather than throwing (every caller
+   checks res.error), so an expired badge arrived as a RESOLVED {error:'auth_required'} and
+   the old `if (r[1] && r[1].agents)` guards then rendered a completely EMPTY screen with no
+   error anywhere. Empty and broken looked identical. Now the caller can tell them apart.
+   ⚠ NOT Promise.allSettled. It needs iOS 13+, and this codebase still avoids
+   crypto.randomUUID (iOS 15.4+) for the phones these reps actually carry — see _clientKey.
+   A per-promise catch needs no platform API at all and behaves identically here. */
+function _ticketSoft(params) {
+  return _ticketGet(params).then(
+    function (res) { return (res && !res.error) ? res : null; },
+    function ()    { return null; }        // transport failure — already reported by _asFetch
+  );
+}
+
+/* The NON-BLOCKING version of "something did not load", for when the screen has content but
+   part of it is missing. A filter dropdown that is silently empty reads as "there are no
+   agents", which is a different and more wrong statement than "we could not fetch them" —
+   the same emptier-≠-broken distinction the empty-bucket work settled for the KPI tiles.
+   ⚠ Sales Support is forced DARK and has its own skin; lightmode_harness asserts that no
+   light rule targets it, so there is deliberately no light variant of .ss-degraded.
+   ⚠ Text only — no sprite <use>. A missing sprite id renders BLANK with no error, and this
+   element exists precisely to be noticed. The ⚠ glyph is a CSS ::before, like .ss-sb-role's. */
+function _ssDegraded(missing) {
+  if (!missing || !missing.length) return '';
+  var s = missing.length === 1 ? missing[0]
+        : missing.slice(0, -1).join(', ') + ' and ' + missing[missing.length - 1];
+  return '<div class="ss-degraded" role="status">Couldn’t load ' + esc(s) +
+         '. Everything else on this screen is current.</div>';
+}
+
 // Entry point from showApp() — renders whatever tab we landed on. (Data fetching for
 // the queue/detail/follow-ups arrives with those slices; the scaffold just paints.)
 // We also set the sidebar username here because salessupport skips loadData/_applyMainData
@@ -307,10 +363,14 @@ function _newTicketFormHtml() {
 // live from _TICKETS.lookups, so there's nothing to "fill" — just the Assignee <select>.
 function _ticketLoadFormData() {
   if (!TICKET_SCRIPT_URL) { _ntStatus('Preview mode — backend not connected yet (dropdowns fill once it is).', false); return; }
+  /* ⚠ THE FORM IS THE ONE SCREEN THAT WAS ALREADY SOFT — and it still lost data. Its .catch
+     said "leave the form usable with empty lists", which was true of the FORM but not of the
+     DATA: Promise.all rejects on the first failure, so a failed getTickets discarded the
+     lookups and agents that had already arrived. Soft reads keep whatever landed. */
   Promise.all([
-    _ticketGet({ action:'getLookups' }),
-    _ticketGet({ action:'getAgents' }),
-    _ticketGet({ action:'getTickets' })   // rep→last-phone map + the requester panel's history
+    _ticketSoft({ action:'getLookups' }),
+    _ticketSoft({ action:'getAgents' }),
+    _ticketSoft({ action:'getTickets' })   // rep→last-phone map + the requester panel's history
   ]).then(function(r) {
     if (r[0] && r[0].lookups) _TICKETS.lookups = r[0].lookups;
     if (r[1] && r[1].agents)  _TICKETS.agents  = r[1].agents;
@@ -318,7 +378,19 @@ function _ticketLoadFormData() {
     _TICKETS._loaded = true;
     _ticketFillAgents();
     _ssSyncRequesterPanel('nt');   // history only exists once the tickets land
-  }).catch(function(){ /* leave the form usable with empty lists */ });
+    /* ⚠ Say what is missing, but never block the ticket. Intake is the whole job of this
+       screen and every field is free-type, so a missing picker list is an inconvenience,
+       not a stop — hence _ntStatus rather than the .ss-degraded banner the read-only
+       screens use. */
+    var miss = [];
+    if (!r[0]) miss.push('the saved Rep/Office/Category lists');
+    if (!r[1]) miss.push('the agent list');
+    if (!r[2]) miss.push('past ticket history');
+    if (miss.length) {
+      var s = miss.length === 1 ? miss[0] : miss.slice(0, -1).join(', ') + ' and ' + miss[miss.length - 1];
+      _ntStatus('Couldn’t load ' + s + ' — you can still type any value and create the ticket.', false);
+    }
+  }).catch(function(){ /* soft reads never reject; this only catches a render bug above */ });
 }
 // Build { rep(lc) -> {phone, office} } from each rep's most recent ticket that HAS each value,
 // then let the manually-maintained Rep Contacts directory (_TICKETS.contacts) override — it's
@@ -745,17 +817,28 @@ function renderTicketQueue() {
   if (!_TICKETS.sort || !_TICKETS.sort.key) _TICKETS.sort = { key:'created', dir:'desc' };   // newest first
   c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2>' + _ssLoading('Loading tickets…') + '</div>';
   Promise.all([
-    _ticketGet({ action:'getTickets' }),
-    _ticketGet({ action:'getLookups' }),
-    _ticketGet({ action:'getAgents' })
+    _ticketSoft({ action:'getTickets' }),
+    _ticketSoft({ action:'getLookups' }),
+    _ticketSoft({ action:'getAgents' })
   ]).then(function(r) {
-    _TICKETS.list = (r[0] && r[0].tickets) || [];
+    /* 🔑 getTickets IS THE SCREEN; the other two only decorate it. Losing the tickets means
+       there is genuinely nothing to show, so that alone keeps the error card — rendering an
+       empty table here would claim "no tickets exist", which is a lie we cannot detect later.
+       ⚠ Do NOT fall back to a stale _TICKETS.list: it is shared with the other tabs, so the
+       queue would silently show another screen's snapshot as if it were fresh. */
+    if (!r[0] || !r[0].tickets) {
+      c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2>' +
+        '<p class="ss-sub" style="color:var(--red)">Could not load tickets. This is usually a slow response from the server — switch tabs and back to try again.</p></div>';
+      return;
+    }
+    _TICKETS.list = r[0].tickets;
     if (r[1] && r[1].lookups) _TICKETS.lookups = r[1].lookups;
     if (r[2] && r[2].agents)  _TICKETS.agents  = r[2].agents;
     _TICKETS.render = _ticketTableHtml;   // which table the in-place sync re-renders
-    c.innerHTML = _ticketQueueView();
-  }).catch(function(e) {
-    c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Ticket Queue</h2><p class="ss-sub" style="color:var(--red)">Could not load tickets: ' + esc(e.message) + '</p></div>';
+    var miss = [];
+    if (!r[1]) miss.push('the filter lists');
+    if (!r[2]) miss.push('the agent list');
+    c.innerHTML = _ssDegraded(miss) + _ticketQueueView();
   });
 }
 
@@ -1001,13 +1084,20 @@ function renderTicketFollowups() {
   var hdr = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2>' +
     '<p class="ss-sub">Tickets marked “Follow-up (Need Response),” oldest first. These feed the daily 6:00 AM reminder.</p></div>';
   c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2>' + _ssLoading('Loading…') + '</div>';
-  Promise.all([ _ticketGet({ action:'getTickets' }), _ticketGet({ action:'getAgents' }) ]).then(function(r) {
-    _TICKETS.list = (r[0] && r[0].tickets) || [];
+  Promise.all([ _ticketSoft({ action:'getTickets' }), _ticketSoft({ action:'getAgents' }) ]).then(function(r) {
+    /* Same rule as the queue: the tickets ARE the screen, the agent list only labels them.
+       ⚠ These rows feed the daily 6:00 AM reminder, so an empty list read as "nothing needs
+       following up" is exactly the wrong impression to leave. */
+    if (!r[0] || !r[0].tickets) {
+      c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2>' +
+        '<p class="ss-sub" style="color:var(--red)">Could not load follow-ups. This is usually a slow response from the server — switch tabs and back to try again.</p></div>';
+      return;
+    }
+    _TICKETS.list = r[0].tickets;
     if (r[1] && r[1].agents) _TICKETS.agents = r[1].agents;
     _TICKETS.render = _followupTableHtml;
-    c.innerHTML = hdr + '<div id="ticket-tbody-wrap">' + _followupTableHtml() + '</div>';
-  }).catch(function(e) {
-    c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Follow-Ups</h2><p class="ss-sub" style="color:var(--red)">Could not load: ' + esc(e.message) + '</p></div>';
+    c.innerHTML = hdr + _ssDegraded(r[1] ? [] : ['the agent list']) +
+      '<div id="ticket-tbody-wrap">' + _followupTableHtml() + '</div>';
   });
 }
 function _ageDays(iso) {
@@ -1050,18 +1140,33 @@ function renderRepContacts() {
   if (!TICKET_SCRIPT_URL) { c.innerHTML = _ticketScaffold('Rep Contacts', 'Backend not connected in this preview.', ''); return; }
   c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Rep Contacts</h2>' + _ssLoading('Loading…') + '</div>';
   Promise.all([
-    _ticketGet({ action:'getContactLinks' }),
-    _ticketGet({ action:'getLookups' }),
-    _ticketGet({ action:'getTickets' })   // so reps with no saved link yet still show their ticket-derived phone/office
+    _ticketSoft({ action:'getContactLinks' }),
+    _ticketSoft({ action:'getLookups' }),
+    _ticketSoft({ action:'getTickets' })   // so reps with no saved link yet still show their ticket-derived phone/office
   ]).then(function(r) {
-    _TICKETS.contacts = (r[0] && r[0].links) || [];
-    _TICKETS._contactsLoaded = true;
+    /* 🔑 THIS SCREEN HAS NO SINGLE PRIMARY READ — _ssContactRows MERGES all three (saved
+       links, then rep names from lookups, then phone/office derived from ticket history), so
+       any ONE of them still produces a usable directory. Only a clean sweep is an error. */
+    if (!r[0] && !r[1] && !r[2]) {
+      c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Rep Contacts</h2>' +
+        '<p class="ss-sub" style="color:var(--red)">Could not load rep contacts. This is usually a slow response from the server — switch tabs and back to try again.</p></div>';
+      return;
+    }
+    /* ⚠⚠ BOTH LINES BELOW USED TO RUN UNCONDITIONALLY, AND EITHER WOULD NOW DO REAL DAMAGE.
+       `_TICKETS.contacts = (r[0] && r[0].links) || []` would WIPE a good directory to empty
+       on a failed read, and `_contactsLoaded = true` is the flag _ssLoadContacts() checks to
+       decide it never needs to fetch again — setting it after a FAILURE would disable the
+       preload for the rest of the session. Both were safe only because the old .catch meant
+       neither ran unless every read succeeded; soft reads take that guarantee away. */
+    if (r[0] && r[0].links) { _TICKETS.contacts = r[0].links; _TICKETS._contactsLoaded = true; }
     if (r[1] && r[1].lookups) _TICKETS.lookups = r[1].lookups;
     if (r[2] && r[2].tickets) _TICKETS.list = r[2].tickets;
     _ticketBuildRepProfiles();
-    c.innerHTML = _repContactsView();
-  }).catch(function(e) {
-    c.innerHTML = '<div class="card ss-card"><div class="ss-rule"></div><h2 class="ss-h2">Rep Contacts</h2><p class="ss-sub" style="color:var(--red)">Could not load: ' + esc(e.message) + '</p></div>';
+    var miss = [];
+    if (!r[0]) miss.push('saved contact links');
+    if (!r[1]) miss.push('the rep name list');
+    if (!r[2]) miss.push('phone/office from ticket history');
+    c.innerHTML = _ssDegraded(miss) + _repContactsView();
   });
 }
 // Merge saved contact links with any rep names that only exist from ticket history/lookups —

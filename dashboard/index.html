@@ -67,7 +67,7 @@
     if (new URLSearchParams(location.search).get('office') !== 'salessupport') return;
     var l = document.createElement('link');
     l.rel = 'stylesheet';
-    l.href = 'app.ss.css?v=20260805b';
+    l.href = 'app.ss.css?v=20260813a';
     document.head.appendChild(l);
   })();
 </script>
@@ -399,7 +399,7 @@
     var office = new URLSearchParams(location.search).get('office');
     if (office !== 'salessupport') return;
     var s = document.createElement('script');
-    s.src = 'js/app.tickets.js?v=20260807c';
+    s.src = 'js/app.tickets.js?v=20260813a';
     s.async = false;                       // keep it ordered against other injected scripts
     document.head.appendChild(s);
   })();
