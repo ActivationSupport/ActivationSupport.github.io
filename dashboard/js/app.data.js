@@ -923,9 +923,36 @@ function issueFilter(orders) {
     return Object.keys(o.statusCounts||{}).some(isIssueStatus);
   });
 }
+/* 🔴 THIS MIXED A LOCAL CLOCK WITH A UTC FORMATTER AND SILENTLY DROPPED A DAY EVERY EVENING.
+   It used to be `new Date(); d.setDate(d.getDate() - 29); return d.toISOString().slice(0,10)`.
+   `new Date()` and `setDate` are LOCAL; `toISOString()` is UTC. Any time the local clock is
+   past UTC midnight — i.e. from ~17:00 PT onward, 7 hours of every day — the formatter rolled
+   the calendar date forward and the cutoff came out ONE DAY LATE, so the oldest day in the
+   window was excluded. Measured at 17:15 PT: returned 2026-07-15 where 2026-07-14 is correct.
+   ⚠⚠ AT 9AM IT RETURNED THE RIGHT ANSWER, WHICH IS THE ONLY REASON THIS SURVIVED. Nobody
+   tests at 5pm. `repprofile_orders_harness` had been failing 35/38 for exactly this, and the
+   harness was RIGHT — a red test after 5pm and green before it is the signature of this bug,
+   not of a flaky guard.
+   🔑 IT REACHED FIVE SURFACES through within29Days: rep-profile Order Log (app.lst.js),
+   Delivered Not Active (two call sites here) and No Answer + Escalations (app.calllogs.js).
+
+   🔑 THE FIX IS TO NEVER CONVERT AT ALL. The value is compared against _isoDay(o.orderDate),
+   which is a plain CALENDAR date lifted out of a sheet string — so the cutoff must be the
+   local calendar date too, and a UTC round-trip can only corrupt it. Built here from local
+   getters end to end: no toISOString, nothing to shift.
+   ⚠ This is the rule _isoDay states in its own comment three lines below ("No `new Date()`
+   parsing anywhere — that would shift the day across timezones"). The hazard was known and
+   guarded there, and left standing here.
+   ⚠ `_asCutoff30` (app.calllogs.js) does the same job and is CORRECT today only because it
+   calls setHours(0,0,0,0) first AND every office is behind UTC, so local midnight maps to the
+   same UTC date. Correct-by-accident-of-geography; this one is correct by construction.
+   Pinned time-independently by cutoff29_tz_harness.js — the old guard could only catch this
+   after 5pm local, which is a guard that is green 17 hours a day. */
 function _cutoff29() {
-  var d = new Date(); d.setDate(d.getDate() - 29);
-  return d.toISOString().slice(0, 10);
+  var d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - 29);
+  return d.getFullYear() + '-' +
+         ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+         ('0' + d.getDate()).slice(-2);
 }
 // 'YYYY-MM-DD' for anything we can date with certainty, '' otherwise. No `new Date()`
 // parsing anywhere — that would shift the day across timezones. readAOR returns raw
