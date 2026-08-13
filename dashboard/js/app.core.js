@@ -224,6 +224,22 @@ function _forceReauth() {
      security posture: "I am done here, possibly on a shared machine" is a different statement
      from "your 12 hours elapsed", and only the first one means the device may change hands. */
   _cacheKeyDrop(_who);
+  /* 🔴 AND SWEEP ANY PRE-ENCRYPTION *PLAINTEXT* NOTES RECORD, BECAUSE DROPPING THE KEY ONLY
+     PROTECTS DATA THAT IS ACTUALLY CIPHERTEXT. The notes cache was plaintext until
+     2026-08-14 and rode entirely on the _clearDataCache() call this function used to make,
+     so the change above quietly left readable customer notes on the device across every
+     expiry — and the expiry is the COMMON path (12h TTL ⇒ ~daily), while an explicit
+     sign-out is the rare one. Measured on a real device: 257KB / 850 note groups.
+     ⚠⚠ MUST RUN BEFORE `SESSION = {}` BELOW. _notesCacheKey() reads SESSION.email through
+     _mainDataUser(); after the reset it would compute a key for the empty user and delete
+     nothing — a silent no-op indistinguishable from a working fix. (_purgeLegacyPlainNotes
+     scans by prefix so it is not strictly bound to that, but the ordering is the rule here
+     and the next edit to either function should not have to rediscover it.)
+     ⚠ ENCRYPTED notes records are KEPT ON PURPOSE, exactly like the blob: the key is gone,
+     so what remains is unreadable until this same person types their password again. That is
+     the whole point of the expiry/sign-out distinction above — do not "tidy" this into a
+     blanket delete, which would re-break the morning load it was written to fix. */
+  if (typeof _purgeLegacyPlainNotes === 'function') _purgeLegacyPlainNotes();
   SESSION = {};
   var app = document.getElementById('app'); if (app) app.style.display = 'none';
   var ls = document.getElementById('login-screen'); if (ls) ls.style.display = 'flex';

@@ -171,33 +171,89 @@ function _readCachedMainData() {
    exactly like the blob — leave the device at sign-out for free. A prettier `as_notes_`
    prefix would have silently created a data-retention hole on shared machines. */
 function _notesCacheKey() { return 'as_data_notes_' + CFG.officeId + '_' + _mainDataUser(); }
+/* ⚠⚠ ENCRYPTED BEFORE IT TOUCHES DISK, EXACTLY LIKE THE BLOB — AND FOR THE SAME REASON.
+   🔴 THIS CACHE WAS PLAINTEXT UNTIL 2026-08-14, AND ITS ONLY PROTECTION WAS A CALL THAT
+   `d49f189` DELETED. That commit encrypted the blob and changed _forceReauth to drop the KEY
+   instead of the data — correct for ciphertext, but the notes cache took the `as_data_` prefix
+   (see above) specifically so _clearDataCache() would sweep it, and _forceReauth was the only
+   thing firing that sweep on the common path. Measured on a real device 2026-08-14:
+   **257KB / 850 note groups of readable customer notes**, surviving every badge expiry.
+   Notes NAME CUSTOMERS — _readCachedNotes says so two guards down — so this is the same class
+   of data the blob encryption exists for, and it now gets the same treatment.
+   ⚠⚠ NO KEY ⇒ NO CACHE. There is deliberately no plaintext fallback here either: degrading to
+   a late note count is acceptable, degrading to customer names at rest is not.
+   ⚠ The envelope (ts/office/user) stays OUTSIDE the ciphertext so the isolation guards can be
+   checked before spending a decrypt — none of those three fields is sensitive.
+   ⚠ RETURNS the promise for the same testability reason _cacheMainData does; every caller in
+   the app ignores it, because caching must never gate a load. */
 function _cacheNotes(notes) {
-  if (!_mainDataUser() || !notes) return;
-  var payload = function () {
-    return JSON.stringify({ ts: Date.now(), office: CFG.officeId, user: _mainDataUser(), notes: notes });
-  };
-  try {
-    localStorage.setItem(_notesCacheKey(), payload());
-  } catch (e) {
-    /* Quota. Drop OTHER offices'/users' notes and retry once. ⚠ Never prune the blob to make
-       room for notes — losing the blob's instant paint costs far more than a late note count,
-       and the blob is written first precisely so it wins the space. Failing here is harmless:
-       it is exactly the behaviour that existed before this cache. */
-    try { _pruneNotesCache(); localStorage.setItem(_notesCacheKey(), payload()); } catch (e2) {}
-  }
+  var user = _mainDataUser();
+  if (!user || !notes) return;
+  return _cacheKeyGet(user).then(function (key) {
+    if (!key) return;                                   // no key ⇒ no cache. Deliberate.
+    return _cacheEncrypt(key, notes).then(function (enc) {
+      if (!enc) return;
+      var rec = JSON.stringify({ ts: Date.now(), office: CFG.officeId, user: user, enc: enc });
+      try {
+        localStorage.setItem(_notesCacheKey(), rec);
+      } catch (e) {
+        /* Quota. Drop OTHER offices'/users' notes and retry once. ⚠ Never prune the blob to make
+           room for notes — losing the blob's instant paint costs far more than a late note count,
+           and the blob is written first precisely so it wins the space. Failing here is harmless:
+           it is exactly the behaviour that existed before this cache. */
+        try { _pruneNotesCache(); localStorage.setItem(_notesCacheKey(), rec); } catch (e2) {}
+      }
+    });
+  }).catch(function () {});                             // caching must never break a load
 }
+/* ⚠⚠ NOW ASYNCHRONOUS — it has to decrypt. Every cheap guard is still evaluated BEFORE the
+   decrypt, so a record for the wrong office or the wrong user costs nothing. */
 function _readCachedNotes() {
+  var me = _mainDataUser();
+  if (!me) return Promise.resolve(null);                  // not signed in — nothing may be painted
+  var raw, o = null;
+  try { raw = localStorage.getItem(_notesCacheKey()); } catch (e) { raw = null; }
+  if (!raw) return Promise.resolve(null);
+  try { o = JSON.parse(raw); } catch (e) { o = null; }
+  if (!o) return Promise.resolve(null);
+  // SAME office + user isolation as the blob, and FAILING CLOSED for the same reason:
+  // these are shared devices, and notes name customers.
+  if (o.office !== CFG.officeId || String(o.user || '') !== me) return Promise.resolve(null);
+  /* 🔴 A LEGACY PLAINTEXT RECORD IS REFUSED **AND DELETED**. Refusing alone would leave the
+     readable copy on the device forever, which IS the leak — every rep is carrying one of
+     these right now. The delete is the migration; there is no other trigger for it on this
+     key. (_purgeLegacyPlainNotes below catches the other-office/other-user copies this
+     per-key path never looks at.) */
+  if (o.notes || !o.enc) {
+    try { localStorage.removeItem(_notesCacheKey()); } catch (e) {}
+    return Promise.resolve(null);
+  }
+  return _cacheKeyGet(me).then(function (key) {
+    if (!key) return null;                                // tab has no key — fall through to the network
+    return _cacheDecrypt(key, o.enc);
+  }).catch(function () { return null; });
+}
+/* 🔴 SWEEP EVERY PRE-ENCRYPTION NOTES RECORD OFF THE DEVICE, NOT JUST THIS USER'S.
+   Matching on the record SHAPE (a top-level `notes` field, or a missing `enc`) rather than a
+   version stamp is deliberate: the plaintext records predate any stamp, and this has to reach
+   the other-office and other-user leftovers that _readCachedNotes never opens because its
+   isolation guards reject them first. Those are exactly the copies that matter — a shared
+   device holding the PREVIOUS rep's customer notes in the clear.
+   ⚠ Returns the count so a guard can assert it actually removed something. */
+function _purgeLegacyPlainNotes() {
+  var n = 0;
   try {
-    var me = _mainDataUser();
-    if (!me) return null;                                   // not signed in — nothing may be painted
-    var raw = localStorage.getItem(_notesCacheKey());
-    if (!raw) return null;
-    var o = JSON.parse(raw);
-    // SAME office + user isolation as the blob, and FAILING CLOSED for the same reason:
-    // these are shared devices, and notes name customers.
-    if (!o || !o.notes || o.office !== CFG.officeId || String(o.user || '') !== me) return null;
-    return o.notes;
-  } catch (e) { return null; }
+    var rm = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (!k || k.indexOf('as_data_notes_') !== 0) continue;
+      var o = null;
+      try { o = JSON.parse(localStorage.getItem(k)); } catch (e) { o = null; }
+      if (!o || o.notes || !o.enc) rm.push(k);       // unparseable or plaintext-shaped
+    }
+    rm.forEach(function (k) { try { localStorage.removeItem(k); n++; } catch (e) {} });
+  } catch (e) {}
+  return n;
 }
 function _pruneNotesCache() {
   try {
@@ -212,12 +268,38 @@ function _pruneNotesCache() {
 /* Paint the last known notes so the first frame carries counts instead of a confident zero.
    ⚠ _applyMainData preserves DATA.notes across the wholesale swap, so calling this ONCE up
    front covers both the instant-paint and the cold-load path. */
+/* ⚠⚠ NOW ASYNCHRONOUS (it decrypts), WHICH INTRODUCES THE SAME TWO HAZARDS THE BLOB'S CALL
+   SITE DOCUMENTS, PLUS ONE THAT IS UNIQUE TO NOTES.
+   1. NOTHING MAY AWAIT THIS. Fire and forget — the live fetch is issued in the same tick as
+      before. Awaiting a decrypt before asking the server turns a speed fix into a slowdown.
+   2. A LATE DECRYPT MUST NEVER OVERWRITE LIVE NOTES. `_CACHE.notesAt` is set in EXACTLY ONE
+      place — a successful readNotes — so it is the notes-side equivalent of
+      `_CACHE.mainSettled`, and it is checked AFTER the decrypt resolves, not before.
+   3. 🔑 THE ONE THAT IS NOT IN THE BLOB'S LIST: the sync version ran BEFORE the first render,
+      so attaching DATA.notes was enough. This can now land AFTER it, and then a successful
+      decrypt would paint NOTHING — the cache would appear to work while buying nothing at
+      all, which is the failure mode you cannot see. So it repaints, exactly as
+      _bgRefreshNotes does on first arrival — but ONLY if a render has already happened
+      (`_CACHE.mainDataTs`, set by _applyMainData). If it has not, DATA.notes is simply
+      attached and the imminent paint picks it up, because _applyMainData preserves it across
+      the wholesale swap. Repainting before any data existed would render an empty table. */
 function _paintCachedNotes() {
-  var n = _readCachedNotes();
-  if (!n) return false;
-  DATA.notes = n;
-  _NOTES_LOADED = true;     // we DO know these, as of a timestamp — the unknown state is over
-  return true;
+  return _readCachedNotes().then(function (n) {
+    if (!n) return false;
+    if (_CACHE.notesAt) return false;   // live notes already landed — never go backwards
+    if (_NOTES_LOADED) return false;    // something already answered the question
+    DATA.notes = n;
+    _NOTES_LOADED = true;     // we DO know these, as of a timestamp — the unknown state is over
+    if (_CACHE.mainDataTs) {
+      if (typeof _applyNoteCounts === 'function') _applyNoteCounts();
+      if (typeof _refreshOpenNotesModal === 'function') _refreshOpenNotesModal();
+      if (typeof renderTab === 'function' && typeof CURRENT_TAB !== 'undefined') {
+        var skip = { postsale:1, postedsales:1, dailyreport:1, training:1 };
+        if (!skip[CURRENT_TAB]) { TAB_CACHE = {}; renderTab(CURRENT_TAB); }
+      }
+    }
+    return true;
+  }).catch(function () { return false; });
 }
 function _pruneDataCache(keepCurrent) {
   try {
@@ -306,10 +388,19 @@ function loadData(forceFresh) {
      Issuing order is execution order, so the blob goes first and these follow immediately
      after. They are still in flight early; they just no longer queue in front of the one
      request the visible tab depends on. */
+  /* 🔴 MIGRATION, AND IT RUNS FIRST. Every device in the fleet is carrying a PLAINTEXT notes
+     record written before 2026-08-14 (257KB / 850 note groups on the machine this was found
+     on). Sweeping on every boot — not once behind a flag — is deliberate: a flag is another
+     thing that can be wrong, and this loop is a handful of localStorage keys. */
+  _purgeLegacyPlainNotes();
   /* Notes are not in the blob, so without this they start from nothing on EVERY load and the
      screen says "no notes" until their fetch returns. Called before the paint below so the
      first frame already carries counts; _applyMainData preserves DATA.notes across the swap,
-     so one call covers the instant-paint and cold-load paths alike. */
+     so one call covers the instant-paint and cold-load paths alike.
+     ⚠ NOW ASYNC and deliberately NOT awaited — see its own header for the three hazards that
+     creates and how each is guarded. Until it resolves _NOTES_LOADED stays false, which the
+     UI already renders as "Loading notes…" rather than the "no notes yet" lie — the exact
+     distinction that fix was added for on 2026-08-11. */
   _paintCachedNotes();
   // Instant paint from the cached blob (skipped on a manual refresh).
   /* ⚠⚠ THE CACHED PAINT IS NOW ASYNCHRONOUS (it has to decrypt) AND THAT CHANGES TWO THINGS.
