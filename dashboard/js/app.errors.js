@@ -287,7 +287,26 @@ var AS_ERR = (function (w, d) {
       c.user     = _s(S.email);
       c.role     = _s(S.role);
       c.realRole = _s(S._actualRole);
-      c.badgeAge = S.tokenExpires ? Math.round((Number(S.tokenExpires) - _now()) / 60000) + 'min-left' : 'none';
+      /* 🔴 THIS RECORDED THE LITERAL STRING "NaNmin-left" ON EVERY AUTHENTICATED ERROR, FROM
+         THE DAY IT WAS ADDED UNTIL 2026-08-12. It used to be `Number(S.tokenExpires)`, but the
+         backend sends `tokenExpires` as an ISO STRING (`_sess.expiresAt`, itself a
+         `.toISOString()`), and `Number('2026-08-13T05:12:33.123Z')` is NaN. NaN propagates
+         through the arithmetic and concatenates to text, so the column looked populated —
+         which is worse than blank, because blank invites a question and "NaNmin-left" reads
+         like a value that merely needs interpreting.
+         ⚠⚠ THE COST WAS AN INVESTIGATION THAT COULD NEVER HAVE SUCCEEDED. The AUTH-01 handoff
+         item said "start from BadgeAge on those rows"; there was nothing there to start from,
+         and every AUTH-01 row already written is unrecoverable for badge life.
+         🔑 Date.parse understands the ISO string Number cannot. Semantics deliberately stay
+         "minutes LEFT" (negative once expired) rather than an age — for an auth failure the
+         useful question is how much life the badge had when it broke, and the suffix already
+         says so. Nothing is lost by keeping it: no historical row holds a real number.
+         ⚠ Still guarded on a falsy tokenExpires ⇒ 'none', which is a MEANINGFUL third state:
+         the client had no badge at all, which is a different fault from one that expired.
+         Asserted in errors_harness — a regression to NaN must fail loudly, not silently. */
+      var _bx = S.tokenExpires ? Date.parse(S.tokenExpires) : NaN;
+      c.badgeAge = isNaN(_bx) ? (S.tokenExpires ? 'unparseable:' + _s(S.tokenExpires).slice(0, 32) : 'none')
+                              : Math.round((_bx - _now()) / 60000) + 'min-left';
       c.tab      = _s(w.CURRENT_TAB);
       c.dataShape = _dataShape();
       c.versions  = _bundleVersions();
