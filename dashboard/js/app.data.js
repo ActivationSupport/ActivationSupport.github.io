@@ -81,39 +81,79 @@ function _cacheMainData(res) {
   // Never write an unattributed blob: without an email the key would be shared by every
   // user on the device, which is the one thing the per-user guard exists to prevent.
   if (!_mainDataUser()) return;
-  try {
-    localStorage.setItem(_mainDataKey(), JSON.stringify({
-      ts: Date.now(), office: CFG.officeId, user: _mainDataUser(), data: res
-    }));
-  } catch (e) {
-    // Quota is the expected failure (the blob is large and localStorage is ~5MB).
-    // Drop our own older entries and retry once; if it still fails, we simply have no
-    // instant paint — which is exactly the old behaviour, so failing here is harmless.
-    try { _pruneDataCache(); localStorage.setItem(_mainDataKey(), JSON.stringify({
-      ts: Date.now(), office: CFG.officeId, user: _mainDataUser(), data: res })); } catch (e2) {}
-  }
+  /* ⚠⚠ ENCRYPTED BEFORE IT TOUCHES DISK — AND IF WE CANNOT ENCRYPT, WE DO NOT WRITE.
+     This used to `JSON.stringify` customer orders straight into localStorage in plaintext.
+     A silent plaintext fallback here (no SubtleCrypto, no key yet) would quietly restore the
+     exact posture this change exists to end, on precisely the devices least able to protect
+     it. Not writing costs a cold load; writing plaintext costs customer records at rest.
+     ⚠ The envelope (ts/office/user) stays OUTSIDE the ciphertext: _readCachedMainData needs
+     to check the office- and user-isolation guards and the age bound BEFORE spending a
+     decrypt, and none of those three fields is sensitive. The `data` payload is what is
+     encrypted, and it is the only part that carries customer information. */
+  /* ⚠ RETURNS the promise. Every caller in the app ignores it — caching is fire-and-forget and
+     must never gate a load — but a test cannot assert "the blob was written" against work that
+     is still in flight, and an un-awaitable write would be silently untestable. */
+  var user = _mainDataUser();
+  return _cacheKeyGet(user).then(function (key) {
+    if (!key) return;                                   // no key ⇒ no cache. Deliberate.
+    return _cacheEncrypt(key, res).then(function (enc) {
+      if (!enc) return;
+      var rec = JSON.stringify({ ts: Date.now(), office: CFG.officeId, user: user, enc: enc });
+      try { localStorage.setItem(_mainDataKey(), rec); }
+      catch (e) {
+        // Quota is the expected failure (the blob is large and localStorage is ~5MB).
+        // Drop our own older entries and retry once; if it still fails we simply have no
+        // instant paint — exactly the old behaviour, so failing here is harmless.
+        try { _pruneDataCache(); localStorage.setItem(_mainDataKey(), rec); } catch (e2) {}
+      }
+    });
+  }).catch(function () {});                             // caching must never break a load
 }
+/* Synchronous "is an instant paint even possible?" — a record on disk AND a key in this tab.
+   ⚠ Kept SYNC on purpose: loadData must decide whether to show the skeleton in the same tick,
+   or every load flashes a skeleton before the cached paint lands. This only reads two keys and
+   decrypts nothing. */
+function _canInstantPaint() {
+  try {
+    var me = _mainDataUser();
+    if (!me) return false;
+    if (!localStorage.getItem(_mainDataKey())) return false;
+    return !!sessionStorage.getItem('as_cache_key_' + me);
+  } catch (e) { return false; }
+}
+
+/* ⚠⚠ NOW ASYNCHRONOUS — it has to decrypt. Returns a Promise of the same shape as before
+   ({ts, data, …}) or null. Every cheap guard is still evaluated BEFORE the decrypt, so a
+   record for the wrong office, the wrong user or one that is simply too old costs nothing. */
 function _readCachedMainData() {
   try {
     var me = _mainDataUser();
-    if (!me) return null;                      // not signed in yet — nothing may be painted
+    if (!me) return Promise.resolve(null);     // not signed in yet — nothing may be painted
     var raw = localStorage.getItem(_mainDataKey());
-    if (!raw) return null;
+    if (!raw) return Promise.resolve(null);
     var o = JSON.parse(raw);
     // OFFICE-ISOLATION GUARD: never instant-paint a blob that isn't stamped for the
     // CURRENT office. Drops (a) any cache poisoned by a response that landed after an
     // office switch and (b) older blobs written before this stamp existed. On a miss
     // we just fall back to the loading skeleton, so a fresh login can never flash
     // another office's orders.
-    if (!o || !o.data || o.office !== CFG.officeId) return null;
+    if (!o || !o.enc || o.office !== CFG.officeId) return Promise.resolve(null);
     // USER-ISOLATION GUARD: the key already carries the email, but prove it from the
     // payload too. localStorage outlives the session and these are shared devices, so a
     // key collision must never be able to paint someone else's orders.
-    if (String(o.user || '') !== me) return null;
+    if (String(o.user || '') !== me) return Promise.resolve(null);
     // AGE GUARD: stale-but-labelled is useful, silently-ancient is not.
-    if (!o.ts || (Date.now() - o.ts) > _MAIN_CACHE_MAX_AGE) return null;
-    return o;
-  } catch (e) { return null; }
+    if (!o.ts || (Date.now() - o.ts) > _MAIN_CACHE_MAX_AGE) return Promise.resolve(null);
+    /* Only now is a decrypt worth paying for. A null from here — changed password, cleared
+       salt, tampered record, no key in this tab — is EXPECTED and silent: the caller simply
+       falls through to the network, which is exactly the pre-cache behaviour. */
+    return _cacheKeyGet(me).then(function (key) {
+      if (!key) return null;
+      return _cacheDecrypt(key, o.enc).then(function (data) {
+        return data ? { ts: o.ts, office: o.office, user: o.user, data: data } : null;
+      });
+    }).catch(function () { return null; });
+  } catch (e) { return Promise.resolve(null); }
 }
 
 /* Housekeeping. localStorage persists, so without this the device slowly accumulates a
@@ -272,14 +312,36 @@ function loadData(forceFresh) {
      so one call covers the instant-paint and cold-load paths alike. */
   _paintCachedNotes();
   // Instant paint from the cached blob (skipped on a manual refresh).
+  /* ⚠⚠ THE CACHED PAINT IS NOW ASYNCHRONOUS (it has to decrypt) AND THAT CHANGES TWO THINGS.
+     1. THE NETWORK REQUEST BELOW MUST NOT WAIT FOR IT. Nothing is awaited here; the decrypt
+        runs on its own and the live fetch is issued in this same tick exactly as before. If
+        the decrypt were awaited first, every load would pay for it before even ASKING the
+        server — turning a speed fix into a slowdown.
+     2. A LATE DECRYPT MUST NEVER OVERWRITE LIVE DATA. If the blob wins the race (a warm P2
+        cache hit can land in ~2s), painting the cached copy afterwards would REGRESS the
+        screen from fresh data to yesterday's, silently. `_CACHE.mainSettled` is the existing
+        flag for "a live main fetch has completed"; it is the guard.
+     🔑 `painted` stays SYNCHRONOUS via _canInstantPaint(), which only checks that a record and
+     a key both exist. Deciding the skeleton in a later tick would flash it on every load. */
   var painted = false;
   if (!forceFresh) {
-    var cached = _readCachedMainData();
-    if (cached) {
+    painted = _canInstantPaint();
+    _readCachedMainData().then(function (cached) {
+      if (!cached) {
+        /* We predicted a paint and could not deliver one (wrong password since, tampered or
+           unreadable record). The skeleton was skipped on that prediction, so put it back —
+           otherwise the rep stares at an empty pane until the blob lands. */
+        if (painted && !_CACHE.mainSettled) {
+          var mc = document.getElementById('main-content');
+          if (mc && !mc.innerHTML) { mc.innerHTML = skelLoader(); _skelStartNote(); }
+        }
+        return;
+      }
+      if (_CACHE.mainSettled) return;        // the live blob already won — never go backwards
       // ts is the CACHED blob's timestamp, so "Updated 7h ago" appears immediately and the
       // user can see this is yesterday's data until the live fetch below swaps it out.
       try {
-        _applyMainData(cached.data, cached.ts); switchTab(CURRENT_TAB); painted = true;
+        _applyMainData(cached.data, cached.ts); switchTab(CURRENT_TAB);
         // Real data, instantly — but say plainly that it is last session's until the
         // fetch below confirms it. Cleared by _applyMainData on the fresh response.
         _markDataStale();
@@ -294,8 +356,13 @@ function loadData(forceFresh) {
            front of the thing the user is waiting for.
            The .then() below still calls _preloadTabs() once the blob is in — warming a tab
            the rep has not opened yet is never more urgent than the tab they are looking at. */
-      } catch (e) { painted = false; }
-    }
+      } catch (e) {
+        /* The render threw on cached data. The skeleton was skipped on the prediction, so
+           restore it rather than leave the pane empty until the blob lands. */
+        var mc2 = document.getElementById('main-content');
+        if (mc2 && !_CACHE.mainSettled) { mc2.innerHTML = skelLoader(); _skelStartNote(); }
+      }
+    }).catch(function () {});
     // Only one blob per device is worth keeping; drop other users'/offices' leftovers.
     _pruneDataCache();
   }

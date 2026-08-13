@@ -209,8 +209,21 @@ function showError(msg) {
 var _reauthing = false;
 function _forceReauth() {
   if (_reauthing) return; _reauthing = true;
+  var _who = (SESSION && SESSION.email) ? String(SESSION.email).toLowerCase() : '';
   try { sessionStorage.removeItem('as_session_' + CFG.officeId); } catch(e) {}
-  _clearDataCache();
+  /* 🔑 A BADGE EXPIRY DROPS THE KEY, NOT THE DATA — AND THAT IS THE WHOLE POINT OF ENCRYPTING.
+     This used to call _clearDataCache(), wiping the instant-paint cache moments before the
+     same rep signed back in — which is why the first load every morning was a full cold
+     ~5.8s blob fetch with a skeleton. It had to, because the cache was PLAINTEXT and a
+     sign-out was the only thing making it leave the device.
+     Now the payload is AES-GCM ciphertext, so dropping the KEY is strictly stronger than
+     deleting the file: what remains on disk is unreadable, and it becomes readable again only
+     when the same person types the same password. An expiry is not a sign-out — it is the
+     same human, on the same device, about to sign back in as themselves.
+     ⚠⚠ AN EXPLICIT SIGN-OUT STILL CLEARS EVERYTHING (see signOut). That distinction is the
+     security posture: "I am done here, possibly on a shared machine" is a different statement
+     from "your 12 hours elapsed", and only the first one means the device may change hands. */
+  _cacheKeyDrop(_who);
   SESSION = {};
   var app = document.getElementById('app'); if (app) app.style.display = 'none';
   var ls = document.getElementById('login-screen'); if (ls) ls.style.display = 'flex';
@@ -707,6 +720,143 @@ function apiPost(body) {
   return _asFetch(APPS_SCRIPT_URL, body, { action: body.action || 'write', write: true });
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+   INSTANT-PAINT CACHE — ENCRYPTION AT REST
+   ════════════════════════════════════════════════════════════════════════════
+   🔴 WHAT THIS FIXES, AND IT IS A SECURITY FIX FIRST. The main data blob — customer orders,
+   names, DSIs — has been written to localStorage IN PLAINTEXT, surviving browser restarts.
+   The only thing protecting it was `_clearDataCache()` at logout and at badge expiry. That is
+   a real mitigation, but it means the protection is an EVENT FIRING, not a property of the
+   data: a rep who simply closes the tab and never returns leaves readable customer records on
+   the device indefinitely.
+
+   Now the blob is AES-GCM encrypted before it ever touches disk, so what is at rest is
+   useless on its own. This is strictly better than the previous posture even if nothing else
+   changes — it is not a concession made to buy speed.
+
+   🔑 KEY DERIVATION — PBKDF2-SHA256 FROM THE USER'S PASSWORD, NEVER TRANSMITTED, NEVER STORED
+   ON THE SERVER. The server therefore CANNOT decrypt a device's cache, which a server-issued
+   key would have allowed. The password policy is genuinely strong (8+ chars, upper, lower,
+   digit, special — see _pwPolicyError), so the derived key is not the weak link a 4-digit PIN
+   would have made it.
+   ⚠ The salt is random per user, kept beside the ciphertext. Salts are not secrets; it exists
+   so the same password on two devices does not produce the same key, and it MUST be stable
+   across logins or yesterday's cache can never be read back.
+
+   🔑 KEY LIFETIME IS THE WHOLE SECURITY ARGUMENT, so it is stated plainly:
+     · ciphertext + salt → localStorage. Persists. Useless alone.
+     · derived key       → sessionStorage, beside the session token that is ALREADY there.
+       Dies when the tab closes.
+   ⇒ Once the browser is closed, only ciphertext remains on the device. That is what makes it
+   safe to KEEP the cache across a badge expiry (the win: a rep signing in next morning paints
+   instantly) while a lost or shared device gives up nothing.
+   ⚠⚠ THIS ADDS NO NEW EXPOSURE CLASS. Anyone who can read sessionStorage already holds the
+   live session token and can simply use the portal as that person. The key is no more
+   reachable than the credential it sits next to.
+   ⚠ Honest caveat: some browsers persist sessionStorage to disk for crash/session restore, so
+   "memory only" is not guaranteed. The token has always had that same property.
+
+   ⚠⚠ NO SUBTLECRYPTO ⇒ NO CACHE AT ALL. It requires a secure context; GitHub Pages is HTTPS,
+   but a very old browser could still lack it. In that case we DO NOT fall back to writing
+   plaintext — the rep gets today's cold load instead. Degrading to slower is acceptable;
+   degrading to less private is not, and a silent plaintext fallback would quietly undo the
+   entire point of this block.
+   ════════════════════════════════════════════════════════════════════════════ */
+var _CACHE_KDF_ITER = 210000;          // PBKDF2-SHA256 rounds
+var _CACHE_SALT_KEY = 'as_cache_salt_';   // localStorage, per user — not a secret
+var _CACHE_KEY_SS   = 'as_cache_key_';    // sessionStorage, dies with the tab
+
+function _subtle() {
+  try {
+    return (typeof crypto !== 'undefined' && crypto && crypto.subtle) ? crypto.subtle : null;
+  } catch (e) { return null; }
+}
+function _b64(buf) {
+  var b = new Uint8Array(buf), s = '';
+  for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s);
+}
+function _unb64(s) {
+  var raw = atob(String(s || '')), out = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+/* Stable per-user salt. Created once and reused, because changing it would orphan every
+   previously written cache entry for that person. */
+function _cacheSalt(user) {
+  var k = _CACHE_SALT_KEY + user;
+  try {
+    var have = localStorage.getItem(k);
+    if (have) return _unb64(have);
+    var s = new Uint8Array(16);
+    crypto.getRandomValues(s);
+    localStorage.setItem(k, _b64(s));
+    return s;
+  } catch (e) { return null; }
+}
+
+/* Derive and stash. Called on the login path with the password the rep just typed.
+   ⚠ RUN IT ALONGSIDE THE NETWORK CALL, NOT AFTER IT. PBKDF2 at these iterations costs real
+   CPU on the phones these reps carry; overlapped with a multi-second validatePin round-trip
+   it costs approximately nothing in wall-clock, but run serially afterwards it would be a
+   visible tax on every single sign-in. */
+function _cacheKeyDerive(password, user) {
+  var sub = _subtle();
+  if (!sub || !password || !user) return Promise.resolve(null);
+  var salt = _cacheSalt(user);
+  if (!salt) return Promise.resolve(null);
+  var enc = new TextEncoder();
+  return sub.importKey('raw', enc.encode(String(password)), { name: 'PBKDF2' }, false, ['deriveKey'])
+    .then(function (base) {
+      return sub.deriveKey(
+        { name: 'PBKDF2', salt: salt, iterations: _CACHE_KDF_ITER, hash: 'SHA-256' },
+        base, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+    })
+    .then(function (key) { return sub.exportKey('raw', key).then(function (raw) {
+        try { sessionStorage.setItem(_CACHE_KEY_SS + user, _b64(raw)); } catch (e) {}
+        return key;
+      }); })
+    .catch(function () { return null; });     // never let a crypto hiccup block a sign-in
+}
+
+/* The key for THIS tab, if the rep signed in during it. Absent after a tab close — which is
+   the point — and absent on a session merely restored from sessionStorage without a password
+   only if the stash was cleared, so a same-tab reload still paints instantly. */
+function _cacheKeyGet(user) {
+  var sub = _subtle();
+  if (!sub || !user) return Promise.resolve(null);
+  var raw;
+  try { raw = sessionStorage.getItem(_CACHE_KEY_SS + user); } catch (e) { raw = null; }
+  if (!raw) return Promise.resolve(null);
+  return sub.importKey('raw', _unb64(raw), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
+    .catch(function () { return null; });
+}
+function _cacheKeyDrop(user) {
+  try { sessionStorage.removeItem(_CACHE_KEY_SS + user); } catch (e) {}
+}
+/* ⚠ A FRESH IV FOR EVERY WRITE. Reusing an IV under one AES-GCM key is the classic way to
+   destroy the cipher's guarantees outright, and the blob is rewritten on every refresh. */
+function _cacheEncrypt(key, obj) {
+  var sub = _subtle();
+  if (!sub || !key) return Promise.resolve(null);
+  var iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+  var data = new TextEncoder().encode(JSON.stringify(obj));
+  return sub.encrypt({ name: 'AES-GCM', iv: iv }, key, data)
+    .then(function (ct) { return { v: 1, iv: _b64(iv), ct: _b64(ct) }; })
+    .catch(function () { return null; });
+}
+function _cacheDecrypt(key, rec) {
+  var sub = _subtle();
+  if (!sub || !key || !rec || rec.v !== 1 || !rec.iv || !rec.ct) return Promise.resolve(null);
+  return sub.decrypt({ name: 'AES-GCM', iv: _unb64(rec.iv) }, key, _unb64(rec.ct))
+    .then(function (buf) { return JSON.parse(new TextDecoder().decode(buf)); })
+    /* A failure here is EXPECTED and must be silent: a changed password, a cleared salt or a
+       tampered record all land here, and the right answer to every one of them is the same —
+       no instant paint, fall through to the network. Never surface it as an error. */
+    .catch(function () { return null; });
+}
+
 // ── AUTH ─────────────────────────────────────────────────────────────────
 var LOGIN_EMAIL = '';
 
@@ -914,6 +1064,15 @@ function doLogin() {
      attempt, so the automatic retries of one sign-in share a key while a genuinely new attempt
      gets a fresh one. If this is ever dropped, validatePin must come off _AS_RETRY_SAFE_WRITES
      in the same edit. */
+  /* ⚠⚠ FIRED HERE, DELIBERATELY BEFORE THE `.then` — SO IT OVERLAPS THE ROUND-TRIP.
+     PBKDF2 at _CACHE_KDF_ITER costs real CPU on the phones these reps carry. validatePin
+     takes seconds (measured p50 5690ms), so run concurrently the derivation is effectively
+     free; moved into the success handler it would become a visible tax on every sign-in.
+     🔑 This is the ONLY moment the password exists in the client, which is why the cache key
+     can be derived from it at all — and why it is never transmitted or stored server-side.
+     ⚠ Deliberately not awaited and its failure is swallowed: a crypto problem must degrade to
+     "no instant paint", never to "cannot sign in". */
+  try { _cacheKeyDerive(pin, String(LOGIN_EMAIL || '').toLowerCase()); } catch (e) {}
   apiPost({ action: 'validatePin', email: LOGIN_EMAIL, pin: pin, clientKey: _clientKey('vp') }).then(function(res) {
     if (res.ok && res.valid) {
       SESSION = { email: LOGIN_EMAIL, homeOffice: CFG.officeId, permissions: res.permissions || CFG.officeId };
@@ -1017,6 +1176,13 @@ function signOut() {
   // Phase 1 Stage B: best-effort revoke the badge server-side on sign-out.
   try { if (SESSION && SESSION.token) apiPost({ action: 'logout', token: SESSION.token }); } catch(e) {}
   sessionStorage.removeItem('as_session_' + CFG.officeId);
+  /* ⚠⚠ AN EXPLICIT SIGN-OUT CLEARS BOTH, AND THAT IS UNCHANGED. This is the statement "I am
+     done on this machine" — possibly a shared one — so the ciphertext goes as well as the key.
+     Only a BADGE EXPIRY now keeps the ciphertext (see _forceReauth), because that is the same
+     person about to sign straight back in. Deleting the key first means that even if the
+     localStorage sweep were to fail (quota, private mode, a browser quirk), what is left
+     behind is already unreadable. */
+  _cacheKeyDrop(SESSION && SESSION.email ? String(SESSION.email).toLowerCase() : '');
   _clearDataCache();
   DATA = {}; SESSION = {}; LOGIN_EMAIL = '';
   document.getElementById('app').style.display = 'none';
