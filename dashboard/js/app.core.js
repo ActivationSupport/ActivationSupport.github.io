@@ -442,6 +442,39 @@ function _authCodeForRefusal() {
   } catch (_) { return 'AUTH-04'; }
 }
 
+/* ⚠⚠ A POST IS NOT AUTOMATICALLY A SAVE, AND TREATING IT AS ONE BROKE THE PORTAL'S MOST
+   SEVERE ERROR CODE. `apiPost` sets `write: true` on EVERY body, so the whole sign-in path —
+   checkEmail, validatePin, logout — was classified WRITE-02 the moment a request failed.
+   WRITE-02 means "we cannot tell whether the server acted, so a save may be LOST or
+   DUPLICATED", and its copy tells the rep to *"Refresh and check before saving again, so you
+   do not create a duplicate."*
+   🔴 MEASURED 2026-08-17 FROM THE LIVE LOG: **all 202 WRITE-02 rows were auth actions** —
+   checkEmail 110, validatePin 85, logout 7 — and **not one was a data save.** Every
+   WRITE-01 validatePin row is the same mistake on the refusal path. So the one code that
+   exists to say "go ask that office whether something is missing or entered twice" was
+   reading as 100% false positives, and it had already cost a real investigation on 08-11.
+   🔑 THE TEST IS "COULD A REPEAT CREATE OR DUPLICATE SOMETHING THE USER CARES ABOUT?", NOT
+   "IS THIS A POST?" A failed roster lookup, a failed PIN check and a failed logout all
+   answer no, so the honest classification is NET-01: no answer, try again.
+   ⚠⚠ WHAT IS DELIBERATELY *NOT* ON THIS LIST MATTERS AS MUCH AS WHAT IS.
+   setPin / changePin / upgradePin / requestPasswordReset / resetPasswordWithToken all CHANGE
+   A CREDENTIAL or mail a token. After one of those times out the rep genuinely does not know
+   whether it took — and that ambiguity is precisely what WRITE-02 is for. They stay WRITE-02.
+   🔑 THE DEFAULT IS FAIL-SAFE: anything absent from this list keeps the cautious
+   classification, so an incomplete list costs a false positive, never a missed lost save.
+   ⚠⚠ THIS IS CLASSIFICATION ONLY. Retry eligibility lives in `_AS_RETRY_SAFE_WRITES` and is
+   NOT touched here. DO NOT MERGE THE TWO LISTS — they answer different questions ("is a
+   repeat SAFE?" vs "could a failure have created anything?"), and `addNote`/`createTicket`
+   are retry-safe precisely BECAUSE they write and dedupe, which is the opposite property. */
+var _AS_NONWRITE_ACTIONS = { checkEmail: 1, validatePin: 1, logout: 1 };
+
+/* True only when a failed attempt could have created or duplicated a real record. Reads are
+   always false; a POST is true unless it is one of the auth actions above. */
+function _asCreatesRecord(action, write) {
+  if (!write) return false;
+  return !_AS_NONWRITE_ACTIONS[String(action || '')];
+}
+
 /* A JSON `{error:…}` is the server saying no, on purpose. We still want it CODED and
    COUNTED — "9 reps hit forbidden_office this week" is the kind of fact that is invisible
    today — but the value is returned to the caller unchanged. */
@@ -453,7 +486,10 @@ function _asReportJsonError(e, meta) {
     else if (s === 'forbidden_office') code = 'AUTH-03';
     else if (/busy|retry/i.test(s))  code = 'NET-03';
     else if (/unknown action/i.test(s)) code = 'DATA-03';   // FE is ahead of the deployed backend
-    else code = meta.write ? 'WRITE-01' : 'DATA-02';
+    /* ⚠ `_asCreatesRecord`, not `meta.write` — a refused checkEmail/validatePin/logout saved
+       nothing, so WRITE-01 ("it definitely did not save") is as wrong here as WRITE-02 is on
+       the transport path. This is what produced the WRITE-01 validatePin rows. */
+    else code = _asCreatesRecord(meta.action, meta.write) ? 'WRITE-01' : 'DATA-02';
     _ERR.report(code, { message: s }, { action: meta.action || '', kind: meta.write ? 'write' : 'read' });
   } catch (_) {}
 }
@@ -471,7 +507,9 @@ function _asNetworkError(e, action, write, meta, timeoutMs) {
        WRITE-02 means and why an aborted write must never be silently retried. */
     var aborted = !!(e && (e.name === 'AbortError' || e.code === 20));
     var offline = (navigator && navigator.onLine === false);
-    var code = offline ? 'NET-02' : (write ? 'WRITE-02' : 'NET-01');
+    /* ⚠ NET-02 (offline) still wins — "you have no connection" is truer and more actionable
+       than anything about saving, whatever the action was. */
+    var code = offline ? 'NET-02' : (_asCreatesRecord(action, write) ? 'WRITE-02' : 'NET-01');
     var err = new Error(_ERR.label(code) + ' — ' + _ERR.hint(code));
     err.asCode = code; err.asTransport = true; err.asRetryable = true;
     /* ⚠ Same rule as _asParse: quiet while a retry is still coming. iOS alone produced 42
