@@ -512,6 +512,11 @@ function _asNetworkError(e, action, write, meta, timeoutMs) {
     var code = offline ? 'NET-02' : (_asCreatesRecord(action, write) ? 'WRITE-02' : 'NET-01');
     var err = new Error(_ERR.label(code) + ' — ' + _ERR.hint(code));
     err.asCode = code; err.asTransport = true; err.asRetryable = true;
+    /* 🔑 CARRIED ON THE ERROR, not just written into the report's Extra. The retry gate in
+       _asAttempt has to know "did WE hang up, or did the server fail?" — those have opposite
+       implications for whether trying again can work, and the gate had no way to tell them
+       apart. The Extra already recorded it for humans; nothing exposed it to the code. */
+    err.asTimedOut = aborted || undefined;
     /* ⚠ Same rule as _asParse: quiet while a retry is still coming. iOS alone produced 42
        "Load failed" rows in a day — Safari aborting in-flight reads when the phone locks
        or the tab backgrounds — and most of those recover on the next attempt. */
@@ -631,6 +636,19 @@ function _asMayRetry(meta) {
    the rep's worst case is unchanged — what changes is how that budget is SPENT: one attempt
    that can actually finish, instead of two that were always going to be killed. Given the
    server frequently needs more than 10s, one 15s attempt beats two doomed 10s ones. */
+/* ⚠⚠ THE MEASURED TRANSPORT FLOOR, AND THE ONLY EVIDENCE-BASED "TOO SMALL TO TRY" LINE WE HAVE.
+   2.1–3.7s is what a request that does NO WORK costs (60 pre-auth reads, 2026-08-06), so a
+   budget under this cannot complete a real one — that is hopeless by measurement, not by taste.
+   🔑 IT IS DELIBERATELY *NOT* SET TO "WHATEVER ATTEMPT 1 NEEDED". That stronger rule — skip the
+   retry whenever the remaining budget is less than the timeout we just blew — sounds airtight
+   ("we were told it needs >15s, so 4.6s is pointless") and is NOT: this transport is measurably
+   NON-STATIONARY (solo reads of 4.5s, 7s, 15s and 34.8s within minutes), and the recent
+   successful p50 is 3481ms. A 4.6s second attempt therefore beats the median comfortably —
+   it is often unsuccessful, which is not the same as hopeless. Killing it would trade real
+   recoveries for ~5s less waiting on a failure, and 131 measured rescues say that trade is bad.
+   ⏰ What decides it is whether SURVIVING retries followed a TIMED-OUT first attempt; the crumb
+   below now records that, so dumpRetryOutcomes can answer it. Do not tighten this until it has. */
+var _AS_MIN_ATTEMPT_MS = 3700;   // below this an attempt cannot finish — do not burn a retry on it
 var _AS_TIMEOUT_MS    = 15000;   // one attempt, ordinary request
 var _AS_TIMEOUT_BLOB  = 20000;   // one attempt, main data blob
 var _AS_DEADLINE_MS   = 20000;   // all attempts, ordinary request
@@ -662,11 +680,17 @@ function _asAttempt(url, payload, meta, attempt) {
      load that is 40 seconds of shimmer, which is indistinguishable from broken and is the
      "loads endlessly" a rep actually reported.
      🔑 Clamping the attempt to whatever budget REMAINS makes the deadline mean what it says.
-     ⚠ Floored at 2s: the measured transport floor is 2.1–3.7s for a request that does NO work,
-     so a smaller budget cannot succeed and a sub-second attempt would just burn a retry. If
-     less than that is left, this is the last attempt regardless. */
+
+     🔴 AND THE OLD `Math.max(2000, …)` FLOOR BROKE EXACTLY THAT. A floor RAISES the value it is
+     applied to, so with under 2s of budget left it handed the attempt MORE time than the
+     deadline had, and a final attempt could overshoot the 20s deadline by up to 2 SECONDS —
+     on the one bound whose entire job is to be the ceiling. The comment that used to sit here
+     also claimed "if less than that is left, this is the last attempt regardless", and NO SUCH
+     CHECK EXISTED; the only gate was `Date.now() >= deadlineAt`. The intent was right and it was
+     never implemented, so it is implemented now — in the retry gate below, where it belongs,
+     rather than by inflating a timeout. */
   var _left = meta.deadlineAt ? (meta.deadlineAt - Date.now()) : Infinity;
-  var tmo = Math.max(2000, Math.min(_asTimeoutMs(meta), _left));
+  var tmo = Math.min(_asTimeoutMs(meta), Math.max(0, _left));
   var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   /* ⚠ Cleared the moment the RESPONSE arrives, not when parsing finishes. Aborting mid-`r.text()`
      would reject outside _asNetworkError and arrive unclassified; and Apps Script sends the body
@@ -704,7 +728,32 @@ function _asAttempt(url, payload, meta, attempt) {
       });
       throw err;
     }
-    _ERR.crumb('retry', act + ' after ' + (err.asCode || '?'));
+    /* ⚠⚠ AND NOT INTO A BUDGET THAT CANNOT FINISH. The deadline gate above only asks "is there
+       any time left", so a retry could start with 400ms and be aborted on arrival — burning an
+       attempt, adding latency, and logging a failure that was arithmetically certain. The
+       backoff comes out of the SAME budget, which is why it is subtracted here: measured on
+       readNotes 2026-08-17, attempt 1 burned 15016ms of a 20000ms deadline and attempt 2 was
+       handed 4584ms, then the rep waited the full 20s for "No answer from the server".
+       🔑 `gaveUp:'no-budget'` IS A DISTINCT REASON FROM `'deadline'`. Collapsing them would hide
+       exactly the population this gate creates, and the next person would re-derive it from
+       scratch — 'deadline' means the clock ran out, 'no-budget' means we declined to pretend. */
+    var _leftNow = meta.deadlineAt ? (meta.deadlineAt - Date.now()) : Infinity;
+    var _nextBudget = _leftNow - (_AS_RETRY_BACKOFF[attempt] || 0);
+    if (_nextBudget < _AS_MIN_ATTEMPT_MS) {
+      if (m.noReport) _ERR.report(err.asCode || 'NET-01', err, {
+        action: act, kind: meta.write ? 'write' : 'read',
+        attempts: attempt + 1, gaveUp: 'no-budget',
+        leftMs: Math.max(0, Math.round(_nextBudget)), needMs: _AS_MIN_ATTEMPT_MS,
+        firstTimedOut: err.asTimedOut || undefined
+      });
+      throw err;
+    }
+    /* ⚠ `timedOut` is appended so dumpRetryOutcomes can split SURVIVING retries by whether the
+       first attempt was our own abort or a fast server failure. That split is the missing
+       measurement — it is what licenses (or kills) the stronger skip rule described on
+       _AS_MIN_ATTEMPT_MS. Appended at the END so the existing `<action> after <CODE>` parse in
+       every current dump keeps working unchanged. */
+    _ERR.crumb('retry', act + ' after ' + (err.asCode || '?') + (err.asTimedOut ? ' timedOut' : ''));
     return new Promise(function (resolve) { setTimeout(resolve, _AS_RETRY_BACKOFF[attempt]); })
       .then(function () { return _asAttempt(url, payload, meta, attempt + 1); });
   });
