@@ -733,7 +733,16 @@ function _asAttempt(url, payload, meta, attempt) {
        attempt, adding latency, and logging a failure that was arithmetically certain. The
        backoff comes out of the SAME budget, which is why it is subtracted here: measured on
        readNotes 2026-08-17, attempt 1 burned 15016ms of a 20000ms deadline and attempt 2 was
-       handed 4584ms, then the rep waited the full 20s for "No answer from the server".
+       handed 4584ms.
+       ⚠⚠ CORRECTION — NOBODY WAITED THOSE 20 SECONDS. This comment first said "then the rep
+       waited the full 20s", and that was wrong. Every one of those readNotes rows came from
+       `_bgRefreshNotes`, a 25s BACKGROUND POLL whose `.catch` swallows the failure with no UI
+       at all; the notes already on screen stayed there. `api()` reports to the error log BEFORE
+       that .catch runs, which is why an invisible failure still looks like an incident.
+       🔑 SAME TRAP AS readPostedSales (600 of 811 breadcrumb rows) — A FAILURE NOBODY IS
+       WAITING FOR IS LOG NOISE WEARING THE COSTUME OF AN INCIDENT. Ask who was waiting BEFORE
+       reading a duration as a user-visible wait. The budget arithmetic below is still right;
+       only the harm it was thought to cause was overstated.
        🔑 `gaveUp:'no-budget'` IS A DISTINCT REASON FROM `'deadline'`. Collapsing them would hide
        exactly the population this gate creates, and the next person would re-derive it from
        scratch — 'deadline' means the clock ran out, 'no-budget' means we declined to pretend. */
