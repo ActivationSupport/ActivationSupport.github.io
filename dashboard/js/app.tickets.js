@@ -940,10 +940,52 @@ function _ssInitials(name) {
   var p = s.split(/\s+/);
   return ((p[0].charAt(0) || '') + (p.length > 1 ? p[p.length - 1].charAt(0) : '')).toUpperCase();
 }
-function _ssAvatar(name) {   // deterministic muted-color circle with initials
+/* ⚠⚠ AVATAR COLOUR IS DERIVED, NOT STORED — there is no per-person colour anywhere in this
+   project. `_ssAvColor` hashes the NAME, so a person's circle is a pure function of the string
+   they render under. This map is the ONLY exception, and it exists because a colour was asked
+   for by name.
+   ⚠ KEYED ON THE NORMALISED RENDERED STRING, and `_ssAvatar` is called with three different
+   shapes: an agent name (`_ssAgentCell`), a rep name (`_ssRequesterFactsHtml`), and on a note
+   `n.authorName || n.author` — which falls back to an EMAIL when authorName is missing. The same
+   human can therefore render as "Amber", "Amber Lastname" and an address, and each hashes to a
+   DIFFERENT colour today. An override only recolours the exact strings listed here; add the
+   others as they turn up rather than assuming one entry covers the person everywhere. */
+var _SS_AV_OVERRIDE = {
+  'amber': '#FFB3BA'          // light salmon pink, chosen from the rendered preview 2026-08-17
+};
+
+function _ssAvColor(name) {
+  var key = String(name || '').trim().toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(_SS_AV_OVERRIDE, key)) return _SS_AV_OVERRIDE[key];
   var str = String(name || ''), h = 0, i;
   for (i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-  return '<span class="ss-av" style="background:hsl(' + (h % 360) + ',42%,34%)">' + esc(_ssInitials(name)) + '</span>';
+  return 'hsl(' + (h % 360) + ',42%,34%)';
+}
+
+/* 🔑 THE INK IS COMPUTED, NOT HARDCODED — and that is the whole reason this is safe.
+   `.ss-av` sets `color:#fff`, which is correct for every generated colour because they are all
+   lightness 34%. A LIGHT override would have kept that white and shipped ~1.3:1 contrast —
+   invisible initials, on the one element whose entire job is to identify a person.
+   Deriving the ink from luminance means the next override cannot reintroduce that, whatever
+   colour someone picks. ⚠ Returns null for the generated hsl() colours so the stylesheet's
+   white still applies and nothing about existing avatars changes. */
+function _ssAvInk(bg) {
+  var m = /^#([0-9a-f]{6})$/i.exec(String(bg || ''));
+  if (!m) return null;                       // generated hsl(…,34%) — CSS white is already right
+  var n = parseInt(m[1], 16);
+  var c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (v) {
+    v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  var L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  /* Contrast against white is (1.05)/(L+0.05); against near-black it is (L+0.05)/0.05.
+     Pick whichever clears more, so the initials stay legible on any override. */
+  return (1.05 / (L + 0.05)) >= ((L + 0.05) / 0.05) ? '#fff' : '#1b1b1f';
+}
+
+function _ssAvatar(name) {   // deterministic muted-color circle with initials
+  var bg = _ssAvColor(name), ink = _ssAvInk(bg);
+  return '<span class="ss-av" style="background:' + bg + (ink ? ';color:' + ink : '') + '">' +
+    esc(_ssInitials(name)) + '</span>';
 }
 function _ssAgentCell(name) { return '<span class="ss-agentcell">' + _ssAvatar(name) + '<span>' + esc(name || '—') + '</span></span>'; }
 function _ssEmpty(sym, title, sub) {
