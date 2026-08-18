@@ -283,7 +283,7 @@
     return { report: report, parse: parse, netFail: netFail, say: say, codes: CODES };
   })();
   var OFFICE = String((new URLSearchParams(location.search)).get("office") || "").toLowerCase();
-  var OFFICE_NAMES = { elevate:"Elevate", midspire:"Midspire", viridian:"Viridian", vanguard:"Vanguard", bayview:"New Office", leadsphere:"LeadSphere Solutions" };
+  var OFFICE_NAMES = { elevate:"Elevate", midspire:"Midspire", viridian:"Viridian", vanguard:"Vanguard", bayview:"New Office", leadsphere:"LeadSphere Solutions", evolution:"Evolution Concepts", revamped:"Revamped Strategies" };
   var PRODUCTS = ["Wireless", "Air", "Fiber - Self Install"];
   var qty = {};
   var win = null, selectedSlot = "", loadingSlots = false, ACTS = [];
@@ -315,7 +315,11 @@
     viridian: {accent:'#D9C87E',accent2:'#E8DBA6',dim:'#2b2a18',deep:'#A98F45',on:'#1b2814',glow:'#27301d',logo:'viridian-logo-full.png'},
     vanguard: {accent:'#2652D7',accent2:'#5277E6',dim:'#15203f',deep:'#1B3AAE',on:'#ffffff',glow:'#141b33',logo:'vanguard-logo-symbol-reverse.png'},
     bayview:  {accent:'#64748B',accent2:'#94A3B8',dim:'#1e293b',deep:'#475569',on:'#ffffff',glow:'#1e293b',logo:''},
-    leadsphere:{accent:'#2B6AFF',accent2:'#5E8CFF',dim:'#132a45',deep:'#1B4EC4',on:'#ffffff',glow:'#152740',logo:'leadsphere-logo-symbol.png'}
+    leadsphere:{accent:'#2B6AFF',accent2:'#5E8CFF',dim:'#132a45',deep:'#1B4EC4',on:'#ffffff',glow:'#152740',logo:'leadsphere-logo-symbol.png'},
+    // ⚠ evolution `on` is DARK: its accent is a bright gold (L=0.60), so white on it
+    // is 1.9:1 — same reason viridian and midspire carry a dark `on`.
+    evolution:{accent:'#F7C45D',accent2:'#FBD68F',dim:'#2a1d10',deep:'#B4791C',on:'#241703',glow:'#2a1f12',logo:'evolution-logo-symbol.png'},
+    revamped: {accent:'#9E48E4',accent2:'#BC7BEF',dim:'#241338',deep:'#7A2CBE',on:'#ffffff',glow:'#20143a',logo:'revamped-logo-symbol.png'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t = THEMES[o]; if(!t) return;
@@ -375,7 +379,8 @@
     if(!OFFICE || !OFFICE_NAMES[OFFICE]){ $("form").classList.add("hidden"); $("bad").classList.remove("hidden"); return; }
     applyTheme(OFFICE);
     $("subhead").textContent = OFFICE_NAMES[OFFICE] + " · Schedule your AT&T activation call";
-    var OFFICE_TZ_ABBR = { elevate:"PT", midspire:"CT", viridian:"CT", vanguard:"ET", bayview:"ET", leadsphere:"CT" };
+    // evolution = Louisville KY (EASTERN, not Central) · revamped = Huntsville AL (Central).
+    var OFFICE_TZ_ABBR = { elevate:"PT", midspire:"CT", viridian:"CT", vanguard:"ET", bayview:"ET", leadsphere:"CT", evolution:"ET", revamped:"CT" };
     var _tza = OFFICE_TZ_ABBR[OFFICE];
     if (_tza) $("tznote").textContent = "🕓 Times shown in " + OFFICE_NAMES[OFFICE] + " time (" + _tza + ").";
 

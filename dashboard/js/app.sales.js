@@ -600,6 +600,8 @@ var ATX_OFFICE_NUMBER = {
   viridian:  '314 789 1988',
   vanguard:  '813 524 7081',
   leadsphere:'417 429 7242',   // from Gabe, 2026-07-30
+  evolution: '',   // ⏰ no call-in number yet — LeadSphere launched blank too
+  revamped:  '',   // ⏰ ditto. Blank renders the [Office Activation Number] placeholder
   bayview:   ''    // 🦴 skeleton slot — fill in when the next office launches
 };
 

@@ -84,6 +84,35 @@ var OFFICE_CONFIG = {
     logos:{ full:'assets/leadsphere-logo-full-reverse.png', emblem:'assets/leadsphere-logo-symbol.png', sidebarH:40 },
     bookTint:'#2B6AFF', bookLogo:'leadsphere-logo-symbol.png'
   },
+  evolution: {
+    // GOLD office — the second one, so it follows viridian's pattern, not leadsphere's.
+    // Colours pixel-sampled from their own artwork: gold #F7C45D is 54% of the logo's
+    // opaque pixels, orange #FDA243 is the emblem. Black chrome, per their site.
+    // ⚠ Gold is BRIGHT (L=0.600): white on it is 1.9:1, so `onAccent` MUST stay dark —
+    // and `lightInk` exists because gold accent TEXT is illegible on a light surface.
+    name:'Evolution Concepts', color:'#F7C45D',
+    theme:{ btn:'#8A4B12', accent:'#F7C45D', dark:'#2A1D10', hover:'#A85C18', glow:'#4A3110', band:'#1A1512', onBand:'#ffffff', sidebar:'#151110', onAccent:'#2A1B08', lightInk:'#8A6410' },
+    reportBrand:{ band:'#1A1512', headerText:'#ffffff', headerSub:'#D9C7A5', accent:'#F7C45D', accentText:'#B4791C', logo:'evolution-logo-full.png', logoH:46 },
+    logos:{ full:'assets/evolution-logo-full.png', emblem:'assets/evolution-logo-symbol.png', sidebarH:46 },
+    bookTint:'#F7C45D', bookLogo:'evolution-logo-symbol.png'
+  },
+  revamped: {
+    // DEEP VIOLET structure + bright purple accent. Their mark is purple on black.
+    // ⚠ Accent sits at L≈0.17 deliberately — the same band as the shipped elevate
+    // (#3D5BFF) and leadsphere (#2B6AFF) accents, so white `onAccent` clears 4.5:1.
+    // The sampled #601CA5 was far too dark to use as an accent on dark chrome.
+    name:'Revamped Strategies', color:'#9E48E4',
+    theme:{ btn:'#7A2CBE', accent:'#9E48E4', dark:'#241338', hover:'#9442D8', glow:'#3A1A5E', band:'#1A0F28', onBand:'#ffffff', sidebar:'#150C20' },
+    reportBrand:{ band:'#1A0F28', headerText:'#ffffff', headerSub:'#C9AEE4', accent:'#9E48E4', accentText:'#7A2CBE', logo:'revamped-logo-full-reverse.png', logoH:44 },
+    // `fullLight` is the LIGHT-SURFACE twin. Revamped's wordmark is a thin
+    // high-contrast serif, so the light-theme outline other offices use thickens its
+    // hairlines into mush instead of defining them; it ships a dark-ink logo instead.
+    // ⚠ Both files are emitted into the Daily Report header and CSS chooses — see
+    // .dr-logo-light in app.css. _toggleTheme never re-renders the tab, so anything
+    // that swapped the src in JS would show a stale logo until you changed tabs.
+    logos:{ full:'assets/revamped-logo-full-reverse.png', fullLight:'assets/revamped-logo-full.png', emblem:'assets/revamped-logo-symbol.png', sidebarH:44 },
+    bookTint:'#9E48E4', bookLogo:'revamped-logo-symbol.png'
+  },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
   // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
   // dark is FORCED (see _applyTheme + the html[data-office="salessupport"] block in

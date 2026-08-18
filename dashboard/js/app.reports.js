@@ -113,7 +113,15 @@ function _drBuildHtml() {
 
   var officeNm = (typeof CFG!=='undefined' && CFG.officeName) ? CFG.officeName : '';
   var _drLg = (typeof OFFICE_LOGOS!=='undefined' && typeof CFG!=='undefined' && CFG.officeId) ? OFFICE_LOGOS[CFG.officeId] : null;
-  var drLogoImg = (_drLg && _drLg.full) ? '<img class="dr-logo" src="'+_drLg.full+'" alt="'+esc(officeNm)+'" style="height:'+(_drLg.drHeaderH||26)+'px">' : '';
+  /* An office may ship a LIGHT-SURFACE twin (`fullLight`). Emit BOTH and let CSS pick
+     by html[data-theme] — see .dr-logo-light in app.css. Doing the swap here in JS
+     would go stale: _toggleTheme flips the attribute and re-runs applyOfficeTheme but
+     never re-renders this card, so the wrong logo would persist until a tab change. */
+  var _drH = (_drLg && _drLg.drHeaderH) || 26;
+  var drLogoImg = (_drLg && _drLg.full)
+    ? '<img class="dr-logo'+(_drLg.fullLight ? ' dr-logo-dark' : '')+'" src="'+_drLg.full+'" alt="'+esc(officeNm)+'" style="height:'+_drH+'px">'
+      + (_drLg.fullLight ? '<img class="dr-logo dr-logo-light" src="'+_drLg.fullLight+'" alt="'+esc(officeNm)+'" style="height:'+_drH+'px">' : '')
+    : '';
   var genAt = rpt ? '<span class="dr-gents">Generated '+_drFmtTs(rpt.generatedAt)+'</span>' : '';
   var header = '<div class="card-header dark dr-header">'+
     '<div class="dr-titlewrap">'+
