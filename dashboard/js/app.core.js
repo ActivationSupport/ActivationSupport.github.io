@@ -29,24 +29,42 @@ var OFFICE_CONFIG = {
   viridian: {
     // Accent is GOLD (#C9A23C); the green is the fill/band. lightInk keeps gold accent text legible in light mode.
     name:'Viridian', color:'#C9A23C',
-    theme:{ btn:'#16382A', accent:'#D9C87E', dark:'#16281e', hover:'#0e2a1f', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A', lightInk:'#7a6a2e' },
+    /* ⚠ btn/hover LIFTED 2026-08-18. The old pair (#16382A on #0e2a1f) had NO SEPARATION
+       FROM THE CARD — measured 1.21:1 resting and 1.01:1 on hover, i.e. hovering made the
+       only clickable thing on the login screen MORE invisible. The label was never the
+       problem (12.9:1); the button SHAPE was. Now 2.96:1 / 2.07:1, still green, green on
+       hover. ⚠ Gold was rejected here: a gold button needs dark ink, and dark ink on any
+       green hover is ~1.2:1 — and --blueText has no hover variant to swap it. */
+    theme:{ btn:'#2E7A4E', accent:'#D9C87E', dark:'#16281e', hover:'#226039', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A', lightInk:'#7a6a2e' },
     reportBrand:{ band:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png', logoH:54 },
-    logos:{ full:'assets/viridian-logo-full.png', emblem:'assets/viridian-logo-full.png', sidebarH:68 },
+    /* ⚠⚠ HEIGHTS ARE BALANCED ON RENDERED AREA, NOT ON THE NUMBER. Source aspect ratios
+       run 1:1 (this square monogram) to 5.5:1 (elevate), so identical heights gave a 3x
+       spread on login and 5.5x in the DR header. Viridian is the extreme: it hits the
+       HEIGHT cap where wide lockups hit the WIDTH cap, so it needs the largest values.
+       ⚠ It still cannot fully match in the sidebar/DR — a square in a fixed-height row
+       will always read smaller than a wide bar. Only a horizontal lockup would fix that. */
+    logos:{ full:'assets/viridian-logo-full.png', emblem:'assets/viridian-logo-full.png', sidebarH:72, loginH:100, drHeaderH:40 },
     bookTint:'#2E7A4E', bookLogo:'viridian-logo-full.png'
   },
   elevate: {
     name:'Elevate', color:'#0B2E9C',
     theme:{ btn:'#0A1FFF', accent:'#3D5BFF', dark:'#14224a', hover:'#0816cc', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
     reportBrand:{ band:'#111827', headerText:'#ffffff', headerSub:'#aab8d6', accent:'#0A1FFF', accentText:'#0A1FFF', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
-    logos:{ full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png' },
+    logos:{ full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png', sidebarH:36 },
     bookTint:'#3D5BFF', bookLogo:'elevate-logo-symbol-only-blue.png'
   },
   vanguard: {
     // Charcoal structure + BLUE app accent; RED (accent2b) on login/logo/badge; btnText white.
     name:'Vanguard', color:'#D81F1F',
-    theme:{ btn:'#1C1C1C', accent:'#3D67E8', accent2b:'#D81F1F', dark:'#19202e', hover:'#333333', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' },
+    /* ⚠ btn/hover LIFTED 2026-08-18, same reason as viridian: charcoal-on-charcoal
+       measured 1.10:1 resting / 1.23:1 hover against the card, so the primary action
+       read as a disabled control. ⚠ MERELY LIGHTENING DOES NOT WORK — #3A3A3A only
+       reached 1.36:1; a neutral has no hue to fall back on, so it needed a real colour.
+       Red is not new here: it is already accent2b, loginAccent and the logo's swoosh.
+       Now 3.06:1 / 2.26:1. ⚠ `accent` stays BLUE — the in-app accent is unchanged. */
+    theme:{ btn:'#D81F1F', accent:'#3D67E8', accent2b:'#D81F1F', dark:'#19202e', hover:'#B31818', glow:'#241416', band:'#1C1C1C', onBand:'#ffffff', sidebar:'#161616', btnText:'#ffffff', loginAccent:'#E2483A', onAccent:'#ffffff' },
     reportBrand:{ band:'#1C1C1C', headerText:'#ffffff', headerSub:'#c9b3b1', accent:'#D81F1F', accentText:'#D81F1F', logo:'vanguard-logo-full-reverse.png', logoH:40 },
-    logos:{ full:'assets/vanguard-logo-full-reverse.png', emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42 },
+    logos:{ full:'assets/vanguard-logo-full-reverse.png', emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42, drHeaderH:27 },
     bookTint:'#2652D7', bookLogo:'vanguard-logo-symbol.png'
   },
   /* ── 🦴 OFFICE SKELETON — the working template for onboarding the next office ─────────
@@ -81,7 +99,7 @@ var OFFICE_CONFIG = {
     name:'LeadSphere Solutions', color:'#2B6AFF',
     theme:{ btn:'#2B6AFF', accent:'#2B6AFF', dark:'#132a45', hover:'#1B4EC4', glow:'#173a63', band:'#0A2540', onBand:'#ffffff', sidebar:'#0b1a2b' },
     reportBrand:{ band:'#0A2540', headerText:'#ffffff', headerSub:'#9db4d8', accent:'#2B6AFF', accentText:'#2B6AFF', logo:'leadsphere-logo-full-reverse.png', logoH:42 },
-    logos:{ full:'assets/leadsphere-logo-full-reverse.png', emblem:'assets/leadsphere-logo-symbol.png', sidebarH:40 },
+    logos:{ full:'assets/leadsphere-logo-full-reverse.png', emblem:'assets/leadsphere-logo-symbol.png', sidebarH:44, drHeaderH:30 },
     bookTint:'#2B6AFF', bookLogo:'leadsphere-logo-symbol.png'
   },
   evolution: {
@@ -93,7 +111,9 @@ var OFFICE_CONFIG = {
     name:'Evolution Concepts', color:'#F7C45D',
     theme:{ btn:'#8A4B12', accent:'#F7C45D', dark:'#2A1D10', hover:'#A85C18', glow:'#4A3110', band:'#1A1512', onBand:'#ffffff', sidebar:'#151110', onAccent:'#2A1B08', lightInk:'#8A6410' },
     reportBrand:{ band:'#1A1512', headerText:'#ffffff', headerSub:'#D9C7A5', accent:'#F7C45D', accentText:'#B4791C', logo:'evolution-logo-full.png', logoH:46 },
-    logos:{ full:'assets/evolution-logo-full.png', emblem:'assets/evolution-logo-symbol.png', sidebarH:46 },
+    // ⚠ Two-line lockup (3:1), so it needs MORE height than the wide offices to reach
+    // the same visual weight, and slightly LESS on login where it was already largest.
+    logos:{ full:'assets/evolution-logo-full.png', emblem:'assets/evolution-logo-symbol.png', sidebarH:50, loginH:62, drHeaderH:31 },
     bookTint:'#F7C45D', bookLogo:'evolution-logo-symbol.png'
   },
   revamped: {
@@ -110,7 +130,7 @@ var OFFICE_CONFIG = {
     // ⚠ Both files are emitted into the Daily Report header and CSS chooses — see
     // .dr-logo-light in app.css. _toggleTheme never re-renders the tab, so anything
     // that swapped the src in JS would show a stale logo until you changed tabs.
-    logos:{ full:'assets/revamped-logo-full-reverse.png', fullLight:'assets/revamped-logo-full.png', emblem:'assets/revamped-logo-symbol.png', sidebarH:44 },
+    logos:{ full:'assets/revamped-logo-full-reverse.png', fullLight:'assets/revamped-logo-full.png', emblem:'assets/revamped-logo-symbol.png', sidebarH:40 },
     bookTint:'#9E48E4', bookLogo:'revamped-logo-symbol.png'
   },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
