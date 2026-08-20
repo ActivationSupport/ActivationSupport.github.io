@@ -945,6 +945,25 @@ html[data-theme="light"] .dr-logo-light{ display:inline-block; filter:none; }
 .dr-copy-btn{padding:.3rem .75rem;background:#334155;color:#fff;border:none;border-radius:var(--r-md);font-size:.82rem;font-weight:600;cursor:pointer;transition:opacity .15s}
 .dr-copy-btn:hover{opacity:.85}
 .dr-gents{font-size:.73rem;color:#8a94a0;font-style:italic}
+/* ── WEEKLY REPORT (2026-08-20) ──
+   Reuses .card-header.dark / .dr-header / .dr-date-sel so the two Reporting tabs read as one
+   family. Only the tile grid is new — the daily's .dr-kpi-row is tuned for its own 8 metrics
+   and coupling them would make either tab unable to change without the other.
+   ⚠ Theme-token colours only (var(--text)/var(--muted)), never a hardcoded hex like the older
+   rules just above — those predate the token set and are why light theme needed a fix pass. */
+.wr-note{font-size:.82rem;color:var(--muted);margin:0 0 .25rem}
+.wr-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.wr-tile{background:var(--surface-2,rgba(127,127,127,.06));border:1px solid var(--field-border);border-radius:var(--r-md);padding:12px 14px}
+.wr-tile-v{font-size:1.5rem;font-weight:800;line-height:1.1;color:var(--text)}
+.wr-tile-l{font-size:.8rem;font-weight:600;color:var(--text);margin-top:2px}
+/* The sub-line is optional and often a cancel REASON, which can be long — clamp rather than
+   let one tile grow taller than the rest of the row. */
+.wr-tile-s{font-size:.72rem;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr-section{margin-top:.4rem}
+.wr-h{font-size:.86rem;font-weight:700;color:var(--text);margin:0 0 .45rem}
+.wr-pills{display:flex;flex-wrap:wrap;gap:6px}
+.wr-pill{font-size:.78rem;padding:3px 10px;border-radius:var(--r-pill);background:var(--surface-2,rgba(127,127,127,.08));border:1px solid var(--field-border);color:var(--text)}
+.wr-pill b{font-weight:800}
 .dr-body{display:flex;flex-direction:column;gap:1.05rem;padding-top:.6rem}
 /* at-a-glance summary */
 .dr-glance{font-size:.92rem;line-height:1.55;color:#cdd6e0;background:rgba(var(--blue2-rgb),.07);border:1px solid rgba(var(--blue2-rgb),.2);border-left:3px solid var(--blue2);border-radius:0 var(--r-md) var(--r-md) 0;padding:11px 15px;margin-bottom:.3rem}

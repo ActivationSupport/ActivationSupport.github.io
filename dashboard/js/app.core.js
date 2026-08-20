@@ -1666,10 +1666,31 @@ var TABS = [
   // hit an order issue. Content is served from the _Knowledge sheet, never committed.
   { id: 'knowledge',   label: 'Issue Resolution',     roles: ALL_ROLES,  group: 'Knowledge',   sub: 'Order issue playbooks & scripts', icon: 'training' },
   { id: 'livesales',   label: 'Live Sales Tracker',   roles: ROLES_REP,  group: 'Performance', sub: "This week's leaderboard" },
-  { id: 'dailyreport', label: 'Daily Report',         roles: ROLES_CALL, group: 'Performance', sub: 'Office daily summary' },
   { id: 'actrates',    label: 'Activation Rates',     roles: ROLES_REP,  group: 'Performance', sub: 'Rep activation breakdown' },
   { id: 'churn',       label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },
   { id: 'completed',   label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
+  /* ── REPORTING (2026-08-20, user request) ──
+     `dailyreport` MOVED here out of Performance — same tab, same id, same roles; only its
+     `group` changed, so no state, deep link or role check moves with it.
+     🔑 WHY THE WHOLE BLOCK SITS **AFTER** EVERY Performance ROW: buildNav emits a group
+     heading whenever `t.group` differs from the PREVIOUS row's, so groups must be CONTIGUOUS
+     in this array. Slotting Reporting between `livesales` and `actrates` — which reads fine
+     as source — splits Performance into two runs and renders a SECOND "Performance" heading
+     underneath Reporting. ⚠⚠ THIS ARRAY'S ORDER IS THE NAV'S ORDER. There is no group map
+     and no sort; moving a row moves a heading.
+     🔑 The two tabs are the on-screen versions of the two emails, which is the grouping:
+     Performance is "how are we doing", Reporting is "the report that went out".
+     ⚠ `weeklyreport` needs an explicit icon for the reason documented on `myappts` — buildNav
+     resolves `t.icon || t.id`, there is no `i-weeklyreport` symbol, and a missing sprite id
+     renders BLANK with no error.
+     🔑 `inbox` was CHECKED AGAINST THE SPRITE, not assumed: the obvious first choice,
+     `calendar`, DOES NOT EXIST — the calendar glyph is `i-appointments`, which belongs to
+     Scheduling. `inbox` is present, referenced by nothing else, and says the true thing:
+     this is the report that lands in the office's inbox.
+     ⚠ Roles: `_DR_ROLES` on the backend must stay in step with ROLES_CALL here, or a tab is
+     visible and its data 403s. */
+  { id: 'dailyreport',  label: 'Daily Report',        roles: ROLES_CALL, group: 'Reporting',   sub: 'Office daily summary' },
+  { id: 'weeklyreport', label: 'Weekly Report',       roles: ROLES_CALL, group: 'Reporting',   sub: 'The Mon–Sun report your office is emailed', icon: 'inbox' },
   { id: 'training',    label: 'Training & Tracking',   roles: ROLES_PAYROLL, group: 'Payroll',  sub: 'Every posted order + payout tracking' },
   /* ── ADMIN PORTAL (phase 1) ──
      ⚠⚠ `roles` HIDES A NAV ITEM; IT DOES NOT PROTECT THE DATA. readErrorLog and

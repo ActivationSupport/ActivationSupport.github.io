@@ -1,3 +1,160 @@
+/* ── WEEKLY REPORT ─────────────────────────────────────────────────────────────────────────
+   The on-screen twin of the Monday 6am email.
+
+   🔑 IT RENDERS FROM THE SAME BACKEND SUMMARY THE EMAIL DOES (`_weeklyOfficeSummary`, via the
+   new readWeeklyReport action). That is deliberate and is the main design decision here: a
+   second summariser written for the screen would drift from the email within a month, and
+   then an owner comparing the two would be right to distrust both.
+   ⚠ So there is NO local recomputation below — only formatting. If a number looks wrong, it
+   is wrong in the email too, and the fix belongs in the backend.
+
+   ⚠⚠ THE PICKER LISTS ONLY COMPLETED Mon–Sun WEEKS. The current, in-progress week is excluded
+   by `getWeeklyReportWeeks` on purpose — a partial week reads as a collapse rather than as a
+   Tuesday, and this report exists for week-over-week comparison.
+   ⚠ No Refresh button, unlike the daily. The daily has one because it REBUILDS a stored,
+   cacheable artifact; the weekly is computed fresh on every read, so a refresh control would
+   promise something it does not do. Re-selecting the week is the refresh. */
+var _WR_DATA = undefined;   // undefined = not loaded · null = no data for this week
+var _WR_WEEKS_LIST = null;
+var _WR_SEL = null;         // the selected week's Monday, yyyy-MM-dd
+var _WR_LOADING = false;
+
+function renderWeeklyReport() {
+  if (_WR_LOADING) return loadingState('Loading the weekly report…', { icon:'inbox' });
+  _WR_LOADING = true;
+  _WR_DATA = undefined;
+  /* Pin the office, exactly as the daily does. Without this a slow response can paint one
+     office's numbers under another office's header after a switch — and a report is the last
+     surface where that is survivable. */
+  var selOffice = CFG.officeId;
+  var weeksP = api({action:'getWeeklyReportWeeks'}).then(function(d){ return (d && d.weeks) || []; })
+                                                   .catch(function(){ return _WR_WEEKS_LIST || []; });
+  var r = weeksP.then(function(weeks){
+    if (!weeks.length) return { weeks:weeks, rpt:null };
+    /* Default to the newest COMPLETED week — the one the last email covered, which is what
+       someone opening this tab is almost always looking for. */
+    var want = _WR_SEL && weeks.some(function(w){ return w.start === _WR_SEL; }) ? _WR_SEL : weeks[0].start;
+    _WR_SEL = want;
+    return api({action:'readWeeklyReport', weekStart:want})
+      .then(function(res){ return { weeks:weeks, rpt:(res && res.report) || null }; });
+  });
+  r.then(function(out){
+    _WR_LOADING = false;
+    if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice) return;
+    _WR_WEEKS_LIST = out.weeks; _WR_DATA = out.rpt;
+    var c = document.getElementById('main-content'); if (c) c.innerHTML = _wrBuildHtml();
+  }).catch(function(){
+    _WR_LOADING = false;
+    if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice) return;
+    _WR_DATA = null;
+    var c = document.getElementById('main-content'); if (c) c.innerHTML = _wrBuildHtml();
+  });
+  return loadingState('Loading the weekly report for ' + (CFG.officeName||CFG.officeId) + '…', { icon:'inbox' });
+}
+
+function wrSelectWeek(weekStart) {
+  _WR_SEL = weekStart;
+  _WR_LOADING = true;
+  var selOffice = CFG.officeId;
+  var c = document.getElementById('main-content');
+  if (c) c.innerHTML = loadingState('Loading…', { icon:'inbox' });
+  api({action:'readWeeklyReport', weekStart:weekStart}).then(function(res){
+    _WR_LOADING = false;
+    if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice || _WR_SEL !== weekStart) return;
+    _WR_DATA = (res && res.report) || null;
+    var c2 = document.getElementById('main-content'); if (c2) c2.innerHTML = _wrBuildHtml();
+  }).catch(function(){ _WR_LOADING = false; });
+}
+
+// "Aug 17 – Aug 23, 2026" from the two ISO ends. Noon anchor, same as _drFmtDate: a bare
+// new Date('2026-08-17') is UTC midnight and renders as the 16th west of Greenwich.
+function _wrRangeLabel(start, end) {
+  var MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function f(ymd){ var d=new Date(String(ymd)+'T12:00:00'); return isNaN(d.getTime())?String(ymd):MN[d.getMonth()]+' '+d.getDate(); }
+  return f(start)+' – '+f(end)+', '+String(end||'').slice(0,4);
+}
+
+function _wrBuildHtml() {
+  var sm = _WR_DATA, weeks = _WR_WEEKS_LIST || [];
+  var sel = _WR_SEL;
+  var selWeek = null;
+  weeks.forEach(function(w){ if (w.start === sel) selWeek = w; });
+  var rangeLabel = selWeek ? _wrRangeLabel(selWeek.start, selWeek.end) : '';
+
+  var opts = weeks.map(function(w){
+    return '<option value="'+esc(w.start)+'"'+(w.start===sel?' selected':'')+'>'+esc(_wrRangeLabel(w.start,w.end))+'</option>';
+  });
+
+  var officeNm = (typeof CFG!=='undefined' && CFG.officeName) ? CFG.officeName : '';
+  var lg = (typeof OFFICE_LOGOS!=='undefined' && typeof CFG!=='undefined' && CFG.officeId) ? OFFICE_LOGOS[CFG.officeId] : null;
+  /* Both logo variants are EMITTED and CSS picks by html[data-theme] — never a JS swap.
+     _toggleTheme re-runs applyOfficeTheme but does NOT re-render this card, so a JS-chosen
+     logo would stay wrong until the user changed tabs. Same reasoning as the daily report. */
+  var h = (lg && lg.drHeaderH) || 26;
+  var logoImg = (lg && lg.full)
+    ? '<img class="dr-logo'+(lg.fullLight ? ' dr-logo-dark' : '')+'" src="'+lg.full+'" alt="'+esc(officeNm)+'" style="height:'+h+'px">'
+      + (lg.fullLight ? '<img class="dr-logo dr-logo-light" src="'+lg.fullLight+'" alt="'+esc(officeNm)+'" style="height:'+h+'px">' : '')
+    : '';
+
+  var header = '<div class="card-header dark dr-header">'+
+    '<div class="dr-titlewrap">'+
+      logoImg+
+      (officeNm?'<span class="dr-office">'+esc(officeNm)+'</span>':'')+
+      '<span class="dr-title">'+icon('inbox')+' Weekly Report</span>'+
+      (rangeLabel?'<span class="dr-daylabel">'+esc(rangeLabel)+'</span>':'')+
+    '</div>'+
+    '<div class="dr-controls">'+
+      (opts.length?'<select class="dr-date-sel" onchange="wrSelectWeek(this.value)" aria-label="Week">'+opts.join('')+'</select>':'')+
+    '</div></div>';
+
+  if (!weeks.length) {
+    return '<div class="card">'+header+'<div class="card-body">'+
+      noData('No completed weeks yet.', { icon:'inbox', sub:'This report covers whole Monday–Sunday weeks.' })+
+      '</div></div>';
+  }
+  if (!sm) {
+    return '<div class="card">'+header+'<div class="card-body">'+
+      noData('No data for this week.', { icon:'inbox' })+'</div></div>';
+  }
+
+  var appt = sm.apptResults || {};
+  /* ⚠ Zeroes are RENDERED, not hidden. A tile that disappears on a quiet week makes the
+     report look broken and destroys the week-over-week comparison this exists for.
+     Absence has a treatment here; blank is not it. → project-design-system. */
+  function tile(v, label, sub) {
+    return '<div class="wr-tile"><div class="wr-tile-v">'+esc(String(v==null?0:v))+'</div>'+
+           '<div class="wr-tile-l">'+esc(label)+'</div>'+
+           (sub?'<div class="wr-tile-s">'+esc(sub)+'</div>':'')+'</div>';
+  }
+  var topReason = '';
+  var by = sm.cancelByReason || {}, keys = Object.keys(by);
+  if (keys.length) { keys.sort(function(a,b){ return by[b]-by[a]; }); topReason = by[keys[0]]+' '+keys[0]; }
+
+  var tiles = '<div class="wr-tiles">'+
+    tile(sm.activatedLines, 'Lines activated', (sm.activatedOrders||0)+' orders')+
+    tile(sm.ordersSubmitted, 'Orders submitted')+
+    tile(sm.apptBooked, 'Appointments booked',
+         (sm.apptBookedStaff||0)+' staff · '+(sm.apptBookedCustomer||0)+' customer')+
+    tile(sm.cancelRequests, 'Cancel requests', topReason)+
+    tile(sm.escalations, 'Escalations')+
+    tile(sm.noAnswers, 'No answers')+
+    tile(sm.openIssues, 'Open issues')+
+    tile(sm.deliveredNotActive, 'Delivered not active')+
+  '</div>';
+
+  var apptKeys = Object.keys(appt);
+  var apptRows = apptKeys.length
+    ? '<div class="wr-section"><h3 class="wr-h">Appointment outcomes</h3><div class="wr-pills">'+
+        apptKeys.map(function(k){ return '<span class="wr-pill">'+esc(k)+' <b>'+esc(String(appt[k]))+'</b></span>'; }).join('')+
+      '</div></div>'
+    : '';
+
+  return '<div class="card">'+header+'<div class="card-body dr-body">'+
+    '<p class="wr-note">This is the same summary emailed to the office every Monday at 6am.</p>'+
+    tiles + apptRows +
+    '</div></div>';
+}
+
 // ── DAILY REPORT ──────────────────────────────────────────────────────────
 var _DR_DATA = undefined; // undefined=not loaded, null=no report for this date
 var _DR_DATES = null;

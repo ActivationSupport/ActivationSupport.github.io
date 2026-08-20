@@ -1166,6 +1166,10 @@ function renderTab(id) {
        open and stops the moment it is left or the window loses focus. */
     case 'adminerrors': c.innerHTML = renderAdminErrors(); _adminStartTimer(); break;
     case 'dailyreport': c.innerHTML = renderDailyReport(); break;
+    /* Like the Error Log and the Daily Report, this reads LIVE rather than from DATA — the
+       weekly summary is computed on demand from the same `_weeklyOfficeSummary` the EMAIL
+       renders, so it is never in the blob. Paints a loading state and fills itself in. */
+    case 'weeklyreport': c.innerHTML = renderWeeklyReport(); break;
     case 'postsale':    c.innerHTML = renderPostSale();    break;
     case 'rehash':      c.innerHTML = renderRehashTab();   break;
     case 'acttext':     c.innerHTML = renderActivatorTextTab(); break;
