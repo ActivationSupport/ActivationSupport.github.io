@@ -961,17 +961,40 @@ function _cacheSalt(user) {
    CPU on the phones these reps carry; overlapped with a multi-second validatePin round-trip
    it costs approximately nothing in wall-clock, but run serially afterwards it would be a
    visible tax on every single sign-in. */
+/* 🔑 `_KDF_MS` — the LAST measured derivation cost, in ms. Read by nothing in the UI on
+   purpose: this is instrumentation, not a feature. 27ms was measured on a desktop; the open
+   question has always been what it costs on the older iPhones the reps actually carry, and
+   until now there was NO kdfMs anywhere in the bundle to answer it with. */
+var _KDF_MS = null;
+
 function _cacheKeyDerive(password, user) {
   var sub = _subtle();
   if (!sub || !password || !user) return Promise.resolve(null);
   var salt = _cacheSalt(user);
   if (!salt) return Promise.resolve(null);
   var enc = new TextEncoder();
+  /* ⚠ Timed across importKey+deriveKey and NOT the exportKey/sessionStorage write — the
+     question is what PBKDF2 at _CACHE_KDF_ITER costs this CPU, and folding storage in would
+     make a slow disk read as a slow KDF. */
+  var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
   return sub.importKey('raw', enc.encode(String(password)), { name: 'PBKDF2' }, false, ['deriveKey'])
     .then(function (base) {
       return sub.deriveKey(
         { name: 'PBKDF2', salt: salt, iterations: _CACHE_KDF_ITER, hash: 'SHA-256' },
         base, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+    })
+    .then(function (key) {
+      var t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      _KDF_MS = Math.round(t1 - t0);
+      /* Rides the existing breadcrumb channel, so it lands in the same Breadcrumbs column
+         `dumpErrorLatency` already regex-parses — no new column, no new plumbing.
+         ⚠⚠ AND THE SAMPLE IS BIASED THE SAME WAY THE RETRY CRUMBS ARE: breadcrumbs upload
+         only inside an error report, so this is only ever seen as a passenger on some later
+         failure. ⚠ BUT THE BIAS IS MILDER HERE THAN FOR RETRIES — KDF cost is a property of
+         the DEVICE, not of the request that failed. A slow phone is slow on a clean day too.
+         Read the device off the row's user-agent; the crumb deliberately carries only ms. */
+      try { if (window._ERR && _ERR.crumb) _ERR.crumb('kdf', _KDF_MS + 'ms'); } catch (e) {}
+      return key;
     })
     .then(function (key) { return sub.exportKey('raw', key).then(function (raw) {
         try { sessionStorage.setItem(_CACHE_KEY_SS + user, _b64(raw)); } catch (e) {}
