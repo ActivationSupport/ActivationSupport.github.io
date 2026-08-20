@@ -964,6 +964,7 @@ html[data-theme="light"] .dr-logo-light{ display:inline-block; filter:none; }
 .wr-pills{display:flex;flex-wrap:wrap;gap:6px}
 .wr-pill{font-size:.78rem;padding:3px 10px;border-radius:var(--r-pill);background:var(--surface-2,rgba(127,127,127,.08));border:1px solid var(--field-border);color:var(--text)}
 .wr-pill b{font-weight:800}
+.wr-foot{font-size:.72rem;color:var(--muted);margin:.6rem 0 0;line-height:1.5}
 .dr-body{display:flex;flex-direction:column;gap:1.05rem;padding-top:.6rem}
 /* at-a-glance summary */
 .dr-glance{font-size:.92rem;line-height:1.55;color:#cdd6e0;background:rgba(var(--blue2-rgb),.07);border:1px solid rgba(var(--blue2-rgb),.2);border-left:3px solid var(--blue2);border-radius:0 var(--r-md) var(--r-md) 0;padding:11px 15px;margin-bottom:.3rem}

@@ -130,28 +130,46 @@ function _wrBuildHtml() {
   var by = sm.cancelByReason || {}, keys = Object.keys(by);
   if (keys.length) { keys.sort(function(a,b){ return by[b]-by[a]; }); topReason = by[keys[0]]+' '+keys[0]; }
 
+  /* ⚠⚠ THE TILE SET, THEIR LABELS AND THEIR SUB-LINES MIRROR `_buildWeeklyReportEmailHtml`
+     DELIBERATELY, tile for tile. This tab's promise is "the report your office is emailed"
+     (D-033), and an owner comparing the two must not find a metric here that is missing there,
+     or the same metric under a different name. If you add a tile to one, add it to both. */
   var tiles = '<div class="wr-tiles">'+
-    tile(sm.activatedLines, 'Lines activated', (sm.activatedOrders||0)+' orders')+
-    tile(sm.ordersSubmitted, 'Orders submitted')+
-    tile(sm.apptBooked, 'Appointments booked',
-         (sm.apptBookedStaff||0)+' staff · '+(sm.apptBookedCustomer||0)+' customer')+
-    tile(sm.cancelRequests, 'Cancel requests', topReason)+
-    tile(sm.escalations, 'Escalations')+
-    tile(sm.noAnswers, 'No answers')+
-    tile(sm.openIssues, 'Open issues')+
-    tile(sm.deliveredNotActive, 'Delivered not active')+
+    tile(sm.activatedLines, 'Lines Activated', (sm.activatedOrders||0)+' order'+((sm.activatedOrders===1)?'':'s'))+
+    tile(sm.ordersSubmitted, 'Orders Submitted', 'Post Sale form')+
+    tile(sm.apptBooked, 'Appts Booked',
+         (sm.apptBookedStaff||0)+' staff · '+(sm.apptBookedCustomer||0)+' self-booked')+
+    /* Distinct from "Appts Booked": that counts appointments CREATED this week, this counts
+       appointments that SAT this week. The email carries both and they are routinely
+       different numbers. */
+    tile(appt.total, 'Appts This Week', (appt.completed||0)+' completed')+
+    tile(sm.escalations, 'Escalations', '1–2★')+
+    tile(sm.noAnswers, 'No Answers', 'this week')+
+    tile(sm.cancelRequests, 'Cancel Requests', topReason)+
+    tile(sm.openIssues, 'Open Order Issues', 'current')+
+    tile(sm.deliveredNotActive, 'Delivered – Not Active', 'current')+
   '</div>';
 
-  var apptKeys = Object.keys(appt);
-  var apptRows = apptKeys.length
-    ? '<div class="wr-section"><h3 class="wr-h">Appointment outcomes</h3><div class="wr-pills">'+
-        apptKeys.map(function(k){ return '<span class="wr-pill">'+esc(k)+' <b>'+esc(String(appt[k]))+'</b></span>'; }).join('')+
-      '</div></div>'
-    : '';
+  /* ⚠⚠ `apptResults` IS A FIXED-KEY OBJECT — { total, completed, noShow, rescheduled, canceled,
+     unmarked } — NOT an arbitrary label→count map. A first version here rendered
+     Object.keys() straight into pills, which printed raw camelCase ("noShow", "unmarked") AND
+     showed `total` as a peer of its own components. Enumerate the known keys with real labels.
+     🔑 `total` is deliberately EXCLUDED — it is the sum, and it already has its own tile. */
+  var OUTCOMES = [['completed','Completed'],['noShow','No-show'],
+                  ['rescheduled','Rescheduled'],['canceled','Canceled'],['unmarked','Unmarked']];
+  var pills = OUTCOMES.map(function(p){
+    return '<span class="wr-pill">'+esc(p[1])+' <b>'+esc(String(appt[p[0]]||0))+'</b></span>';
+  }).join('');
+  var apptRows = '<div class="wr-section"><h3 class="wr-h">Appointment outcomes this week</h3>'+
+                 '<div class="wr-pills">'+pills+'</div></div>';
 
   return '<div class="card">'+header+'<div class="card-body dr-body">'+
     '<p class="wr-note">This is the same summary emailed to the office every Monday at 6am.</p>'+
     tiles + apptRows +
+    /* The email carries this caveat and the tab must too — without it, two of the nine tiles
+       are read as weekly events when they are running backlog totals. */
+    '<p class="wr-foot">Open Order Issues and Delivered – Not Active are current backlog counts, '+
+    'not weekly events. Dates in Pacific.</p>'+
     '</div></div>';
 }
 
