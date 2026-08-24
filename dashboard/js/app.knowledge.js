@@ -18,14 +18,26 @@ var _KB_Q = '';            // current search text
    🔑 THE SPLIT IS THE SHEET'S `Section` COLUMN — one source, one fetch, no second backend call.
    ⚠ Rename that section in the sheet and the guides FALL BACK into Issue Resolution rather than
    vanishing. Visible degradation, not a silent one. Must match `_private/knowledge/*.txt`. */
-var KB_RESOURCE_SECTION = 'Customer Resources';
-function _kbIsResource(a) { return String(a.section || '').trim() === KB_RESOURCE_SECTION; }
+/* ⚠ TWO ACCEPTED SPELLINGS, ON PURPOSE. The tab was called "Customer Resources" for one commit
+   before being renamed to "Resources", and rows may already have been pasted under the old
+   section name. Matching both means a rename in the sheet is optional rather than a silent
+   orphaning — a row under the old name still lands here instead of falling into Issue
+   Resolution. KB_RESOURCE_SECTION stays the CANONICAL one for new rows and empty-state copy. */
+var KB_RESOURCE_SECTION = 'Resources';
+var KB_RESOURCE_SECTIONS = ['Resources', 'Customer Resources'];
+function _kbIsResource(a) {
+  var s = String(a.section || '').trim().toLowerCase();
+  for (var i = 0; i < KB_RESOURCE_SECTIONS.length; i++) {
+    if (s === KB_RESOURCE_SECTIONS[i].toLowerCase()) return true;
+  }
+  return false;
+}
 
 function renderKnowledge() { return _kbScreen(false); }
 function renderResources() { return _kbScreen(true); }
 
 function _kbScreen(resourcesOnly) {
-  var ttl = resourcesOnly ? 'Customer Resources' : 'Knowledge';
+  var ttl = resourcesOnly ? 'Resources' : 'Knowledge';
   var ico = resourcesOnly ? 'mail' : 'training';
   if (_KB_ERR) {
     return '<div class="card"><div class="card-header dark">' + icon(ico) + ' ' + ttl + '</div>' +
