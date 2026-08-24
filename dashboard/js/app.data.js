@@ -1159,6 +1159,7 @@ function renderTab(id) {
     case 'completed':   c.innerHTML = renderCallTable(repFilter(DATA.completedOrders||[]), 'Completed Order Log', 'No completed orders found.'); break;
     case 'noanswer':    c.innerHTML = renderNoAnswerTable(); break;
     case 'knowledge':   c.innerHTML = renderKnowledge(); break;
+    case 'resources':   c.innerHTML = renderResources(); break;
     case 'escalations': c.innerHTML = renderEscalationsTable(); break;
     case 'churn':       c.innerHTML = renderChurn();       break;
     /* Admin Portal — the Error Log reads LIVE rather than from DATA, so it paints a

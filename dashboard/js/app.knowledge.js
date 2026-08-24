@@ -12,19 +12,43 @@ var _KB_ERR = '';
 var _KB_OPEN = {};         // title -> true, which articles are expanded
 var _KB_Q = '';            // current search text
 
-function renderKnowledge() {
+/* ⚠⚠ CUSTOMER-FACING GUIDES ARE A DIFFERENT KIND OF DOCUMENT from the internal playbooks: they
+   get SENT TO A CUSTOMER, the playbooks never do. They render in their own tab so a rep looking
+   for something to send is not scrolling past order-issue scripts to find it.
+   🔑 THE SPLIT IS THE SHEET'S `Section` COLUMN — one source, one fetch, no second backend call.
+   ⚠ Rename that section in the sheet and the guides FALL BACK into Issue Resolution rather than
+   vanishing. Visible degradation, not a silent one. Must match `_private/knowledge/*.txt`. */
+var KB_RESOURCE_SECTION = 'Customer Resources';
+function _kbIsResource(a) { return String(a.section || '').trim() === KB_RESOURCE_SECTION; }
+
+function renderKnowledge() { return _kbScreen(false); }
+function renderResources() { return _kbScreen(true); }
+
+function _kbScreen(resourcesOnly) {
+  var ttl = resourcesOnly ? 'Customer Resources' : 'Knowledge';
+  var ico = resourcesOnly ? 'mail' : 'training';
   if (_KB_ERR) {
-    return '<div class="card"><div class="card-header dark">' + icon('training') + ' Knowledge</div>' +
+    return '<div class="card"><div class="card-header dark">' + icon(ico) + ' ' + ttl + '</div>' +
       '<div class="card-body"><div class="kb-err">' + esc(_KB_ERR) +
       '<button class="kb-retry" onclick="_kbLoad(true)">Retry</button></div></div></div>';
   }
-  if (_KB === null) { _kbLoad(); return loadingState('Loading knowledge base…', { icon:'training' }); }
-  if (!_KB.length) return noData('No articles yet.', { icon: 'training' });
+  if (_KB === null) { _kbLoad(); return loadingState('Loading ' + (resourcesOnly ? 'customer resources' : 'knowledge base') + '…', { icon: ico }); }
 
-  var q = _KB_Q.toLowerCase();
-  var shown = q ? _KB.filter(function(a) {
+  var pool = _KB.filter(function(a) { return _kbIsResource(a) === !!resourcesOnly; });
+  /* ⚠ An empty RESOURCES tab is the EXPECTED state until the guides are pasted into the sheet —
+     name the section that is missing, or it reads as a broken tab rather than an empty one. */
+  if (!pool.length) {
+    return resourcesOnly
+      ? noData('No customer guides yet. They live in the _Knowledge sheet under the "' + KB_RESOURCE_SECTION + '" section.', { icon: ico })
+      : noData('No articles yet.', { icon: ico });
+  }
+
+  /* The resources tab is a short shelf, not a corpus — a search box over two guides is noise,
+     and _KB_Q is shared state, so searching there would silently filter Issue Resolution too. */
+  var q = resourcesOnly ? '' : _KB_Q.toLowerCase();
+  var shown = q ? pool.filter(function(a) {
     return (a.title + ' ' + a.tag + ' ' + a.section + ' ' + a.body).toLowerCase().indexOf(q) !== -1;
-  }) : _KB;
+  }) : pool;
 
   // Group by section, preserving the server's order within each.
   var sections = [], byS = {};
@@ -33,19 +57,25 @@ function renderKnowledge() {
     byS[a.section].push(a);
   });
 
+  /* One section on the resources shelf, so its label would just repeat the tab title. */
   var body = sections.map(function(s) {
-    return '<div class="kb-sec-label">' + esc(s) + '</div>' + byS[s].map(_kbArticleHtml).join('');
+    return (resourcesOnly ? '' : '<div class="kb-sec-label">' + esc(s) + '</div>') +
+           byS[s].map(_kbArticleHtml).join('');
   }).join('');
   if (!shown.length) body = '<div class="kb-noresult">Nothing matches &ldquo;' + esc(_KB_Q) + '&rdquo;.</div>';
 
-  return '<div class="card"><div class="card-header dark">' + icon('training') + ' Knowledge' +
-      '<span class="kb-count">' + _KB.length + ' article' + (_KB.length === 1 ? '' : 's') + '</span>' +
+  return '<div class="card"><div class="card-header dark">' + icon(ico) + ' ' + ttl +
+      /* ⚠ pool.length, NOT _KB.length — the count must describe THIS tab, or Issue Resolution
+         claims the guides it no longer shows. */
+      '<span class="kb-count">' + pool.length + (resourcesOnly ? ' guide' : ' article') + (pool.length === 1 ? '' : 's') + '</span>' +
     '</div><div class="card-body">' +
-    '<div class="kb-toolbar">' +
+    (resourcesOnly
+      ? '<p class="rh-op-p" style="margin:0 0 14px">Send these with the welcome text. The guide is written for the customer, so it can go across as-is.</p>'
+      : '<div class="kb-toolbar">' +
       '<input class="kb-search" id="kb-search" type="search" placeholder="Search titles and article text…" ' +
         'value="' + esc(_KB_Q) + '" oninput="_kbSearch(this.value)">' +
       '<button class="kb-expand" onclick="_kbToggleAll()">' + (_kbAllOpen() ? 'Collapse all' : 'Expand all') + '</button>' +
-    '</div>' + body + '</div></div>';
+      '</div>') + body + '</div></div>';
 }
 
 function _kbArticleHtml(a) {

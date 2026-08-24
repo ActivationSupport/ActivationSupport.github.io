@@ -1680,6 +1680,10 @@ var TABS = [
   // Its own group, directly under Call Logs — that's where someone is standing when they
   // hit an order issue. Content is served from the _Knowledge sheet, never committed.
   { id: 'knowledge',   label: 'Issue Resolution',     roles: ALL_ROLES,  group: 'Knowledge',   sub: 'Order issue playbooks & scripts', icon: 'training' },
+  /* ⚠ icon:'mail' is REQUIRED, not decoration — buildNav resolves `t.icon || t.id`, there is no
+     `i-resources` symbol, and a missing sprite id renders BLANK with no error. Third time this
+     trap is annotated in this list; see the clock and weeklyreport entries. */
+  { id: 'resources',   label: 'Customer Resources',   roles: ALL_ROLES,  group: 'Knowledge',   sub: 'Guides to send customers', icon: 'mail' },
   { id: 'livesales',   label: 'Live Sales Tracker',   roles: ROLES_REP,  group: 'Performance', sub: "This week's leaderboard" },
   { id: 'actrates',    label: 'Activation Rates',     roles: ROLES_REP,  group: 'Performance', sub: 'Rep activation breakdown' },
   { id: 'churn',       label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },

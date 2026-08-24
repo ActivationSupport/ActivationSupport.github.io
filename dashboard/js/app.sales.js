@@ -482,16 +482,16 @@ function _rehashMessagePane() {
    commit publishes permanently — git history keeps a file after a later delete. The text lives
    in the _Knowledge sheet and arrives over the authenticated readKnowledge action, which is the
    pattern app.knowledge.js exists to enforce ("the article text lives ONLY in the _Knowledge
-   sheet"). Every rep can read it there: the Issue Resolution tab is ALL_ROLES.
+   sheet"). Every rep can read it there: the Customer Resources tab is ALL_ROLES.
    ⚠ These titles must MATCH THE SHEET's Title column exactly, or the deep-link cannot expand
-   the article. It degrades safely — the rep still lands on Issue Resolution with the guide in
+   the article. It degrades safely — the rep still lands on Customer Resources with the guide in
    the list — but a renamed row makes this silently stop pre-opening. → [[decisions]] D-037 */
 var RH_GUIDE_EN = 'AT&T Resource Guide — Business (English)';
 var RH_GUIDE_ES = 'AT&T Resource Guide — Business (Español)';
 function _rehashOpenGuide(title) {
   /* app.knowledge.js owns _KB_OPEN; both bundles are loaded long before a rep can click. */
   if (typeof _KB_OPEN !== 'undefined' && _KB_OPEN) _KB_OPEN[title] = true;
-  switchTab('knowledge');
+  switchTab('resources');   // the guides have their own tab under Knowledge
 }
 function _rehashOnePagerPane() {
   var biz = _REHASH && _REHASH.acctType === 'Business';
@@ -503,10 +503,10 @@ function _rehashOnePagerPane() {
     '<div class="rh-op-hd">'+icon('people')+'Business orders — send the resource guide too</div>'+
     '<p class="rh-op-p">Send the AT&amp;T resource guide with the same group text, in whichever language the customer speaks. It covers billing reminders, tracking and activating devices, the trade-in process and fiber install expectations — the questions that otherwise come back to you as calls.</p>'+
     '<div class="rh-op-files">'+
-      card(RH_GUIDE_EN, 'English', 'Open in Issue Resolution')+
-      card(RH_GUIDE_ES, 'Espa&ntilde;ol', 'Abrir en Issue Resolution')+
+      card(RH_GUIDE_EN, 'English', 'Open in Customer Resources')+
+      card(RH_GUIDE_ES, 'Espa&ntilde;ol', 'Abrir en Customer Resources')+
     '</div>'+
-    '<p class="rh-op-note">The guide lives in <b>Issue Resolution</b> so every rep can read it in the portal. The VIP number printed on it (855 370 6941) is the <b>Business</b> line, which is why this is Business-only — a Consumer order uses 833 603 3270.</p>'+
+    '<p class="rh-op-note">The guides live under <b>Knowledge &rarr; Customer Resources</b>, so every rep can read them in the portal. The VIP number printed on this one (855 370 6941) is the <b>Business</b> line, which is why it is Business-only — a Consumer order uses 833 603 3270.</p>'+
     (biz
       ? '<div class="rh-op-flag on">'+icon('people')+'This order is set to <b>Business</b> — send the guide before you finish.</div>'
       : '<div class="rh-op-flag">This order is currently set to <b>Consumer</b>. The guide is for Business orders; switch Account Type on the Message tab if that is wrong.</div>')+
