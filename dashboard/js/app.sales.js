@@ -404,13 +404,53 @@ function _rehashInit() {
   if (_REHASH) return;
   _REHASH = { products:{ Wireless:true, Fiber:false, Air:false }, firstName:'', repName:(SESSION.name||''), dateOfSale:_psOfficeToday(), accountNumber:'', acctType:'Consumer' };
 }
+/* The office's activation support number, from the SAME map the Activator Text keys off
+   (ATX_OFFICE_NUMBER, declared below — `var` so it is assigned long before a rep opens a tab).
+   🔑 ONE MAP, NOT TWO. A second copy would drift, and the number a rep drops into a group text
+   has to be the number an activator actually answers on.
+   ⚠ A blank entry is a REAL STATE, not a bug — evolution and revamped launched without a
+   call-in number. It must be said out loud; an empty slot reads as "there isn't one". */
+function _rehashOfficeNum() {
+  if (typeof ATX_OFFICE_NUMBER === 'undefined' || typeof CFG === 'undefined' || !CFG) return '';
+  return ATX_OFFICE_NUMBER[CFG.officeId] || '';
+}
+/* Which pane of the Rehash Text tab is showing. Module-level on purpose: every field edit
+   re-renders the WHOLE tab through innerHTML, so a view held in the DOM would reset itself
+   the moment a rep typed a letter. */
+var _RH_VIEW = 'message';
+function _rehashView(v) {
+  _RH_VIEW = v;
+  document.getElementById('main-content').innerHTML = renderRehashTab();
+}
 function renderRehashTab() {
   _rehashInit();
+  /* ⚠ Sub-tabs, NOT the .ps-toggle used for Products/Account Type below. Those are FORM
+     FIELDS that change the message; these change which screen you are on. Making them look
+     identical would invite a rep to read "Business One-Pager" as a third account type. */
+  var vtab = function(k, label, badge) {
+    return '<div class="rh-tab'+(_RH_VIEW===k?' active':'')+'" onclick="_rehashView(\''+k+'\')">'+label+
+           (badge ? '<span class="rh-tab-badge">'+badge+'</span>' : '')+'</div>';
+  };
+  return '<div class="card"><div class="card-header dark">'+icon('rehash')+' Rehash Text</div><div class="card-body">'+
+    '<div class="rh-tabs">'+vtab('message','Message')+vtab('onepager','One-Pager','BUSINESS')+'</div>'+
+    (_RH_VIEW === 'onepager' ? _rehashOnePagerPane() : _rehashMessagePane())+
+    '</div></div>';
+}
+function _rehashMessagePane() {
   var d = _REHASH;
+  var onum = _rehashOfficeNum();
   var tog  = function(v){ return '<div class="ps-toggle'+(d.acctType===v?' active':'')+'" onclick="_rehashPick(\'acctType\',\''+v+'\')">'+v+'</div>'; };
   var ptog = function(v){ return '<div class="ps-toggle'+(d.products[v]?' active':'')+'" onclick="_rehashToggleProduct(\''+v+'\')">'+v+'</div>'; };
-  return '<div class="card"><div class="card-header dark">'+icon('rehash')+' Rehash Text</div><div class="card-body">'+
+  return ''+
     '<div style="font-size:.85rem;color:var(--text2);margin-bottom:18px;line-height:1.5">Pick the product + fill these in, then tap <b>Copy Text</b> and send it to the customer. Nothing here is saved — the account number is used only to build the message.</div>'+
+    // ⚠ This is a REP instruction about HOW to send, not a line in the customer's message.
+    //   It sits above the fields because it changes what they do before they start typing.
+    '<div class="rh-groupnote">'+
+      '<div class="rh-groupnote-hd">'+icon('people')+'Send this as a GROUP TEXT</div>'+
+      (onum
+        ? 'Put three people on the thread — the customer, you, and your activation team at <b class="rh-groupnum">'+esc(onum)+'</b>. That way we can step in without the customer having to repeat themselves.'
+        : 'Put three people on the thread — the customer, you, and your activation team. <b>Your office does not have an activation number set yet — ask your manager for it before you send.</b>')+
+    '</div>'+
     '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">'+
       // ── Left: the fields (side-by-side on desktop, stacks full-width on phones) ──
       '<div style="flex:1 1 240px;min-width:220px">'+
@@ -435,8 +475,30 @@ function renderRehashTab() {
         '</div>'+
         '<textarea id="rh-preview" readonly style="width:100%;min-height:520px;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;line-height:1.5;padding:14px;white-space:pre-wrap;resize:vertical">'+esc(_rehashText(d))+'</textarea>'+
       '</div>'+
+    '</div>';
+}
+/* BUSINESS ONE-PAGER pane.
+   🔴🔴 THE PDF IS NOT IN THIS REPO AND MUST NOT BE. The repo is PUBLIC, and the user's
+   instruction (2026-08-24) was that nothing goes public except the customer booking link.
+   Committing the guide — or its text — would publish it permanently, since git history keeps
+   it even after a later delete. So this pane REMINDS and does not HOST.
+   🔑 If the full text is ever wanted on screen, it goes in the _Knowledge sheet and arrives
+   over the authenticated readKnowledge action — the pattern app.knowledge.js already uses for
+   exactly this reason ("the article text lives ONLY in the _Knowledge sheet"). NOT in here. */
+function _rehashOnePagerPane() {
+  var biz = _REHASH && _REHASH.acctType === 'Business';
+  return '<div class="rh-op">'+
+    '<div class="rh-op-hd">'+icon('people')+'Business orders — send the resource guide too</div>'+
+    '<p class="rh-op-p">Attach the AT&amp;T one-pager to the same group text, in whichever language the customer speaks. It covers billing reminders, tracking and activating devices, the trade-in process and fiber install expectations — the questions that otherwise come back to you as calls.</p>'+
+    '<div class="rh-op-files">'+
+      '<div class="rh-op-file">'+icon('copy')+'<div><b>English</b><span>SCI · ATT · Resource Guide</span></div></div>'+
+      '<div class="rh-op-file">'+icon('copy')+'<div><b>Espa&ntilde;ol</b><span>SCI · ATT · Gu&iacute;a de Recursos</span></div></div>'+
     '</div>'+
-    '</div></div>';
+    '<p class="rh-op-note"><b>The guide is not stored in the portal.</b> Use your own saved copy — it is not published anywhere public, and the VIP number printed on it (855 370 6941) is the <b>Business</b> line, which is why this is Business-only.</p>'+
+    (biz
+      ? '<div class="rh-op-flag on">'+icon('people')+'This order is set to <b>Business</b> — attach it before you send.</div>'
+      : '<div class="rh-op-flag">This order is currently set to <b>Consumer</b>. The guide is for Business orders; switch Account Type on the Message tab if that is wrong.</div>')+
+  '</div>';
 }
 function _rehashSet(field, val) {
   _rehashInit(); _REHASH[field] = val;
@@ -556,6 +618,17 @@ function _rehashText(d) {
   s.push('   • Credits from the 1st, 2nd, and 3rd bill all apply here', '');
   s.push('4️⃣  Fourth Bill:');
   s.push('   • The regular bill that was quoted', '');
+  /* VOC (Voice of the Customer) survey — the user's framing, 2026-08-24, kept in substance:
+     they may get a survey, fill it out as soon as it arrives, and it is about the REP.
+     🔑 THE SCOPING SENTENCE IS THE POINT, NOT THE ASK. A customer who rates a slow UPS
+     delivery or an install tech's arrival window is scoring the rep for something the rep
+     could not affect — so naming what the survey is NOT about is what makes it fair.
+     ⚠ Deliberately does not promise WHEN it arrives or that one is definitely coming — AT&T
+     sends these, we do not, and a promise we cannot keep reads as a broken one. */
+  s.push('⭐ A Quick Favor — AT&T May Send You a Survey');
+  s.push('   • If one arrives, please fill it out as soon as you get it — they close fast');
+  s.push('   • It is only about the service I gave you today, not delivery timing, install technicians, or anything outside my control');
+  s.push('   • It takes about a minute and it genuinely helps me', '');
   s.push('———————————————————', '');
   s.push('Thank you again for choosing AT&T — we truly appreciate your business!');
   return s.join('\n');

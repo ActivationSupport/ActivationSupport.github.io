@@ -541,6 +541,38 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
    ⚠ --tint-2 / --rule-1 / --text2 FLIP POLARITY between themes, so this tracks light and dark
    with no theme-specific rule (same pattern as .empty-code). */
 .skel-note{font-size:.85rem;color:var(--text2);margin:0 0 14px;padding:10px 14px;background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);border-radius:var(--r-sm)}
+/* Sibling of .skel-note, one step LOUDER on purpose: .skel-note informs, this one asks the rep
+   to DO something before they send, and a muted note gets skimmed.
+   🔑 LOUDER VIA INK WEIGHT, NOT COLOUR — --text instead of --text2. An accent fill would have to
+   clear contrast against EVERY office's accent including viridian's gold (1.18:1 at login, D-001),
+   so a colour-led version needs a per-office answer and this does not.
+   ⚠ Same --tint-2 / --rule-1 pair as .skel-note and .empty-code: both FLIP POLARITY between
+   themes, so this tracks light and dark with no theme-specific rule. */
+.rh-groupnote{font-size:.85rem;color:var(--text);margin:0 0 18px;padding:12px 14px;background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);border-radius:var(--r-sm);line-height:1.5}
+/* Sub-tabs inside the Rehash Text card. Same shape as .lst-view-btn — including the
+   --blue2/--on-accent active pair, which is what keeps a gold office legible in light mode
+   (applyOfficeTheme swaps in lightInk + white on-accent). Kept as its own class rather than
+   reusing .lst-* so restyling the Live Sales Tracker cannot silently restyle this tab.
+   ⚠ NOT .ps-toggle: those are form fields that change the message, these change the screen. */
+.rh-tabs{display:flex;gap:4px;margin:0 0 18px;flex-wrap:wrap}
+.rh-tab{display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;user-select:none}
+.rh-tab.active{background:var(--blue2);border-color:var(--blue2);color:var(--on-accent)}
+/* currentColor, so the badge inverts with the tab instead of needing an active-state rule. */
+.rh-tab-badge{font-size:9px;letter-spacing:.08em;padding:1px 5px;border-radius:var(--r-sm);background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);color:currentColor;opacity:.85}
+.rh-op{font-size:.85rem;color:var(--text);line-height:1.55;max-width:720px}
+.rh-op-hd{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:10px}
+.rh-op-p{margin:0 0 14px;color:var(--text2)}
+.rh-op-files{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.rh-op-file{display:flex;align-items:center;gap:9px;padding:10px 14px;border-radius:var(--r-sm);background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);min-width:200px}
+.rh-op-file b{display:block;font-size:.85rem}
+.rh-op-file span{display:block;font-size:.72rem;color:var(--text2)}
+.rh-op-note{margin:0 0 14px;padding:10px 14px;border-radius:var(--r-sm);background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);color:var(--text2)}
+/* Reflects the Account Type set on the Message tab — the flag is a MIRROR, never a control. */
+.rh-op-flag{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--r-sm);color:var(--text2);background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1)}
+.rh-op-flag.on{color:var(--text);box-shadow:inset 0 0 0 1px var(--blue2)}
+.rh-groupnote-hd{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:6px}
+/* user-select:all — the rep taps once to grab the number for the group thread. */
+.rh-groupnum{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;user-select:all;white-space:nowrap}
 .empty{text-align:center;padding:40px;color:var(--text2);font-size:.88rem}
 /* Shared empty-state (icon in a soft accent circle + message + optional sub/action). */
 .empty-state{text-align:center;padding:46px 24px;color:var(--text2)}
