@@ -563,7 +563,10 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .rh-op-hd{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:10px}
 .rh-op-p{margin:0 0 14px;color:var(--text2)}
 .rh-op-files{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-.rh-op-file{display:flex;align-items:center;gap:9px;padding:10px 14px;border-radius:var(--r-sm);background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);min-width:200px}
+/* Clickable — opens the article in Issue Resolution. Hover/focus lift the ring to the office
+   accent so it reads as a control rather than a label. */
+.rh-op-file{display:flex;align-items:center;gap:9px;padding:10px 14px;border-radius:var(--r-sm);background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);min-width:200px;cursor:pointer}
+.rh-op-file:hover{box-shadow:inset 0 0 0 1px var(--blue2)}
 .rh-op-file b{display:block;font-size:.85rem}
 .rh-op-file span{display:block;font-size:.72rem;color:var(--text2)}
 .rh-op-note{margin:0 0 14px;padding:10px 14px;border-radius:var(--r-sm);background:var(--tint-2);box-shadow:inset 0 0 0 1px var(--rule-1);color:var(--text2)}

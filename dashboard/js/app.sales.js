@@ -478,25 +478,37 @@ function _rehashMessagePane() {
     '</div>';
 }
 /* BUSINESS ONE-PAGER pane.
-   🔴🔴 THE PDF IS NOT IN THIS REPO AND MUST NOT BE. The repo is PUBLIC, and the user's
-   instruction (2026-08-24) was that nothing goes public except the customer booking link.
-   Committing the guide — or its text — would publish it permanently, since git history keeps
-   it even after a later delete. So this pane REMINDS and does not HOST.
-   🔑 If the full text is ever wanted on screen, it goes in the _Knowledge sheet and arrives
-   over the authenticated readKnowledge action — the pattern app.knowledge.js already uses for
-   exactly this reason ("the article text lives ONLY in the _Knowledge sheet"). NOT in here. */
+   🔴🔴 THE GUIDE'S TEXT IS NOT IN THIS REPO AND MUST NEVER BE. `dashboard/` is PUBLIC, and a
+   commit publishes permanently — git history keeps a file after a later delete. The text lives
+   in the _Knowledge sheet and arrives over the authenticated readKnowledge action, which is the
+   pattern app.knowledge.js exists to enforce ("the article text lives ONLY in the _Knowledge
+   sheet"). Every rep can read it there: the Issue Resolution tab is ALL_ROLES.
+   ⚠ These titles must MATCH THE SHEET's Title column exactly, or the deep-link cannot expand
+   the article. It degrades safely — the rep still lands on Issue Resolution with the guide in
+   the list — but a renamed row makes this silently stop pre-opening. → [[decisions]] D-037 */
+var RH_GUIDE_EN = 'AT&T Resource Guide — Business (English)';
+var RH_GUIDE_ES = 'AT&T Resource Guide — Business (Español)';
+function _rehashOpenGuide(title) {
+  /* app.knowledge.js owns _KB_OPEN; both bundles are loaded long before a rep can click. */
+  if (typeof _KB_OPEN !== 'undefined' && _KB_OPEN) _KB_OPEN[title] = true;
+  switchTab('knowledge');
+}
 function _rehashOnePagerPane() {
   var biz = _REHASH && _REHASH.acctType === 'Business';
+  var card = function(title, lang, sub) {
+    return '<div class="rh-op-file" onclick="_rehashOpenGuide('+JSON.stringify(title).replace(/"/g,'&quot;')+')">'+
+      icon('training')+'<div><b>'+lang+'</b><span>'+sub+'</span></div></div>';
+  };
   return '<div class="rh-op">'+
     '<div class="rh-op-hd">'+icon('people')+'Business orders — send the resource guide too</div>'+
-    '<p class="rh-op-p">Attach the AT&amp;T one-pager to the same group text, in whichever language the customer speaks. It covers billing reminders, tracking and activating devices, the trade-in process and fiber install expectations — the questions that otherwise come back to you as calls.</p>'+
+    '<p class="rh-op-p">Send the AT&amp;T resource guide with the same group text, in whichever language the customer speaks. It covers billing reminders, tracking and activating devices, the trade-in process and fiber install expectations — the questions that otherwise come back to you as calls.</p>'+
     '<div class="rh-op-files">'+
-      '<div class="rh-op-file">'+icon('copy')+'<div><b>English</b><span>SCI · ATT · Resource Guide</span></div></div>'+
-      '<div class="rh-op-file">'+icon('copy')+'<div><b>Espa&ntilde;ol</b><span>SCI · ATT · Gu&iacute;a de Recursos</span></div></div>'+
+      card(RH_GUIDE_EN, 'English', 'Open in Issue Resolution')+
+      card(RH_GUIDE_ES, 'Espa&ntilde;ol', 'Abrir en Issue Resolution')+
     '</div>'+
-    '<p class="rh-op-note"><b>The guide is not stored in the portal.</b> Use your own saved copy — it is not published anywhere public, and the VIP number printed on it (855 370 6941) is the <b>Business</b> line, which is why this is Business-only.</p>'+
+    '<p class="rh-op-note">The guide lives in <b>Issue Resolution</b> so every rep can read it in the portal. The VIP number printed on it (855 370 6941) is the <b>Business</b> line, which is why this is Business-only — a Consumer order uses 833 603 3270.</p>'+
     (biz
-      ? '<div class="rh-op-flag on">'+icon('people')+'This order is set to <b>Business</b> — attach it before you send.</div>'
+      ? '<div class="rh-op-flag on">'+icon('people')+'This order is set to <b>Business</b> — send the guide before you finish.</div>'
       : '<div class="rh-op-flag">This order is currently set to <b>Consumer</b>. The guide is for Business orders; switch Account Type on the Message tab if that is wrong.</div>')+
   '</div>';
 }
