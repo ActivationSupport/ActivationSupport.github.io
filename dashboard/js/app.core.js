@@ -404,9 +404,24 @@ function _asParse(r, meta) {
     else if (!r.ok)                                                          code = 'NET-01';
     else                                                                     code = 'DATA-01';
 
-    // For a WRITE we cannot tell whether the server acted before it failed to answer, and
-    // that distinction is the difference between safely retrying and creating a duplicate.
-    if (meta.write) code = (code === 'NET-01' || code === 'DATA-01') ? 'WRITE-02' : code;
+    /* For a WRITE we cannot tell whether the server acted before it failed to answer, and
+       that distinction is the difference between safely retrying and creating a duplicate.
+       ⚠ `_asCreatesRecord`, not `meta.write` — the same test the refusal path and
+       _asNetworkError already use. A checkEmail/validatePin/logout that came back as a Google
+       404 page created NOTHING, so WRITE-02 ("that may not have saved — check before saving
+       again") is a false alarm on the one code that means real data may be lost.
+       🔴 THIS SITE WAS MISSED on 2026-08-17 when the other two were fixed, and stayed wrong
+       until 2026-08-24 — because writeclass_harness never lifted _asParse, so no guard could
+       go red. _failcheck_writeclass even carried a mutation called "the transport path reverts
+       to the raw write flag", aimed at _asNetworkError, while the identical bug sat here.
+       🔑 AND THIS IS THE LOGIN PATH — see the 404-HTML note above: "IT HITS LOGIN. checkEmail
+       ×5 and validatePin ×3 came back as 404-HTML."
+       ⚠⚠ CLASSIFICATION ONLY. Retry eligibility lives in _AS_RETRY_SAFE_WRITES and is NOT
+       touched here — _asMayRetry reads meta.action, never asCode, so nothing retries that
+       did not retry before. */
+    if (_asCreatesRecord(meta.action, meta.write)) {
+      code = (code === 'NET-01' || code === 'DATA-01') ? 'WRITE-02' : code;
+    }
 
     var err = new Error(_ERR.label(code) + ' — ' + _ERR.hint(code));
     err.asCode = code;
