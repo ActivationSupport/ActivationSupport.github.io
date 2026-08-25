@@ -133,6 +133,32 @@ var OFFICE_CONFIG = {
     logos:{ full:'assets/revamped-logo-full-reverse.png', fullLight:'assets/revamped-logo-full.png', emblem:'assets/revamped-logo-symbol.png', sidebarH:40 },
     bookTint:'#9E48E4', bookLogo:'revamped-logo-symbol.png'
   },
+  apexpremier: {
+    /* RED office, on its TRUE logo red throughout — #D30000, pixel-sampled from their own
+       artwork (19% of the lockup's opaque pixels). btn == accent == the brand colour.
+       🔒 USER'S CALL 2026-08-25, MADE FROM A RENDERED SIDE-BY-SIDE, NOT FROM HEXES, AND
+       THE TRADE-OFF WAS MEASURED FIRST — DO NOT "FIX" THIS ON CONTRAST GROUNDS.
+       #D30000 is L=0.138 ⇒ 3.07:1 as small accent TEXT on the card surface, under the
+       4.5:1 body bar. The large KPI numerals are fine (large text needs 3:1) and white on
+       the button is 5.57:1; it is the 12px accent link that sits low.
+       A brightened accent (#FF4D4D, 5.23:1) plus `lightInk` was built, rendered and
+       DECLINED — brand fidelity won. Same shape as viridian's login accent (D-001).
+       ⚠ Vanguard also ships red, and they do NOT collide: vanguard is charcoal-structured
+       with a BLUE in-app accent (#3D67E8) and red only on btn/login/accent2b, so the two
+       read as different offices. Verified rendered, not asserted. */
+    name:'Apex Premier Management', color:'#D30000',
+    theme:{ btn:'#D30000', accent:'#D30000', dark:'#2A1010', hover:'#AA0000', glow:'#4A1212', band:'#1A0E0E', onBand:'#ffffff', sidebar:'#161010', btnText:'#ffffff', onAccent:'#ffffff' },
+    reportBrand:{ band:'#1A0E0E', headerText:'#ffffff', headerSub:'#E0B3B3', accent:'#D30000', accentText:'#D30000', logo:'apexpremier-logo-full-reverse.png', logoH:40 },
+    /* ⚠⚠ ONLY THE REVERSE IS WIRED, AND THAT IS NOT AN OMISSION. Their master lockup sets
+       "MANAGEMENT" in near-black, and the sidebar is dark in BOTH themes — so the standard
+       artwork would make that word vanish there. The reverse was REBUILT from the 3958px
+       master (recolorDark → #FFFFFF in logo_build.js), not downloaded: their own
+       whitelogo.webp is the right artwork but only 450x160, too soft for the 100px login.
+       Heights copied from vanguard, whose lockup is the same two-line NAME-over-SUBTITLE
+       shape at nearly the same 2.8:1 aspect. */
+    logos:{ full:'assets/apexpremier-logo-full-reverse.png', emblem:'assets/apexpremier-logo-symbol.png', sidebarH:42, drHeaderH:27 },
+    bookTint:'#D30000', bookLogo:'apexpremier-logo-symbol.png'
+  },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
   // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
   // dark is FORCED (see _applyTheme + the html[data-office="salessupport"] block in

@@ -319,7 +319,10 @@
     // ⚠ evolution `on` is DARK: its accent is a bright gold (L=0.60), so white on it
     // is 1.9:1 — same reason viridian and midspire carry a dark `on`.
     evolution:{accent:'#F7C45D',accent2:'#FBD68F',dim:'#2a1d10',deep:'#B4791C',on:'#241703',glow:'#2a1f12',logo:'evolution-logo-symbol.png'},
-    revamped: {accent:'#9E48E4',accent2:'#BC7BEF',dim:'#241338',deep:'#7A2CBE',on:'#ffffff',glow:'#20143a',logo:'revamped-logo-symbol.png'}
+    revamped: {accent:'#9E48E4',accent2:'#BC7BEF',dim:'#241338',deep:'#7A2CBE',on:'#ffffff',glow:'#20143a',logo:'revamped-logo-symbol.png'},
+    // ⚠ FIRST office to need logoBg. Its mark is a deep-red A on transparent (luma 0.155),
+    // which the officeconfig_drift guard classes DARK — invisible on the dark tile.
+    apexpremier:{accent:'#D30000',accent2:'#E84B4B',dim:'#2a1010',deep:'#AA0000',on:'#ffffff',glow:'#2a1212',logo:'apexpremier-logo-symbol.png',logoBg:'#ffffff'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t = THEMES[o]; if(!t) return;

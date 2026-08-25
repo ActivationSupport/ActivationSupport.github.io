@@ -687,6 +687,7 @@ var ATX_OFFICE_NUMBER = {
   leadsphere:'417 429 7242',   // from Gabe, 2026-07-30
   evolution: '',   // ⏰ no call-in number yet — LeadSphere launched blank too
   revamped:  '',   // ⏰ ditto. Blank renders the [Office Activation Number] placeholder
+  apexpremier: '', // ⏰ ditto — number is provisioned when the office starts taking calls (D-038)
   bayview:   ''    // 🦴 skeleton slot — fill in when the next office launches
 };
 

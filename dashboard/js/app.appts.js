@@ -126,7 +126,9 @@ function _apptActName(email) {
 // everywhere. Set the real zone when the next office launches; do not blank it.
 // ⚠ evolution is Louisville KY = EASTERN. Kentucky is split, and the western half is
 // Central — the office directory in the ticketing backend is the authority here.
-var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York', leadsphere:'America/Chicago', evolution:'America/New_York', revamped:'America/Chicago' };
+// ⚠ apexpremier is Fremont CA = PACIFIC. Same authority: the ticketing backend's office
+// directory already carried the address and IANA zone before we asked anyone.
+var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York', leadsphere:'America/Chicago', evolution:'America/New_York', revamped:'America/Chicago', apexpremier:'America/Los_Angeles' };
 // Activators share their Google Calendar with THIS account (the Appointment
 // Scheduler's deploy-owner) to enable two-way sync. One constant → shown in the
 // "My Schedule" linking step; update here if the backend's owner account changes.
