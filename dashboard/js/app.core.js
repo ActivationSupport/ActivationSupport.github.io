@@ -159,6 +159,28 @@ var OFFICE_CONFIG = {
     logos:{ full:'assets/apexpremier-logo-full-reverse.png', emblem:'assets/apexpremier-logo-symbol.png', sidebarH:42, drHeaderH:27 },
     bookTint:'#D30000', bookLogo:'apexpremier-logo-symbol.png'
   },
+  eaglespeak: {
+    /* NAVY structure + BRIGHT ORANGE accent. Both values are THEIRS, and they turned out
+       to be exactly the accent/lightInk pair this theme system wants:
+       · accent #F57614 is pixel-sampled from their own mark (13.9% of its opaque pixels).
+         L=0.324 ⇒ 6.09:1 as accent TEXT on the dark card. Excellent on dark.
+       · lightInk #C1551A is their site's own CSS `--primary` (hsl(21 76% 43%)). The bright
+         orange is only 2.81:1 on WHITE; theirs measures 4.58:1 there.
+       ⚠⚠ onAccent IS DARK, and that is forced, not stylistic: white on #F57614 is 2.81:1.
+       This is a BRIGHT-ACCENT office — follow EVOLUTION and VIRIDIAN here, never leadsphere.
+       Dark navy on the orange fill measures 6.09:1.
+       ⚠ Navy chrome sits near leadsphere's, but their accents are opposite ends of the
+       wheel (bright blue vs bright orange), so the two never read as the same office. */
+    name:"Eagles' Peak Enterprises", color:'#F57614',
+    theme:{ btn:'#B4530F', accent:'#F57614', lightInk:'#C1551A', dark:'#141F3D', hover:'#8F400B', glow:'#1B2A52', band:'#101B3A', onBand:'#ffffff', sidebar:'#0C142D', btnText:'#ffffff', onAccent:'#141433' },
+    reportBrand:{ band:'#101B3A', headerText:'#ffffff', headerSub:'#AFC0DE', accent:'#F57614', accentText:'#C1551A', logo:'eaglespeak-logo-full-reverse.png', logoH:40 },
+    /* ⚠ THE LOCKUP IS COMPOSED, NOT DOWNLOADED — their wordmark exists only as HTML text
+       in Inter on their own site, so there was no file to fetch. Built by
+       _private/preview/eaglespeak_lockup.js from their mark + Inter 900, reproducing the
+       treatment the owner supplied as a screenshot. Rebuild there, not by hand. */
+    logos:{ full:'assets/eaglespeak-logo-full-reverse.png', emblem:'assets/eaglespeak-logo-symbol.png', sidebarH:38, drHeaderH:26 },
+    bookTint:'#F57614', bookLogo:'eaglespeak-logo-symbol.png'
+  },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
   // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
   // dark is FORCED (see _applyTheme + the html[data-office="salessupport"] block in

@@ -688,6 +688,7 @@ var ATX_OFFICE_NUMBER = {
   evolution: '',   // ⏰ no call-in number yet — LeadSphere launched blank too
   revamped:  '',   // ⏰ ditto. Blank renders the [Office Activation Number] placeholder
   apexpremier: '', // ⏰ ditto — number is provisioned when the office starts taking calls (D-038)
+  eaglespeak: '',  // ⏰ ditto
   bayview:   ''    // 🦴 skeleton slot — fill in when the next office launches
 };
 

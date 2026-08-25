@@ -322,7 +322,12 @@
     revamped: {accent:'#9E48E4',accent2:'#BC7BEF',dim:'#241338',deep:'#7A2CBE',on:'#ffffff',glow:'#20143a',logo:'revamped-logo-symbol.png'},
     // ⚠ FIRST office to need logoBg. Its mark is a deep-red A on transparent (luma 0.155),
     // which the officeconfig_drift guard classes DARK — invisible on the dark tile.
-    apexpremier:{accent:'#D30000',accent2:'#E84B4B',dim:'#2a1010',deep:'#AA0000',on:'#ffffff',glow:'#2a1212',logo:'apexpremier-logo-symbol.png',logoBg:'#ffffff'}
+    apexpremier:{accent:'#D30000',accent2:'#E84B4B',dim:'#2a1010',deep:'#AA0000',on:'#ffffff',glow:'#2a1212',logo:'apexpremier-logo-symbol.png',logoBg:'#ffffff'},
+    // ⚠ eaglespeak `on` is DARK: its accent is a bright orange (L=0.324), so white on it
+    // is 2.81:1 — the same call as evolution's gold, viridian and midspire.
+    // ⚠ logoBg for the same reason as apexpremier: the eagle is NAVY (luma 0.171), so on the
+    // dark tile only its orange beak would survive. The guard named it, red, by luma.
+    eaglespeak:{accent:'#F57614',accent2:'#F9A05C',dim:'#141f3d',deep:'#B4530F',on:'#141433',glow:'#16234a',logo:'eaglespeak-logo-symbol.png',logoBg:'#ffffff'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t = THEMES[o]; if(!t) return;
