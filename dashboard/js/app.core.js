@@ -17,7 +17,15 @@ var API_KEY = 'activation-dash-2026-secret';
 // glow, band/onBand=header; gold offices add lightInk for legible light-mode accent
 // text; loginAccent/onAccent/btnText/accent2b optional); reportBrand (Daily-Report
 // EMAIL brand, mirror of Code.gs OFFICE_BRAND); logos ({full,emblem,sidebarH?,loginH?,
-// } — files must exist in dashboard/assets/); bookTint + bookLogo (booking UI).
+// drHeaderH?,fullLight?,sidebarFull?,loginW?} — files must exist in dashboard/assets/);
+// bookTint + bookLogo (booking UI).
+// 🔑 THE HEIGHT KEYS ARE NOT STYLE — they compensate for ASPECT RATIO. Source lockups run
+// 1:1 (viridian's square) to 7.06:1 (eaglespeak), so equal heights give wildly unequal
+// rendered AREA, which is what the eye reads as "uniform". Each surface also has a MAX-WIDTH
+// cap (login 230 or loginW · sidebar 200 · .dr-logo 150), and for a wide lockup the cap binds
+// BEFORE the height does — making its height key inert. Measure with
+// _private/preview/office_uniformity.js before changing any of these; do not copy another
+// office's numbers, which is exactly how apexpremier ended up the smallest logo we ship.
 var OFFICE_CONFIG = {
   midspire: {
     name:'Midspire', color:'#0E7BD4',
@@ -154,9 +162,17 @@ var OFFICE_CONFIG = {
        artwork would make that word vanish there. The reverse was REBUILT from the 3958px
        master (recolorDark → #FFFFFF in logo_build.js), not downloaded: their own
        whitelogo.webp is the right artwork but only 450x160, too soft for the 100px login.
-       Heights copied from vanguard, whose lockup is the same two-line NAME-over-SUBTITLE
-       shape at nearly the same 2.8:1 aspect. */
-    logos:{ full:'assets/apexpremier-logo-full-reverse.png', emblem:'assets/apexpremier-logo-symbol.png', sidebarH:42, drHeaderH:27 },
+       🔴 HEIGHTS RAISED 2026-08-26 (42→52, 27→35) — AND THE OLD COMMENT HERE WAS THE BUG.
+       It read "heights copied from vanguard, whose lockup is ... nearly the same 2.8:1 aspect".
+       VANGUARD MEASURES 4.80:1. Apex is the 2.81:1 one. Copying a wide lockup's heights onto a
+       much narrower one made Apex the SMALLEST logo of any office that has one — sidebar 4,952
+       and DR header 2,046 against a ~7,500 / ~3,500 norm, with "APEX PREMIER MANAGEMENT"
+       rendering as an unreadable smudge in the Daily Report.
+       🔑 Heights are now matched on RENDERED AREA, not copied from another office: 52 ⇒ 146x52
+       (7,590) and 35 ⇒ 98x35 (3,438), which land on the leadsphere/vanguard norm.
+       ⚠ Re-derive with _private/preview/office_uniformity.js if this artwork is ever replaced —
+       the correct height depends entirely on the aspect ratio of the FILE. */
+    logos:{ full:'assets/apexpremier-logo-full-reverse.png', emblem:'assets/apexpremier-logo-symbol.png', sidebarH:52, drHeaderH:35 },
     bookTint:'#D30000', bookLogo:'apexpremier-logo-symbol.png'
   },
   eaglespeak: {
@@ -177,8 +193,25 @@ var OFFICE_CONFIG = {
     /* ⚠ THE LOCKUP IS COMPOSED, NOT DOWNLOADED — their wordmark exists only as HTML text
        in Inter on their own site, so there was no file to fetch. Built by
        _private/preview/eaglespeak_lockup.js from their mark + Inter 900, reproducing the
-       treatment the owner supplied as a screenshot. Rebuild there, not by hand. */
-    logos:{ full:'assets/eaglespeak-logo-full-reverse.png', emblem:'assets/eaglespeak-logo-symbol.png', sidebarH:38, drHeaderH:26 },
+       treatment the owner supplied as a screenshot. Rebuild there, not by hand.
+       🔴🔴 THIS IS THE ONLY OFFICE WHOSE LOGO IS WIDTH-CAPPED ON EVERY SURFACE. At 7.06:1 the
+       wide lockup hits the max-width cap on login (230), sidebar (200) and .dr-logo (150)
+       BEFORE its height ever binds — so `sidebarH` and `drHeaderH` here were doing NOTHING,
+       and no height value would have fixed anything. The levers are width and aspect ratio.
+       · sidebarFull (2026-08-26): the sidebar gets a TWO-LINE lockup at 3.24:1 — mark left,
+         EAGLES' over PEAK right, the same shape evolution ships at 3.00:1. User's call from a
+         rendered A/B. It exists because at 200px the wide lockup left the eagle just 28px tall
+         and the owner's own mark was the thing you could not see; two-line puts it at 60px.
+         ⚠ SIDEBAR ONLY — at login/DR sizes the two-line lockup is oversized. Everything else
+         keeps the wide lockup, and any office without sidebarFull is unaffected.
+         Rebuild via _private/preview/eaglespeak_sidebar_options.js, not by hand.
+       · loginW 290: login is the one surface with room to widen — the card is 380px with 36px
+         padding = 308px usable — so raising ITS cap from the shared 230 takes the login logo
+         from 7,494 (smallest of any office) to 11,911, level with leadsphere.
+       · drHeaderH 22: the box was 26px tall holding 21px of ink, i.e. 5px of dead letterbox.
+         22 makes the declared number honest. No visual change. */
+    logos:{ full:'assets/eaglespeak-logo-full-reverse.png', sidebarFull:'assets/eaglespeak-logo-twoline-reverse.png',
+            emblem:'assets/eaglespeak-logo-symbol.png', sidebarH:60, loginW:290, drHeaderH:22 },
     bookTint:'#F57614', bookLogo:'eaglespeak-logo-symbol.png'
   },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
@@ -284,7 +317,10 @@ function loadConfig() {
   var _lg = OFFICE_LOGOS[officeId];
   if (_lg && _lg.full) {
     var _logoEl = document.getElementById('login-office-logo');
-    _logoEl.innerHTML = '<img src="'+_lg.full+'" alt="'+CFG.officeName+'" style="max-width:230px;max-height:'+(_lg.loginH||66)+'px;object-fit:contain">';
+    // ⚠ loginW defaults to the long-standing 230. Only widen it for a lockup so wide that the
+    // WIDTH cap binds before loginH does (eaglespeak, 7.06:1) — raising loginH there does
+    // nothing at all. Ceiling is 308px: the card is 380px wide with 36px of padding.
+    _logoEl.innerHTML = '<img src="'+_lg.full+'" alt="'+CFG.officeName+'" style="max-width:'+(_lg.loginW||230)+'px;max-height:'+(_lg.loginH||66)+'px;object-fit:contain">';
     _logoEl.style.display = 'block';
     document.getElementById('login-office-name').style.display = 'none';
   } else {
@@ -1597,7 +1633,12 @@ function _setSidebarOfficeLogo(officeId) {
   var el = document.getElementById('sb-office-name');
   var lg = OFFICE_LOGOS[officeId];
   if (lg && lg.full) {
-    el.innerHTML = '<img src="'+lg.full+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:200px;object-fit:contain;object-position:left center">';
+    /* `sidebarFull` is an OPTIONAL sidebar-only lockup, for an office whose wide artwork is so
+       wide that the 200px cap crushes its mark (eaglespeak). Falls back to `full`, so an office
+       that does not define it is completely unaffected. ⚠ The sidebar is 240px with 16px
+       padding = 208px usable, so 200 is very nearly the hard ceiling here — the fix for a
+       crushed mark is a different ASPECT RATIO, never a bigger height. */
+    el.innerHTML = '<img src="'+(lg.sidebarFull||lg.full)+'" alt="'+(OFFICE_NAMES[officeId]||officeId)+'" style="height:'+(lg.sidebarH||34)+'px;max-width:200px;object-fit:contain;object-position:left center">';
   } else {
     el.textContent = OFFICE_NAMES[officeId] || '—';
   }
