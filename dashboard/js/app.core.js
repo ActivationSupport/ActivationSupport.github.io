@@ -188,7 +188,24 @@ var OFFICE_CONFIG = {
        ⚠ Navy chrome sits near leadsphere's, but their accents are opposite ends of the
        wheel (bright blue vs bright orange), so the two never read as the same office. */
     name:"Eagles' Peak Enterprises", color:'#F57614',
-    theme:{ btn:'#B4530F', accent:'#F57614', lightInk:'#C1551A', dark:'#141F3D', hover:'#8F400B', glow:'#1B2A52', band:'#101B3A', onBand:'#ffffff', sidebar:'#0C142D', btnText:'#ffffff', onAccent:'#141433' },
+    /* 🔴 `sidebar` IS THEIR HEADER SLATE, NOT THEIR PAGE COLOUR — changed 2026-08-26, user's call.
+       Their eagle's body is #111041 (78% of the mark's solid ink). On the old #0C142D it measured
+       **1.02:1** — the bird and the background were the SAME TONE, separated only by hue, so it
+       read as a navy blob. No height or width change could touch that; it is not a size problem.
+       🔑 THE MISTAKE WAS MATCHING THE WRONG SURFACE OF THEIR SITE. Sampled from their live page
+       (headless Chrome — their site is a JS SPA, so a plain fetch returns only the app shell and
+       the CSS never arrives): their PAGE background is #0C142C, which is what we had, but their
+       LOGO sits on a much lighter header laid over the hero photo, averaging #414D63. We put
+       their eagle on their page colour instead of the colour it was drawn for.
+       Now 2.10:1 — a dark silhouette on slate, exactly how their own site presents it.
+       ⚠ Their ARTWORK IS UNTOUCHED, deliberately. Recolouring the mark was built and rendered
+       (eaglespeak_recolor_options.js, three variants) and DECLINED — the user chose to match
+       their background rather than alter their brand.
+       ⚠ This makes eaglespeak's sidebar lighter than the other seven offices. Known and accepted:
+       options B/C kept the nav dark and were declined in favour of the full slate.
+       ⚠ `band` is NOT changed here — it drives the Daily Report EMAIL header and is mirrored in
+       Code.gs OFFICE_BRAND, so it cannot move without a backend paste AND a redeploy (R-019). */
+    theme:{ btn:'#B4530F', accent:'#F57614', lightInk:'#C1551A', dark:'#141F3D', hover:'#8F400B', glow:'#1B2A52', band:'#101B3A', onBand:'#ffffff', sidebar:'#414D63', btnText:'#ffffff', onAccent:'#141433' },
     reportBrand:{ band:'#101B3A', headerText:'#ffffff', headerSub:'#AFC0DE', accent:'#F57614', accentText:'#C1551A', logo:'eaglespeak-logo-full-reverse.png', logoH:40 },
     /* ⚠ THE LOCKUP IS COMPOSED, NOT DOWNLOADED — their wordmark exists only as HTML text
        in Inter on their own site, so there was no file to fetch. Built by
