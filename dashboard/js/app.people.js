@@ -59,7 +59,16 @@ function renderPeople() {
       } else {
         actions = '<td></td>';
       }
-      return '<tr'+(row.isGuest?' style="background:#fafafa;color:#555"':'')+'>'+
+      /* ⚠⚠ THEME VARS, NEVER LITERALS. This was `background:#fafafa;color:#555` — a
+         light-theme grey hardcoded inline, so on DARK chrome every cross-office guest row
+         rendered as a glaring WHITE BAND across the table (reported 2026-08-25, visible on
+         apexpremier's People tab for the two master-admins managed in Elevate).
+         🔑 --surface2 is the "subtly distinct row" surface and is defined per theme:
+         dark #2c2c2c · light #f2f5f9 · evolution #2c333b. Light's value is within a hair of
+         the original #fafafa, so the design intent is preserved and every other theme is
+         fixed. Same family as the .card-header.dark bug that made vanguard's wordmark vanish
+         in light mode — a literal colour is a bug in a themed UI, not a shortcut. */
+      return '<tr'+(row.isGuest?' style="background:var(--surface2);color:var(--text2)"':'')+'>'+
         '<td>'+nameCell+'</td><td>'+esc(row.email)+'</td><td>'+esc(_ROLE_LABELS[row.rank]||row.rank||'client-rep')+'</td><td>'+esc(row.team||'')+'</td><td>'+esc(row.phone||'—')+'</td><td>'+statusBadge+'</td><td>'+esc(row.tableauName||'—')+'</td><td>'+esc(perms)+'</td>'+actions+'</tr>';
     }).join('') + '</tbody></table></div></div></div>';
 }
