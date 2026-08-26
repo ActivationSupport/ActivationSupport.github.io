@@ -206,7 +206,15 @@ var OFFICE_CONFIG = {
        ⚠ `band` is NOT changed here — it drives the Daily Report EMAIL header and is mirrored in
        Code.gs OFFICE_BRAND, so it cannot move without a backend paste AND a redeploy (R-019). */
     theme:{ btn:'#B4530F', accent:'#F57614', lightInk:'#C1551A', dark:'#141F3D', hover:'#8F400B', glow:'#1B2A52', band:'#101B3A', onBand:'#ffffff', sidebar:'#414D63', btnText:'#ffffff', onAccent:'#141433' },
-    reportBrand:{ band:'#101B3A', headerText:'#ffffff', headerSub:'#AFC0DE', accent:'#F57614', accentText:'#C1551A', logo:'eaglespeak-logo-full-reverse.png', logoH:40 },
+    /* 🔴 band FOLLOWS THE SIDEBAR to their header slate — 2026-08-26, user's call, and it is a
+       MIRRORED value: Code.gs OFFICE_BRAND.eaglespeak carries the same `band` AND `header`, so
+       this edit is inert in a sent email until that is pasted AND REDEPLOYED (R-019).
+       On the old #101B3A their eagle measured 1.06:1 — the portal had been fixed while the email
+       their OWNER actually receives still hid the mark. Now 2.10:1.
+       ⚠⚠ #4C5B70 WAS REJECTED ON MEASUREMENT, NOT TASTE: it gives the eagle more separation
+       (2.59:1) but drops `headerSub` #AFC0DE to 3.76:1, under the 4.5 bar for a 12px date line.
+       #414D63 holds everything — title 8.51:1, date 4.63:1 — and matches the sidebar exactly. */
+    reportBrand:{ band:'#414D63', headerText:'#ffffff', headerSub:'#AFC0DE', accent:'#F57614', accentText:'#C1551A', logo:'eaglespeak-logo-full-reverse.png', logoH:40 },
     /* ⚠ THE LOCKUP IS COMPOSED, NOT DOWNLOADED — their wordmark exists only as HTML text
        in Inter on their own site, so there was no file to fetch. Built by
        _private/preview/eaglespeak_lockup.js from their mark + Inter 900, reproducing the
