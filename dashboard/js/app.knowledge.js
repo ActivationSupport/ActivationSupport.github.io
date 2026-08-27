@@ -191,10 +191,17 @@ function _kbLoad(force) {
   if (_KB_LOADING) return;
   if (_KB !== null && !force) return;
   _KB_LOADING = true; _KB_ERR = '';
+  /* Same two-tab rule as _kbRepaint — the Retry button renders on BOTH tabs, so gating the
+     spinner on 'knowledge' left a Resources retry looking like a dead button until the
+     fetch came back. Label and icon follow the tab, for the same reason. */
   if (force) {
     _KB = null;
     var c0 = document.getElementById('main-content');
-    if (c0 && CURRENT_TAB === 'knowledge') c0.innerHTML = loadingState('Loading knowledge base…', { icon:'training' });
+    if (c0 && KB_TABS.indexOf(CURRENT_TAB) !== -1) {
+      c0.innerHTML = CURRENT_TAB === 'resources'
+        ? loadingState('Loading customer resources…', { icon:'mail' })
+        : loadingState('Loading knowledge base…',     { icon:'training' });
+    }
   }
   api({ action: 'readKnowledge' }).then(function(res) {
     _KB_LOADING = false;
@@ -216,10 +223,18 @@ function _kbLoad(force) {
     _kbRepaint();
   });
 }
+/* ⚠⚠ ONE FETCH, TWO TABS — so this must know about BOTH of them. It was written on
+   2026-07-30 when `knowledge` was the only consumer; `resources` arrived 2026-08-24 and
+   this guard was not widened, so the Resources tab fetched its guides, stored them in
+   _KB, and then dropped the repaint on the floor — a spinner that never resolved, on the
+   one tab whose whole job is to show the pasted rows. The FETCH was never the problem.
+   🔑 The tab id it paints must come from CURRENT_TAB, not be hardcoded: repainting
+   Resources with renderKnowledge() would put the internal playbooks on the guides shelf. */
+var KB_TABS = ['knowledge', 'resources'];
 function _kbRepaint() {
-  if (CURRENT_TAB !== 'knowledge') return;
+  if (KB_TABS.indexOf(CURRENT_TAB) === -1) return;
   var c = document.getElementById('main-content');
-  if (c) c.innerHTML = renderKnowledge();
+  if (c) c.innerHTML = CURRENT_TAB === 'resources' ? renderResources() : renderKnowledge();
 }
 
 // data-attr + delegated read, never a title interpolated into an inline onclick string
