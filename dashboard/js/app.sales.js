@@ -1066,263 +1066,488 @@ var FBC_PLANS = {
 // ⚠ That rebuild dropped the old hand-matched "Emblem AIA 5G Gateway - NCM112 - White"
 //   (absent from MST's list and never priced). Re-add it here if it is still sold.
 //
-// installment = "MSRP from" / 36 (AT&T's standard no-interest term).
-// ⚠ "MSRP from" is the BASE-storage price, so storage variants collapse to one row — a
-//   512GB quote reads low. ⚠ This is MSRP, NOT the dealer rack rate (confidential; only
-//   behind a device's "See Details" in MST). Rack rates must NOT be committed to this
-//   PUBLIC repo — they belong in the private Sheet.
+// installment = MSRP / 36 (AT&T's standard no-interest term), taken VERBATIM from the MST
+// workbook's own Installment column — the portal rounds UP to the cent, and the older
+// list-view builder used Math.round, which left 93 devices a cent light.
 //
-// To refresh: copy the MST list, save it under _private/device-catalog/, then
-//   node build-mst.js <rawfile> <Category> --write     (preview without --write)
+// 2026-08-27: ONE ROW PER CAPACITY (464 rows / 254 models). The old catalogue carried only
+// the "MSRP from" base-storage price, so a 512GB quote read low; that limit is gone.
+// ⚠ STILL MSRP, NOT the dealer rack rate (confidential). Rack rates must NOT be committed
+//   to this PUBLIC repo — they belong in the private Sheet. The workbook export does NOT
+//   contain them, so importing it did not resolve this.
+// ⚠ Deliberately NOT imported from the workbook: EIP 24/30/36, 2-yr and 3-yr contract
+//   prices, and bill codes. Those are the portal's Business-Pricing-view figures and
+//   internal SKUs; none are needed to estimate a first bill, and this repo is PUBLIC.
+//
+// To refresh: export the MST workbook, then from _private/device-catalog/
+//   python mst_xlsx_profile.py <file.xlsx>      # writes mst_xlsx_rows.json + a diff report
+//   node   build-mst-xlsx.js --write            # preview without --write
+// (build-mst.js still parses the portal's LIST view, but that only exposes base storage.)
 var FBC_DEVICES = [
-  { category:"AIA", make:"Inseego", model:"Inseego Wavemaker FX4200", storage:"", installment:24.97 },
-  { category:"Hotspot", make:"AT&T", model:"GoLink 5G Hotspot", storage:"", installment:2.5 },
-  { category:"Hotspot", make:"AT&T", model:"Franklin A70", storage:"", installment:5.83 },
-  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk® M7 PRO HOTSPOT", storage:"", installment:12.5 },
-  { category:"Hotspot", make:"AT&T", model:"Franklin A50", storage:"", installment:5.83 },
-  { category:"Hotspot", make:"AT&T", model:"Franklin A10", storage:"", installment:2.22 },
-  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk M6 Pro", storage:"", installment:12.78 },
-  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk M6", storage:"", installment:8.61 },
-  { category:"Hotspot", make:"AT&T", model:"Wireless Internet Data Only", storage:"", installment:5.56 },
+  { category:"AIA", make:"Inseego", model:"Wavemaker FX4200", storage:"", installment:24.98 },
+  { category:"Hotspot", make:"AT&T", model:"Franklin A10", storage:"256MB", installment:2.23 },
+  { category:"Hotspot", make:"AT&T", model:"Franklin A50", storage:"1GB", installment:5.84 },
+  { category:"Hotspot", make:"AT&T", model:"Franklin A70", storage:"1GB", installment:5.84 },
+  { category:"Hotspot", make:"AT&T", model:"GoLink 5G Hotspot", storage:"2GB", installment:2.5 },
+  { category:"Hotspot", make:"AT&T", model:"Turbo Hotspot 2", storage:"", installment:2.23 },
   { category:"Hotspot", make:"AT&T", model:"Unite Express 2", storage:"", installment:4.03 },
-  { category:"Hotspot", make:"AT&T", model:"Turbo Hotspot 2", storage:"", installment:2.22 },
-  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk® LTE Mobile Hotspot Router", storage:"", installment:6.94 },
+  { category:"Hotspot", make:"AT&T", model:"Wireless Internet Data Only", storage:"", installment:5.56 },
   { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk 5G Mobile Hotspot Pro", storage:"", installment:14.17 },
-  { category:"Smartphone", make:"Motorola", model:"moto g 2026", storage:"", installment:6.67 },
-  { category:"Smartphone", make:"Motorola", model:"Edge 2026", storage:"", installment:14.03 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold8 Ultra", storage:"", installment:58.33 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold8", storage:"", installment:52.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip8", storage:"", installment:33.33 },
-  { category:"Smartphone", make:"Crosscall", model:"CORE P6 PTT", storage:"", installment:14.72 },
-  { category:"Smartphone", make:"Motorola", model:"Razr+ 2026", storage:"", installment:29.03 },
-  { category:"Smartphone", make:"Sonim", model:"XP5plus 5G", storage:"", installment:10.42 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A37 5G", storage:"", installment:12.5 },
-  { category:"Smartphone", make:"Sonim", model:"XP Pro Thermal", storage:"", installment:18.06 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 17e", storage:"", installment:16.67 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S26 Ultra", storage:"", installment:36.11 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S26 Plus", storage:"", installment:30.56 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S26", storage:"", installment:25 },
-  { category:"Smartphone", make:"Google", model:"Pixel 10a", storage:"", installment:14.44 },
-  { category:"Smartphone", make:"AT&T", model:"amiGO™ Jr Phone", storage:"", installment:7.22 },
-  { category:"Smartphone", make:"Samsung", model:"Samsung Galaxy A17 5g", storage:"", installment:6.94 },
-  { category:"Smartphone", make:"Apple", model:"iPhone Air", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 17 Pro Max", storage:"", installment:33.33 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 17 Pro", storage:"", installment:30.56 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 17", storage:"", installment:23.06 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S25 FE", storage:"", installment:18.06 },
-  { category:"Smartphone", make:"Google", model:"Pixel 10 Pro XL", storage:"", installment:34.72 },
-  { category:"Smartphone", make:"Google", model:"Pixel 10 Pro", storage:"", installment:29.17 },
-  { category:"Smartphone", make:"Google", model:"Pixel 10", storage:"", installment:23.61 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold7", storage:"", installment:55.56 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip7", storage:"", installment:30.56 },
-  { category:"Smartphone", make:"Sonim", model:"XP Pro", storage:"", installment:17.5 },
-  { category:"Smartphone", make:"Motorola", model:"Razr+ 2025", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Motorola", model:"Razr Ultra", storage:"", installment:36.67 },
-  { category:"Smartphone", make:"Motorola", model:"Moto G Stylus 2025", storage:"", installment:8.19 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S25 Edge", storage:"", installment:30.56 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy XCover7 Pro", storage:"", installment:16.67 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A36 5G", storage:"", installment:11.11 },
-  { category:"Smartphone", make:"Google", model:"Pixel 9a", storage:"", installment:14.44 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 16e", storage:"", installment:16.67 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S25+", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S25 Ultra", storage:"", installment:36.11 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S25", storage:"", installment:22.22 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A16 5g", storage:"", installment:5.56 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A15 5g", storage:"", installment:5.56 },
-  { category:"Smartphone", make:"Google", model:"Pixel 9 Pro XL", storage:"", installment:34.72 },
-  { category:"Smartphone", make:"Google", model:"Pixel 9 Pro", storage:"", installment:29.17 },
-  { category:"Smartphone", make:"Google", model:"Pixel 9", storage:"", installment:23.61 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 16 Pro Max", storage:"", installment:30.56 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 16 Pro", storage:"", installment:25 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 16 Plus", storage:"", installment:23.06 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 16", storage:"", installment:20.28 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold6", storage:"", installment:52.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip6", storage:"", installment:30.56 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S24 FE", storage:"", installment:18.06 },
-  { category:"Smartphone", make:"Motorola", model:"razr+ 2024", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Google", model:"Pixel 8a", storage:"", installment:14.44 },
-  { category:"Smartphone", make:"Motorola", model:"moto g stylus 5G 2024", storage:"", installment:8.19 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A35 5G", storage:"", installment:11.11 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S24+", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S24 Ultra", storage:"", installment:36.11 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S24", storage:"", installment:19.44 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S23 FE", storage:"", installment:16.67 },
-  { category:"Smartphone", make:"Motorola", model:"razr - 2023", storage:"", installment:18.33 },
-  { category:"Smartphone", make:"Google", model:"Pixel 8 Pro", storage:"", installment:28.89 },
-  { category:"Smartphone", make:"Google", model:"Pixel 8", storage:"", installment:23.33 },
-  { category:"Smartphone", make:"Motorola", model:"moto g stylus 5G 2023", storage:"", installment:8.33 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 15 Pro Max", storage:"", installment:30.56 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 15 Pro", storage:"", installment:25 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 15 Plus", storage:"", installment:20.28 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 15", storage:"", installment:17.5 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold5", storage:"", installment:50 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip5", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Motorola", model:"Razr+", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Google", model:"Pixel Fold", storage:"", installment:52.22 },
-  { category:"Smartphone", make:"Sonim", model:"XP3Plus", storage:"", installment:5.56 },
-  { category:"Smartphone", make:"Google", model:"Pixel 7a", storage:"", installment:14.44 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A54 5G", storage:"", installment:12.5 },
-  { category:"Smartphone", make:"Sonim", model:"XP5plus", storage:"", installment:8.28 },
-  { category:"Smartphone", make:"Sonim", model:"XP10", storage:"", installment:15.83 },
-  { category:"Smartphone", make:"Alcatel", model:"SMARTFLIP", storage:"", installment:1.94 },
-  { category:"Smartphone", make:"Google", model:"Pixel 7 Pro", storage:"", installment:26.11 },
-  { category:"Smartphone", make:"Google", model:"Pixel 7", storage:"", installment:20.56 },
-  { category:"Smartphone", make:"Google", model:"Pixel 6a", storage:"", installment:13.06 },
-  { category:"Smartphone", make:"Motorola", model:"moto g stylus 5G 2022", storage:"", installment:8.33 },
-  { category:"Smartphone", make:"Motorola", model:"moto g 5G (2022)", storage:"", installment:4.17 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro Max", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro", storage:"", installment:25 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 14 Plus", storage:"", installment:20.28 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 14", storage:"", installment:17.5 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold4", storage:"", installment:50 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip4", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy XCover6 Pro", storage:"", installment:16.67 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S23+", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S23 Ultra", storage:"", installment:33.33 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S23", storage:"", installment:22.22 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Fold", storage:"", installment:55 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A23 5G", storage:"", installment:8.33 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A14 5G", storage:"", installment:5 },
-  { category:"Smartphone", make:"Motorola", model:"edge - 2022", storage:"", installment:13.89 },
-  { category:"Smartphone", make:"TCL", model:"Classic", storage:"", installment:2.08 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A53 5G", storage:"", installment:12.5 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A13 (LTE)", storage:"", installment:5.28 },
-  { category:"Smartphone", make:"Motorola", model:"One 5G ACE", storage:"", installment:5.56 },
-  { category:"Smartphone", make:"Apple", model:"iPhone SE 5G (2022)", storage:"", installment:11.94 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A03s", storage:"", installment:3.89 },
-  { category:"Smartphone", make:"AT&T", model:"Calypso", storage:"", installment:2.47 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S22 Ultra", storage:"", installment:33.33 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S22 +", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S22", storage:"", installment:19.44 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A13 5G", storage:"", installment:6.94 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A02s", storage:"", installment:3.33 },
+  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk M6", storage:"", installment:8.62 },
+  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk M6 Pro", storage:"", installment:12.78 },
+  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk® LTE Mobile Hotspot Router", storage:"", installment:6.95 },
+  { category:"Hotspot", make:"NETGEAR®", model:"Nighthawk® M7 PRO HOTSPOT", storage:"", installment:12.5 },
+  { category:"Smartphone", make:"Alcatel", model:"SMARTFLIP", storage:"", installment:1.95 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 12", storage:"64GB", installment:17.5 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 12", storage:"128GB", installment:18.89 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 12", storage:"256GB", installment:21.67 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 12 mini", storage:"64GB", installment:17.5 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 12 mini", storage:"128GB", installment:18.89 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 12 mini", storage:"256GB", installment:21.67 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13", storage:"128GB", installment:17.5 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13", storage:"256GB", installment:20.28 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13", storage:"512GB", installment:25.84 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 mini", storage:"128GB", installment:17.5 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 mini", storage:"256GB", installment:20.28 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 mini", storage:"512GB", installment:25.84 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro", storage:"128GB", installment:25 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro", storage:"256GB", installment:27.78 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro", storage:"512GB", installment:33.34 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro", storage:"1TB", installment:38.89 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro Max", storage:"128GB", installment:27.78 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro Max", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro Max", storage:"512GB", installment:36.12 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro Max", storage:"1TB", installment:41.67 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14", storage:"128GB", installment:17.5 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14", storage:"256GB", installment:20.28 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14", storage:"512GB", installment:25.84 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Plus", storage:"128GB", installment:20.28 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Plus", storage:"256GB", installment:23.06 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Plus", storage:"512GB", installment:28.62 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro", storage:"128GB", installment:25 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro", storage:"256GB", installment:27.78 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro", storage:"512GB", installment:33.34 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro", storage:"1TB", installment:38.89 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro Max", storage:"128GB", installment:27.78 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro Max", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro Max", storage:"512GB", installment:36.12 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 14 Pro Max", storage:"1TB", installment:41.67 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15", storage:"128GB", installment:17.5 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15", storage:"256GB", installment:20.28 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15", storage:"512GB", installment:25.84 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Plus", storage:"128GB", installment:20.28 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Plus", storage:"256GB", installment:25.84 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Plus", storage:"512GB", installment:31.39 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Pro", storage:"128GB", installment:25 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Pro", storage:"256GB", installment:27.78 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Pro", storage:"512GB", installment:33.34 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Pro", storage:"1TB", installment:38.89 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Pro Max", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Pro Max", storage:"512GB", installment:36.12 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 15 Pro Max", storage:"1TB", installment:41.67 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16", storage:"128GB", installment:20.28 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16", storage:"256GB", installment:23.06 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16", storage:"512GB", installment:28.62 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Plus", storage:"128GB", installment:23.06 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Plus", storage:"256GB", installment:25.84 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Plus", storage:"512GB", installment:31.39 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Pro", storage:"128GB", installment:25 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Pro", storage:"256GB", installment:27.78 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Pro", storage:"512GB", installment:33.34 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Pro", storage:"1TB", installment:38.89 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Pro Max", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Pro Max", storage:"512GB", installment:36.12 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16 Pro Max", storage:"1TB", installment:41.67 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16e", storage:"128GB", installment:16.67 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16e", storage:"256GB", installment:19.45 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 16e", storage:"512GB", installment:25 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17", storage:"256GB", installment:23.06 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17", storage:"512GB", installment:28.62 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17 Pro", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17 Pro", storage:"512GB", installment:36.12 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17 Pro", storage:"1TB", installment:41.67 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17 Pro Max", storage:"256GB", installment:33.34 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17 Pro Max", storage:"512GB", installment:38.89 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17 Pro Max", storage:"1TB", installment:44.45 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17 Pro Max", storage:"2TB", installment:55.56 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17e", storage:"256GB", installment:16.67 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 17e", storage:"512GB", installment:22.23 },
+  { category:"Smartphone", make:"Apple", model:"iPhone 7 Plus", storage:"128GB", installment:12.5 },
+  { category:"Smartphone", make:"Apple", model:"iPhone Air", storage:"256GB", installment:27.78 },
+  { category:"Smartphone", make:"Apple", model:"iPhone Air", storage:"512GB", installment:33.34 },
+  { category:"Smartphone", make:"Apple", model:"iPhone Air", storage:"1TB", installment:38.89 },
+  { category:"Smartphone", make:"Apple", model:"iPhone SE (2020)", storage:"64GB", installment:5.56 },
+  { category:"Smartphone", make:"Apple", model:"iPhone SE (2020)", storage:"128GB", installment:12.5 },
+  { category:"Smartphone", make:"Apple", model:"iPhone SE (2020)", storage:"256GB", installment:15.28 },
+  { category:"Smartphone", make:"Apple", model:"iPhone SE 5G (2022)", storage:"64GB", installment:11.95 },
+  { category:"Smartphone", make:"Apple", model:"iPhone SE 5G (2022)", storage:"128GB", installment:13.34 },
+  { category:"Smartphone", make:"Apple", model:"iPhone SE 5G (2022)", storage:"256GB", installment:16.12 },
+  { category:"Smartphone", make:"Apple", model:"iPhone XR", storage:"64GB", installment:13.89 },
+  { category:"Smartphone", make:"Apple", model:"iPhone XR", storage:"128GB", installment:15.28 },
+  { category:"Smartphone", make:"Apple", model:"iPhone XS", storage:"64GB", installment:25 },
+  { category:"Smartphone", make:"Apple", model:"iPhone XS", storage:"256GB", installment:29.17 },
+  { category:"Smartphone", make:"Apple", model:"iPhone XS", storage:"512GB", installment:34.73 },
+  { category:"Smartphone", make:"Apple", model:"iPhone XS Max", storage:"64GB", installment:27.78 },
+  { category:"Smartphone", make:"Apple", model:"iPhone XS Max", storage:"256GB", installment:31.95 },
+  { category:"Smartphone", make:"Apple", model:"iPhone XS Max", storage:"512GB", installment:37.5 },
+  { category:"Smartphone", make:"AT&T", model:"amiGO™ Jr Phone", storage:"", installment:7.23 },
+  { category:"Smartphone", make:"AT&T", model:"Calypso", storage:"", installment:2.48 },
   { category:"Smartphone", make:"AT&T", model:"Calypso 2", storage:"", installment:2.5 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro Max", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 13 Pro", storage:"", installment:25 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 13 mini", storage:"", installment:17.5 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 13", storage:"", installment:17.5 },
-  { category:"Smartphone", make:"Motorola", model:"moto g stylus 5G", storage:"", installment:6.94 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A52 5G", storage:"", installment:13.89 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A32 5G", storage:"", installment:7.78 },
-  { category:"Smartphone", make:"Kyocera", model:"DuraXE EPIC", storage:"", installment:7.5 },
-  { category:"Smartphone", make:"Sonim", model:"XP8", storage:"", installment:19.44 },
-  { category:"Smartphone", make:"Sonim", model:"XP5s®", storage:"", installment:9.44 },
-  { category:"Smartphone", make:"LG", model:"WING 5G", storage:"", installment:29.17 },
-  { category:"Smartphone", make:"LG", model:"Velvet 5G", storage:"", installment:16.67 },
-  { category:"Smartphone", make:"LG", model:"V60 ThinQ™ 5G", storage:"", installment:25 },
-  { category:"Smartphone", make:"Microsoft", model:"Surface Duo", storage:"", installment:19.44 },
-  { category:"Smartphone", make:"Motorola", model:"razr", storage:"", installment:38.89 },
-  { category:"Smartphone", make:"Google", model:"Pixel 5", storage:"", installment:20.14 },
-  { category:"Smartphone", make:"Google", model:"Pixel 4a (5G)", storage:"", installment:14.58 },
-  { category:"Smartphone", make:"Motorola", model:"One 5G", storage:"", installment:12.36 },
-  { category:"Smartphone", make:"LG", model:"K92 5G", storage:"", installment:10.97 },
-  { category:"Smartphone", make:"Apple", model:"iPhone XS Max", storage:"", installment:31.94 },
-  { category:"Smartphone", make:"Apple", model:"iPhone XS", storage:"", installment:25 },
-  { category:"Smartphone", make:"Apple", model:"iPhone XR", storage:"", installment:13.89 },
-  { category:"Smartphone", make:"Apple", model:"iPhone SE (2020)", storage:"", installment:5.56 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 7 Plus", storage:"", installment:12.5 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 12 mini", storage:"", installment:17.5 },
-  { category:"Smartphone", make:"Apple", model:"iPhone 12", storage:"", installment:17.5 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold2 5G", storage:"", installment:50 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip 5G", storage:"", installment:33.33 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy XCover Pro", storage:"", installment:14.17 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy XCover FieldPro", storage:"", installment:30.69 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S9+", storage:"", installment:19.44 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S9", storage:"", installment:13.89 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S21+ 5G", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S21 5G", storage:"", installment:22.22 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S20+ 5G", storage:"", installment:33.33 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S20 Ultra 5G", storage:"", installment:38.89 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S20 FE 5G", storage:"", installment:16.67 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S20 5G", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S10e", storage:"", installment:16.67 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S10+", storage:"", installment:23.61 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy S10", storage:"", installment:20.83 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Note20 Ultra 5G", storage:"", installment:33.33 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Note20 5G", storage:"", installment:27.78 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy Note10+ 5G", storage:"", installment:38.89 },
-  { category:"Smartphone", make:"Samsung", model:"Galaxy A12", storage:"", installment:5 },
-  { category:"Smartphone", make:"AT&T", model:"Fusion Z", storage:"", installment:2.22 },
-  { category:"Smartphone", make:"Kyocera", model:"DuraXE", storage:"", installment:7.5 },
-  { category:"Smartphone", make:"Kyocera", model:"DuraForce PRO 2", storage:"", installment:12.5 },
   { category:"Smartphone", make:"AT&T", model:"Cingular Flip IV", storage:"", installment:1.75 },
+  { category:"Smartphone", make:"AT&T", model:"Fusion Z", storage:"", installment:2.23 },
+  { category:"Smartphone", make:"Crosscall", model:"CORE P6 PTT", storage:"", installment:14.73 },
+  { category:"Smartphone", make:"Google", model:"Pixel 10", storage:"128GB", installment:23.62 },
+  { category:"Smartphone", make:"Google", model:"Pixel 10 Pro", storage:"128GB", installment:29.17 },
+  { category:"Smartphone", make:"Google", model:"Pixel 10 Pro", storage:"256GB", installment:31.95 },
+  { category:"Smartphone", make:"Google", model:"Pixel 10 Pro XL", storage:"256GB", installment:34.73 },
+  { category:"Smartphone", make:"Google", model:"Pixel 10 Pro XL", storage:"512GB", installment:38.34 },
+  { category:"Smartphone", make:"Google", model:"Pixel 10a", storage:"", installment:14.45 },
+  { category:"Smartphone", make:"Google", model:"Pixel 11", storage:"256GB", installment:26.12 },
+  { category:"Smartphone", make:"Google", model:"Pixel 11 Pro", storage:"256GB", installment:31.95 },
+  { category:"Smartphone", make:"Google", model:"Pixel 11 Pro", storage:"512GB", installment:35.56 },
+  { category:"Smartphone", make:"Google", model:"Pixel 11 Pro XL", storage:"256GB", installment:37.5 },
+  { category:"Smartphone", make:"Google", model:"Pixel 11 Pro XL", storage:"512GB", installment:41.12 },
+  { category:"Smartphone", make:"Google", model:"Pixel 4a (5G)", storage:"", installment:14.59 },
+  { category:"Smartphone", make:"Google", model:"Pixel 5", storage:"", installment:20.14 },
+  { category:"Smartphone", make:"Google", model:"Pixel 6a", storage:"128GB", installment:13.06 },
+  { category:"Smartphone", make:"Google", model:"Pixel 7", storage:"128GB", installment:20.56 },
+  { category:"Smartphone", make:"Google", model:"Pixel 7", storage:"256GB", installment:23.34 },
+  { category:"Smartphone", make:"Google", model:"Pixel 7 Pro", storage:"128GB", installment:26.12 },
+  { category:"Smartphone", make:"Google", model:"Pixel 7 Pro", storage:"256GB", installment:28.89 },
+  { category:"Smartphone", make:"Google", model:"Pixel 7a", storage:"128GB", installment:14.45 },
+  { category:"Smartphone", make:"Google", model:"Pixel 8", storage:"128GB", installment:23.34 },
+  { category:"Smartphone", make:"Google", model:"Pixel 8", storage:"256GB", installment:25 },
+  { category:"Smartphone", make:"Google", model:"Pixel 8 Pro", storage:"128GB", installment:28.89 },
+  { category:"Smartphone", make:"Google", model:"Pixel 8 Pro", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Google", model:"Pixel 8a", storage:"128GB", installment:14.45 },
+  { category:"Smartphone", make:"Google", model:"Pixel 9", storage:"128GB", installment:23.62 },
+  { category:"Smartphone", make:"Google", model:"Pixel 9", storage:"256GB", installment:26.39 },
+  { category:"Smartphone", make:"Google", model:"Pixel 9 Pro", storage:"128GB", installment:29.17 },
+  { category:"Smartphone", make:"Google", model:"Pixel 9 Pro", storage:"256GB", installment:31.95 },
+  { category:"Smartphone", make:"Google", model:"Pixel 9 Pro XL", storage:"256GB", installment:34.73 },
+  { category:"Smartphone", make:"Google", model:"Pixel 9 Pro XL", storage:"512GB", installment:38.34 },
+  { category:"Smartphone", make:"Google", model:"Pixel 9a", storage:"128GB", installment:14.45 },
+  { category:"Smartphone", make:"Google", model:"Pixel Fold", storage:"256GB", installment:52.23 },
+  { category:"Smartphone", make:"Google", model:"Pixel Fold", storage:"512GB", installment:55 },
+  { category:"Smartphone", make:"Kyocera", model:"DuraForce PRO 2", storage:"", installment:12.5 },
+  { category:"Smartphone", make:"Kyocera", model:"DuraXE", storage:"", installment:7.5 },
+  { category:"Smartphone", make:"Kyocera", model:"DuraXE EPIC", storage:"", installment:7.5 },
+  { category:"Smartphone", make:"LG", model:"K92 5G", storage:"", installment:10.98 },
+  { category:"Smartphone", make:"LG", model:"V60 ThinQ™ 5G", storage:"", installment:25 },
+  { category:"Smartphone", make:"LG", model:"Velvet 5G", storage:"128GB", installment:16.67 },
+  { category:"Smartphone", make:"LG", model:"WING 5G", storage:"", installment:29.17 },
+  { category:"Smartphone", make:"Microsoft", model:"Surface Duo", storage:"128GB", installment:19.45 },
+  { category:"Smartphone", make:"Microsoft", model:"Surface Duo", storage:"256GB", installment:20.84 },
+  { category:"Smartphone", make:"Motorola", model:"edge - 2022", storage:"", installment:13.89 },
+  { category:"Smartphone", make:"Motorola", model:"Edge 2026", storage:"", installment:14.03 },
+  { category:"Smartphone", make:"Motorola", model:"moto g 2026", storage:"", installment:6.67 },
+  { category:"Smartphone", make:"Motorola", model:"moto g 5G (2022)", storage:"", installment:4.17 },
+  { category:"Smartphone", make:"Motorola", model:"Moto G Stylus 2025", storage:"256GB", installment:8.2 },
+  { category:"Smartphone", make:"Motorola", model:"moto g stylus 5G", storage:"128GB", installment:6.95 },
+  { category:"Smartphone", make:"Motorola", model:"moto g stylus 5G 2022", storage:"128GB", installment:8.34 },
+  { category:"Smartphone", make:"Motorola", model:"moto g stylus 5G 2023", storage:"128GB", installment:8.34 },
+  { category:"Smartphone", make:"Motorola", model:"moto g stylus 5G 2024", storage:"128GB", installment:8.2 },
+  { category:"Smartphone", make:"Motorola", model:"One 5G", storage:"128GB", installment:12.37 },
+  { category:"Smartphone", make:"Motorola", model:"One 5G ACE", storage:"", installment:5.56 },
+  { category:"Smartphone", make:"Motorola", model:"razr", storage:"", installment:38.89 },
+  { category:"Smartphone", make:"Motorola", model:"razr - 2023", storage:"", installment:18.34 },
+  { category:"Smartphone", make:"Motorola", model:"Razr Ultra", storage:"", installment:36.67 },
+  { category:"Smartphone", make:"Motorola", model:"Razr+", storage:"", installment:27.78 },
+  { category:"Smartphone", make:"Motorola", model:"razr+ 2024", storage:"", installment:27.78 },
+  { category:"Smartphone", make:"Motorola", model:"Razr+ 2025", storage:"", installment:27.78 },
+  { category:"Smartphone", make:"Motorola", model:"Razr+ 2026", storage:"", installment:29.03 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A02s", storage:"", installment:3.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A03s", storage:"", installment:3.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A12", storage:"", installment:5 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A13 (LTE)", storage:"", installment:5.28 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A13 5G", storage:"", installment:6.95 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A14 5G", storage:"64GB", installment:5 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A15 5g", storage:"256GB", installment:5.56 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A16 5g", storage:"128GB", installment:5.56 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A17 5g", storage:"", installment:6.95 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A23 5G", storage:"64GB", installment:8.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A32 5G", storage:"64GB", installment:7.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A35 5G", storage:"128GB", installment:11.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A36 5G", storage:"128GB", installment:11.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A37 5G", storage:"", installment:12.5 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A52 5G", storage:"", installment:13.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A53 5G", storage:"", installment:12.5 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A54 5G", storage:"", installment:12.5 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy A57 5G", storage:"", installment:15.28 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Fold", storage:"", installment:55 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Note10+ 5G", storage:"512GB", installment:38.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Note20 5G", storage:"128GB", installment:27.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Note20 Ultra 5G", storage:"128GB", installment:33.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Note20 Ultra 5G", storage:"512GB", installment:40.28 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S10", storage:"128GB", installment:20.84 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S10", storage:"512GB", installment:20.84 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S10+", storage:"128GB", installment:23.62 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S10+", storage:"512GB", installment:23.62 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S10+", storage:"1TB", installment:23.62 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S10e", storage:"128GB", installment:16.67 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S10e", storage:"256GB", installment:16.67 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S20 5G", storage:"128GB", installment:27.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S20 FE 5G", storage:"128GB", installment:16.67 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S20 FE 5G", storage:"256GB", installment:21.39 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S20 Ultra 5G", storage:"128GB", installment:38.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S20 Ultra 5G", storage:"512GB", installment:44.45 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S20+ 5G", storage:"128GB", installment:33.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S21 5G", storage:"128GB", installment:22.23 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S21 5G", storage:"256GB", installment:23.62 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S21+ 5G", storage:"128GB", installment:27.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S21+ 5G", storage:"256GB", installment:29.17 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S22", storage:"128GB", installment:19.45 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S22", storage:"256GB", installment:23.62 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S22 +", storage:"128GB", installment:27.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S22 +", storage:"256GB", installment:29.17 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S22 Ultra", storage:"128GB", installment:33.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S22 Ultra", storage:"256GB", installment:36.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S22 Ultra", storage:"512GB", installment:38.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S23", storage:"128GB", installment:22.23 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S23", storage:"256GB", installment:23.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S23 FE", storage:"", installment:16.67 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S23 Ultra", storage:"256GB", installment:33.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S23 Ultra", storage:"512GB", installment:38.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S23+", storage:"256GB", installment:27.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S23+", storage:"512GB", installment:31.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S24", storage:"128GB", installment:19.45 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S24", storage:"256GB", installment:23.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S24 FE", storage:"128GB", installment:18.06 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S24 Ultra", storage:"256GB", installment:36.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S24 Ultra", storage:"512GB", installment:39.45 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S24+", storage:"256GB", installment:27.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S24+", storage:"512GB", installment:31.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S25", storage:"128GB", installment:22.23 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S25", storage:"256GB", installment:23.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S25 Edge", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S25 Edge", storage:"512GB", installment:33.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S25 FE", storage:"128GB", installment:18.06 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S25 Ultra", storage:"256GB", installment:36.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S25 Ultra", storage:"512GB", installment:39.45 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S25+", storage:"256GB", installment:27.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S25+", storage:"512GB", installment:31.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S26", storage:"256GB", installment:25 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S26", storage:"512GB", installment:30.56 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S26 Plus", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S26 Plus", storage:"512GB", installment:36.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S26 Ultra", storage:"256GB", installment:36.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S26 Ultra", storage:"512GB", installment:41.67 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S26 Ultra", storage:"1TB", installment:50 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S9", storage:"", installment:13.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy S9+", storage:"", installment:19.45 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy XCover FieldPro", storage:"64GB", installment:30.7 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy XCover Pro", storage:"64GB", installment:14.17 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy XCover6 Pro", storage:"128GB", installment:16.67 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy XCover7 Pro", storage:"128GB", installment:16.67 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip 5G", storage:"", installment:33.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip4", storage:"128GB", installment:27.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip4", storage:"256GB", installment:29.45 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip5", storage:"256GB", installment:27.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip5", storage:"512GB", installment:31.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip6", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip6", storage:"512GB", installment:33.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip7", storage:"256GB", installment:30.56 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip7", storage:"512GB", installment:33.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip8", storage:"256GB", installment:33.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Flip8", storage:"512GB", installment:38.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold2 5G", storage:"", installment:50 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold4", storage:"256GB", installment:50 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold4", storage:"512GB", installment:53.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold5", storage:"256GB", installment:50 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold5", storage:"512GB", installment:53.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold6", storage:"256GB", installment:52.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold6", storage:"512GB", installment:56.12 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold7", storage:"256GB", installment:55.56 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold7", storage:"512GB", installment:58.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold8", storage:"256GB", installment:52.78 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold8", storage:"512GB", installment:58.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold8", storage:"1TB", installment:69.45 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold8 Ultra", storage:"256GB", installment:58.34 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold8 Ultra", storage:"512GB", installment:63.89 },
+  { category:"Smartphone", make:"Samsung", model:"Galaxy Z Fold8 Ultra", storage:"1TB", installment:75 },
+  { category:"Smartphone", make:"Sonim", model:"XP Pro", storage:"", installment:17.5 },
+  { category:"Smartphone", make:"Sonim", model:"XP Pro Thermal", storage:"", installment:18.06 },
+  { category:"Smartphone", make:"Sonim", model:"XP10", storage:"128GB", installment:15.84 },
+  { category:"Smartphone", make:"Sonim", model:"XP3Plus", storage:"", installment:5.56 },
+  { category:"Smartphone", make:"Sonim", model:"XP5plus", storage:"", installment:8.28 },
+  { category:"Smartphone", make:"Sonim", model:"XP5plus 5G", storage:"", installment:10.42 },
+  { category:"Smartphone", make:"Sonim", model:"XP5s®", storage:"", installment:9.45 },
+  { category:"Smartphone", make:"Sonim", model:"XP8", storage:"", installment:19.45 },
+  { category:"Smartphone", make:"TCL", model:"Classic", storage:"8GB", installment:2.09 },
+  { category:"Tablet", make:"Apple", model:"iPad (A16) 2025", storage:"128GB", installment:16.67 },
+  { category:"Tablet", make:"Apple", model:"iPad (A16) 2025", storage:"256GB", installment:19.45 },
+  { category:"Tablet", make:"Apple", model:"iPad (A16) 2025", storage:"512GB", installment:25 },
+  { category:"Tablet", make:"Apple", model:"iPad 8th Generation", storage:"32GB", installment:12.53 },
+  { category:"Tablet", make:"Apple", model:"iPad 8th Generation", storage:"128GB", installment:15.31 },
+  { category:"Tablet", make:"Apple", model:"iPad 9th Gen 2021", storage:"64GB", installment:12.78 },
+  { category:"Tablet", make:"Apple", model:"iPad 9th Gen 2021", storage:"256GB", installment:16.95 },
+  { category:"Tablet", make:"Apple", model:"iPad Air (5th Generation)", storage:"64GB", installment:19.45 },
+  { category:"Tablet", make:"Apple", model:"iPad Air (5th Generation)", storage:"256GB", installment:22.23 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (2024)", storage:"128GB", installment:19.45 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (2024)", storage:"256GB", installment:22.23 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (2024)", storage:"512GB", installment:27.78 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (2024)", storage:"1TB", installment:33.34 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M3) 2025", storage:"128GB", installment:19.45 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M3) 2025", storage:"256GB", installment:22.23 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M3) 2025", storage:"512GB", installment:27.78 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M3) 2025", storage:"1TB", installment:33.34 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M4) 2026", storage:"128GB", installment:25 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M4) 2026", storage:"256GB", installment:27.78 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M4) 2026", storage:"512GB", installment:33.34 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M4) 2026", storage:"1TB", installment:41.67 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (2024)", storage:"128GB", installment:25 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (2024)", storage:"256GB", installment:27.78 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (2024)", storage:"512GB", installment:33.34 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (2024)", storage:"1TB", installment:38.89 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M3) 2025", storage:"128GB", installment:25 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M3) 2025", storage:"256GB", installment:27.78 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M3) 2025", storage:"512GB", installment:33.34 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M3) 2025", storage:"1TB", installment:38.89 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M4) 2026", storage:"128GB", installment:30.56 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M4) 2026", storage:"256GB", installment:33.34 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M4) 2026", storage:"512GB", installment:38.89 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M4) 2026", storage:"1TB", installment:47.23 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 2020", storage:"64GB", installment:18.89 },
+  { category:"Tablet", make:"Apple", model:"iPad Air 2020", storage:"256GB", installment:23.06 },
+  { category:"Tablet", make:"Apple", model:"iPad mini (2021)", storage:"64GB", installment:16.67 },
+  { category:"Tablet", make:"Apple", model:"iPad mini (2021)", storage:"256GB", installment:19.45 },
+  { category:"Tablet", make:"Apple", model:"iPad mini (2024)", storage:"128GB", installment:20.84 },
+  { category:"Tablet", make:"Apple", model:"iPad mini 5th Generation", storage:"64GB", installment:14.73 },
+  { category:"Tablet", make:"Apple", model:"iPad mini 5th Generation", storage:"256GB", installment:18.89 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11\" (2018)", storage:"64GB", installment:24.03 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11\" (2018)", storage:"256GB", installment:26.92 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11\" (2nd Generation)", storage:"128GB", installment:23.62 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11\" (2nd Generation)", storage:"256GB", installment:26.39 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11\" (2nd Generation)", storage:"512GB", installment:31.95 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11\" (2nd Generation)", storage:"1TB", installment:37.5 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (2024)", storage:"256GB", installment:30.56 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (2024)", storage:"512GB", installment:36.12 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (2024)", storage:"1TB Standard Glass", installment:47.23 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (2024)", storage:"1TB Nano-texture Glass", installment:50 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (2024)", storage:"2TB Standard Glass", installment:58.34 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (2024)", storage:"2TB Nano-texture Glass", installment:61.12 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (M5) 2025", storage:"256GB", installment:38.89 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (M5) 2025", storage:"512GB", installment:44.45 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (M5) 2025", storage:"1TB Standard Glass", installment:55.56 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (M5) 2025", storage:"1TB Nano-texture Glass", installment:58.34 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (M5) 2025", storage:"2TB Standard Glass", installment:69.45 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (M5) 2025", storage:"2TB Nano-texture Glass", installment:72.23 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 12.9\" (2017)", storage:"64GB", installment:25.84 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 12.9\" (2018)", storage:"64GB", installment:29.64 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 12.9\" (2018)", storage:"256GB", installment:32.53 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 12.9\" (2018)", storage:"1TB", installment:43.75 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (2024)", storage:"256GB", installment:38.89 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (2024)", storage:"512GB", installment:44.45 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (2024)", storage:"1TB Standard Glass", installment:55.56 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (2024)", storage:"1TB Nano-texture Glass", installment:58.34 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (2024)", storage:"2TB Standard Glass", installment:66.67 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (2024)", storage:"2TB Nano-texture Glass", installment:69.45 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (M5) 2025", storage:"256GB", installment:47.23 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (M5) 2025", storage:"512GB", installment:52.78 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (M5) 2025", storage:"1TB Standard Glass", installment:63.89 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (M5) 2025", storage:"1TB Nano-texture Glass", installment:66.67 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (M5) 2025", storage:"2TB Standard Glass", installment:77.78 },
+  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (M5) 2025", storage:"2TB Nano-texture Glass", installment:80.56 },
+  { category:"Tablet", make:"AT&T", model:"amiGO Jr. Tab™", storage:"", installment:4.62 },
   { category:"Tablet", make:"AT&T", model:"amiGO™ Jr. Tab 2", storage:"", installment:6.67 },
-  { category:"Tablet", make:"TCL", model:"TAB 8 NXTPAPER 5G", storage:"", installment:5.56 },
-  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M4) 2026", storage:"", installment:30.56 },
-  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M4) 2026", storage:"", installment:25 },
-  { category:"Tablet", make:"Samsung", model:"Samsung Galaxy Tab A11 + 5G", storage:"", installment:9.17 },
-  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (M5) 2025", storage:"", installment:47.22 },
-  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (M5) 2025", storage:"", installment:38.89 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S10 FE 5G", storage:"", installment:18.06 },
-  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (M3) 2025", storage:"", installment:25 },
-  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (M3) 2025", storage:"", installment:19.44 },
-  { category:"Tablet", make:"Apple", model:"iPad (A16) 2025", storage:"", installment:16.67 },
-  { category:"Tablet", make:"Apple", model:"iPad mini (2024)", storage:"", installment:20.83 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S10 + 5G", storage:"", installment:31.94 },
-  { category:"Tablet", make:"Apple", model:"iPad Pro 13-inch (2024)", storage:"", installment:38.89 },
-  { category:"Tablet", make:"Apple", model:"iPad Pro 11-inch (2024)", storage:"", installment:30.56 },
-  { category:"Tablet", make:"Apple", model:"iPad Air 13-inch (2024)", storage:"", installment:25 },
-  { category:"Tablet", make:"Apple", model:"iPad Air 11-inch (2024)", storage:"", installment:19.44 },
-  { category:"Tablet", make:"AT&T", model:"amiGO Jr. Tab™", storage:"", installment:4.61 },
-  { category:"Tablet", make:"TCL", model:"TAB 8 SE", storage:"", installment:4 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab A9+ 5G", storage:"", installment:7.5 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S9 FE 5G", storage:"", installment:15.28 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S9+ 5G", storage:"", installment:31.94 },
-  { category:"Tablet", make:"Lenovo", model:"ThinkPad X13s 5G", storage:"", installment:43.08 },
-  { category:"Tablet", make:"Microsoft", model:"Surface Go 2", storage:"", installment:20.28 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab A7 Lite Kids Edition", storage:"", installment:6.94 },
-  { category:"Tablet", make:"Apple", model:"iPad Air (5th Generation)", storage:"", installment:19.44 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S8+ 5G", storage:"", installment:30.56 },
-  { category:"Tablet", make:"Microsoft", model:"Surface Go 3", storage:"", installment:20.28 },
-  { category:"Tablet", make:"Apple", model:"iPad mini (2021)", storage:"", installment:16.67 },
-  { category:"Tablet", make:"Apple", model:"iPad 9th Gen 2021", storage:"", installment:12.78 },
-  { category:"Tablet", make:"Lenovo", model:"ThinkPad X13 5G", storage:"", installment:41.64 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S7 FE 5G", storage:"", installment:18.61 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Chromebook Go", storage:"", installment:9.72 },
   { category:"Tablet", make:"Lenovo", model:"300e Chromebook LTE", storage:"", installment:11.67 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab A7 Lite", storage:"", installment:5.56 },
-  { category:"Tablet", make:"Apple", model:"iPad Pro 12.9\" (2018)", storage:"", installment:29.64 },
-  { category:"Tablet", make:"Apple", model:"iPad Pro 12.9\" (2017)", storage:"", installment:25.83 },
-  { category:"Tablet", make:"Apple", model:"iPad Pro 11\" (2nd Generation)", storage:"", installment:23.61 },
-  { category:"Tablet", make:"Apple", model:"iPad Pro 11\" (2018)", storage:"", installment:24.03 },
-  { category:"Tablet", make:"Apple", model:"iPad mini 5th Generation", storage:"", installment:14.72 },
-  { category:"Tablet", make:"Apple", model:"iPad Air 2020", storage:"", installment:18.89 },
-  { category:"Tablet", make:"Apple", model:"iPad 8th Generation", storage:"", installment:12.53 },
-  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S7 5G", storage:"", installment:23.61 },
+  { category:"Tablet", make:"Lenovo", model:"ThinkPad X13 5G", storage:"", installment:41.64 },
+  { category:"Tablet", make:"Lenovo", model:"ThinkPad X13s 5G", storage:"", installment:43.09 },
+  { category:"Tablet", make:"Microsoft", model:"Surface Go 2", storage:"", installment:20.28 },
+  { category:"Tablet", make:"Microsoft", model:"Surface Go 3", storage:"", installment:20.28 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Chromebook Go", storage:"", installment:9.73 },
   { category:"Tablet", make:"Samsung", model:"Galaxy Tab A 8.4\"", storage:"", installment:6.67 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch9 44mm", storage:"", installment:12.78 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch9 40mm", storage:"", installment:11.94 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch Ultra2", storage:"", installment:19.44 },
-  { category:"Wearable", make:"AT&T", model:"AT&T amiGO™ Jr. Watch 2", storage:"", installment:5.28 },
-  { category:"Wearable", make:"Google", model:"Pixel Watch 4 45mm", storage:"", installment:13.89 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab A11 + 5G", storage:"", installment:9.17 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab A7 Lite", storage:"", installment:5.56 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab A7 Lite Kids Edition", storage:"32GB", installment:6.95 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab A9+ 5G", storage:"", installment:7.5 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S10 + 5G", storage:"", installment:31.95 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S10 FE 5G", storage:"", installment:18.06 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S7 5G", storage:"", installment:23.62 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S7 FE 5G", storage:"", installment:18.62 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S8+ 5G", storage:"", installment:30.56 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S9 FE 5G", storage:"", installment:15.28 },
+  { category:"Tablet", make:"Samsung", model:"Galaxy Tab S9+ 5G", storage:"", installment:31.95 },
+  { category:"Tablet", make:"TCL", model:"TAB 8 NXTPAPER 5G", storage:"", installment:5.56 },
+  { category:"Tablet", make:"TCL", model:"TAB 8 SE", storage:"", installment:4 },
+  { category:"Wearable", make:"Apple", model:"Watch SE (2022)", storage:"40mm Aluminum Case", installment:6.95 },
+  { category:"Wearable", make:"Apple", model:"Watch SE (2022)", storage:"44mm Aluminum Case", installment:7.78 },
+  { category:"Wearable", make:"Apple", model:"Watch SE 3", storage:"40mm Aluminum Case with Sport Band", installment:8.34 },
+  { category:"Wearable", make:"Apple", model:"Watch SE 3", storage:"44mm Aluminum Case with Sport Band", installment:9.17 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 10", storage:"42mm Aluminum Case Sport Band/Loop", installment:12.5 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 10", storage:"46mm Aluminum Case Sport Band/Loop", installment:13.34 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 10", storage:"42mm Titanium Case Sport Band", installment:16.67 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 10", storage:"46mm Titanium Case Sport Band/Loop", installment:18.06 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 10", storage:"42mm Titanium Case Milanese Loop", installment:18.06 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 10", storage:"46mm Titanium Case Milanese Loop", installment:19.45 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 11", storage:"42mm Aluminum Case with Sport Band", installment:13.89 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 11", storage:"46mm Aluminum Case with Sport Band", installment:14.73 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 11", storage:"42mm Titanium Case with Sport Band", installment:19.45 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 11", storage:"42mm Titanium Case with Milanese Loop", installment:20.84 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 11", storage:"46mm Titanium Case with Sport Band", installment:20.84 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 11", storage:"46mm Titanium Case with Milanese Loop", installment:22.23 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 4 (GPS + Cellular)", storage:"40mm Aluminum", installment:12.5 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 4 (GPS + Cellular)", storage:"44mm Aluminum", installment:13.34 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 4 (GPS + Cellular)", storage:"40mm Stainless Steel", installment:18.06 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 4 (GPS + Cellular)", storage:"44mm Stainless Steel", installment:19.45 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 6", storage:"40mm Aluminum Sport Band", installment:12.5 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 6", storage:"44mm Aluminum Sport Band", installment:13.34 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 6", storage:"40mm Stainless Sport Band", installment:18.06 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 6", storage:"44mm Stainless Sport Band", installment:19.45 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 6", storage:"40mm Stainless Milanese Loop", installment:19.45 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 6", storage:"44mm Stainless Milanese Loop", installment:20.84 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"41mm Aluminum Nike Sport Band", installment:12.5 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"41mm Aluminum Sport Band", installment:13.34 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"45mm Aluminum Sport Band", installment:13.34 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"45mm Aluminum Nike Sport Band", installment:13.34 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"41mm Stainless Sport Band", installment:16.67 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"41mm Stainless Milanese Loop", installment:18.06 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"45mm Stainless Sport Band", installment:18.06 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"45mm Stainless Milanese Loop", installment:19.45 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 8", storage:"41mm Aluminum Case with Sport Band", installment:12.5 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 8", storage:"45mm Aluminum Case with Sport Band", installment:13.34 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 8", storage:"41mm Stainless Steel Case with Sport Band", installment:16.67 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 8", storage:"41mm Stainless Steel Case with Milanese Loop", installment:18.06 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 8", storage:"45mm Stainless Steel Case with Sport Band", installment:18.06 },
+  { category:"Wearable", make:"Apple", model:"Watch Series 8", storage:"45mm Stainless Steel Case with Milanese Loop", installment:19.45 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra", storage:"49mm Titanium Case", installment:19.45 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra 2", storage:"49mm Natural/Black Titanium Case", installment:19.45 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra 2", storage:"49mm with Milanese Loop", installment:22.23 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra 3", storage:"49mm Titanium Case with Ocean Band", installment:22.23 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra 3", storage:"49mm Titanium Case with Alpine Loop", installment:22.23 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra 3", storage:"49mm Titanium Case with Trail Loop", installment:22.23 },
+  { category:"Wearable", make:"Apple", model:"Watch Ultra 3", storage:"49mm Titanium Case with Milanese Loop", installment:25 },
+  { category:"Wearable", make:"AT&T", model:"amiGO Jr. Watch™", storage:"1GB", installment:4.59 },
+  { category:"Wearable", make:"AT&T", model:"amiGO™ Jr. Watch 2", storage:"", installment:5.28 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch", storage:"", installment:11.12 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 2", storage:"", installment:11.12 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 3 41mm", storage:"", installment:9.73 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 3 45mm", storage:"", installment:11.12 },
   { category:"Wearable", make:"Google", model:"Pixel Watch 4 41mm", storage:"", installment:12.5 },
-  { category:"Wearable", make:"Apple", model:"Watch Ultra 3", storage:"", installment:22.22 },
-  { category:"Wearable", make:"Apple", model:"Watch Series 11", storage:"", installment:13.89 },
-  { category:"Wearable", make:"Apple", model:"Watch SE 3", storage:"", installment:8.33 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch8 Classic", storage:"", installment:15.28 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch8", storage:"", installment:11.11 },
-  { category:"Wearable", make:"Apple", model:"Watch Ultra 2", storage:"", installment:19.44 },
-  { category:"Wearable", make:"Apple", model:"Watch Series 10", storage:"", installment:12.5 },
-  { category:"Wearable", make:"Apple", model:"Watch SE (2022)", storage:"", installment:6.94 },
-  { category:"Wearable", make:"Google", model:"Pixel Watch 3 45mm", storage:"", installment:11.11 },
-  { category:"Wearable", make:"Google", model:"Pixel Watch 3 41mm", storage:"", installment:9.72 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch7", storage:"", installment:9.72 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 4 45mm", storage:"", installment:13.89 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 5 (41mm)", storage:"64GB", installment:13.89 },
+  { category:"Wearable", make:"Google", model:"Pixel Watch 5 (45mm)", storage:"64GB", installment:14.73 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch Active2", storage:"40mm", installment:7.78 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch Active2", storage:"44mm", installment:8.34 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch FE", storage:"", installment:6.95 },
   { category:"Wearable", make:"Samsung", model:"Galaxy Watch Ultra", storage:"", installment:18.06 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch FE", storage:"", installment:6.94 },
-  { category:"Wearable", make:"AT&T", model:"AT&T amiGO Jr. Watch™", storage:"", installment:4.58 },
-  { category:"Wearable", make:"Google", model:"Pixel Watch 2", storage:"", installment:11.11 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch6 Classic", storage:"", installment:12.5 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch6", storage:"", installment:9.72 },
-  { category:"Wearable", make:"Apple", model:"Watch Ultra", storage:"", installment:19.44 },
-  { category:"Wearable", make:"Apple", model:"Watch Series 8", storage:"", installment:18.06 },
-  { category:"Wearable", make:"Google", model:"Pixel Watch", storage:"", installment:11.11 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch5 Pro", storage:"", installment:13.89 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch5", storage:"", installment:9.17 },
-  { category:"Wearable", make:"Apple", model:"Watch Series 7", storage:"", installment:13.33 },
-  { category:"Wearable", make:"Apple", model:"Watch Series 6", storage:"", installment:12.5 },
-  { category:"Wearable", make:"Apple", model:"Watch Series 4 (GPS + Cellular)", storage:"", installment:12.5 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch3", storage:"", installment:12.5 },
-  { category:"Wearable", make:"Samsung", model:"Galaxy Watch Active2", storage:"", installment:7.78 }
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch Ultra2", storage:"", installment:19.45 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch3", storage:"41mm", installment:12.5 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch3", storage:"45mm", installment:13.34 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch5", storage:"40mm", installment:9.17 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch5", storage:"44mm", installment:10 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch5 Pro", storage:"16GB", installment:13.89 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch6", storage:"40mm", installment:9.73 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch6", storage:"44mm", installment:10.56 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch6 Classic", storage:"43mm", installment:12.5 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch6 Classic", storage:"47mm", installment:13.34 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch7", storage:"40mm", installment:9.73 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch7", storage:"44mm", installment:10.56 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch8", storage:"40mm", installment:11.12 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch8", storage:"44mm", installment:11.95 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch8 Classic", storage:"", installment:15.28 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch9 40mm", storage:"", installment:11.95 },
+  { category:"Wearable", make:"Samsung", model:"Galaxy Watch9 44mm", storage:"", installment:12.78 }
 ];
 var FBC_MAX_LINES = 10;
 // Per line. $35 for BOTH consumer and business — user-confirmed 2026-07-27, closing the
@@ -1333,7 +1558,10 @@ var _FBC = null;
 // Sentinel category for a line the customer is keeping their own handset on. Distinct from
 // '' (nothing picked yet) so a deliberate BYOD line doesn't look like a half-filled quote.
 var FBC_BYOD = '__byod__';
-function _fbcBlankDevice() { return { cat:'', label:'', cost:'' }; }
+// `label` is the BASE device ("Apple iPhone 17 Pro Max"); `storage` is the chosen variant
+// ("256GB", or a watch's case/band). They are stored apart so the picker can offer the model
+// and the capacity as two short lists rather than one 464-entry dropdown.
+function _fbcBlankDevice() { return { cat:'', label:'', storage:'', cost:'' }; }
 function _fbcInit() {
   if (_FBC) return;
   _FBC = { segment:'consumer', lines:1, plan:FBC_PLANS.consumer.order[0], devices:[_fbcBlankDevice()], nextUp:false };
@@ -1385,6 +1613,23 @@ function _fbcDeviceCategories() {
   return out;
 }
 function _fbcDeviceLabel(x) { return x.make + ' ' + x.model + (x.storage ? ' - ' + x.storage : ''); }
+// The model WITHOUT its capacity — the key the first dropdown lists and the device row stores.
+function _fbcBaseLabel(x) { return x.make + ' ' + x.model; }
+// Every catalogue row for one model, cheapest first. A single-SKU device returns one row
+// whose storage is ''. Callers must treat "no variants" as "not a real selection".
+function _fbcVariantsFor(cat, baseLabel) {
+  return FBC_DEVICES.filter(function(y) {
+    return y.category === cat && _fbcBaseLabel(y) === baseLabel;
+  }).sort(function(a, b) { return (a.installment || 0) - (b.installment || 0); });
+}
+// Picking a model must land on a real price straight away, so we default to the cheapest
+// variant — the same base-storage figure the calculator has always quoted.
+function _fbcVariantFor(cat, baseLabel, storage) {
+  var list = _fbcVariantsFor(cat, baseLabel);
+  if (!list.length) return null;
+  for (var i = 0; i < list.length; i++) if (list[i].storage === storage) return list[i];
+  return list[0];
+}
 function _fbcBreakdownHtml(d) {
   var planPrice = _fbcPlanPrice(d), lines = _fbcLines(d);
   var rows = [
@@ -1397,7 +1642,8 @@ function _fbcBreakdownHtml(d) {
     var cost = _fbcNum(x.cost);
     if (!x.label && !cost && x.cat !== FBC_BYOD) return;
     touched++;
-    rows.push(['Line ' + (i + 1) + ': ' + (x.cat === FBC_BYOD ? 'BYOD — no device' : (x.label || 'device')), cost]);
+    var name = x.label ? (x.label + (x.storage ? ' - ' + x.storage : '')) : 'device';
+    rows.push(['Line ' + (i + 1) + ': ' + (x.cat === FBC_BYOD ? 'BYOD — no device' : name), cost]);
   });
   if (!touched) rows.push(['Devices — none selected', 0]);
   rows.push(['Activation fee ($' + FBC_ACTIVATION_FEE + ' x ' + _fbcLineLabel(lines) + ')', FBC_ACTIVATION_FEE * lines]);
@@ -1428,9 +1674,9 @@ function renderFirstBillCalc() {
       'Excludes taxes &amp; fees, and any promotional or trade-in credits (AutoPay and ' +
       'smartphone-line discounts arrive as bill credits and can take up to 2 bills to appear). ' +
       'Assumes AT&amp;T\'s standard advance-billing proration (1 full month + a half-month partial).' +
-      '<div style="margin-top:6px">Device costs are <b>MSRP at the lowest storage capacity</b>, ' +
-      'divided over 36 months — a higher-capacity model will cost more than shown. Enter the ' +
-      'real rack rate or the correct storage price to make the total accurate.</div>' +
+      '<div style="margin-top:6px">Device costs are <b>MSRP for the capacity you pick</b>, ' +
+      'divided over 36 months. This is <b>MSRP, not the dealer rack rate</b> — enter the real ' +
+      'rack rate to make the total accurate.</div>' +
       '<div style="margin-top:6px;color:var(--text2)">Quote it to the customer as an approximate range, not a figure. Nothing here is saved.</div>' +
     '</div>' +
     '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">' +
@@ -1449,15 +1695,15 @@ function renderFirstBillCalc() {
         '<div id="fbc-total" style="font-size:2.4rem;font-weight:700;color:var(--text)">' + _fbcMoney(_fbcTotal(d)) + '</div>' +
         // Repeated next to the figure itself — this is the number that gets read out or
         // screenshotted, often without the banner above it.
-        '<div style="font-size:.76rem;color:var(--yellow);margin-top:2px">Estimate — not the actual first bill. Devices priced at lowest storage.</div>' +
+        '<div style="font-size:.76rem;color:var(--yellow);margin-top:2px">Estimate — not the actual first bill. Devices priced at MSRP, not rack rate.</div>' +
         '<div id="fbc-breakdown" style="margin-top:14px;font-size:.85rem;color:var(--text2)">' + _fbcBreakdownHtml(d) + '</div>' +
       '</div>' +
     '</div>' +
     // Devices get the full width below the two columns — one row per line, and at 10 lines
     // this would be unusably cramped in the narrow left column.
     '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px">' +
-      '<div class="ps-label" style="margin-top:0">DEVICES &mdash; ONE PER LINE. PICKING A MODEL FILLS IN MSRP &divide; 36 AT BASE STORAGE; ' +
-        'REPLACE IT WITH THE RACK RATE, OR FOR HIGHER STORAGE. LINES BRINGING THEIR OWN HANDSET &rarr; NONE / BYOD</div>' +
+      '<div class="ps-label" style="margin-top:0">DEVICES &mdash; ONE PER LINE. PICK THE MODEL, THEN THE CAPACITY, TO FILL IN MSRP &divide; 36; ' +
+        'REPLACE IT WITH THE RACK RATE. LINES BRINGING THEIR OWN HANDSET &rarr; NONE / BYOD</div>' +
       deviceRows +
       '<div style="display:flex;justify-content:flex-end;gap:12px;align-items:baseline;padding:10px 2px 0;font-size:.9rem">' +
         '<span style="color:var(--text2)">Devices total</span>' +
@@ -1473,26 +1719,52 @@ function _fbcDeviceRowHtml(x, i) {
     _fbcDeviceCategories().map(function(c) {
       return '<option value="' + esc(c) + '"' + (c === x.cat ? ' selected' : '') + '>' + esc(c) + '</option>';
     }).join('');
-  var modelSel = '';
+  var modelSel = '', storageSel = '';
   if (x.cat && x.cat !== FBC_BYOD) {
-    var list = FBC_DEVICES.filter(function(y) { return y.category === x.cat; })
-      .map(function(y) { return { label: _fbcDeviceLabel(y), installment: y.installment }; })
-      .sort(function(a, b) { return a.label.localeCompare(b.label); });
-    var modelOpts = '<option value="">&mdash; select &mdash;</option>' + list.map(function(y) {
-      var tag = y.installment != null ? ' — ~$' + y.installment + '/mo' : ' — no price found';
-      return '<option value="' + esc(y.label) + '"' + (y.label === x.label ? ' selected' : '') + '>' + esc(y.label + tag) + '</option>';
+    // One entry per MODEL, not per SKU: the catalogue carries a row per capacity, so a flat
+    // list would repeat "Apple Watch Series 11" six times. Capacity is the second dropdown.
+    var seen = {}, list = [];
+    FBC_DEVICES.forEach(function(y) {
+      if (y.category !== x.cat) return;
+      var base = _fbcBaseLabel(y);
+      if (seen[base]) { seen[base].push(y); return; }
+      seen[base] = [y]; list.push(base);
+    });
+    list.sort(function(a, b) { return a.localeCompare(b); });
+    var modelOpts = '<option value="">&mdash; select &mdash;</option>' + list.map(function(base) {
+      var vs = seen[base].slice().sort(function(a, b) { return (a.installment || 0) - (b.installment || 0); });
+      var lo = vs[0] && vs[0].installment;
+      // Multi-capacity models quote "from", because the row's price depends on the second pick.
+      var tag = lo == null ? ' — no price found'
+              : (vs.length > 1 ? ' — from $' + lo + '/mo' : ' — ~$' + lo + '/mo');
+      return '<option value="' + esc(base) + '"' + (base === x.label ? ' selected' : '') + '>' + esc(base + tag) + '</option>';
     }).join('');
-    modelSel = '<select class="ps-select" style="flex:1 1 260px;min-width:180px;margin:0" ' +
+    modelSel = '<select class="ps-select" style="flex:1 1 240px;min-width:170px;margin:0" ' +
       'onchange="_fbcSetDeviceLabelAt(' + i + ', this.value)">' + modelOpts + '</select>';
+
+    // Only shown when the model actually has a choice to make — a single-SKU device would
+    // otherwise render a one-option dropdown that looks broken.
+    var variants = x.label ? _fbcVariantsFor(x.cat, x.label) : [];
+    if (variants.length > 1) {
+      var vOpts = variants.map(function(v) {
+        return '<option value="' + esc(v.storage) + '"' + (v.storage === x.storage ? ' selected' : '') + '>' +
+          esc(v.storage + ' — $' + v.installment + '/mo') + '</option>';
+      }).join('');
+      // Grows into the free space: a watch variant runs to 44 characters ("46mm Titanium
+      // Case with Milanese Loop"), which a fixed 210px clips mid-word.
+      storageSel = '<select class="ps-select" style="flex:1 1 220px;min-width:160px;max-width:340px;margin:0" ' +
+        'aria-label="Line ' + (i + 1) + ' capacity" ' +
+        'onchange="_fbcSetDeviceStorageAt(' + i + ', this.value)">' + vOpts + '</select>';
+    }
   } else {
-    modelSel = '<span style="flex:1 1 260px;min-width:180px;font-size:.82rem;color:var(--text2)">' +
+    modelSel = '<span style="flex:1 1 240px;min-width:170px;font-size:.82rem;color:var(--text2)">' +
       (x.cat === FBC_BYOD ? 'Keeping their own device &mdash; no installment' : 'Pick a device type') + '</span>';
   }
   var byod = x.cat === FBC_BYOD;
   return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 2px;border-bottom:1px solid var(--border)">' +
       '<span style="flex:0 0 56px;font-weight:600;font-size:.8rem;color:var(--text2)">Line ' + (i + 1) + '</span>' +
       '<select class="ps-select" style="flex:0 0 155px;margin:0" onchange="_fbcSetDeviceCatAt(' + i + ', this.value)">' + catOpts + '</select>' +
-      modelSel +
+      modelSel + storageSel +
       '<input class="ps-input" type="number" min="0" step="0.01" style="flex:0 0 110px;margin:0"' +
         (byod ? ' disabled' : '') + ' placeholder="0.00" value="' + esc(byod ? '' : x.cost) + '" ' +
         'oninput="_fbcSetDeviceCostAt(' + i + ', this.value)" aria-label="Line ' + (i + 1) + ' monthly device cost">' +
@@ -1512,16 +1784,28 @@ function _fbcSetPlan(val) { _fbcInit(); _FBC.plan = val; _fbcRepaint(); }
 // totals in place instead.
 function _fbcSetDeviceCatAt(i, val) {
   _fbcInit(); var x = _fbcDeviceAt(i); if (!x) return;
-  x.cat = val; x.label = '';
+  x.cat = val; x.label = ''; x.storage = '';
   x.cost = (val === FBC_BYOD) ? '0' : '';
   _fbcRepaint();
 }
-// Picking a model auto-fills an estimated installment (MSRP / 36mo at base storage) when we
-// have one — a starting point; the rep can overwrite it with the rack rate either way.
+// Picking a model auto-fills an estimated installment (MSRP / 36mo) when we have one — a
+// starting point; the rep can overwrite it with the rack rate either way. A model with
+// several capacities defaults to the CHEAPEST, which is the figure this tool always quoted;
+// the capacity dropdown that appears alongside is how they move off it.
 function _fbcSetDeviceLabelAt(i, val) {
   _fbcInit(); var x = _fbcDeviceAt(i); if (!x) return;
   x.label = val;
-  var match = FBC_DEVICES.find(function(y) { return y.category === x.cat && _fbcDeviceLabel(y) === val; });
+  var match = _fbcVariantFor(x.cat, val, '');
+  x.storage = match ? match.storage : '';
+  x.cost = (match && match.installment != null) ? String(match.installment) : '';
+  _fbcRepaint();
+}
+// Changing capacity re-prices the line. Repaints because the dropdown's own selection and
+// the breakdown text both have to follow.
+function _fbcSetDeviceStorageAt(i, val) {
+  _fbcInit(); var x = _fbcDeviceAt(i); if (!x) return;
+  var match = _fbcVariantFor(x.cat, x.label, val);
+  x.storage = match ? match.storage : val;
   x.cost = (match && match.installment != null) ? String(match.installment) : '';
   _fbcRepaint();
 }
