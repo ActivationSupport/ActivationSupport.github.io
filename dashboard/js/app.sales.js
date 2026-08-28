@@ -2070,7 +2070,28 @@ function _pseSave(btn) {
     dtvQty:d.dtv ? 1 : 0, dtvPackage:d.dtv ? d.dtvPackage : ''
   };
   apiPost(payload).then(function(res) {
-    if (res && res.ok) { _PSV_SALES = null; _psInvalidateDownstream(); closeModal(); renderPostedSalesTab(); }
+    if (res && res.ok) {
+      /* Patch the cached record in place instead of nulling _PSV_SALES, which forced a
+         readMyPostedSales round trip on EVERY edit. _psvVoid above already does exactly this
+         for the void toggle — the two paths in this same file were inconsistent.
+         ✅ Safe because the stored record uses the SAME field names as the payload: _psvEdit
+         reads s.airQty / s.wirelessNew / s.fiberPackage / s.dtvQty …, which is what we send.
+         This is a field-for-field copy, not a reshape.
+         ⚠ ONLY the fields we actually sent are copied. Anything the backend owns or derives —
+         notes (not in the payload), rep, the row's identity — is left alone.
+         ⚠ _psInvalidateDownstream() still runs: an edited sale genuinely changes the Live Sales
+         Tracker and Training totals, so those caches must still go. They re-read lazily when
+         their own tabs open, so nothing is requested here. */
+      var _tgt = (_PSV_SALES || []).filter(function(x){ return x && x.rowIndex === d.rowIndex; })[0];
+      if (_tgt) {
+        ['dateOfSale','dsi','accountType','processedVia','underSomeoneCodes','codesUsedBy',
+         'trainee','traineeName','airQty','wirelessNew','wirelessByod','fiberPackage',
+         'fiberInstallDate','voipQty','dtvQty','dtvPackage'].forEach(function(k){ _tgt[k] = payload[k]; });
+      } else {
+        _PSV_SALES = null;   // not in the cache — fall back to a re-read rather than guess
+      }
+      _psInvalidateDownstream(); closeModal(); renderPostedSalesTab();
+    }
     else { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert('Error: ' + (res && res.error ? res.error : 'Unknown error')); }
   }).catch(function() { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert('Save failed. Please try again.'); });
 }

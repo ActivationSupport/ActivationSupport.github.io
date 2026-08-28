@@ -96,10 +96,15 @@ function _peopleRowHtml(row, ctx) {
 }
 
 /* ── A SAVE REPAINTS THE PERSON, NOT THE PORTAL ───────────────────────────────────────────
-   savePerson/deletePerson used to call refreshData(), which is the sledgehammer: it empties
-   TAB_CACHE, nulls every secondary dataset (_LST_SALES, _AR_LINES, _TRAINING_ORDERS,
-   _PSV_SALES, _APPT.appointments, _TM_ORDERS, the My Team's Orders filters) and then calls
-   loadData(true), which deliberately SKIPS the instant-cache paint and waits on a fresh blob.
+   savePerson/deletePerson used to call refreshData(), which is the sledgehammer: it nulls every
+   secondary dataset (_LST_SALES, _AR_LINES, _TRAINING_ORDERS, _PSV_SALES, _APPT.appointments,
+   _TM_ORDERS, the My Team's Orders filters) and then calls loadData(true), which deliberately
+   SKIPS the instant-cache paint and waits on a fresh blob.
+   ⚠ It also empties TAB_CACHE — but measured 2026-08-28, **TAB_CACHE is never READ**: all 11
+   occurrences across the bundles are `TAB_CACHE = {}` assignments. It is vestigial, so neither
+   clearing it nor leaving it alone has any effect. Do not add a clear here "to be safe"; that
+   would be cargo-culting a dead variable. Left in place rather than removed because deleting a
+   global touches six files for no behavioural gain.
    So changing one dropdown cost a full network round trip, a loading skeleton, and every other
    tab's cache — which is exactly what makes editing people one at a time miserable.
    🔑 The server has ALREADY accepted the change: we only reach here on res.ok. The new truth is
@@ -1101,6 +1106,46 @@ function _tmEmojiInput() {
   }
 }
 
+/* ── SAVING A TEAM REPAINTS THE TEAMS TAB, NOT THE PORTAL ─────────────────────────────────
+   ⚠⚠ DELIBERATELY NOT the People trick. People is a flat list, so one <tr> can be swapped.
+   Teams is a HIERARCHY: roots are derived from which parents are visible, cards nest, and
+   _tmHasSubTeams changes a card's whole shape. Changing a parentId or a leaderId therefore
+   restructures the tree, and adding a team can nest it under another — a card-level swap
+   would be quietly wrong in exactly the cases people use most. So: repaint the tab from data
+   ALREADY IN MEMORY. That still removes the network round trip, which is where the seconds
+   were, without pretending a swap is safe.
+   ✅ renderTeamsTab() only fetches when _LST_SALES is null; sitting on the tab means it is
+   already loaded, so this repaints with no request. refreshData() used to NULL _LST_SALES and
+   force a posted-sales re-fetch — a team rename cannot change posted sales.
+   ⚠ _TM_ORDERS caches orders PER SUB-TEAM and _tmEffectiveTeamIds walks parentId to decide
+   which of them roll up, so a structural change invalidates that cache. Dropping it is a local
+   clear, NOT a refetch: nothing is requested until a team is actually opened. */
+function _teamsAfterSave(teamId, rec, mode) {
+  if (typeof DATA === 'undefined' || !DATA || !DATA.teams) return false;
+  var id = String(teamId || '').trim();
+  if (!id) return false;
+
+  if (mode === 'delete') {
+    delete DATA.teams[id];
+    /* Deleting the team you are currently looking at would leave the detail view pointed at
+       something that no longer exists. Drop back to the list. */
+    if (_TM_VIEW === 'detail' && _TM_DETAIL_ID === id) { _TM_VIEW = 'list'; _TM_DETAIL_ID = null; }
+  } else {
+    /* teamArr is built as Object.keys(teams).map(k => teams[k]), so each value must carry its
+       own teamId — _tmBuildList reads team.teamId, not the key. */
+    DATA.teams[id] = Object.assign({}, DATA.teams[id] || {}, rec || {}, { teamId: id });
+  }
+
+  _TM_ORDERS = {}; _TM_ORD_LOADING = {};
+
+  if (typeof CURRENT_TAB !== 'undefined' && CURRENT_TAB !== 'teams') return true;
+  if (!document.getElementById('main-content')) return false;
+  var snap = (typeof _snapScroll === 'function') ? _snapScroll() : null;
+  renderTeamsTab();                       // paints #main-content itself; honours list vs detail
+  if (snap && typeof _restoreScroll === 'function') _restoreScroll(snap);
+  return true;
+}
+
 function saveTeamModal(existingId) {
   var name=(document.getElementById('tm-f-name')||{}).value||''; name=name.trim();
   var emoji=(document.getElementById('tm-f-emoji')||{}).value||''; emoji=emoji.trim();
@@ -1115,7 +1160,11 @@ function saveTeamModal(existingId) {
     body={action:'addTeam',teamId:tid,name:name,emoji:emoji,leaderId:leaderId,parentId:parentId};
   }
   apiPost(body).then(function(res){
-    if(res.ok){ closeModal(); refreshData(); } else alert(res.error||'Save failed.');
+    if(res.ok){
+      closeModal();
+      var rec = { name:name, emoji:emoji, leaderId:leaderId, parentId:parentId };
+      if (!_teamsAfterSave(body.teamId, rec, existingId ? 'update' : 'add')) refreshData();
+    } else alert(res.error||'Save failed.');
   }).catch(function(){ alert('Connection error.'); });
 }
 
@@ -1126,7 +1175,8 @@ function _tmDelete(teamId) {
   var name = ((DATA.teams||{})[teamId]||{}).name || 'this team';
   if(!confirm('Delete team "'+name+'"? This cannot be undone.')) return;
   apiPost({action:'deleteTeam',teamId:teamId}).then(function(res){
-    if(res.ok) refreshData(); else alert(res.error||'Delete failed.');
+    if(res.ok) { if (!_teamsAfterSave(teamId, null, 'delete')) refreshData(); }
+    else alert(res.error||'Delete failed.');
   }).catch(function(){ alert('Connection error.'); });
 }
 
