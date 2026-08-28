@@ -404,14 +404,25 @@ function _rehashInit() {
   if (_REHASH) return;
   _REHASH = { products:{ Wireless:true, Fiber:false, Air:false }, firstName:'', repName:(SESSION.name||''), dateOfSale:_psOfficeToday(), accountNumber:'', acctType:'Consumer' };
 }
-/* The office's activation support number, from the SAME map the Activator Text keys off
-   (ATX_OFFICE_NUMBER, declared below — `var` so it is assigned long before a rep opens a tab).
-   🔑 ONE MAP, NOT TWO. A second copy would drift, and the number a rep drops into a group text
-   has to be the number an activator actually answers on.
+/* The number a rep puts on the group thread: the office's QUALITY CONTROL line if it has one,
+   otherwise its activation number (ATX_OFFICE_NUMBER, declared below — `var` so both are
+   assigned long before a rep opens a tab).
+   🔑 PREFERENCE, NOT A COPY. This used to read ATX_OFFICE_NUMBER alone, on the reasoning that
+   one map cannot drift. That still holds for a DUPLICATE — but a QC line and an activation
+   line are different numbers reaching different teams, so the office that has only the former
+   would otherwise show "no number set" while a real number sat unused. Offices with no QC
+   entry fall through and behave exactly as before.
+   ⚠⚠ Do NOT "simplify" this by folding OFFICE_QC_NUMBER into ATX_OFFICE_NUMBER. That map is
+   quoted to CUSTOMERS by the four Activator Text appointment messages as "our Office
+   Activation Number", and a QC line must not be introduced to a customer under that name.
    ⚠ A blank entry is a REAL STATE, not a bug — evolution and revamped launched without a
    call-in number. It must be said out loud; an empty slot reads as "there isn't one". */
 function _rehashOfficeNum() {
-  if (typeof ATX_OFFICE_NUMBER === 'undefined' || typeof CFG === 'undefined' || !CFG) return '';
+  if (typeof CFG === 'undefined' || !CFG) return '';
+  if (typeof OFFICE_QC_NUMBER !== 'undefined' && OFFICE_QC_NUMBER[CFG.officeId]) {
+    return OFFICE_QC_NUMBER[CFG.officeId];
+  }
+  if (typeof ATX_OFFICE_NUMBER === 'undefined') return '';
   return ATX_OFFICE_NUMBER[CFG.officeId] || '';
 }
 /* Which pane of the Rehash Text tab is showing. Module-level on purpose: every field edit
@@ -688,8 +699,19 @@ var ATX_OFFICE_NUMBER = {
   evolution: '',   // ⏰ no call-in number yet — LeadSphere launched blank too
   revamped:  '',   // ⏰ ditto. Blank renders the [Office Activation Number] placeholder
   apexpremier: '', // ⏰ ditto — number is provisioned when the office starts taking calls (D-038)
-  eaglespeak: '',  // ⏰ ditto
+  eaglespeak: '',  // ⏰ ditto — their QC line is in OFFICE_QC_NUMBER, which is NOT this number
   bayview:   ''    // 🦴 skeleton slot — fill in when the next office launches
+};
+
+/* An office's QUALITY CONTROL line — the number a rep adds to the Rehash GROUP TEXT so the
+   office can step in on the thread. Read ONLY by _rehashOfficeNum(), which prefers it over
+   ATX_OFFICE_NUMBER; an office with no entry here is unaffected.
+   ⚠⚠ THIS IS NOT THE OFFICE ACTIVATION NUMBER and must not be merged into ATX_OFFICE_NUMBER.
+   That map is read out to CUSTOMERS by the confirm / apptcancel / noshow / wrapup messages as
+   "our Office Activation Number". Eagles' Peak has a QC line but its activation number is
+   still unprovisioned (D-038), so those four messages correctly keep their placeholder. */
+var OFFICE_QC_NUMBER = {
+  eaglespeak: '832 820 2279'   // from the user, 2026-08-28
 };
 
 // key -> message body. Each entry is a function of the merge fields (see _atxFields) and
