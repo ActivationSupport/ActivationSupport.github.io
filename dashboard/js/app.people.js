@@ -6,21 +6,35 @@ var _ROLE_LABELS = {
   'jd':'JD','manager':'Manager'
 };
 
-function renderPeople() {
-  var roster = DATA.roster || {};
-  var guestRoster = DATA.guestRoster || {};
+/* The role-derived flags every People row needs.
+   🔑 EXTRACTED so renderPeople() and the single-row repaint below cannot drift apart. After a
+   save we rebuild exactly ONE <tr>; if that row were built from a second copy of this logic it
+   would slowly stop matching its neighbours — and the difference would only ever be visible on
+   the row someone had just edited. One definition, two callers. */
+function _peopleRowCtx() {
   var role = SESSION.role;
   // People management (add + edit) — jd/manager/admin/owner/master-admin, plus activator
   // (activators work across offices; their multi-office badge + the per-office switcher
   // scope them, and _officeAllowed on the backend enforces it). NOT a Teams-management grant.
-  var isAdmin   = role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd' || role === 'activator';
-  var isMgr     = false;   // jd is now a full admin here (manager-equivalent)
-  // Team LEADS can also add + edit people (assign teams, basics) — restricted fields via buildPersonForm.
-  var canManagePeople = isAdmin || role === 'leader';
-  // Password reset is a security action — limited to the management tier (mirrors
-  // the backend resetUserPin gate = _ADMIN_ROLES; excludes activators + leaders).
-  var canResetPw = role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd';
-  var myEmail   = (SESSION.email || '').toLowerCase();
+  var isAdmin = role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd' || role === 'activator';
+  return {
+    role: role,
+    isAdmin: isAdmin,
+    isMgr: false,                                  // jd is now a full admin here (manager-equivalent)
+    // Team LEADS can also add + edit people (assign teams, basics) — restricted fields via buildPersonForm.
+    canManagePeople: isAdmin || role === 'leader',
+    // Password reset is a security action — limited to the management tier (mirrors
+    // the backend resetUserPin gate = _ADMIN_ROLES; excludes activators + leaders).
+    canResetPw: role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd',
+    myEmail: (SESSION.email || '').toLowerCase()
+  };
+}
+
+function renderPeople() {
+  var roster = DATA.roster || {};
+  var guestRoster = DATA.guestRoster || {};
+  var ctx = _peopleRowCtx();
+  var canManagePeople = ctx.canManagePeople;
   var homeRows = Object.keys(roster).map(function(email) {
     return Object.assign({ email: email, isGuest: false }, roster[email]);
   });
@@ -36,7 +50,14 @@ function renderPeople() {
     '<div class="tbl-wrap"><table id="people-table"><thead><tr>' +
     '<th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Phone</th><th>Status</th><th>Tableau Name</th><th>Office Access</th><th>Actions</th>' +
     '</tr></thead><tbody>' +
-    rows.map(function(row) {
+    rows.map(function(row) { return _peopleRowHtml(row, ctx); }).join('') + '</tbody></table></div></div></div>';
+}
+
+/* ONE <tr>. The only place a People row's markup is defined — see _peopleRowCtx above. */
+function _peopleRowHtml(row, ctx) {
+      ctx = ctx || _peopleRowCtx();
+      var isAdmin = ctx.isAdmin, isMgr = ctx.isMgr, canManagePeople = ctx.canManagePeople,
+          canResetPw = ctx.canResetPw, myEmail = ctx.myEmail, role = ctx.role;
       var statusBadge = row.deactivated ? '<span class="badge badge-red">Inactive</span>' : '<span class="badge badge-green">Active</span>';
       var perms = (row.permissions || CFG.officeId).split(',').map(function(p) { return OFFICE_NAMES[p.trim()] || p.trim(); }).join(', ');
       var nameCell = esc(row.name) + (row.isGuest ? ' <span style="font-size:.72rem;color:#888;font-weight:400">from ' + esc(OFFICE_NAMES[row.homeOffice]||row.homeOffice) + '</span>' : '');
@@ -68,9 +89,101 @@ function renderPeople() {
          the original #fafafa, so the design intent is preserved and every other theme is
          fixed. Same family as the .card-header.dark bug that made vanguard's wordmark vanish
          in light mode — a literal colour is a bug in a themed UI, not a shortcut. */
-      return '<tr'+(row.isGuest?' style="background:var(--surface2);color:var(--text2)"':'')+'>'+
+      /* data-email is the anchor a single-row repaint finds this <tr> by. Without it a save has
+         no way to say "just this person" and is forced to rebuild the whole table. */
+      return '<tr data-email="'+esc(row.email)+'"'+(row.isGuest?' style="background:var(--surface2);color:var(--text2)"':'')+'>'+
         '<td>'+nameCell+'</td><td>'+esc(row.email)+'</td><td>'+esc(_ROLE_LABELS[row.rank]||row.rank||'client-rep')+'</td><td>'+esc(row.team||'')+'</td><td>'+esc(row.phone||'—')+'</td><td>'+statusBadge+'</td><td>'+esc(row.tableauName||'—')+'</td><td>'+esc(perms)+'</td>'+actions+'</tr>';
-    }).join('') + '</tbody></table></div></div></div>';
+}
+
+/* ── A SAVE REPAINTS THE PERSON, NOT THE PORTAL ───────────────────────────────────────────
+   savePerson/deletePerson used to call refreshData(), which is the sledgehammer: it empties
+   TAB_CACHE, nulls every secondary dataset (_LST_SALES, _AR_LINES, _TRAINING_ORDERS,
+   _PSV_SALES, _APPT.appointments, _TM_ORDERS, the My Team's Orders filters) and then calls
+   loadData(true), which deliberately SKIPS the instant-cache paint and waits on a fresh blob.
+   So changing one dropdown cost a full network round trip, a loading skeleton, and every other
+   tab's cache — which is exactly what makes editing people one at a time miserable.
+   🔑 The server has ALREADY accepted the change: we only reach here on res.ok. The new truth is
+   therefore known locally, and no fetch is needed to display it.
+   ⚠ THIS IS NOT AN OPTIMISTIC UPDATE. Nothing paints until the backend confirms, so the trap of
+   an optimistic repaint hiding a backend rejection does not apply — a rejection never gets here.
+   ⚠⚠ The local record must mirror what the backend ACTUALLY WROTE, not what was typed.
+   writeAddRosterEntry (Code.gs:5899) ignores tableauName and forces deactivated:false; echoing
+   the typed values would paint a value the sheet does not hold, which would then vanish on the
+   next background tick and look like data loss.
+   🔁 The ~90s main refresh still replaces DATA wholesale from the server, so any divergence
+   self-corrects within one tick — the server stays authoritative. */
+function _peopleRowEl(email) {
+  var tb = document.getElementById('people-table');
+  if (!tb) return null;
+  var rows = tb.querySelectorAll('tbody tr[data-email]'), want = String(email || '').toLowerCase();
+  for (var i = 0; i < rows.length; i++) {
+    if ((rows[i].getAttribute('data-email') || '').toLowerCase() === want) return rows[i];
+  }
+  return null;
+}
+
+/* Re-run the tab's search box through its REAL handler instead of reimplementing the filter.
+   A second copy of the matching logic would drift, and a freshly-swapped row would then be the
+   one place the filter behaved differently. app.data.js does the same on a background rebuild. */
+function _peopleReapplyFilter() {
+  var f = document.getElementById('f-people');
+  if (!f || !f.value) return;
+  try { f.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+}
+
+/* A full People rebuild from data ALREADY IN MEMORY — no network, no cache wipe, no skeleton.
+   The fallback for whenever a single-row swap cannot be correct. Still vastly cheaper than
+   refreshData(): it is a re-render, not a re-fetch. */
+function _peopleRepaintTab() {
+  if (typeof CURRENT_TAB !== 'undefined' && CURRENT_TAB !== 'people') return true;
+  var mc = document.getElementById('main-content');
+  if (!mc) return false;
+  var snap = (typeof _snapScroll === 'function') ? _snapScroll() : null;
+  var f = document.getElementById('f-people'), keep = f ? f.value : '';
+  mc.innerHTML = renderPeople();
+  if (typeof bindFilters === 'function') bindFilters();
+  var f2 = document.getElementById('f-people');
+  if (f2 && keep) { f2.value = keep; _peopleReapplyFilter(); }
+  if (snap && typeof _restoreScroll === 'function') _restoreScroll(snap);
+  return true;
+}
+
+/* Returns TRUE if it handled the repaint. A caller that gets FALSE must fall back to
+   refreshData() — never assume this worked, or a save could land with nothing on screen. */
+function _peopleAfterSave(email, rec, mode) {
+  var roster = (typeof DATA !== 'undefined' && DATA && DATA.roster) ? DATA.roster : null;
+  if (!roster) return false;
+  var key = String(email || '').trim().toLowerCase();
+  if (!key) return false;
+  var onTab = (typeof CURRENT_TAB === 'undefined') || CURRENT_TAB === 'people';
+
+  if (mode === 'delete') {
+    delete roster[key];
+    if (!onTab) return true;
+    var el = _peopleRowEl(key);
+    /* Removing the LAST row turns the tab into its "No people in the roster yet" empty state,
+       which deleting a <tr> cannot produce. Rebuild in that case. */
+    if (el && Object.keys(roster).length) {
+      el.parentNode.removeChild(el);
+      _peopleReapplyFilter();
+      return true;
+    }
+    return _peopleRepaintTab();
+  }
+
+  var before = roster[key];
+  /* Rows are sorted by name, so a new person — or a renamed one — belongs somewhere else in
+     the table. Swapping in place would leave it visibly out of order. */
+  var moved = (mode === 'add') || !before || String(before.name || '') !== String((rec && rec.name) || '');
+  roster[key] = Object.assign({}, before || {}, rec || {});
+  if (!onTab) return true;
+  if (moved) return _peopleRepaintTab();
+
+  var row = _peopleRowEl(key);
+  if (!row) return _peopleRepaintTab();
+  row.outerHTML = _peopleRowHtml(Object.assign({ email: key, isGuest: false }, roster[key]), _peopleRowCtx());
+  _peopleReapplyFilter();
+  return true;
 }
 
 function buildPersonForm(email, person) {
@@ -175,7 +288,16 @@ function savePerson(existingEmail) {
   if (existingEmail) { body.action = 'updateRosterEntry'; body.email = existingEmail; }
   else               { body.action = 'addRosterEntry';    body.email = emailVal; }
   apiPost(body).then(function(res) {
-    if (res.ok) { closeModal(); refreshData(); }
+    if (res.ok) {
+      closeModal();
+      /* ⚠ Mirror what the backend WROTE, not what was typed. writeAddRosterEntry appends
+         tableauName as '' and deactivated as false regardless of the request, so echoing the
+         form values on an ADD would paint a Tableau name the sheet does not hold. */
+      var rec = existingEmail
+        ? { name:name, rank:rank, team:team, tableauName:tableauName, phone:phone, permissions:permissions, deactivated:deactivated }
+        : { name:name, rank:rank, team:team, tableauName:'',          phone:phone, permissions:permissions, deactivated:false };
+      if (!_peopleAfterSave(existingEmail || emailVal, rec, existingEmail ? 'update' : 'add')) refreshData();
+    }
     else alert(res.error || 'Save failed.');
   }).catch(function(){ alert('Connection error.'); });
 }
@@ -183,7 +305,8 @@ function savePerson(existingEmail) {
 function deletePerson(email) {
   if (!confirm('Remove ' + email + ' from the roster? This cannot be undone.')) return;
   apiPost({ action:'deleteRosterEntry', email:email }).then(function(res) {
-    if (res.ok) refreshData(); else alert(res.error||'Delete failed.');
+    if (res.ok) { if (!_peopleAfterSave(email, null, 'delete')) refreshData(); }
+    else alert(res.error||'Delete failed.');
   });
 }
 
