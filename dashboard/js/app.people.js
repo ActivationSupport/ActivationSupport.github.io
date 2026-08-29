@@ -26,31 +26,117 @@ function _peopleRowCtx() {
     // Password reset is a security action — limited to the management tier (mirrors
     // the backend resetUserPin gate = _ADMIN_ROLES; excludes activators + leaders).
     canResetPw: role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'manager' || role === 'jd',
+    /* The Removed view + Restore. User's call 2026-08-28.
+       ⚠ THIS IS A CONVENIENCE GATE, NOT THE SECURITY BOUNDARY. Hiding a tab hides a button; the
+       backend gates `restoreRosterEntry` on the same four roles AND puts it through the
+       escalation guard, so an admin still cannot restore an owner however the UI is coaxed. */
+    canSeeRemoved: role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'activator',
+    canRestore:    role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'activator',
     myEmail: (SESSION.email || '').toLowerCase()
   };
 }
 
+/* Which of the three People views is showing. Module-level for the same reason _RH_VIEW is:
+   every save re-renders through innerHTML, so a view held in the DOM would reset itself. */
+var _PEOPLE_VIEW = 'active';
+function _peopleView(v) {
+  _PEOPLE_VIEW = v;
+  document.getElementById('main-content').innerHTML = renderPeople();
+  if (typeof bindFilters === 'function') bindFilters();
+}
+
+/* Split once, used by the renderer AND by the save-repaint, so "which view does this person
+   belong in" has exactly one definition. Guests are ACTIVE: readCrossOfficeMembers already
+   skips anyone deactivated in their home office, so a guest can never be inactive here, and
+   they cannot be removed here either — their row lives in another office. */
+function _peopleSplit() {
+  var roster = DATA.roster || {}, guestRoster = DATA.guestRoster || {}, removed = DATA.deletedRoster || {};
+  var active = [], inactive = [];
+  Object.keys(roster).forEach(function(email) {
+    var row = Object.assign({ email: email, isGuest: false }, roster[email]);
+    (row.deactivated ? inactive : active).push(row);
+  });
+  Object.keys(guestRoster).filter(function(e){ return !roster[e]; }).forEach(function(email) {
+    active.push(Object.assign({ email: email, isGuest: true }, guestRoster[email]));
+  });
+  var byName = function(a,b){ return (a.name||'').localeCompare(b.name||''); };
+  return {
+    active: active.sort(byName),
+    inactive: inactive.sort(byName),
+    removed: Object.keys(removed).map(function(email) {
+      return Object.assign({ email: email }, removed[email]);
+    }).sort(byName)
+  };
+}
+
 function renderPeople() {
-  var roster = DATA.roster || {};
-  var guestRoster = DATA.guestRoster || {};
   var ctx = _peopleRowCtx();
-  var canManagePeople = ctx.canManagePeople;
-  var homeRows = Object.keys(roster).map(function(email) {
-    return Object.assign({ email: email, isGuest: false }, roster[email]);
-  });
-  var guestRows = Object.keys(guestRoster).filter(function(email) { return !roster[email]; }).map(function(email) {
-    return Object.assign({ email: email, isGuest: true }, guestRoster[email]);
-  });
-  var rows = homeRows.concat(guestRows).sort(function(a,b) { return (a.name||'').localeCompare(b.name||''); });
-  if (!rows.length) return noData('No people in the roster yet.', {icon:'people'});
-  var addBtn = canManagePeople ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
+  var split = _peopleSplit();
+  /* Removed is only offered to the roles allowed to see it; for everyone else the view does not
+     exist, so a stale _PEOPLE_VIEW cannot strand them on a blank screen. */
+  if (_PEOPLE_VIEW === 'removed' && !ctx.canSeeRemoved) _PEOPLE_VIEW = 'active';
+  var view = _PEOPLE_VIEW;
+  var rows = split[view] || split.active;
+
+  var tab = function(k, label, n) {
+    return '<div class="rh-tab'+(view===k?' active':'')+'" onclick="_peopleView(\''+k+'\')">'+label+
+           '<span class="rh-tab-badge">'+n+'</span></div>';
+  };
+  /* ⚠ Sub-tabs (.rh-tabs), NOT the .ps-toggle pills used for form fields. That distinction is
+     already established elsewhere: pills change a VALUE, sub-tabs change WHICH SCREEN you are on.
+     Counts sit in the labels so an admin can see there IS something in Removed without clicking. */
+  var tabs = '<div class="rh-tabs">' + tab('active','Active',split.active.length) +
+             tab('inactive','Inactive',split.inactive.length) +
+             (ctx.canSeeRemoved ? tab('removed','Removed',split.removed.length) : '') + '</div>';
+
+  var addBtn = (ctx.canManagePeople && view !== 'removed')
+    ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
+
+  var body;
+  if (!rows.length) {
+    body = noData(view === 'removed' ? 'Nobody has been removed in the last ' + _PEOPLE_RETAIN_DAYS + ' days.'
+         : view === 'inactive' ? 'No inactive people.'
+         : 'No people in the roster yet.', { icon:'people', bare:true });
+  } else if (view === 'removed') {
+    body = '<div class="tbl-wrap"><table id="people-table"><thead><tr>' +
+      '<th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Removed</th><th>By</th><th>Deleted in</th><th>Actions</th>' +
+      '</tr></thead><tbody>' + rows.map(function(r){ return _peopleRemovedRowHtml(r, ctx); }).join('') +
+      '</tbody></table></div>';
+  } else {
+    body = '<div class="tbl-wrap"><table id="people-table"><thead><tr>' +
+      '<th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Phone</th><th>Status</th><th>Tableau Name</th><th>Office Access</th><th>Actions</th>' +
+      '</tr></thead><tbody>' + rows.map(function(row) { return _peopleRowHtml(row, ctx); }).join('') +
+      '</tbody></table></div>';
+  }
+
   return '<div class="card"><div class="card-header dark">People &amp; Roster</div><div class="card-body">' +
-    addBtn +
+    tabs + addBtn +
     '<div class="filter-row"><input id="f-people" placeholder="Search name, email, role…"></div>' +
-    '<div class="tbl-wrap"><table id="people-table"><thead><tr>' +
-    '<th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Phone</th><th>Status</th><th>Tableau Name</th><th>Office Access</th><th>Actions</th>' +
-    '</tr></thead><tbody>' +
-    rows.map(function(row) { return _peopleRowHtml(row, ctx); }).join('') + '</tbody></table></div></div></div>';
+    body + '</div></div>';
+}
+
+/* How long a removed person is recoverable. Mirrors DELETED_ROSTER_TTL_DAYS in Code.gs.
+   ⚠ Display only — the backend owns the real cutoff, and readDeletedRoster already sends
+   daysLeft per person so the countdown can never disagree with the purge. */
+var _PEOPLE_RETAIN_DAYS = 14;
+
+/* The Removed view's row. Separate from _peopleRowHtml on purpose: different columns
+   (when/who/countdown instead of phone/tableau/access) and a different action. */
+function _peopleRemovedRowHtml(row, ctx) {
+  ctx = ctx || _peopleRowCtx();
+  var when = String(row.deletedAt || '').slice(0, 10) || '—';
+  var left = (row.daysLeft === null || row.daysLeft === undefined)
+    ? '<span style="color:var(--text2)">unknown</span>'
+    : (row.daysLeft <= 3 ? '<span class="badge badge-red">' + row.daysLeft + ' day' + (row.daysLeft === 1 ? '' : 's') + '</span>'
+                         : row.daysLeft + ' days');
+  var actions = ctx.canRestore
+    ? '<td><button class="notes-btn" onclick="restorePerson(\''+esc(row.email)+'\')">Restore</button></td>'
+    : '<td></td>';
+  return '<tr data-email="'+esc(row.email)+'" style="color:var(--text2)">' +
+    '<td>'+esc(row.name||'—')+'</td><td>'+esc(row.email)+'</td>' +
+    '<td>'+esc(_ROLE_LABELS[row.rank]||row.rank||'client-rep')+'</td>' +
+    '<td>'+esc(row.team||'')+'</td><td>'+esc(when)+'</td><td>'+esc(row.deletedBy||'—')+'</td>' +
+    '<td>'+left+'</td>'+actions+'</tr>';
 }
 
 /* ONE <tr>. The only place a People row's markup is defined — see _peopleRowCtx above. */
@@ -163,23 +249,41 @@ function _peopleAfterSave(email, rec, mode) {
   var onTab = (typeof CURRENT_TAB === 'undefined') || CURRENT_TAB === 'people';
 
   if (mode === 'delete') {
+    /* 🔴 A REMOVAL IS NOW A MOVE, NOT A DISAPPEARANCE — the person lands in the Removed view and
+       its tab COUNT has to change, which a <tr> removal cannot do. Seed the archive entry
+       locally so the count and the row are right immediately; the next poll replaces it with
+       the server's copy (which carries the real deletedAt and countdown). */
+    var goneRec = roster[key];
     delete roster[key];
-    if (!onTab) return true;
-    var el = _peopleRowEl(key);
-    /* Removing the LAST row turns the tab into its "No people in the roster yet" empty state,
-       which deleting a <tr> cannot produce. Rebuild in that case. */
-    if (el && Object.keys(roster).length) {
-      el.parentNode.removeChild(el);
-      _peopleReapplyFilter();
-      return true;
+    if (typeof DATA !== 'undefined' && DATA) {
+      DATA.deletedRoster = DATA.deletedRoster || {};
+      DATA.deletedRoster[key] = {
+        name: (goneRec && goneRec.name) || key, team: (goneRec && goneRec.team) || '',
+        rank: (goneRec && goneRec.rank) || 'client-rep',
+        phone: (goneRec && goneRec.phone) || '', tableauName: (goneRec && goneRec.tableauName) || '',
+        permissions: (goneRec && goneRec.permissions) || '',
+        deactivated: !!(goneRec && goneRec.deactivated),
+        deletedAt: new Date().toISOString(),
+        deletedBy: (typeof SESSION !== 'undefined' && SESSION && SESSION.email) || '',
+        daysLeft: _PEOPLE_RETAIN_DAYS
+      };
     }
+    if (!onTab) return true;
     return _peopleRepaintTab();
   }
 
   var before = roster[key];
   /* Rows are sorted by name, so a new person — or a renamed one — belongs somewhere else in
-     the table. Swapping in place would leave it visibly out of order. */
-  var moved = (mode === 'add') || !before || String(before.name || '') !== String((rec && rec.name) || '');
+     the table. Swapping in place would leave it visibly out of order.
+     🔴 AND SINCE 2026-08-28 THE TAB IS SPLIT INTO ACTIVE / INACTIVE / REMOVED, so a change to
+     `deactivated` moves the person to a DIFFERENT VIEW ENTIRELY. Without this the row would sit
+     in the Active list wearing an Inactive badge until something else repainted — the exact
+     interaction between the row-swap optimisation and the new views. */
+  var wasOff = !!(before && before.deactivated);
+  var nowOff = !!(rec && rec.deactivated);
+  var moved = (mode === 'add') || !before
+           || String(before.name || '') !== String((rec && rec.name) || '')
+           || wasOff !== nowOff;
   roster[key] = Object.assign({}, before || {}, rec || {});
   if (!onTab) return true;
   if (moved) return _peopleRepaintTab();
@@ -308,11 +412,50 @@ function savePerson(existingEmail) {
 }
 
 function deletePerson(email) {
-  if (!confirm('Remove ' + email + ' from the roster? This cannot be undone.')) return;
+  var who = ((DATA.roster || {})[email] || {}).name || email;
+  /* ⚠⚠ THE OLD TEXT SAID "This cannot be undone." IT NOW CAN BE, FOR TWO WEEKS — and a dialog
+     that overstates the consequence is its own kind of wrong: it makes people hesitate over a
+     reversible action and, worse, teaches them the warning is theatre. User 2026-08-28 asked
+     specifically for a note on how removal now works. */
+  if (!confirm(
+    'Remove ' + who + ' from the roster?\n\n' +
+    '• They are signed out immediately and cannot sign back in.\n' +
+    '• They come off any team they lead.\n' +
+    '• They stop appearing in the Live Sales Tracker.\n' +
+    '• Their sales stay in the Call Logs and in Training & Tracking.\n\n' +
+    'They move to the Removed tab and can be restored for ' + _PEOPLE_RETAIN_DAYS + ' days.\n' +
+    'After that they are deleted permanently.')) return;
   apiPost({ action:'deleteRosterEntry', email:email }).then(function(res) {
     if (res.ok) { if (!_peopleAfterSave(email, null, 'delete')) refreshData(); }
     else alert(res.error||'Delete failed.');
   });
+}
+
+/* Put a removed person back. The backend re-checks the role AND the escalation guard, so this
+   button being visible is convenience, not permission. */
+function restorePerson(email) {
+  var p = (DATA.deletedRoster || {})[email] || {};
+  var who = p.name || email;
+  if (!confirm('Restore ' + who + '?\n\n' +
+    'They go back on the roster as ' + ((_ROLE_LABELS[p.rank] || p.rank) || 'Client Rep') + ', with their password intact.\n' +
+    '⚠ They are NOT put back in charge of any team they used to lead — that may have been reassigned.')) return;
+  apiPost({ action:'restoreRosterEntry', email:email }).then(function(res) {
+    if (res && res.ok) {
+      /* A restore moves a row between two collections, so there is no single <tr> to swap —
+         repaint the tab from memory, which is still no fetch.
+         ⚠⚠ PUT THEM BACK IN THE ROSTER TOO. Deleting only the archive entry would make them
+         vanish from BOTH views until the next poll, which reads as "the restore failed".
+         🔑 `deactivated` comes from the archived row, not assumed false: someone removed while
+         already inactive comes back inactive, and belongs in that tab. */
+      if (DATA.roster) {
+        DATA.roster[email] = { name:p.name, team:p.team, rank:p.rank, phone:p.phone,
+                               tableauName:p.tableauName, permissions:p.permissions,
+                               deactivated:!!p.deactivated };
+      }
+      if (DATA.deletedRoster) delete DATA.deletedRoster[email];
+      if (!_peopleRepaintTab()) refreshData();
+    } else alert((res && res.error) ? res.error : 'Restore failed.');
+  }).catch(function(){ alert('Connection error.'); });
 }
 
 // Admin password reset: blanks the person's stored hash so they create a new

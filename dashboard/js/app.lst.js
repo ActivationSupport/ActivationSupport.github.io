@@ -168,6 +168,18 @@ function _lstAgg(sales, roster) {
     if (!agg[email]) {
       var r = roster[email];
       if (r && r.deactivated) return;   // deactivated roster rep -> excluded (unchanged)
+      /* 🔑 REMOVED (soft-deleted) reps are excluded too — user 2026-08-28: "We should no longer
+         see their sales or see them in the live sales tracker as well."
+         ⚠⚠ AND THIS IS WHY IT IS A LOOKUP, NOT A DELETION OF THE FALLBACK BELOW. The fallback
+         exists so "a posted sale must never silently vanish from the board", and it covers TWO
+         situations: a rep who was removed (hide), and a sale whose email matches no roster row
+         for any other reason — legacy data, a typo, someone never added (KEEP SHOWING).
+         Dropping the fallback outright would have hidden the second kind too, quietly losing
+         real sales off the board in the name of hiding ex-reps.
+         🔑 Their sales are NOT lost: call logs and Training & Tracking read the order data
+         directly and still show every one of them. This is the roster-driven view; those are
+         order-driven, which is the whole seam. */
+      if (!r && typeof DATA !== 'undefined' && DATA && (DATA.deletedRoster || {})[email]) return;
       agg[email] = {
         name: (r && r.name) || s.repName || email,
         team: (r && r.team) || '',
