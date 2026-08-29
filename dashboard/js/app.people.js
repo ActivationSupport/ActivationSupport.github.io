@@ -122,9 +122,43 @@ var _PEOPLE_RETAIN_DAYS = 14;
 
 /* The Removed view's row. Separate from _peopleRowHtml on purpose: different columns
    (when/who/countdown instead of phone/tableau/access) and a different action. */
+/* The removal moment, rendered in the OFFICE'S OWN timezone.
+   🔴 NOT `.slice(0,10)` — user, 2026-08-28: "Dont forget some offices operate in difrrent time
+   zones." `deletedAt` is written by the backend as `new Date().toISOString()`, so slicing it
+   yields the UTC calendar day. A removal at 5pm Pacific or 8pm Eastern is ALREADY TOMORROW in
+   UTC, and the Removed tab showed a date the person who did it never saw on their own clock —
+   which is exactly how this was found. Our eight live offices span Pacific to Eastern, so this
+   is the routine case, not an edge case.
+   🔑 Reuses APPT_OFFICE_TZ + _partsInTz from app.appts.js — the ONE definition of an office's
+   zone on the client. A second copy of that map here is precisely how the two silently drift.
+   Both bundles are unconditionally deferred and this runs at RENDER time, long after every
+   script has executed, so the dependency is always resolved by the time it is needed.
+   ⚠ Degrades, never blanks: an unparseable stamp gives '—' (matching `daysLeft:null`'s
+   "unknown"), and if the appts bundle or Intl is somehow absent it falls back to the old UTC
+   slice — wrong by at most a day rather than showing nothing.
+   ⚠⚠ DISPLAY ONLY. The purge and the countdown are absolute-time arithmetic (`stamp + 14d` vs
+   `Date.now()`) and are deliberately NOT calendar-based. Do not "make them consistent" with
+   this by rounding either one to a local midnight — that would make the retention window drift
+   by up to a day per office and by an hour across a DST boundary. */
+var _PEOPLE_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _peopleRemovedWhen(iso, officeId) {
+  var raw = String(iso || '');
+  if (!raw) return '—';
+  var ms = Date.parse(raw);
+  if (isNaN(ms)) return '—';
+  var oid = officeId || ((typeof CFG !== 'undefined' && CFG) ? CFG.officeId : '');
+  var tz = (typeof APPT_OFFICE_TZ !== 'undefined' && APPT_OFFICE_TZ) ? APPT_OFFICE_TZ[oid] : '';
+  if (!tz || typeof _partsInTz !== 'function') return raw.slice(0, 10);
+  var p = _partsInTz(ms, tz);
+  var h12 = p.h % 12; if (h12 === 0) h12 = 12;
+  var ab = (typeof _tzAbbr === 'function') ? _tzAbbr(tz) : '';
+  return _PEOPLE_MONTHS[p.mo - 1] + ' ' + p.d + ', ' + h12 + ':' + (p.mi < 10 ? '0' : '') + p.mi +
+         ' ' + (p.h < 12 ? 'AM' : 'PM') + (ab ? ' ' + ab : '');
+}
+
 function _peopleRemovedRowHtml(row, ctx) {
   ctx = ctx || _peopleRowCtx();
-  var when = String(row.deletedAt || '').slice(0, 10) || '—';
+  var when = _peopleRemovedWhen(row.deletedAt);
   var left = (row.daysLeft === null || row.daysLeft === undefined)
     ? '<span style="color:var(--text2)">unknown</span>'
     : (row.daysLeft <= 3 ? '<span class="badge badge-red">' + row.daysLeft + ' day' + (row.daysLeft === 1 ? '' : 's') + '</span>'
