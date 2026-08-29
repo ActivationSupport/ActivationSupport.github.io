@@ -692,15 +692,13 @@ var ATX_DRAFT = {};
 // placeholder rather than a gap. Written in the same spaced style as the VIP numbers.
 var ATX_OFFICE_NUMBER = {
   elevate:   '858 321 5699',
-  midspire:  '224 524 8968',
   viridian:  '314 789 1988',
   vanguard:  '813 524 7081',
   leadsphere:'417 429 7242',   // from Gabe, 2026-07-30
   evolution: '',   // ⏰ no call-in number yet — LeadSphere launched blank too
   revamped:  '',   // ⏰ ditto. Blank renders the [Office Activation Number] placeholder
   apexpremier: '', // ⏰ ditto — number is provisioned when the office starts taking calls (D-038)
-  eaglespeak: '',  // ⏰ ditto — their QC line is in OFFICE_QC_NUMBER, which is NOT this number
-  bayview:   ''    // 🦴 skeleton slot — fill in when the next office launches
+  eaglespeak: ''   // ⏰ ditto — their QC line is in OFFICE_QC_NUMBER, which is NOT this number
 };
 
 /* An office's QUALITY CONTROL line — the number a rep adds to the Rehash GROUP TEXT so the

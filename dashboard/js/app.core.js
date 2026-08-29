@@ -11,7 +11,7 @@ var API_KEY = 'activation-dash-2026-secret';
 // here (all downstream code is unchanged). Backend maps (Code.gs / the Scheduler /
 // Customer Booking) still mirror these — keep in sync; see _private/OFFICE_ONBOARDING.md.
 // ⚠ Key ORDER matters: OFFICE_NAMES is iterated for the office switcher + the People
-// permission checkboxes, so keep this order (midspire, viridian, elevate, …).
+// permission checkboxes, so the order here is the order users see.
 // Fields: name; color (accent sampled from the logo); theme (applyOfficeTheme: btn=
 // primary fill/--blue, accent=bright accent/--blue2, dark/--blue3, hover, glow=login
 // glow, band/onBand=header; gold offices add lightInk for legible light-mode accent
@@ -27,13 +27,6 @@ var API_KEY = 'activation-dash-2026-secret';
 // _private/preview/office_uniformity.js before changing any of these; do not copy another
 // office's numbers, which is exactly how apexpremier ended up the smallest logo we ship.
 var OFFICE_CONFIG = {
-  midspire: {
-    name:'Midspire', color:'#0E7BD4',
-    theme:{ btn:'#4FB0FF', accent:'#4FB0FF', dark:'#0f2f44', hover:'#2e97ec', glow:'#0f3f5e', band:'#0E7BD4', onBand:'#ffffff', sidebar:'#0c1d2e' },
-    reportBrand:{ band:'#0c1d2e', headerText:'#ffffff', headerSub:'#a8c8e4', accent:'#4FB0FF', accentText:'#4FB0FF', logo:'midspire-logo-full.png', logoH:38 },
-    logos:{ full:'assets/midspire-logo-full.png', emblem:'assets/midspire-logo-symbol.png' },
-    bookTint:'#4FB0FF', bookLogo:'midspire-logo-symbol.png'
-  },
   viridian: {
     // Accent is GOLD (#C9A23C); the green is the fill/band. lightInk keeps gold accent text legible in light mode.
     name:'Viridian', color:'#C9A23C',
@@ -75,33 +68,22 @@ var OFFICE_CONFIG = {
     logos:{ full:'assets/vanguard-logo-full-reverse.png', emblem:'assets/vanguard-logo-symbol-reverse.png', sidebarH:42, drHeaderH:27 },
     bookTint:'#2652D7', bookLogo:'vanguard-logo-symbol.png'
   },
-  /* ── 🦴 OFFICE SKELETON — the working template for onboarding the next office ─────────
-     Bayview Horizons was wired through all four projects and then never launched (2026-08-06,
-     user). Its slot is kept as a live PLACEHOLDER rather than deleted, because every
-     integration point is already threaded — which is exactly what a new office needs and
-     what took the longest to get right the last two times.
-     🔑 TO ONBOARD: rename this key, fill in name/colors, add a `logos` block, then mirror the
-     SAME key into the other THREE projects — portal `Code.gs` (OFFICE_CONFIG + the
-     weekly-report schedule), Appointment Scheduler (tz + emailBrand), Customer Booking
-     (tz + the THEMES table in all three public pages). Miss one and the office half-works.
-     ⚠ Neutral slate ON PURPOSE: unbranded should LOOK unbranded, not like a broken brand.
-     ⚠ NO `logos` BLOCK, and that is the correct unbranded state — `loadConfig` and
-     `_setSidebarOfficeLogo` both fall back to the office NAME when there is no logo.
-     ⚠ `bookLogo:''` is a proven-safe value (salessupport ships it).
-     ⚠⚠ `bookTint` MUST stay set — app.appts.js uses it for the cross-office booked-slot
-     tint, which is the DOUBLE-BOOKING GUARD, not decoration. */
-  bayview: {
-    /* 🦴 SKELETON SLOT — retired, NOT an office. `skeleton:true` keeps it out of every
-       user-facing office list (the master-admin switcher, the People permission checkboxes).
-       ⚠ ONBOARDING = DELETE THIS ONE LINE. Do NOT infer skeleton-ness from a missing logo:
-       a REAL office can be live before its artwork lands (see project-logos-pending), and
-       inferring would silently hide it. */
-    skeleton:true,
-    name:'New Office', color:'#64748B',
-    theme:{ btn:'#334155', accent:'#64748B', dark:'#1e293b', hover:'#475569', glow:'#1e293b', band:'#334155', onBand:'#ffffff', sidebar:'#1e293b' },
-    reportBrand:{ band:'#334155', headerText:'#ffffff', headerSub:'#cbd5e1', accent:'#64748B', accentText:'#475569', logo:'', logoH:40 },
-    bookTint:'#64748B', bookLogo:''
-  },
+  /* ── 🔑 ONBOARDING A NEW OFFICE — FIVE SURFACES, MISS ONE AND IT HALF-WORKS ────────────
+     There is no longer a placeholder slot to rename; add a new key here and mirror it into
+     EVERY one of these, which is the part that has bitten us twice:
+       1. this `OFFICE_CONFIG`            5. the THEMES table in ALL THREE public pages
+       2. `APPT_OFFICE_TZ` (app.appts.js)    (book.html / cancel.html / reschedule.html)
+       3. portal `Code.gs` OFFICE_CONFIG + the weekly-report schedule
+       4. Appointment Scheduler (tz + emailBrand) AND Customer Booking (tz)
+     ⚠⚠ #4 is the one that was missed on 2026-08-25: two offices' customer booking links were
+     live and DEAD for four days because Customer Booking never learned their ids. It fails
+     CLOSED, so nothing alarms — `officecoverage_harness.js` now pins all five.
+     ⚠⚠ `bookTint` MUST be set for every office — app.appts.js uses it for the cross-office
+     booked-slot tint, which is the DOUBLE-BOOKING GUARD, not decoration.
+     ⚠ A `logos` block is optional; a real office can be live before its artwork lands
+     (project-logos-pending). `loadConfig` and `_setSidebarOfficeLogo` fall back to the NAME.
+     ⚠ `skeleton:true` hides a key from the switcher and the People permission checkboxes.
+     Nothing ships with it today — do not add one without a reason to. */
   leadsphere: {
     // NAVY structure + BRIGHT-BLUE buttons/accent. White logo on dark chrome.
     name:'LeadSphere Solutions', color:'#2B6AFF',

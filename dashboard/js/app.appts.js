@@ -121,14 +121,14 @@ function _apptActName(email) {
 }
 // Per-office timezone — mirrors the backend AppointmentScheduler.gs OFFICE_TZ.
 // Used to label appointment times so reps/customers know which zone they're in.
-// ⚠⚠ `bayview` is the 🦴 SKELETON slot and KEEPS A TIMEZONE ON PURPOSE. Availability must
-// FAIL CLOSED, and an office with no zone is the shape of a slot that reads as free
-// everywhere. Set the real zone when the next office launches; do not blank it.
+// ⚠⚠ EVERY OFFICE MUST HAVE A ZONE. Availability must FAIL CLOSED, and an office with no
+// zone is the shape of a slot that reads as free everywhere. Add the zone in the same edit
+// that adds the office; `officecoverage_harness.js` fails the build if one is missing.
 // ⚠ evolution is Louisville KY = EASTERN. Kentucky is split, and the western half is
 // Central — the office directory in the ticketing backend is the authority here.
 // ⚠ apexpremier is Fremont CA = PACIFIC. Same authority: the ticketing backend's office
 // directory already carried the address and IANA zone before we asked anyone.
-var APPT_OFFICE_TZ = { midspire:'America/Chicago', viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', bayview:'America/New_York', leadsphere:'America/Chicago', evolution:'America/New_York', revamped:'America/Chicago', apexpremier:'America/Los_Angeles', eaglespeak:'America/New_York' };
+var APPT_OFFICE_TZ = { viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', leadsphere:'America/Chicago', evolution:'America/New_York', revamped:'America/Chicago', apexpremier:'America/Los_Angeles', eaglespeak:'America/New_York' };
 // Activators share their Google Calendar with THIS account (the Appointment
 // Scheduler's deploy-owner) to enable two-way sync. One constant → shown in the
 // "My Schedule" linking step; update here if the backend's owner account changes.
@@ -572,7 +572,7 @@ function _apptCalGrid(appts, acts, ws) {
   // ⚠⚠ RETURNS EVERY BLOCKING OFFICE, NOT THE FIRST. Different activators can be booked
   // by DIFFERENT offices in the same slot. An earlier version took the first match, which
   // rendered one office's tint and claimed "All activators booked at Viridian" for a slot
-  // actually held by Viridian AND Midspire — wrong colour and a wrong count.
+  // actually held by Viridian AND a second office — wrong colour and a wrong count.
   function blockingOffices(ds, slot){
     if (ds<win.min || ds>win.max) return [];
     var dk=dayKeys[new Date(ds+'T12:00:00').getDay()], sched=0, out=[];
