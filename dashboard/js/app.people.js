@@ -231,10 +231,12 @@ function _peopleRowHtml(row, ctx) {
    therefore known locally, and no fetch is needed to display it.
    ⚠ THIS IS NOT AN OPTIMISTIC UPDATE. Nothing paints until the backend confirms, so the trap of
    an optimistic repaint hiding a backend rejection does not apply — a rejection never gets here.
-   ⚠⚠ The local record must mirror what the backend ACTUALLY WROTE, not what was typed.
-   writeAddRosterEntry (Code.gs:5899) ignores tableauName and forces deactivated:false; echoing
-   the typed values would paint a value the sheet does not hold, which would then vanish on the
-   next background tick and look like data loss.
+   ⚠⚠ The local record must mirror what the backend ACTUALLY WROTE, not what was typed. That is
+   still the rule; what CHANGED on 2026-08-29 is what the backend writes. writeAddRosterEntry
+   used to ignore tableauName and force deactivated:false, so an ADD had to echo '' and false or
+   it would paint a value the sheet did not hold. It now honours both, so an add and an update
+   mirror the same fields. ⚠ This half must not ship before the backend paste — reversed, the
+   UI would claim a Tableau name the roster lacks until the next tick wiped it.
    🔁 The ~90s main refresh still replaces DATA wholesale from the server, so any divergence
    self-corrects within one tick — the server stays authoritative. */
 function _peopleRowEl(email) {
@@ -433,12 +435,12 @@ function savePerson(existingEmail) {
   apiPost(body).then(function(res) {
     if (res.ok) {
       closeModal();
-      /* ⚠ Mirror what the backend WROTE, not what was typed. writeAddRosterEntry appends
-         tableauName as '' and deactivated as false regardless of the request, so echoing the
-         form values on an ADD would paint a Tableau name the sheet does not hold. */
-      var rec = existingEmail
-        ? { name:name, rank:rank, team:team, tableauName:tableauName, phone:phone, permissions:permissions, deactivated:deactivated }
-        : { name:name, rank:rank, team:team, tableauName:'',          phone:phone, permissions:permissions, deactivated:false };
+      /* ⚠ Mirror what the backend WROTE, not what was typed — the rule is unchanged; the
+         backend is what changed. Since 2026-08-29 writeAddRosterEntry honours tableauName and
+         deactivated, so an ADD writes the same fields an UPDATE does and the two branches are
+         one record. ⚠ Requires the backend paste to be LIVE; without it an add would paint a
+         Tableau name the sheet lacks, which vanishes on the next tick and reads as data loss. */
+      var rec = { name:name, rank:rank, team:team, tableauName:tableauName, phone:phone, permissions:permissions, deactivated:deactivated };
       if (!_peopleAfterSave(existingEmail || emailVal, rec, existingEmail ? 'update' : 'add')) refreshData();
     }
     else alert(res.error || 'Save failed.');
