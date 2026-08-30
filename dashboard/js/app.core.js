@@ -1736,15 +1736,44 @@ var ALL_ROLES  = ['master-admin','owner','admin','activator','client-rep','leade
 // the My Orders / My Team's Orders tabs instead). jd is included — jd has the
 // same office-wide visibility as a manager.
 var ROLES_CALL = ['master-admin','owner','admin','activator','jd','manager'];
-// Rep-side tabs: not visible to activator
-var ROLES_REP  = ['master-admin','owner','admin','client-rep','leader','jd','manager'];
-// Payroll/tracking tabs: leadership only
-var ROLES_PAYROLL = ['master-admin','owner','admin'];
+/* 🗑 ROLES_REP IS GONE (2026-08-30, user's call). It meant "rep-side tabs: not visible to
+   activator" and had exactly six members — Post Sale, Rehash, First Bill, Live Sales,
+   Activation Rates, Churn. Activators were added to ALL SIX in one pass, which made every one
+   of them identical to ALL_ROLES, so the constant stopped distinguishing anything.
+   ⚠⚠ A constant that merely EQUALS ALL_ROLES is worse than no constant: the next reader trusts
+   the name and believes some role is still excluded. If activators are ever taken back off
+   these tabs, reintroduce the constant rather than editing six inline lists. */
+/* Day-After Calls only. jd + manager were removed 2026-08-30 (user's call) while the other six
+   ROLES_CALL tabs kept them — which is exactly why this is its own set and not a narrowing of
+   ROLES_CALL. ⚠ The blob still ships dayAfterOrders to them; this hides the nav item, it is
+   not a data boundary (see the ⚠⚠ note on the Admin group below). */
+var ROLES_DAYAFTER = ['master-admin','owner','admin','activator'];
+/* Daily Report = ROLES_CALL + leader (2026-08-30, user's call). Deliberately NOT a widening of
+   ROLES_CALL: Weekly Report sits in the same group and stays WITHOUT leader.
+   ⚠⚠ THE BACKEND TWIN HAD TO BE SPLIT FOR THIS. `_DR_ROLES` gated five things — both daily
+   reads, both WEEKLY reads, and the generateDailyReport WRITE. Adding leader there would have
+   handed them the weekly endpoint while its tab stayed hidden, and let them trigger a report
+   build. The daily reads now sit on their own `_DAILY_READ_ROLES`; keep the two in step. */
+var ROLES_DAILY = ROLES_CALL.concat(['leader']);
+/* Training & Tracking — everyone EXCEPT client-rep (2026-08-30, user's call; was the three
+   payroll roles). This is the VIEW set and it also drives _preloadTraining in app.calllogs.js.
+   ⚠⚠ SEEING THE TAB IS NOT MARKING SOMEONE PAID. That is ROLES_PAYOUT_EDIT below, and
+   `saveTrainingPaid` on the backend — both deliberately left at the original three.
+   ⚠ leader/jd/manager are TEAM-SCOPED server-side in readTrainingOrders, because the tab is
+   office-wide payout data and a Team Leader should not see pay for reps outside their team.
+   Activators are NOT scoped — an activator has no team, so office-wide is the only option. */
+var ROLES_TRAINING = ['master-admin','owner','admin','activator','leader','jd','manager'];
+// Who may CHANGE a payout's paid state. `saveTrainingPaid` on the backend is the real
+// boundary; this only decides whether the checkboxes render enabled.
+var ROLES_PAYOUT_EDIT = ['master-admin','owner','admin'];
 var TABS = [
-  { id: 'postsale',    label: 'Post Sale',            roles: ROLES_REP,  group: 'Sales',       sub: 'Log a new sale' },
-  { id: 'rehash',      label: 'Rehash Text',          roles: ROLES_REP,  group: 'Sales',       sub: 'Generate the customer welcome text' },
+  /* ⚠ Post Sale is a SUBMIT form, so its nav entry and the `postSale` write gate in
+     _ADMIN_ACTIONS must carry the same roles — activator was added to BOTH 2026-08-30. A tab
+     that renders and then 403s on save is worse than a hidden one. */
+  { id: 'postsale',    label: 'Post Sale',            roles: ALL_ROLES,  group: 'Sales',       sub: 'Log a new sale' },
+  { id: 'rehash',      label: 'Rehash Text',          roles: ALL_ROLES,  group: 'Sales',       sub: 'Generate the customer welcome text' },
   { id: 'postedsales', label: 'Posted Sales',         roles: ALL_ROLES,  group: 'Sales',       sub: 'View & correct posted sales' },
-  { id: 'firstbill',   label: 'First Bill Calc',       roles: ROLES_REP,  group: 'Sales',       sub: "Estimate a customer's first bill" },
+  { id: 'firstbill',   label: 'First Bill Calc',       roles: ALL_ROLES,  group: 'Sales',       sub: "Estimate a customer's first bill" },
   { id: 'appointments', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
   /* ⚠ icon:'clock' is REQUIRED, not decoration. buildNav resolves `t.icon || t.id`, and there is
      no `i-myappts` symbol — so without this the row rendered with NO ICON AT ALL and no error,
@@ -1754,7 +1783,11 @@ var TABS = [
   { id: 'myappts',      label: 'My Appointments',      roles: ['master-admin','activator'], group: 'Scheduling', sub: 'Your booked appointments across every office', icon: 'clock' },
   // Everyone sees the tab; client-reps are scoped SERVER-side to their own installs.
   { id: 'fibercal',     label: 'Fiber Install Calendar', roles: ALL_ROLES, group: 'Scheduling', sub: 'Fiber & new-internet installs by scheduled date', icon: 'globe' },
-  { id: 'myorders',    label: 'My Orders',           roles: ['client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
+  /* owner + activator added 2026-08-30 (user's call). ⚠ `_myOrdersFilter` keys on the VIEWER'S
+     OWN tableauName regardless of role and returns [] when it is blank — so this is never a
+     leak, but for anyone without a name in roster column I the tab is permanently empty and
+     reads as broken. The fix for that is a Tableau name, not code. */
+  { id: 'myorders',    label: 'My Orders',           roles: ['owner','activator','client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
   { id: 'myteam',      label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 120-day window" },
   // Everyone sees the tab; repFilter() scopes it — client-rep to their own lines, leader to
   // their team, everyone else office-wide (the server scopes masterTracker the same way).
@@ -1768,7 +1801,7 @@ var TABS = [
   // call/appointment types activators work out of the Call Logs tabs.
   { id: 'acttext',     label: 'Activator Text',       roles: ['activator','master-admin'], group: 'Call Logs', sub: 'Customer texts for order issues & appointments', icon: 'smartphone' },
   { id: 'master',      label: 'Master Tracker',       roles: ROLES_CALL, group: 'Call Logs',   sub: '120-day window' },
-  { id: 'dayafter',    label: 'Day-After Calls',      roles: ROLES_CALL, group: 'Call Logs',   sub: "Yesterday's deliveries" },
+  { id: 'dayafter',    label: 'Day-After Calls',      roles: ROLES_DAYAFTER, group: 'Call Logs', sub: "Yesterday's deliveries" },
   { id: 'delivered',   label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
   { id: 'issues',      label: 'Order Issues',        roles: ROLES_CALL, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
   { id: 'escalations', label: 'Escalations',          roles: ROLES_CALL, group: 'Call Logs',   sub: '1 & 2 star ratings' },
@@ -1780,9 +1813,9 @@ var TABS = [
      `i-resources` symbol, and a missing sprite id renders BLANK with no error. Third time this
      trap is annotated in this list; see the clock and weeklyreport entries. */
   { id: 'resources',   label: 'Resources',            roles: ALL_ROLES,  group: 'Knowledge',   sub: 'Guides, links and references', icon: 'mail' },
-  { id: 'livesales',   label: 'Live Sales Tracker',   roles: ROLES_REP,  group: 'Performance', sub: "This week's leaderboard" },
-  { id: 'actrates',    label: 'Activation Rates',     roles: ROLES_REP,  group: 'Performance', sub: 'Rep activation breakdown' },
-  { id: 'churn',       label: 'Churn Report',         roles: ROLES_REP,  group: 'Performance', sub: 'ICD disconnect breakdown' },
+  { id: 'livesales',   label: 'Live Sales Tracker',   roles: ALL_ROLES,  group: 'Performance', sub: "This week's leaderboard" },
+  { id: 'actrates',    label: 'Activation Rates',     roles: ALL_ROLES,  group: 'Performance', sub: 'Rep activation breakdown' },
+  { id: 'churn',       label: 'Churn Report',         roles: ALL_ROLES,  group: 'Performance', sub: 'ICD disconnect breakdown' },
   { id: 'completed',   label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
   /* ── REPORTING (2026-08-20, user request) ──
      `dailyreport` MOVED here out of Performance — same tab, same id, same roles; only its
@@ -1802,11 +1835,13 @@ var TABS = [
      `calendar`, DOES NOT EXIST — the calendar glyph is `i-appointments`, which belongs to
      Scheduling. `inbox` is present, referenced by nothing else, and says the true thing:
      this is the report that lands in the office's inbox.
-     ⚠ Roles: `_DR_ROLES` on the backend must stay in step with ROLES_CALL here, or a tab is
-     visible and its data 403s. */
-  { id: 'dailyreport',  label: 'Daily Report',        roles: ROLES_CALL, group: 'Reporting',   sub: 'Office daily summary' },
+     ⚠⚠ Roles: THE TWO TABS NO LONGER SHARE A SET (2026-08-30). Daily is ROLES_DAILY
+     (= ROLES_CALL + leader) and its backend twin is `_DAILY_READ_ROLES`; Weekly stays on
+     ROLES_CALL against `_DR_ROLES`. Keep each tab in step with ITS OWN backend gate, or a tab
+     is visible and its data 403s — or worse, hidden while its endpoint answers. */
+  { id: 'dailyreport',  label: 'Daily Report',        roles: ROLES_DAILY, group: 'Reporting',  sub: 'Office daily summary' },
   { id: 'weeklyreport', label: 'Weekly Report',       roles: ROLES_CALL, group: 'Reporting',   sub: 'The Mon–Sun report your office is emailed', icon: 'inbox' },
-  { id: 'training',    label: 'Training & Tracking',   roles: ROLES_PAYROLL, group: 'Payroll',  sub: 'Every posted order + payout tracking' },
+  { id: 'training',    label: 'Training & Tracking',   roles: ROLES_TRAINING, group: 'Payroll', sub: 'Every posted order + payout tracking' },
   /* ── ADMIN PORTAL (phase 1) ──
      ⚠⚠ `roles` HIDES A NAV ITEM; IT DOES NOT PROTECT THE DATA. readErrorLog and
      readErrorDetail are gated in _READ_ROLES on the backend against the badge's

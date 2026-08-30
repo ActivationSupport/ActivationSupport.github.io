@@ -1872,6 +1872,15 @@ function _psvCanEditAll() {
   var r = (SESSION.role || '').toLowerCase();
   return r === 'owner' || r === 'admin' || r === 'master-admin' || r === 'activator' || SESSION.isMaster;
 }
+/* What the header says this list CONTAINS. 2026-08-30 leader/jd/manager went from own-only to
+   own + team (server-side, `_scopePostedSales`), so "Your posted sales" became a lie for them —
+   a caption that misdescribes its own list is how someone concludes a teammate's sale is theirs.
+   ⚠ Label only. The server decides what arrives; this must never be used to filter. */
+function _psvScopeLabel() {
+  if (_psvCanEditAll()) return 'All posted sales';
+  var r = (SESSION.role || '').toLowerCase();
+  return (r === 'leader' || r === 'jd' || r === 'manager') ? 'You + your team' : 'Your posted sales';
+}
 function _psvProductSummary(s) {
   var p = [];
   if (s.airQty > 0) p.push('Air x1');
@@ -1890,7 +1899,7 @@ function _psvBuild() {
       return (b.dateOfSale || '').localeCompare(a.dateOfSale || '') ||
              (b.timestamp || '').localeCompare(a.timestamp || '');
     });
-  var scope = _psvCanEditAll() ? 'All posted sales' : 'Your posted sales';
+  var scope = _psvScopeLabel();
   var h = '<div class="card"><div class="card-header dark">Posted Sales &nbsp;' +
     '<span style="font-weight:400;font-size:.82rem;opacity:.8">' + list.length + (list.length === 1 ? ' sale' : ' sales') + '</span>' +
     '</div><div class="card-body">';

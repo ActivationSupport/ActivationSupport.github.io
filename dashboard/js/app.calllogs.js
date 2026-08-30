@@ -1630,10 +1630,13 @@ function renderTrainingTab() {
     if (!have && CURRENT_TAB === 'training') c.innerHTML = '<div class="spinner">Connection error. <a href="#" onclick="renderTrainingTab()">Retry</a></div>';
   });
 }
-// Warm the Training cache in the background after login (payroll roles only).
+/* Warm the Training cache in the background after login, for anyone who can SEE the tab.
+   ⚠ This tracks the VIEW set (ROLES_TRAINING), not the edit set — it was ROLES_PAYROLL, which
+   2026-08-30 stopped meaning "can see Training" and now only means "can mark paid". Left on the
+   old constant this would have silently skipped the warm-up for the four newly-added roles. */
 function _preloadTraining() {
   if (_TRAINING_ORDERS !== null || _trFlight) return;
-  if (ROLES_PAYROLL.indexOf(SESSION.role) === -1) return;
+  if (ROLES_TRAINING.indexOf(SESSION.role) === -1) return;
   _trFlight = true;
   api({ action:'readTrainingOrders' }).then(function(res) {
     _trFlight = false;
@@ -1741,9 +1744,15 @@ function _trRenderRows() {
     var items = _trPayItems(o);
     var po = o.paidOut || {};
     var allChecked = items.length && items.every(function(it) { return !!po[it.id]; });
-    var paid = '<div class="tr-paid"><label class="tr-all"><input type="checkbox" ' + (allChecked?'checked':'') + ' ' + (items.length?'':'disabled') + ' onchange="_trToggleAll(' + idx + ',this.checked)"> ALL</label>';
+    /* 🔒 Four roles gained the Training tab 2026-08-30 but NOT the right to mark a payout paid.
+       They see the paid state read-only; the boundary is `saveTrainingPaid` on the backend and
+       a disabled checkbox is only the courtesy half of it. */
+    var _trRO = ROLES_PAYOUT_EDIT.indexOf(SESSION.role) === -1;
+    var _dis = _trRO ? ' disabled' : '';
+    var paid = '<div class="tr-paid"' + (_trRO ? ' title="Read-only — only Master Admin, Owner and Admin can mark a payout paid"' : '') +
+      '><label class="tr-all"><input type="checkbox" ' + (allChecked?'checked':'') + (items.length && !_trRO ? '' : ' disabled') + ' onchange="_trToggleAll(' + idx + ',this.checked)"> ALL</label>';
     items.forEach(function(it) {
-      paid += '<label><input type="checkbox" ' + (po[it.id]?'checked':'') + ' onchange="_trToggleItem(' + idx + ',\'' + esc(it.id) + '\',this.checked)"> ' + esc(it.label) + '</label>';
+      paid += '<label><input type="checkbox" ' + (po[it.id]?'checked':'') + _dis + ' onchange="_trToggleItem(' + idx + ',\'' + esc(it.id) + '\',this.checked)"> ' + esc(it.label) + '</label>';
     });
     paid += '</div>';
     var note = (o.notes||'').trim();
@@ -1766,8 +1775,16 @@ function _trRenderRows() {
   if (cnt) cnt.textContent = 'Showing ' + shown + ' of ' + (_TRAINING_ORDERS||[]).length;
 }
 
+/* A disabled checkbox fires no onchange, so these guards are for the case where one is
+   re-enabled by hand. `saveTrainingPaid` would refuse the write anyway — but WITHOUT this the
+   local object is mutated and repainted BEFORE the refusal comes back, leaving a ticked box
+   that never persisted. That is the optimistic-repaint trap that hid a backend rejection once
+   already (changelog 2026-07-31): never paint a state the server has not agreed to. */
+function _trCanEditPayout() { return ROLES_PAYOUT_EDIT.indexOf(SESSION.role) !== -1; }
+
 function _trToggleItem(idx, itemId, checked) {
   var o = (_TRAINING_ORDERS||[])[idx]; if (!o) return;
+  if (!_trCanEditPayout()) { _trRenderRows(); return; }
   if (!o.paidOut) o.paidOut = {};
   if (checked) o.paidOut[itemId] = true; else delete o.paidOut[itemId];
   _trSave(o);
@@ -1776,6 +1793,7 @@ function _trToggleItem(idx, itemId, checked) {
 
 function _trToggleAll(idx, checked) {
   var o = (_TRAINING_ORDERS||[])[idx]; if (!o) return;
+  if (!_trCanEditPayout()) { _trRenderRows(); return; }
   if (!o.paidOut) o.paidOut = {};
   _trPayItems(o).forEach(function(it) { if (checked) o.paidOut[it.id] = true; else delete o.paidOut[it.id]; });
   _trSave(o);
