@@ -1748,13 +1748,14 @@ var ROLES_CALL = ['master-admin','owner','admin','activator','jd','manager'];
    ROLES_CALL. ⚠ The blob still ships dayAfterOrders to them; this hides the nav item, it is
    not a data boundary (see the ⚠⚠ note on the Admin group below). */
 var ROLES_DAYAFTER = ['master-admin','owner','admin','activator'];
-/* Daily Report = ROLES_CALL + leader (2026-08-30, user's call). Deliberately NOT a widening of
-   ROLES_CALL: Weekly Report sits in the same group and stays WITHOUT leader.
-   ⚠⚠ THE BACKEND TWIN HAD TO BE SPLIT FOR THIS. `_DR_ROLES` gated five things — both daily
-   reads, both WEEKLY reads, and the generateDailyReport WRITE. Adding leader there would have
-   handed them the weekly endpoint while its tab stayed hidden, and let them trigger a report
-   build. The daily reads now sit on their own `_DAILY_READ_ROLES`; keep the two in step. */
-var ROLES_DAILY = ROLES_CALL.concat(['leader']);
+/* 🗑 ROLES_DAILY IS GONE (2026-08-31). It existed for ONE DAY: leaders were given the Daily
+   Report on 08-30, then taken back off it on 08-31 once we looked at what the report contains —
+   `activationSummary.repImpact` and `churnSummary.repImpact` are the office's 5 WORST activation
+   rates and 5 HIGHEST churn rates, BY REP NAME, across every team. User's call: Daily and Weekly
+   are both jd / manager / admin / owner / activator, i.e. plain ROLES_CALL.
+   ⚠ The backend `_DAILY_READ_ROLES` was deleted with it. If leaders are ever given the Daily
+   again, split BOTH again — `_DR_ROLES` also gates the WEEKLY reads and the generateDailyReport
+   WRITE, so widening it in place hands over three things instead of one. */
 /* Training & Tracking — everyone EXCEPT client-rep (2026-08-30, user's call; was the three
    payroll roles). This is the VIEW set and it also drives _preloadTraining in app.calllogs.js.
    ⚠⚠ SEEING THE TAB IS NOT MARKING SOMEONE PAID. That is ROLES_PAYOUT_EDIT below, and
@@ -1835,11 +1836,11 @@ var TABS = [
      `calendar`, DOES NOT EXIST — the calendar glyph is `i-appointments`, which belongs to
      Scheduling. `inbox` is present, referenced by nothing else, and says the true thing:
      this is the report that lands in the office's inbox.
-     ⚠⚠ Roles: THE TWO TABS NO LONGER SHARE A SET (2026-08-30). Daily is ROLES_DAILY
-     (= ROLES_CALL + leader) and its backend twin is `_DAILY_READ_ROLES`; Weekly stays on
-     ROLES_CALL against `_DR_ROLES`. Keep each tab in step with ITS OWN backend gate, or a tab
+     ⚠⚠ Roles: BOTH tabs are ROLES_CALL against `_DR_ROLES` — jd/manager/admin/owner/activator.
+     They briefly diverged on 2026-08-30 (leader had Daily) and were put back 08-31 because the
+     Daily Report NAMES the office's worst 5 reps. Keep them in step with `_DR_ROLES`, or a tab
      is visible and its data 403s — or worse, hidden while its endpoint answers. */
-  { id: 'dailyreport',  label: 'Daily Report',        roles: ROLES_DAILY, group: 'Reporting',  sub: 'Office daily summary' },
+  { id: 'dailyreport',  label: 'Daily Report',        roles: ROLES_CALL, group: 'Reporting',   sub: 'Office daily summary' },
   { id: 'weeklyreport', label: 'Weekly Report',       roles: ROLES_CALL, group: 'Reporting',   sub: 'The Mon–Sun report your office is emailed', icon: 'inbox' },
   { id: 'training',    label: 'Training & Tracking',   roles: ROLES_TRAINING, group: 'Payroll', sub: 'Every posted order + payout tracking' },
   /* ── ADMIN PORTAL (phase 1) ──
