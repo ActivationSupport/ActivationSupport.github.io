@@ -1024,12 +1024,20 @@ function repFilter(orders) {
     return orders.filter(function(o) { return (o.rep || '').trim().toLowerCase() === tn; });
   }
   if (role === 'leader') {   // jd is office-wide (manager-equivalent); only leader is team-scoped
-    var team = _myTeam();
-    if (team) {
-      var tns = _teamTableauNames(team.name);
-      if (!tns.length) return [];
-      return orders.filter(function(o) { return tns.indexOf((o.rep || '').trim().toLowerCase()) !== -1; });
-    }
+    /* Teams they LEAD **plus everything beneath them** — the CLIENT MIRROR of `_scopeOrders`
+       (2026-08-30, user's call: Completed Orders and the Activation/Pending Sheets show a team
+       lead "team + sub-team").
+       ⚠⚠ THESE TWO MUST AGREE. The server decides what arrives; this decides what is drawn. If
+       the client stayed narrower, rows the server sent would silently never render — a filter
+       that hides real data reads exactly like data that does not exist. */
+    var _lids = _tmDescendantIds(_tmTeamsLedByMe());
+    var _teams = DATA.teams || {}, tns = [];
+    Object.keys(_lids).forEach(function(tid) {
+      var nm = _teams[tid] && _teams[tid].name; if (!nm) return;
+      _teamTableauNames(nm).forEach(function(t) { if (t && tns.indexOf(t) === -1) tns.push(t); });
+    });
+    if (tns.length) return orders.filter(function(o) { return tns.indexOf((o.rep || '').trim().toLowerCase()) !== -1; });
+    // Leads nothing → their own rows only, never the office.
     var tn2 = (SESSION.tableauName || '').trim().toLowerCase();
     return tn2 ? orders.filter(function(o) { return (o.rep || '').trim().toLowerCase() === tn2; }) : [];
   }
