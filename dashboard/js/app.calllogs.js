@@ -1,5 +1,10 @@
 // ── ACTIVATION RATES ──────────────────────────────────────────────────────
 var _AR_LINES = null;
+/* Identity-free copy of the FULL office line set, used only for the grand total and Tableau's
+   colour cutoffs now that _AR_LINES is scoped per badge. Carries no `rep` field at all.
+   ⚠ Must be assigned EVERYWHERE _AR_LINES is — three fetch sites and four resets. Left behind on
+   one path it would silently serve a stale office total (R-063: enumerate the call sites). */
+var _AR_AGG = null;
 var _AR_LOADING = false;
 
 function renderActRates() {
@@ -9,13 +14,14 @@ function renderActRates() {
   api({ action: 'readActRateLines' }).then(function(resp) {
     _AR_LOADING = false;
     _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
+    _AR_AGG   = (resp && resp.arAgg) ? resp.arAgg : null;
     if (CURRENT_TAB === 'actrates') {
       var c = document.getElementById('main-content');
       if (c) c.innerHTML = _renderActRatesWithData();
     }
   }).catch(function() {
     _AR_LOADING = false;
-    _AR_LINES = [];
+    _AR_LINES = []; _AR_AGG = null;
   });
   return loadingState('Loading activation rates…', { icon:'actrates', bare:true });
 }
@@ -68,8 +74,9 @@ function _buildArTable(repFilter) {
   if (isClientRep && myName) {
     indivLines = allLines.filter(function(l) { return l.rep.toLowerCase() === myName; });
   } else if (isTeamRole) {
-    var _arTeam = _myTeam();
-    var _arTns = _arTeam ? _teamTableauNames(_arTeam.name) : [];
+    // Teams they LEAD + everything beneath them (2026-08-30) — was a single-team `_myTeam()`
+    // lookup, the last place besides Churn where a leader stayed flat.
+    var _arTns = _leaderTeamTableauNames();
     if (_arTns.length) {
       indivLines = allLines.filter(function(l) { return _arTns.indexOf(l.rep.trim().toLowerCase()) !== -1; });
     } else if (myName) {
@@ -90,7 +97,10 @@ function _buildArTable(repFilter) {
   });
 
   // Grand total: team roles use team lines; others use full office lines
-  var grandLines = isTeamRole ? indivLines : allLines;
+  /* Office grand total. ⚠ `allLines` is now SCOPED, so for a client-rep it is just their own
+     rows — the office comparison the user asked to keep has to come from the anonymised
+     aggregate. Team roles still total their own team, as before. */
+  var grandLines = isTeamRole ? indivLines : (_AR_AGG || allLines);
   var totals={b0_7:{t:0,a:0},b8_14:{t:0,a:0},b15_30:{t:0,a:0},b31_60:{t:0,a:0}};
   grandLines.forEach(function(l) {
     var b=BKT_MAP[l.bucket]; if (!b) return;
@@ -115,7 +125,7 @@ function _buildArTable(repFilter) {
   // but exports per-rep rows only — no Grand Total. Derive each bucket's cutoffs
   // from Tableau's own colored rows so the Grand Total is colored Tableau's way.
   var arCuts = {};
-  (_AR_LINES||[]).forEach(function(l) {
+  (_AR_AGG || _AR_LINES || []).forEach(function(l) {
     var bk = BKT_MAP[l.bucket]; if (!bk || !l.vol) return;
     var p = Math.round(l.acts/l.vol*100), cc = String(l.color||'').toLowerCase();
     if (!arCuts[bk]) arCuts[bk] = { greenMin: Infinity, redMax: -Infinity };
@@ -2076,15 +2086,38 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
   return '<div class="tbl-wrap"><table><thead><tr>'+hdr+'</tr></thead><tbody>'+grandRow+repRows+'</tbody></table></div>';
 }
 
+/* Expand the identity-free `churnAgg` into the (repList, repMap) shape `_churnTableHtml`
+   already consumes, so the office GRAND TOTAL and Tableau's colour calibration survive now that
+   `DATA.churnReport` is scoped per badge.
+   🔑 EACH AGG ROW BECOMES ITS OWN OPAQUE "rep". That is safe because the gt arguments are only
+   ever SUMMED and sampled for colour — never rendered as rows — so one bucket per synthetic rep
+   produces identical totals and an identical rate distribution.
+   ⚠ Returns null when the backend has not been redeployed yet; every caller falls back to the
+   rows it already had, which is the pre-2026-08-30 behaviour rather than a blank total. */
+function _churnAggBuilt() {
+  var agg = (typeof DATA !== 'undefined' && DATA) ? DATA.churnAgg : null;
+  if (!agg || !agg.length) return null;
+  var repMap = {}, repList = [];
+  agg.forEach(function(r, i) {
+    if (!r || CHURN_BUCKETS.indexOf(r.bucket) === -1) return;
+    var k = ' agg' + i;                 // cannot collide with a real Tableau name
+    repMap[k] = {}; repMap[k][r.bucket] = r; repList.push(k);
+  });
+  return repList.length ? { repMap: repMap, repList: repList } : null;
+}
+
 function renderChurn() {
   var rows = DATA.churnReport || [];
   if (!rows.length) return noData('No churn data yet.', {icon:'churn', sub:'Tableau sync runs nightly — check back soon.'});
   var role = SESSION.role || 'client-rep';
   var isTeamRole = role === 'leader';   // jd is office-wide (manager-equivalent)
   if (isTeamRole) {
-    var churnTeam = _myTeam();
-    if (churnTeam) {
-      var churnTns = _teamTableauNames(churnTeam.name);
+    /* Teams they LEAD **plus everything beneath them** — the same roll-up `_scopeOrders`,
+       `_teamScopeEmails` and `readTeamOrdersScoped` use. Until 2026-08-30 this called
+       `_myTeam()` + `_teamTableauNames(one team)`, so Churn and Activation Rates were the last
+       two places a leader stayed FLAT while every other surface rolled up. */
+    var churnTns = _leaderTeamTableauNames();
+    if (churnTns.length) {
       var teamRows = rows.filter(function(r) { return churnTns.indexOf((r.rep || '').trim().toLowerCase()) !== -1; });
       var built = _buildChurnRepMap(teamRows, '');
       return '<div class="card"><div class="card-header dark">Churn Report — ICD</div><div class="card-body">' +
@@ -2094,7 +2127,7 @@ function renderChurn() {
     // No team found — show own row with office grand total
     var myNameC = (SESSION.tableauName || '').trim();
     var myBuiltC = _buildChurnRepMap(rows, myNameC);
-    var allBuiltC = _buildChurnRepMap(rows, '');
+    var allBuiltC = _churnAggBuilt() || _buildChurnRepMap(rows, '');
     return '<div class="card"><div class="card-header dark">Churn Report — ICD</div><div class="card-body">' +
       '<div id="churn-table-wrap">'+_churnTableHtml(myBuiltC.repList, myBuiltC.repMap, allBuiltC.repList, allBuiltC.repMap)+'</div>' +
       '</div></div>';
@@ -2102,7 +2135,7 @@ function renderChurn() {
   if (role === 'client-rep') {
     var myName = (SESSION.tableauName || '').trim();
     var myBuilt  = _buildChurnRepMap(rows, myName);
-    var allBuilt = _buildChurnRepMap(rows, '');
+    var allBuilt = _churnAggBuilt() || _buildChurnRepMap(rows, '');
     return '<div class="card"><div class="card-header dark">Churn Report — ICD</div><div class="card-body">' +
       '<div id="churn-table-wrap">'+_churnTableHtml(myBuilt.repList, myBuilt.repMap, allBuilt.repList, allBuilt.repMap)+'</div>' +
       '</div></div>';

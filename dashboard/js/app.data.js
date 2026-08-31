@@ -531,7 +531,7 @@ function _markDataFresh() {
 function refreshData() {
   TAB_CACHE = {};
   _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
-  _LST_SALES = null; _AR_LINES = null; _AR_LOADING = false;
+  _LST_SALES = null; _AR_LINES = null; _AR_AGG = null; _AR_LOADING = false;
   _TRAINING_ORDERS = null; _PSV_SALES = null; _APPT.appointments = null;   // re-warm the secondary tabs too
   _TM_ORDERS = {}; _TM_ORD_LOADING = {};   // Teams tab: re-pull any sub-team order payloads
   if (typeof _MTO_F !== 'undefined') { _MTO_F = {}; _MTO_TEAM_ORDERS = {}; }   // grouped My Team's Orders filters
@@ -797,6 +797,7 @@ function _preloadArLines() {
   api({ action:'readActRateLines' }).then(function(resp) {
     _AR_LOADING = false;
     _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
+    _AR_AGG   = (resp && resp.arAgg) ? resp.arAgg : null;
     if (CURRENT_TAB === 'actrates') {
       var c = document.getElementById('main-content');
       if (c) c.innerHTML = _renderActRatesWithData();
@@ -804,7 +805,7 @@ function _preloadArLines() {
       var tc = document.getElementById('main-content');
       if (tc) tc.innerHTML = _tmBuildDetail(_TM_DETAIL_ID);   // team AR table was waiting on this
     }
-  }).catch(function() { _AR_LOADING = false; _AR_LINES = []; });
+  }).catch(function() { _AR_LOADING = false; _AR_LINES = []; _AR_AGG = null; });
 }
 // Warm the People tab's roster-name lookup in the background (one cheap call).
 function _preloadPeople() {
@@ -897,7 +898,7 @@ function _invalidateStaleSecondary() {
       function(){ _PSV_SALES = null; });
     drop('arlines',
       function(){ return typeof _AR_LINES !== 'undefined' && _AR_LINES; },
-      function(){ _AR_LINES = null; if (typeof _AR_LOADING !== 'undefined') _AR_LOADING = false; });
+      function(){ _AR_LINES = null; _AR_AGG = null; if (typeof _AR_LOADING !== 'undefined') _AR_LOADING = false; });
     drop('teamorders',
       function(){ return typeof _TM_ORDERS !== 'undefined' && _TM_ORDERS && Object.keys(_TM_ORDERS).length; },
       function(){ _TM_ORDERS = {}; if (typeof _TM_ORD_LOADING !== 'undefined') _TM_ORD_LOADING = {}; });
@@ -1030,12 +1031,7 @@ function repFilter(orders) {
        ⚠⚠ THESE TWO MUST AGREE. The server decides what arrives; this decides what is drawn. If
        the client stayed narrower, rows the server sent would silently never render — a filter
        that hides real data reads exactly like data that does not exist. */
-    var _lids = _tmDescendantIds(_tmTeamsLedByMe());
-    var _teams = DATA.teams || {}, tns = [];
-    Object.keys(_lids).forEach(function(tid) {
-      var nm = _teams[tid] && _teams[tid].name; if (!nm) return;
-      _teamTableauNames(nm).forEach(function(t) { if (t && tns.indexOf(t) === -1) tns.push(t); });
-    });
+    var tns = _leaderTeamTableauNames();
     if (tns.length) return orders.filter(function(o) { return tns.indexOf((o.rep || '').trim().toLowerCase()) !== -1; });
     // Leads nothing → their own rows only, never the office.
     var tn2 = (SESSION.tableauName || '').trim().toLowerCase();
@@ -1065,6 +1061,21 @@ function _myTeamId() {
   var found = null;
   Object.keys(teams).forEach(function(tid){ if (teams[tid].name === myName) found = tid; });
   return found;
+}
+/* Every Tableau name a LEADER may see: the teams they lead, plus every team beneath them.
+   🔑 ONE DEFINITION, used by repFilter, Churn and Activation Rates — the three client-side
+   places that resolve a leader's scope. They were three separate `_myTeam()` lookups until
+   2026-08-30 and two of them stayed flat when the third was widened.
+   ⚠ Mirrors `_scopeOrders` server-side. If these disagree the server sends rows the client
+   never draws, which reads as missing data rather than as a filter bug. */
+function _leaderTeamTableauNames() {
+  var teams = DATA.teams || {}, out = [];
+  var ids = _tmDescendantIds(_tmTeamsLedByMe());
+  Object.keys(ids).forEach(function(tid) {
+    var nm = teams[tid] && teams[tid].name; if (!nm) return;
+    _teamTableauNames(nm).forEach(function(t) { if (t && out.indexOf(t) === -1) out.push(t); });
+  });
+  return out;
 }
 function _myOrdersFilter(orders) {
   var tn = (SESSION.tableauName || '').trim().toLowerCase();

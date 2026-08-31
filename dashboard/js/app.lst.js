@@ -898,7 +898,7 @@ function _lstShowRepProfile(email) {
   Promise.all(p3 ? [p1,p2,p3] : [p1,p2]).then(function(res) {
     _LST_TBL_NAMES = res[0].names || [];
     var lineStats = res[1];
-    if (res[2] && res[2].actRateLines) _AR_LINES = res[2].actRateLines;
+    if (res[2] && res[2].actRateLines) { _AR_LINES = res[2].actRateLines; _AR_AGG = res[2].arAgg || null; }
     c.innerHTML = _lstProfileHtml(email, lineStats, _LST_TBL_NAMES);
   }).catch(function(e) {
     /* ⚠ Retry reads the email from _LST_PROFILE (set at the top of this function) rather
