@@ -18,6 +18,11 @@ var _WR_DATA = undefined;   // undefined = not loaded · null = no data for this
 var _WR_WEEKS_LIST = null;
 var _WR_SEL = null;         // the selected week's Monday, yyyy-MM-dd
 var _WR_LOADING = false;
+/* The trend arrives WITH readWeeklyReport (one round trip, not two). The multi-week series is a
+   separate, cheap, store-only read — see readWeeklySeries: it never computes, so it cannot blow
+   the load-time bar, and it returns however many weeks are actually stored. */
+var _WR_TREND = null;
+var _WR_SERIES = null;
 
 function renderWeeklyReport() {
   if (_WR_LOADING) return loadingState('Loading the weekly report…', { icon:'inbox' });
@@ -35,18 +40,31 @@ function renderWeeklyReport() {
        someone opening this tab is almost always looking for. */
     var want = _WR_SEL && weeks.some(function(w){ return w.start === _WR_SEL; }) ? _WR_SEL : weeks[0].start;
     _WR_SEL = want;
-    return api({action:'readWeeklyReport', weekStart:want})
-      .then(function(res){ return { weeks:weeks, rpt:(res && res.report) || null }; });
+    /* ⚠⚠ ALL THREE IN FLIGHT AT ONCE, NOT CHAINED. The report and the trend each cost a ~2s
+       backend summary; run sequentially they would breach the standing sub-5s bar once
+       Google's own 2–4s transport floor is added. In parallel the tab pays the slowest, not
+       the sum. That is why readWeeklyTrend is its own action rather than part of the report.
+       ⚠ Trend and series failures must never cost you the report — each catches to null and
+       its section simply does not render. */
+    return Promise.all([
+      api({action:'readWeeklyReport', weekStart:want}),
+      api({action:'readWeeklyTrend',  weekStart:want}).catch(function(){ return null; }),
+      api({action:'readWeeklySeries'}).catch(function(){ return null; })
+    ]).then(function(all){
+      return { weeks:weeks, rpt:(all[0] && all[0].report) || null,
+               trend:(all[1] && all[1].trend) || null, series:all[2] || null };
+    });
   });
   r.then(function(out){
     _WR_LOADING = false;
     if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice) return;
     _WR_WEEKS_LIST = out.weeks; _WR_DATA = out.rpt;
+    _WR_TREND = out.trend; _WR_SERIES = out.series;
     var c = document.getElementById('main-content'); if (c) c.innerHTML = _wrBuildHtml();
   }).catch(function(){
     _WR_LOADING = false;
     if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice) return;
-    _WR_DATA = null;
+    _WR_DATA = null; _WR_TREND = null;
     var c = document.getElementById('main-content'); if (c) c.innerHTML = _wrBuildHtml();
   });
   return loadingState('Loading the weekly report for ' + (CFG.officeName||CFG.officeId) + '…', { icon:'inbox' });
@@ -58,10 +76,21 @@ function wrSelectWeek(weekStart) {
   var selOffice = CFG.officeId;
   var c = document.getElementById('main-content');
   if (c) c.innerHTML = loadingState('Loading…', { icon:'inbox' });
-  api({action:'readWeeklyReport', weekStart:weekStart}).then(function(res){
+  // Parallel, for the same reason as the initial load. The series does NOT change with the
+  // selected week, so it is deliberately not refetched here.
+  Promise.all([
+    api({action:'readWeeklyReport', weekStart:weekStart}),
+    api({action:'readWeeklyTrend',  weekStart:weekStart}).catch(function(){ return null; })
+  ]).then(function(both){
+    var res = both[0];
     _WR_LOADING = false;
     if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice || _WR_SEL !== weekStart) return;
     _WR_DATA = (res && res.report) || null;
+    /* ⚠ Reassigned on EVERY week change, never left in place. The trend is relative to the
+       SELECTED week, so keeping the previous week's trend object here would show last
+       selection's comparison under this selection's header — the exact class of mismatch the
+       office-pinning above exists to prevent. */
+    _WR_TREND = (both[1] && both[1].trend) || null;
     var c2 = document.getElementById('main-content'); if (c2) c2.innerHTML = _wrBuildHtml();
   }).catch(function(){ _WR_LOADING = false; });
 }
@@ -163,14 +192,157 @@ function _wrBuildHtml() {
   var apptRows = '<div class="wr-section"><h3 class="wr-h">Appointment outcomes this week</h3>'+
                  '<div class="wr-pills">'+pills+'</div></div>';
 
+  /* ── WEEK-OVER-WEEK ───────────────────────────────────────────────────────────────────────
+     ⚠⚠ EVERY SECTION BELOW MIRRORS `_buildWeeklyReportEmailHtml`, BLOCK FOR BLOCK (D-033).
+     Same metric list, same order, same labels, same good/bad scoring. The one thing here that
+     the email does NOT have is the multi-week comparison at the end — an email cannot carry a
+     week picker, and that is the only justified divergence. If you add a row to one, add it to
+     both, and `weeklyparity_harness` is what will tell you when you forget. */
+  var TR = _WR_TREND, P = TR && TR.prev;
+
+  // Mirrors _wrDelta. 'none' = no prior value, and it must read as "—", never as 0 or +100%.
+  function wrDelta(cur, prev) {
+    if (prev === null || prev === undefined || isNaN(prev)) return { dir:'none' };
+    var diff = cur - prev;
+    return { dir: diff>0?'up':(diff<0?'down':'flat'), diff:diff, prev:prev, cur:cur,
+             pct: prev ? Math.round(diff/prev*1000)/10 : null };
+  }
+  // goodDown: for escalations, no-answers, cancels and churn, a FALL is the good direction.
+  function deltaEl(d, goodDown, pts) {
+    if (!d || d.dir === 'none') return '<span class="wr-delta none">no prior week</span>';
+    if (d.dir === 'flat') return '<span class="wr-delta flat">no change</span>';
+    var good = goodDown ? (d.dir === 'down') : (d.dir === 'up');
+    var mag = pts ? (Math.abs(d.diff).toFixed(1) + ' pts')
+                  : (Math.abs(d.diff) + (d.pct === null ? '' : ' (' + Math.abs(d.pct) + '%)'));
+    return '<span class="wr-delta '+(good?'good':'bad')+'">'+(d.dir==='up'?'&#9650;':'&#9660;')+' '+esc(mag)+'</span>';
+  }
+  function wrBucketPct(tot, b, kind) {
+    var x = tot && tot[b]; if (!x) return null;
+    if (kind === 'churn') return x.acts ? (x.disco||0)/x.acts*100 : null;
+    return x.vol ? (x.acts||0)/x.vol*100 : null;
+  }
+
+  var lead = '', wowSec = '';
+  if (P) {
+    function phrase(d, noun) {
+      if (!d || d.dir === 'none') return esc(noun)+' — no prior week to compare';
+      if (d.dir === 'flat') return esc(noun)+' held at '+d.cur;
+      return esc(noun)+' '+(d.dir==='up'?'up':'down')+' '+
+             (d.pct===null?Math.abs(d.diff):Math.abs(d.pct)+'%')+
+             ' <span class="wr-lead-w">'+d.prev+' &rarr; '+d.cur+'</span>';
+    }
+    var dSales = wrDelta(sm.ordersSubmitted, P.ordersSubmitted);
+    var dAct   = wrDelta(sm.activatedLines,  P.activatedLines);
+    lead = '<div class="wr-lead '+((dSales.dir==='down')?'down':'up')+'">'+
+      '<span class="wr-lead-k">Sales trend</span>'+
+      phrase(dSales,'Orders submitted')+'<br>'+phrase(dAct,'Lines activated')+'</div>';
+
+    var METRICS = [
+      ['Lines Activated',        sm.activatedLines,                P.activatedLines,                 false],
+      ['Orders Submitted',       sm.ordersSubmitted,               P.ordersSubmitted,                false],
+      ['Appointments Booked',    sm.apptBooked,                    P.apptBooked,                     false],
+      ['Appointments Completed', (sm.apptResults||{}).completed||0,(P.apptResults||{}).completed||0, false],
+      ['Escalations',            sm.escalations,                   P.escalations,                    true],
+      ['No Answers',             sm.noAnswers,                     P.noAnswers,                      true],
+      ['Cancel Requests',        sm.cancelRequests,                P.cancelRequests,                 true]
+    ];
+    var pr = TR.prevRange || {};
+    wowSec = '<div class="wr-section"><h3 class="wr-h">Week over week '+
+      '<span class="wr-thsub">— vs '+esc(_wrRangeLabel(pr.start, pr.end))+'</span></h3>'+
+      '<table><thead><tr><th>Metric</th><th class="wr-num">Last week</th>'+
+      '<th class="wr-num">This week</th><th class="wr-num">Change</th></tr></thead><tbody>'+
+      METRICS.map(function(m){
+        return '<tr><td>'+esc(m[0])+'</td><td class="wr-prev">'+(m[2]==null?0:m[2])+'</td>'+
+               '<td class="wr-numb">'+(m[1]==null?0:m[1])+'</td>'+
+               '<td class="wr-num">'+deltaEl(wrDelta(m[1],m[2]), m[3], false)+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }
+
+  /* ⚠⚠ CURRENT-STANDING SNAPSHOTS, NOT WEEKLY EVENTS — the header says so, exactly as the email
+     does. Reading a standing rate as "what happened last week" is the misreading that had an
+     office owner querying his own daily report. */
+  function rateSec(title, buckets, kind, goodDown) {
+    var cur = TR && TR.curSnap && TR.curSnap.report, prev = TR && TR.prevSnap && TR.prevSnap.report;
+    if (!cur) return '';
+    var curTot  = kind==='churn' ? (cur.churnSummary||{}).officeTotal : (cur.activationSummary||{}).officeTotal;
+    var prevTot = prev ? (kind==='churn' ? (prev.churnSummary||{}).officeTotal : (prev.activationSummary||{}).officeTotal) : null;
+    if (!curTot) return '';
+    var rows = buckets.map(function(b){
+      var c = wrBucketPct(curTot,b,kind); if (c === null) return '';
+      var p = prevTot ? wrBucketPct(prevTot,b,kind) : null;
+      var raw = curTot[b] || {};
+      var detail = kind==='churn' ? (raw.disco||0)+'/'+(raw.acts||0) : (raw.acts||0)+'/'+(raw.vol||0);
+      return '<tr><td>'+esc(b)+'</td>'+
+        '<td class="wr-prev">'+(p===null?'&mdash;':p.toFixed(1)+'%')+'</td>'+
+        '<td class="wr-numb">'+c.toFixed(1)+'% <span class="wr-sub">'+esc(detail)+'</span></td>'+
+        '<td class="wr-num">'+deltaEl(wrDelta(c,p), goodDown, true)+'</td></tr>';
+    }).join('');
+    if (!rows) return '';
+    var asOf = TR.curSnap.date, was = TR.prevSnap ? TR.prevSnap.date : null;
+    return '<div class="wr-section"><h3 class="wr-h">'+esc(title)+
+      ' <span class="wr-thsub">— current standing, as of '+esc(_wrDay(asOf))+(was?' vs '+esc(_wrDay(was)):'')+'</span></h3>'+
+      '<table><thead><tr><th>Bucket</th><th class="wr-num">'+(was?esc(_wrDay(was)):'Last week')+'</th>'+
+      '<th class="wr-num">Now</th><th class="wr-num">Change</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+  var arSec = rateSec('Activation rate', ['0-7 Days','8-14 Days','15-30 Days','31-60 Days'], 'activation', false);
+  var crSec = rateSec('Churn rate', ['0-30 Day','30 Day','60 Day','90 Day','120 Day'], 'churn', true);
+
+  /* ── MULTI-WEEK COMPARISON — the one thing the tab has that the email cannot ──────────────
+     ⚠⚠ THE SERIES IS READ-ONLY FROM A STORE AND MAY BE SHORT OR EMPTY. Weeks are written as
+     they are emailed or opened, so early on there is genuinely little history. That gap is
+     STATED, never padded with zeroes — a missing week drawn as a 0 reads as a catastrophic
+     week and is exactly the lie this whole section exists to avoid. */
+  var seriesSec = '';
+  var ser = (_WR_SERIES && _WR_SERIES.series) || [];
+  if (ser.length >= 2) {
+    var maxOrders = 0;
+    ser.forEach(function(w){ maxOrders = Math.max(maxOrders, (w.summary||{}).ordersSubmitted||0); });
+    var srows = ser.map(function(w){
+      var s = w.summary || {}, o = s.ordersSubmitted||0;
+      var pct = maxOrders ? Math.round(o/maxOrders*100) : 0;
+      return '<tr'+(w.start===sel?' style="outline:2px solid var(--field-border)"':'')+'>'+
+        '<td>'+esc(_wrRangeLabel(w.start,w.end))+(w.start===sel?' <span class="wr-sub">viewing</span>':'')+
+          (w.backfilled?' <span class="wr-sub" title="Backfilled: its two backlog figures are today’s snapshot, not that week’s">backfilled</span>':'')+'</td>'+
+        '<td class="wr-numb">'+(s.activatedLines||0)+'</td>'+
+        '<td class="wr-numb">'+o+'</td>'+
+        '<td><span class="wr-spark" style="width:'+pct+'%"></span></td>'+
+        '<td class="wr-num">'+(s.apptBooked||0)+'</td>'+
+        '<td class="wr-num">'+(s.escalations||0)+'</td>'+
+        '<td class="wr-num">'+(s.cancelRequests||0)+'</td></tr>';
+    }).join('');
+    var missing = (_WR_SERIES.weeksRequested||0) - ser.length;
+    seriesSec = '<div class="wr-section"><h3 class="wr-h">Multi-week comparison '+
+      '<span class="wr-thsub">— '+ser.length+' stored week'+(ser.length===1?'':'s')+', oldest first</span></h3>'+
+      '<table><thead><tr><th>Week</th><th class="wr-num">Activated</th><th class="wr-num">Orders</th>'+
+      '<th>&nbsp;</th><th class="wr-num">Appts</th><th class="wr-num">Escal</th>'+
+      '<th class="wr-num">Cancels</th></tr></thead><tbody>'+srows+'</tbody></table>'+
+      (missing > 0 ? '<p class="wr-gap">'+missing+' earlier week'+(missing===1?' is':'s are')+
+        ' not stored yet. Weeks are saved as they are emailed or opened, so this fills in over '+
+        'time — nothing is missing from the weeks shown.</p>' : '')+
+      '</div>';
+  } else if (ser.length === 1) {
+    seriesSec = '<div class="wr-section"><h3 class="wr-h">Multi-week comparison</h3>'+
+      '<p class="wr-gap">Only one week is stored so far, so there is nothing to compare yet. '+
+      'Weeks are saved as they are emailed or opened.</p></div>';
+  }
+
   return '<div class="card">'+header+'<div class="card-body dr-body">'+
     '<p class="wr-note">This is the same summary emailed to the office every Monday at 6am.</p>'+
-    tiles + apptRows +
+    lead + tiles + wowSec + arSec + crSec + seriesSec + apptRows +
     /* The email carries this caveat and the tab must too — without it, two of the nine tiles
        are read as weekly events when they are running backlog totals. */
     '<p class="wr-foot">Open Order Issues and Delivered – Not Active are current backlog counts, '+
-    'not weekly events. Dates in Pacific.</p>'+
+    'not weekly events. '+
+    ((arSec||crSec) ? 'Activation rate and churn rate are the office’s standing rates on the day named, not events of that week. ' : '')+
+    'Dates in Pacific.</p>'+
     '</div></div>';
+}
+
+// "Aug 28" — the short day label used by the two standing-rate headers.
+function _wrDay(ymd) {
+  var MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var d = new Date(String(ymd)+'T12:00:00');
+  return isNaN(d.getTime()) ? String(ymd) : MN[d.getMonth()]+' '+d.getDate();
 }
 
 // ── DAILY REPORT ──────────────────────────────────────────────────────────

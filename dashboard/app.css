@@ -1000,6 +1000,28 @@ html[data-theme="light"] .dr-logo-light{ display:inline-block; filter:none; }
 .wr-pill{font-size:.78rem;padding:3px 10px;border-radius:var(--r-pill);background:var(--surface-2,rgba(127,127,127,.08));border:1px solid var(--field-border);color:var(--text)}
 .wr-pill b{font-weight:800}
 .wr-foot{font-size:.72rem;color:var(--muted);margin:.6rem 0 0;line-height:1.5}
+/* ── Week-over-week trend (2026-09-01). Mirrors the email's trend sections; see D-033.
+   ⚠⚠ `good`/`bad` are NOT `up`/`down`. Escalations, no-answers, cancels and churn are scored
+   so a FALL is good — colouring every rise green congratulates an office on more cancellations. */
+.wr-delta{display:inline-block;font-size:.74rem;font-weight:700;padding:2px 8px;border-radius:var(--r-pill);white-space:nowrap}
+.wr-delta.good{background:rgba(34,197,94,.16);color:#16a34a}
+.wr-delta.bad{background:rgba(239,68,68,.16);color:#dc2626}
+.wr-delta.flat{background:var(--surface-2,rgba(127,127,127,.08));color:var(--muted)}
+.wr-delta.none{background:transparent;color:var(--muted);font-weight:400}
+html[data-theme="dark"] .wr-delta.good{color:#4ade80}
+html[data-theme="dark"] .wr-delta.bad{color:#f87171}
+.wr-num{text-align:right;font-variant-numeric:tabular-nums}
+.wr-numb{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+.wr-prev{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.wr-sub{font-size:.72rem;color:var(--muted);font-weight:400}
+.wr-thsub{font-weight:400;color:var(--muted);font-size:.78rem}
+.wr-lead{border:1px solid var(--field-border);border-radius:var(--r-md);padding:12px 15px;margin:0 0 12px;line-height:1.7;font-weight:700;color:var(--text)}
+.wr-lead.up{background:rgba(34,197,94,.10);border-color:rgba(34,197,94,.35)}
+.wr-lead.down{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.35)}
+.wr-lead-k{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;display:block;margin-bottom:3px}
+.wr-lead-w{color:var(--muted);font-weight:400}
+.wr-spark{display:inline-block;height:9px;border-radius:var(--r-sm);background:#4A9FD4;min-width:2px;vertical-align:middle}
+.wr-gap{font-size:.72rem;color:var(--muted);margin:.45rem 0 0;line-height:1.5}
 .dr-body{display:flex;flex-direction:column;gap:1.05rem;padding-top:.6rem}
 /* at-a-glance summary */
 .dr-glance{font-size:.92rem;line-height:1.55;color:#cdd6e0;background:rgba(var(--blue2-rgb),.07);border:1px solid rgba(var(--blue2-rgb),.2);border-left:3px solid var(--blue2);border-radius:0 var(--r-md) var(--r-md) 0;padding:11px 15px;margin-bottom:.3rem}
