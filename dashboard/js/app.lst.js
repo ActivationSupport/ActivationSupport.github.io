@@ -199,15 +199,23 @@ function _lstAgg(sales, roster) {
   return agg;
 }
 
+/* ⚠⚠ THIS AGGREGATE IS KEYED BY TEAM **NAME**, NOT teamId — it always has been, because the
+   rows it folds in (below) only carry `r.team`, a name string off the roster.
+   🔑 `teamId` is carried ALONGSIDE, purely so a team card can link to that team's dashboard.
+   It is NOT the key and must not become one: two teams sharing a name would collide, and the
+   board would silently merge them. The name stays the identity; the id is a destination.
+   ⚠ A team reached only via `r.team` (a roster row naming a team with no record in `teams`)
+   has NO id, so `teamId` is '' and _lstBoard renders that card unlinked rather than pointing
+   at a dashboard that cannot resolve. Fail closed on navigation, same as everywhere else. */
 function _lstTeamAgg(repAgg, teams) {
   var tAgg = {};
   Object.keys(teams || {}).forEach(function(tid) {
     var t = teams[tid]; if (!t.name) return;
-    tAgg[t.name] = { name: t.name, emoji: t.emoji || '', orders: 0, units: 0, members: 0 };
+    tAgg[t.name] = { name: t.name, teamId: tid, emoji: t.emoji || '', orders: 0, units: 0, members: 0 };
   });
   Object.keys(repAgg).forEach(function(e) {
     var r = repAgg[e]; if (!r.team) return;
-    if (!tAgg[r.team]) tAgg[r.team] = { name: r.team, emoji: '', orders: 0, units: 0, members: 0 };
+    if (!tAgg[r.team]) tAgg[r.team] = { name: r.team, teamId: '', emoji: '', orders: 0, units: 0, members: 0 };
     tAgg[r.team].orders += r.orders;
     tAgg[r.team].units += r.units;
     tAgg[r.team].members++;
@@ -291,9 +299,16 @@ function _lstBuild() {
      whose whole purpose is ranking the office cannot be filtered per viewer.
      ⚠ `kpiTeamSet` is kept because it is still the parameter `_lstKpiCards` accepts; null means
      no filter, so the KPI cards roll up office-wide for everyone too.
-     ⚠ This does NOT change the drill-down gate — `drillable` still excludes client-reps from
-     opening another rep's profile (AR / churn / line stats / orders). Seeing someone on the
-     board and opening their record are separate permissions. */
+     🔴 A CORRECTION, 2026-08-31. This comment used to claim `drillable` "still excludes
+     client-reps from opening another rep's profile (AR / churn / line stats / orders)".
+     IT NEVER DID. `drillable` is read in exactly ONE place — `_lstKpiDrill` — so it gates the
+     four KPI cards and nothing else. `_lstShowRepProfile` has never consulted it. The claim was
+     written here AND into the changelog, and both were believed for three weeks.
+     🔑 The lesson is the cheap one: a comment asserting a boundary is not a boundary. The gate
+     was one grep away from being checked, and nobody grepped.
+     ⚠ D-002 (which rested on this belief) was RETIRED by the user 2026-08-31 — client-reps may
+     open a rep's record. So there is nothing left to enforce here, but the sentence had to go
+     regardless of which way the decision went. */
   var kpiTeamSet = null;
 
   var all = Object.keys(repAgg).map(function(e) { return { email: e, d: repAgg[e] }; })
@@ -600,9 +615,15 @@ function _lstTopPerf(topAll, topTeams) {
   function teamCard(i) {
     var t = topTeams[i];
     if (!t) return '<div class="lst-pod ' + podCls[i] + '"></div>';
+    // Same rule as the team-ranking cards below: the NAME links, and only when the
+    // team has a record to open. The podium and the grid must not disagree about
+    // whether a given team is reachable.
+    var pnm = t.teamId
+      ? '<div class="lst-pod-name lst-team-link" onclick="openTeamDashboard(\'' + esc(t.teamId) + '\')" title="Open ' + esc(t.name) + '’s dashboard">' + esc(t.name) + '</div>'
+      : '<div class="lst-pod-name">' + esc(t.name) + '</div>';
     return '<div class="lst-pod ' + podCls[i] + '">' +
       '<div class="lst-pod-medal">' + medals[i] + '</div>' +
-      '<div class="lst-pod-name">' + esc(t.name) + '</div>' +
+      pnm +
       (t.emoji ? '<div class="lst-pod-emoji">' + esc(t.emoji) + '</div>' : '') +
       '<div class="lst-pod-stats">' +
         '<div class="lst-pod-stat"><div class="lst-pod-num">' + t.units + '</div><div class="lst-pod-lbl">UNITS THIS WK</div></div>' +
@@ -643,10 +664,18 @@ function _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) {
     h += '<div class="lst-sec-lbl">TEAM RANKINGS</div>';
     h += '<div class="lst-team-grid">';
     tArr.forEach(function(t, i) {
+      /* The team NAME is the link — user, 2026-08-31. A team with no record behind it
+         (teamId '') renders as plain text, because its dashboard cannot be resolved.
+         ⚠ The spliced value is the teamId, never the name. That is the same thing
+         `_tmListRow` does on the Teams tab, and it is what keeps the Bri'an Key bug out:
+         an apostrophe in a NAME would break out of the handler string, an id will not. */
+      var tnm = t.teamId
+        ? '<div class="lst-team-nm lst-team-link" onclick="openTeamDashboard(\'' + esc(t.teamId) + '\')" title="Open ' + esc(t.name) + '’s dashboard">' + esc(t.name) + '</div>'
+        : '<div class="lst-team-nm">' + esc(t.name) + '</div>';
       h += '<div class="lst-team-card' + (i === 0 ? ' first' : '') + '">' +
         '<div class="lst-team-rnk">#' + (i + 1) + '</div>' +
         (t.emoji ? '<div class="lst-team-emo">' + esc(t.emoji) + '</div>' : '') +
-        '<div class="lst-team-nm">' + esc(t.name) + '</div>' +
+        tnm +
         '<div><span class="lst-team-u">' + t.units + '</span><span class="lst-team-o">' + t.orders + ' orders</span></div>' +
         '<div class="lst-team-sub">UNITS THIS WEEK &bull; ' + t.members + ' MEMBERS</div>' +
         '</div>';
@@ -695,12 +724,15 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
 
   function row(item, rank) {
     var d = item.d;
-    // Row click -> sales breakdown modal. Name click -> full profile (stops
-    // propagation so it doesn't also open the breakdown).
-    var r = '<tr class="lst-row-click" onclick="_lstShowRepBreakdown(\'' + item.email + '\')"' +
-      ' title="See what ' + esc(d.name) + ' sold day by day">' +
+    /* The NAME is the only thing that opens anything — user, 2026-08-31. The whole row used
+       to be clickable and opened a Sales Breakdown modal; the day-by-day breakdown it showed
+       now lives on the rep's dashboard instead, so there is one destination, not two.
+       ⚠ `event.stopPropagation()` is gone from the name handler WITH the row handler. It only
+       ever existed to stop the row firing underneath, and a stopPropagation guarding nothing
+       reads like there is still a second handler to defend against. */
+    var r = '<tr>' +
       '<td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="event.stopPropagation();_lstShowRepProfile(\'' + item.email + '\')" title="Open full profile">' + esc(d.name) + _lstBaselineBadge(item.email) + '</div>' +
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')" title="Open ' + esc(d.name) + '’s dashboard">' + esc(d.name) + _lstBaselineBadge(item.email) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[d.rank] || d.rank) + '</div></td>';
     for (var i = 0; i < 7; i++) {
       if (i > todayIdx) {
@@ -833,11 +865,11 @@ function _lstWeeksTbl(leaders, reps) {
 
   function row(item, rank) {
     var wr = wAgg[item.email]; if (!wr) return '';
-    // Row click -> sales breakdown modal. Name click -> full profile.
-    var r = '<tr class="lst-row-click" onclick="_lstShowRepBreakdown(\'' + item.email + '\')"' +
-      ' title="See what ' + esc(wr.name) + ' sold week by week">' +
+    // Name click -> the rep's dashboard. See the days table above for why the row itself
+    // is no longer clickable and why stopPropagation went with it.
+    var r = '<tr>' +
       '<td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="event.stopPropagation();_lstShowRepProfile(\'' + item.email + '\')" title="Open full profile">' + esc(wr.name) + _lstBaselineBadge(item.email) + '</div>' +
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')" title="Open ' + esc(wr.name) + '’s dashboard">' + esc(wr.name) + _lstBaselineBadge(item.email) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[wr.rank] || wr.rank) + '</div></td>';
     wr.weeks.forEach(function(w) {
       r += '<td style="color:var(--text2)">' + w.orders + '</td>';
@@ -890,6 +922,11 @@ var _LST_BD_VIEW = 'days';   // rep-profile Sales Breakdown: 'days' | 'weeks'
 function _lstShowRepProfile(email) {
   _LST_PROFILE = email;
   _RP_ORD = { dsi:'', status:'', from:'', to:'' };   // fresh Order Log filters per rep
+  /* Open the Sales Breakdown card on whichever period the BOARD was showing — a DAYS board
+     opens day-by-day, a WEEKS board week-by-week. This used to live in the deleted
+     `_lstShowRepBreakdown`; it has to be reset per rep, or the next profile inherits the
+     toggle state of the last one. */
+  _LST_BD_VIEW = _LST_VIEW === 'weeks' ? 'weeks' : 'days';
   var c = document.getElementById('main-content');
   c.innerHTML = skelLoader();
   var p1 = api({ action:'readRepNames', officeId:CFG.officeId });
@@ -995,6 +1032,16 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   h += '<div class="rp-stat"><div class="rp-stat-num">'+allOrders+'</div><div class="rp-stat-lbl">All-Time Posted</div></div>';
   h += '</div></div>';
 
+  /* Sales Breakdown — what this rep actually sold, day by day or week by week.
+     ⚠⚠ ABOVE THE EARLY RETURN ON PURPOSE. It is built from posted sales, not from Tableau, so
+     it is the one section here that works for a rep with no linked Tableau name — which is
+     precisely who the return below cuts off. Moving it down would quietly delete this card for
+     them, and nothing would report it.
+     🔑 `#lst-bd` wraps ONLY the breakdown body: lstBdSetView() repaints that node, so the card
+     title must sit outside it or the DAY/WEEK toggle would erase its own heading. */
+  h += '<div class="rp-card"><div class="rp-card-title">Sales Breakdown</div>' +
+    '<div id="lst-bd">' + _lstRepBreakdownHtml(email) + '</div></div>';
+
   if (!tableauName) {
     h += '<div class="rp-card" style="text-align:center;padding:24px;color:var(--text2)">Link a Tableau name above to see line metrics and rates.</div>';
     return h + '</div>';
@@ -1012,28 +1059,19 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
   return h + '</div>';
 }
 
-// ── SALES BREAKDOWN (board row -> modal) ──────────────────────────────────
-// Day-by-day / week-by-week list of what this rep ACTUALLY sold, built from the
-// posted-sales feed (_LST_SALES) the board already has in memory — so it opens
-// instantly with no API call, and works for reps with no linked Tableau name.
-//
-// Reached by clicking a rep's ROW on the board. Clicking their NAME still opens
-// the full rep profile (which this deliberately stays out of) — the name's
-// handler stops propagation so the two never fire together.
-function _lstShowRepBreakdown(email) {
-  var roster = DATA.roster || {};
-  var r = roster[String(email || '').trim().toLowerCase()] || roster[email] || {};
-  var t = document.getElementById('modal-title');
-  var b = document.getElementById('modal-body');
-  if (!t || !b) return;
-  t.textContent = (r.name || email) + ' — Sales Breakdown';
-  // Open on whichever period the board is showing: DAYS board -> day by day,
-  // WEEKS board -> week by week.
-  _LST_BD_VIEW = _LST_VIEW === 'weeks' ? 'weeks' : 'days';
-  b.innerHTML = '<div id="lst-bd">' + _lstRepBreakdownHtml(email) + '</div>';
-  document.getElementById('detail-modal').classList.add('open');
-}
+/* ── SALES BREAKDOWN (a card ON the rep's dashboard) ────────────────────────
+   Day-by-day / week-by-week list of what this rep ACTUALLY sold, built from the
+   posted-sales feed (_LST_SALES) the board already has in memory — so it renders
+   instantly with no API call, and works for reps with no linked Tableau name.
 
+   🗑 `_lstShowRepBreakdown` USED TO LIVE HERE and opened this as a MODAL from a click on the
+   rep's whole ROW. Deleted 2026-08-31 — user: "the only thing that should happen in the live
+   sales tracker is when you click a reps name or a team name it take you to the dashboard."
+   The content did not go anywhere; `_lstProfileHtml` renders it as a card.
+   ⚠⚠ IT IS PLACED ABOVE THE no-Tableau-name EARLY RETURN, DELIBERATELY. This section is built
+   from posted sales, which every rep has, while everything below that return needs a linked
+   Tableau name. Folding it in below would have silently taken the breakdown away from exactly
+   the reps the original modal was written to still work for. */
 function lstBdSetView(v, email) {
   _LST_BD_VIEW = v;
   var el = document.getElementById('lst-bd');
@@ -1081,7 +1119,9 @@ function _lstRepBreakdownHtml(email) {
     }
   });
 
-  // No card chrome / title — the modal header already says whose breakdown it is.
+  // No card chrome / title of its own — `_lstProfileHtml` wraps this in the "Sales Breakdown"
+  // card. (It used to say "the modal header already says whose breakdown it is"; the modal is
+  // gone, but the reason this emits a bare body is unchanged.)
   var h = '<div class="rp-bd-body">';
   h += '<div class="rp-bd-toggle">' +
     '<div class="rp-bd-btn' + (_LST_BD_VIEW === 'days' ? ' active' : '') +

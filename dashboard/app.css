@@ -1319,9 +1319,8 @@ html[data-theme="light"] .dr-logo-light{ display:inline-block; filter:none; }
 .lst-tbl td.lst-tot-o{color:var(--text2)}
 .lst-tbl td.lst-tot-u{color:var(--blue2)}
 .lst-tbl td.lst-sep-tot{background:var(--surface2)}
-.lst-tbl tbody tr.lst-row-click:hover td.lst-tot-o,
-.lst-tbl tbody tr.lst-row-click:hover td.lst-tot-u{
-  background:linear-gradient(rgba(var(--blue2-rgb),.09),rgba(var(--blue2-rgb),.09)),var(--bg)}
+/* 🗑 The `tr.lst-row-click` hover pair that sat here is gone with the row handler (2026-08-31).
+   A hover highlight on a row that no longer does anything is a promise the board cannot keep. */
 .lst-tbl .lst-total-row td.lst-tot-o,.lst-tbl .lst-total-row td.lst-tot-u{
   background:linear-gradient(rgba(var(--blue2-rgb),.07),rgba(var(--blue2-rgb),.07)),var(--bg)}
 .lst-tbl .lst-grand-row td.lst-tot-o,.lst-tbl .lst-grand-row td.lst-tot-u{
@@ -1339,8 +1338,11 @@ html[data-theme="light"] .dr-logo-light{ display:inline-block; filter:none; }
 .lst-team-sub{font-size:9px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
 .lst-refresh-btn{font-size:11px;color:var(--blue2);cursor:pointer;font-weight:600;margin-left:12px;user-select:none}
 @media(max-width:640px){.lst-podium{grid-template-columns:1fr}}
-.lst-rep-link{cursor:pointer}
-.lst-rep-link:hover{color:var(--blue2);text-decoration:underline;text-underline-offset:2px}
+/* A rep name and a team name are the only two things on this board that open anything
+   (user, 2026-08-31), so they share one affordance — if they looked different, one of them
+   would read as not clickable. */
+.lst-rep-link,.lst-team-link{cursor:pointer}
+.lst-rep-link:hover,.lst-team-link:hover{color:var(--blue2);text-decoration:underline;text-underline-offset:2px}
 /* ── REP PROFILE ── */
 .rp-wrap{max-width:640px;margin:0 auto;padding:0 0 40px}
 .rp-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--blue2);cursor:pointer;letter-spacing:.06em;text-transform:uppercase;margin-bottom:20px;user-select:none}
@@ -1381,13 +1383,13 @@ html[data-theme="light"] .dr-logo-light{ display:inline-block; filter:none; }
    so both theme polarities are inherited rather than re-specified. */
 .rp-hint{font-size:12px;color:var(--text2);line-height:1.5;margin:-2px 0 10px;max-width:68ch}
 .rp-hint strong{color:var(--text);font-weight:600}
-/* Sales Breakdown modal, opened by clicking a rep's ROW on the LST board */
-.lst-tbl tbody tr.lst-row-click{cursor:pointer}
-.lst-tbl tbody tr.lst-row-click:hover td{background:rgba(var(--blue2-rgb),.09)}
+/* Sales Breakdown — a CARD on the rep's dashboard (2026-08-31). It was a modal opened by
+   clicking a rep's ROW on the LST board; the row handler and its two cursor/hover rules went
+   with it, as did `.modal:has(.rp-bd-body){max-width:820px}`, which widened the shared 520px
+   modal for this table and now has no modal to widen.
+   ⚠ The table lives inside `.tbl-wrap`, so at the profile's 640px it scrolls horizontally
+   rather than crushing six columns — which is what `.rp-bd-tbl` was already tuned for. */
 .rp-bd-body{padding-top:2px}
-/* the shared modal is 520px — too narrow for the 6-column breakdown table.
-   Scoped via :has() so no JS teardown is needed; older engines just keep 520px. */
-.modal:has(.rp-bd-body){max-width:820px}
 .rp-bd-toggle{display:flex;gap:6px;margin-bottom:14px}
 .rp-bd-btn{padding:6px 14px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;user-select:none}
 .rp-bd-btn.active{background:var(--blue2);border-color:var(--blue2);color:var(--on-accent)}

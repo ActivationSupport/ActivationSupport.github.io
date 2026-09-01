@@ -846,6 +846,27 @@ function _tmShowDetail(teamId) {
   document.getElementById('main-content').innerHTML = _tmBuildDetail(teamId);
 }
 
+/* Cross-tab entry point: open a team's dashboard from somewhere that is NOT the Teams tab
+   (today: a team card on the Live Sales Tracker). User, 2026-08-31: "the only thing that
+   should happen in the live sales tracker is when you click a reps name or a team name it
+   take you to the dashboard."
+   🔑 It sets the Teams tab's OWN view state and then switches, rather than painting
+   `main-content` itself the way `_tmShowDetail` does. switchTab() re-renders the tab it lands
+   on, so anything painted before the switch is overwritten a moment later — the state has to
+   travel, not the markup. `renderTeamsTab` already honours `_TM_VIEW`/`_TM_DETAIL_ID`.
+   ⚠ FAILS CLOSED on an unknown id: a team card built from a roster team NAME with no matching
+   team record carries teamId '', and `_tmBuildDetail` would render "Team not found." Better to
+   leave the card unlinked (see `_lstTeamAgg`) and ignore the call if one slips through.
+   ⚠ Safe to call `_tmEnsureAllOrders` before the switch — its repaint is guarded on
+   CURRENT_TAB === 'teams', so an early response cannot paint over another tab. */
+function openTeamDashboard(teamId) {
+  if (!teamId || !(DATA.teams || {})[teamId]) return;
+  _TM_VIEW = 'detail'; _TM_DETAIL_ID = teamId; _TM_LDR_VIEW = 'days';
+  _TM_ORD = { rep:'', status:'', from:'', to:'' };
+  _tmEnsureAllOrders(teamId);
+  switchTab('teams');
+}
+
 function _tmBackToList() {
   _TM_VIEW = 'list'; _TM_DETAIL_ID = null;
   document.getElementById('main-content').innerHTML = _tmBuildList();
