@@ -36,6 +36,67 @@ function _peopleRowCtx() {
   };
 }
 
+/* The two ranks nobody below master-admin/owner may hand out, and that an activator may not
+   re-rank. ONE object, referenced by the form, the save and the option list — a second copy is
+   how a rule like this rots ([📕 R-088]). */
+var _PEOPLE_TOP_RANKS = { 'owner':true, 'master-admin':true };
+
+/* Roles that MAY change a rank but are capped below `_PEOPLE_TOP_RANKS` both ways.
+   Grown across 2026-08-31: activator, then admin, then "jd and manager as well".
+   ⚠⚠ KEYED BY ROLE, NOT BY editLevel — deliberately, and it briefly was not. When only
+   activator + admin were capped, role and editLevel happened to share those two names and the
+   distinction was invisible; adding jd/manager broke it, because both collapse to ONE editLevel.
+   Keying by role is also what lets `activator_rank_harness` compare this set against
+   `_RANK_CAPPED_ROLES` in Code.gs directly — two sets in the same vocabulary.
+   🔑 Code.gs is the real gate; this only decides what the form offers and enables. */
+var _PEOPLE_RANK_CAPPED = { 'activator':true, 'admin':true, 'jd':true, 'manager':true };
+
+/* The modal's field-level capabilities. Extracted for the same reason as `_peopleRowCtx` above:
+   `buildPersonForm` RENDERS from these and `savePerson` RE-DERIVES them, so two copies would let
+   the form show one thing and the save send another — and the backend would be the only thing
+   that noticed.
+   🔑 IT TAKES THE TARGET'S RANK, because as of 2026-08-31 one capability depends on WHO is being
+   edited, not just who is editing: an activator may change ranks, but not an owner's or a
+   master-admin's. Before this, every flag depended only on the caller.
+   ⚠⚠ THIS IS CONVENIENCE, NOT THE BOUNDARY. The real gate is the escalation guard in `Code.gs`
+   ("(b) Rank may only be CHANGED by …"). Disabling a <select> hides a control, not an endpoint. */
+function _peopleEditCaps(targetRank) {
+  var role = SESSION.role;
+  var editLevel;
+  if (role === 'master-admin')   editLevel = 'full';
+  else if (role === 'owner')     editLevel = 'owner';
+  else if (role === 'activator') editLevel = 'activator';   // people-mgmt across their offices, capped below the top two
+  else if (role === 'admin' || role === 'jd' || role === 'manager') editLevel = 'admin';   // jd = manager-equivalent
+  else if (role === 'leader')    editLevel = 'leaderbasic'; // team leads: add/assign people + edit basics (no role/perms/status)
+  else editLevel = 'selfphone';
+  var tgt = String(targetRank || '').trim().toLowerCase();
+  return {
+    editLevel: editLevel,
+    /* ⚠ A capped role LOSES this when the person being edited is an owner or master-admin —
+       user, 2026-08-31: "they should not be able to change master admin or owner".
+       ⚠⚠ Keyed off `role`, NOT `editLevel`: jd and manager share admin's editLevel, so an
+       editLevel lookup would have to re-encode which roles map to it — a second copy of the
+       mapping, three lines under the mapping itself. */
+    canRole:   editLevel === 'full' || editLevel === 'owner' ||
+               (!!_PEOPLE_RANK_CAPPED[role] && !_PEOPLE_TOP_RANKS[tgt]),
+    canPerms:  editLevel === 'full' || editLevel === 'owner',
+    canStatus: editLevel === 'full' || editLevel === 'owner' || editLevel === 'admin' || editLevel === 'activator',
+    canBasic:  editLevel !== 'selfphone'
+  };
+}
+
+/* Which ranks this editor may GRANT. Takes the caller's ROLE, in the same vocabulary as
+   `_PEOPLE_RANK_CAPPED` and as Code.gs — see the note on that constant for why not editLevel.
+   ⚠⚠ FILTERED FROM `PORTAL_ROLES`, never a second hand-written list: a role added there must not
+   silently become ungrantable, and an exclusion must be stated as an exclusion. */
+function _peopleGrantableRoles(role) {
+  return PORTAL_ROLES.filter(function(ro) {
+    if (role === 'owner')             return ro !== 'master-admin';
+    if (_PEOPLE_RANK_CAPPED[role])    return !_PEOPLE_TOP_RANKS[ro];   // never owner/master-admin — themselves included
+    return true;
+  });
+}
+
 /* Which of the three People views is showing. Module-level for the same reason _RH_VIEW is:
    every save re-renders through innerHTML, so a view held in the DOM would reset itself. */
 var _PEOPLE_VIEW = 'active';
@@ -336,24 +397,26 @@ function buildPersonForm(email, person) {
   var rank = p.rank || 'client-rep';
   var role = SESSION.role;
   var isSelf = email && email.toLowerCase() === (SESSION.email||'').toLowerCase();
-  var editLevel;
-  if (role === 'master-admin') editLevel = 'full';
-  else if (role === 'owner')   editLevel = 'owner';
-  else if (role === 'admin')   editLevel = 'admin';
-  else if (role === 'jd') editLevel = 'admin';   // jd = manager-equivalent
-  else if (role === 'manager') editLevel = 'admin';
-  else if (role === 'activator') editLevel = 'admin';   // manages people across their permitted offices
-  else if (role === 'leader')    editLevel = 'leaderbasic';   // team leads: add/assign people + edit basics (no role/perms/status)
-  else editLevel = 'selfphone';
-  var canRole   = editLevel === 'full' || editLevel === 'owner';
-  var canPerms  = editLevel === 'full' || editLevel === 'owner';
-  var canStatus = editLevel === 'full' || editLevel === 'owner' || editLevel === 'admin';
-  var canBasic  = editLevel !== 'selfphone';
+  /* ⚠ `rank` here is the TARGET's current rank, and it is what decides whether an activator may
+     touch the Role field at all. On the ADD form there is no target yet, so `rank` defaults to
+     client-rep and an activator can set the new person's role — which is correct: the cap is on
+     GRANTING owner/master-admin (handled by _peopleGrantableRoles), not on adding people. */
+  var caps      = _peopleEditCaps(rank);
+  var editLevel = caps.editLevel;
+  var canRole   = caps.canRole;
+  var canPerms  = caps.canPerms;
+  var canStatus = caps.canStatus;
+  var canBasic  = caps.canBasic;
   var fs = 'width:100%;padding:8px;border:1.5px solid var(--field-border);border-radius:6px;background:var(--field-bg);color:var(--text)';
   var ds = ';background:var(--field-bg);color:#999';
   var perms = (p.permissions || CFG.officeId).split(',').map(function(o){ return o.trim(); });
-  var roleOpts = PORTAL_ROLES
-    .filter(function(ro) { return editLevel !== 'owner' || ro !== 'master-admin'; })
+  /* ⚠⚠ THE CURRENT RANK IS ALWAYS OFFERED, even when this editor could not grant it. Otherwise
+     the <select> would silently re-point at its first option, and saving an unrelated field
+     (a phone number) would DEMOTE the person with nobody told. Same failure the office-permission
+     checkboxes are commented against above: the control IS the submitted value. */
+  var _grantable = _peopleGrantableRoles(role);
+  if (rank && _grantable.indexOf(rank) === -1) _grantable = _grantable.concat([rank]);
+  var roleOpts = _grantable
     .map(function(ro) { return '<option value="'+ro+'"'+(ro===rank?' selected':'')+'>'+esc(_ROLE_LABELS[ro]||ro)+'</option>'; }).join('');
   var tableauOpts = '<option value="">— Not Assigned —</option>' +
     (PEOPLE_TABLEAU_NAMES||[]).map(function(n){ return '<option value="'+esc(n)+'"'+(n===(p.tableauName||'')?' selected':'')+'>'+esc(n)+'</option>'; }).join('');
@@ -404,21 +467,16 @@ function openEditPersonModal(email) {
 function savePerson(existingEmail) {
   var emailVal  = document.getElementById('pf-email').value.trim().toLowerCase();
   var phone     = document.getElementById('pf-phone').value.trim();
-  var role      = SESSION.role;
-  var editLevel;
-  if (role === 'master-admin') editLevel = 'full';
-  else if (role === 'owner')   editLevel = 'owner';
-  else if (role === 'admin')   editLevel = 'admin';
-  else if (role === 'jd') editLevel = 'admin';   // jd = manager-equivalent
-  else if (role === 'manager') editLevel = 'admin';
-  else if (role === 'activator') editLevel = 'admin';   // manages people across their permitted offices
-  else if (role === 'leader')    editLevel = 'leaderbasic';   // team leads: add/assign people + edit basics (no role/perms/status)
-  else editLevel = 'selfphone';
-  var canRole   = editLevel === 'full' || editLevel === 'owner';
-  var canPerms  = editLevel === 'full' || editLevel === 'owner';
-  var canStatus = editLevel === 'full' || editLevel === 'owner' || editLevel === 'admin';
-  var canBasic  = editLevel !== 'selfphone';
   var existing  = existingEmail ? ((DATA.roster||{})[existingEmail] || {}) : {};
+  /* ⚠⚠ THE CAPS ARE DERIVED FROM THE STORED RANK, NOT FROM THE FORM. Reading the target's rank
+     out of `#pf-role` would let a tampered <select> widen the caller's own permissions — the
+     value under test would be supplying the test. `existing.rank` is what the roster says.
+     🔑 Same helper the form rendered from, so the two cannot disagree. */
+  var caps      = _peopleEditCaps(existing.rank || 'client-rep');
+  var canRole   = caps.canRole;
+  var canPerms  = caps.canPerms;
+  var canStatus = caps.canStatus;
+  var canBasic  = caps.canBasic;
   var name        = canBasic  ? document.getElementById('pf-name').value.trim()    : (existing.name || '');
   var team        = canBasic  ? document.getElementById('pf-team').value.trim()    : (existing.team || '');
   var tableauName = canBasic  ? document.getElementById('pf-tableau').value        : (existing.tableauName || '');
