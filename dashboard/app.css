@@ -1020,8 +1020,11 @@ html[data-theme="dark"] .wr-delta.bad{color:#f87171}
 .wr-lead.down{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.35)}
 .wr-lead-k{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;display:block;margin-bottom:3px}
 .wr-lead-w{color:var(--muted);font-weight:400}
-.wr-spark{display:inline-block;height:9px;border-radius:var(--r-sm);background:#4A9FD4;min-width:2px;vertical-align:middle}
 .wr-gap{font-size:.72rem;color:var(--muted);margin:.45rem 0 0;line-height:1.5}
+/* The "compare against" picker sits inline in the Week-over-week heading. */
+.wr-cmp{margin-left:10px;vertical-align:middle;font-weight:400}
+.wr-wk{color:var(--blue2);text-decoration:none}
+.wr-wk:hover{text-decoration:underline}
 .dr-body{display:flex;flex-direction:column;gap:1.05rem;padding-top:.6rem}
 /* at-a-glance summary */
 .dr-glance{font-size:.92rem;line-height:1.55;color:#cdd6e0;background:rgba(var(--blue2-rgb),.07);border:1px solid rgba(var(--blue2-rgb),.2);border-left:3px solid var(--blue2);border-radius:0 var(--r-md) var(--r-md) 0;padding:11px 15px;margin-bottom:.3rem}

@@ -23,6 +23,10 @@ var _WR_LOADING = false;
    the load-time bar, and it returns however many weeks are actually stored. */
 var _WR_TREND = null;
 var _WR_SERIES = null;
+/* Which week the selected one is measured against. null = the immediately preceding week, which
+   is what the EMAIL always uses — so the tab's DEFAULT view matches the email exactly (D-033),
+   and choosing another week is an interactive extra an email cannot have. */
+var _WR_CMP = null;
 
 function renderWeeklyReport() {
   if (_WR_LOADING) return loadingState('Loading the weekly report…', { icon:'inbox' });
@@ -70,8 +74,26 @@ function renderWeeklyReport() {
   return loadingState('Loading the weekly report for ' + (CFG.officeName||CFG.officeId) + '…', { icon:'inbox' });
 }
 
+/* Re-point the comparison. Only the trend changes — the selected week's own numbers are
+   unaffected, so the report body is left alone and only the trend is refetched. */
+function wrCompareTo(weekStart) {
+  _WR_CMP = weekStart || null;
+  var selOffice = CFG.officeId, sel = _WR_SEL;
+  var q = { action:'readWeeklyTrend', weekStart:sel };
+  if (_WR_CMP) q.compareTo = _WR_CMP;
+  api(q).then(function(res){
+    if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice || _WR_SEL !== sel) return;
+    _WR_TREND = (res && res.trend) || null;
+    var c = document.getElementById('main-content'); if (c) c.innerHTML = _wrBuildHtml();
+  }).catch(function(){ /* leave the last good trend rendered rather than blanking the tab */ });
+}
+
 function wrSelectWeek(weekStart) {
   _WR_SEL = weekStart;
+  /* ⚠ Reset to the default comparison. Keeping the old one would silently measure the newly
+     selected week against a week that may now be AFTER it — a comparison that looks perfectly
+     normal and is backwards. */
+  _WR_CMP = null;
   _WR_LOADING = true;
   var selOffice = CFG.officeId;
   var c = document.getElementById('main-content');
@@ -247,10 +269,30 @@ function _wrBuildHtml() {
       ['Cancel Requests',        sm.cancelRequests,                P.cancelRequests,                 true]
     ];
     var pr = TR.prevRange || {};
+    /* The comparison picker. Lists every OTHER stored week, so any two weeks can be measured
+       against each other — not only consecutive ones. "Previous week" is the default and is
+       what the email shows. Weeks after the selected one are excluded: comparing forwards
+       renders a perfectly plausible table with every sign inverted. */
+    /* ⚠⚠ SELECTED IS DERIVED FROM WHAT CAME BACK (`TR.prevRange`), NOT FROM WHAT WAS ASKED FOR
+       (`_WR_CMP`). `compareTo` is a doGet parameter, so a backend deployed before it existed
+       simply ignores it and returns the previous week. Marking the option from _WR_CMP would
+       then show "Jul 27" in the picker above a table of Aug 3 data — the control claiming
+       something the numbers do not support. Reading the response back means the picker snaps to
+       whatever was really used, so an un-redeployed backend degrades visibly instead of lying. */
+    var cmpNow = pr.start || '';
+    var isDefault = !_WR_CMP || cmpNow === (_wrPrevOf(weeks, sel) || '');
+    var cmpOpts = '<option value=""'+(isDefault?' selected':'')+'>Previous week</option>';
+    weeks.forEach(function(w){
+      if (w.start >= sel) return;
+      cmpOpts += '<option value="'+esc(w.start)+'"'+((!isDefault && w.start===cmpNow)?' selected':'')+'>'+
+                 esc(_wrRangeLabel(w.start,w.end))+'</option>';
+    });
     wowSec = '<div class="wr-section"><h3 class="wr-h">Week over week '+
-      '<span class="wr-thsub">— vs '+esc(_wrRangeLabel(pr.start, pr.end))+'</span></h3>'+
-      '<table><thead><tr><th>Metric</th><th class="wr-num">Last week</th>'+
-      '<th class="wr-num">This week</th><th class="wr-num">Change</th></tr></thead><tbody>'+
+      '<span class="wr-thsub">— vs '+esc(_wrRangeLabel(pr.start, pr.end))+'</span>'+
+      '<select class="dr-date-sel wr-cmp" onchange="wrCompareTo(this.value)" aria-label="Compare against">'+
+      cmpOpts+'</select></h3>'+
+      '<table><thead><tr><th>Metric</th><th class="wr-num">'+esc(_wrRangeLabel(pr.start, pr.end))+'</th>'+
+      '<th class="wr-num">'+esc(rangeLabel)+'</th><th class="wr-num">Change</th></tr></thead><tbody>'+
       METRICS.map(function(m){
         return '<tr><td>'+esc(m[0])+'</td><td class="wr-prev">'+(m[2]==null?0:m[2])+'</td>'+
                '<td class="wr-numb">'+(m[1]==null?0:m[1])+'</td>'+
@@ -295,17 +337,29 @@ function _wrBuildHtml() {
   var seriesSec = '';
   var ser = (_WR_SERIES && _WR_SERIES.series) || [];
   if (ser.length >= 2) {
-    var maxOrders = 0;
-    ser.forEach(function(w){ maxOrders = Math.max(maxOrders, (w.summary||{}).ordersSubmitted||0); });
-    var srows = ser.map(function(w){
-      var s = w.summary || {}, o = s.ordersSubmitted||0;
-      var pct = maxOrders ? Math.round(o/maxOrders*100) : 0;
+    /* ⚠ A proportional bar column lived here and was REMOVED 2026-09-01. Once the two "vs prev"
+       columns landed, the table went to nine columns and the bars were squeezed to ~8px — a
+       chart too small to read, next to numbers that say the same thing precisely. Deleted
+       rather than shrunk further; the deltas are the better instrument. */
+    /* Each row carries its change against the row ABOVE it — the preceding stored week — so the
+       movement is readable by scanning rather than by re-selecting week after week. The first
+       row has nothing above it and correctly shows no change at all, rather than a delta
+       against zero (which would read as a huge rise out of nowhere). */
+    var srows = ser.map(function(w, wi){
+      var s = w.summary || {}, o = s.ordersSubmitted||0, a = s.activatedLines||0;
+      var pr2 = wi > 0 ? (ser[wi-1].summary || {}) : null;
+      var dA = pr2 ? deltaEl(wrDelta(a, pr2.activatedLines||0), false, false) : '';
+      var dO = pr2 ? deltaEl(wrDelta(o, pr2.ordersSubmitted||0), false, false) : '';
       return '<tr'+(w.start===sel?' style="outline:2px solid var(--field-border)"':'')+'>'+
-        '<td>'+esc(_wrRangeLabel(w.start,w.end))+(w.start===sel?' <span class="wr-sub">viewing</span>':'')+
+        '<td>'+(w.start===sel
+                 ? '<b>'+esc(_wrRangeLabel(w.start,w.end))+'</b> <span class="wr-sub">viewing</span>'
+                 : '<a href="#" class="wr-wk" onclick="wrSelectWeek(\''+esc(w.start)+'\');return false">'+
+                   esc(_wrRangeLabel(w.start,w.end))+'</a>')+
           (w.backfilled?' <span class="wr-sub" title="Backfilled: its two backlog figures are today’s snapshot, not that week’s">backfilled</span>':'')+'</td>'+
-        '<td class="wr-numb">'+(s.activatedLines||0)+'</td>'+
+        '<td class="wr-numb">'+a+'</td>'+
+        '<td class="wr-num">'+dA+'</td>'+
         '<td class="wr-numb">'+o+'</td>'+
-        '<td><span class="wr-spark" style="width:'+pct+'%"></span></td>'+
+        '<td class="wr-num">'+dO+'</td>'+
         '<td class="wr-num">'+(s.apptBooked||0)+'</td>'+
         '<td class="wr-num">'+(s.escalations||0)+'</td>'+
         '<td class="wr-num">'+(s.cancelRequests||0)+'</td></tr>';
@@ -313,8 +367,9 @@ function _wrBuildHtml() {
     var missing = (_WR_SERIES.weeksRequested||0) - ser.length;
     seriesSec = '<div class="wr-section"><h3 class="wr-h">Multi-week comparison '+
       '<span class="wr-thsub">— '+ser.length+' stored week'+(ser.length===1?'':'s')+', oldest first</span></h3>'+
-      '<table><thead><tr><th>Week</th><th class="wr-num">Activated</th><th class="wr-num">Orders</th>'+
-      '<th>&nbsp;</th><th class="wr-num">Appts</th><th class="wr-num">Escal</th>'+
+      '<table><thead><tr><th>Week</th><th class="wr-num">Activated</th><th class="wr-num">vs prev</th>'+
+      '<th class="wr-num">Orders</th><th class="wr-num">vs prev</th>'+
+      '<th class="wr-num">Appts</th><th class="wr-num">Escal</th>'+
       '<th class="wr-num">Cancels</th></tr></thead><tbody>'+srows+'</tbody></table>'+
       (missing > 0 ? '<p class="wr-gap">'+missing+' earlier week'+(missing===1?' is':'s are')+
         ' not stored yet. Weeks are saved as they are emailed or opened, so this fills in over '+
@@ -336,6 +391,15 @@ function _wrBuildHtml() {
     ((arSec||crSec) ? 'Activation rate and churn rate are the office’s standing rates on the day named, not events of that week. ' : '')+
     'Dates in Pacific.</p>'+
     '</div></div>';
+}
+
+/* The week immediately before `sel` in the picker list (which is newest-first). Used only to
+   decide whether the comparison currently in force IS the default one. */
+function _wrPrevOf(weeks, sel) {
+  for (var i = 0; i < weeks.length; i++) {
+    if (weeks[i].start === sel) return (i + 1 < weeks.length) ? weeks[i + 1].start : null;
+  }
+  return null;
 }
 
 // "Aug 28" — the short day label used by the two standing-rate headers.
