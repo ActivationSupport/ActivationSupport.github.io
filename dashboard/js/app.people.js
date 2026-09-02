@@ -707,8 +707,13 @@ function _tmOrdersPending(teamId) {
 function _tmEnsureOrders(teamId) {
   if (!_tmIsSubTeam(teamId) || _TM_ORDERS[teamId] || _TM_ORD_LOADING[teamId]) return;
   _TM_ORD_LOADING[teamId] = true;
+  var _reqOffice = CFG.officeId;
   api({ action:'readTeamOrders', teamId:teamId }).then(function(res) {
     _TM_ORD_LOADING[teamId] = false;
+    /* Office guard. teamId is only unique WITHIN an office, so without this a team's orders
+       could be filed under a same-named team id in the office the user just switched to.
+       ⚠ The loading flag is cleared above the return, or this team can never be fetched again. */
+    if (CFG.officeId !== _reqOffice) return;
     _TM_ORDERS[teamId] = (res && res.orders) ? res.orders : [];
     // Re-render if the open detail is this team OR a parent that rolls this team
     // up (a descendant's orders just arrived and feed the parent's combined view).

@@ -382,7 +382,13 @@ function _psSubmit(btn) {
     dtvPackage:d.products.dtv?d.dtvPackage:'',
     notes:d.notes
   };
+  var _reqOffice = CFG.officeId;
   apiPost(payload).then(function(res) {
+    /* Office guard. The SALE itself is safe — the server booked it against the office that
+       sent it — but advancing to the step-4 confirmation and repainting would show a
+       "submitted" screen under a DIFFERENT office's header if the user switched while it was
+       in flight. Bail: the switch has already re-rendered the tab. */
+    if (CFG.officeId !== _reqOffice) return;
     if (res&&res.ok) {
       _PS_STEP=4;
       document.getElementById('main-content').innerHTML=renderPostSale();
@@ -1856,8 +1862,11 @@ function renderPostedSalesTab() {
   if (_PSV_SALES !== null) { _psvPaint(); return; }
   if (!_PSV_FLIGHT) {
     _PSV_FLIGHT = true;
+    var _reqOffice = CFG.officeId;
     api({ action:'readMyPostedSales', officeId:CFG.officeId }).then(function(res) {
       _PSV_FLIGHT = false;
+      // Office guard. ⚠ _PSV_FLIGHT cleared above the return, or this tab never reloads.
+      if (CFG.officeId !== _reqOffice) return;
       _PSV_SALES = (res && res.sales) ? res.sales : [];
       if (CURRENT_TAB === 'postedsales') _psvPaint();
     }).catch(function(e) {
@@ -2076,7 +2085,13 @@ function _pseSave(btn) {
     voipQty:d.voip ? (d.voipQty || 0) : 0,
     dtvQty:d.dtv ? 1 : 0, dtvPackage:d.dtv ? d.dtvPackage : ''
   };
+  var _reqOffice = CFG.officeId;
   apiPost(payload).then(function(res) {
+    /* Office guard. The edit is written server-side against the office that sent it; what
+       must not happen is patching _PSV_SALES — which now holds a DIFFERENT office's posted
+       sales — with this record. That would silently graft one office's sale into another's
+       list, and the in-place patch below is exactly the path that would do it. */
+    if (CFG.officeId !== _reqOffice) return;
     if (res && res.ok) {
       /* Patch the cached record in place instead of nulling _PSV_SALES, which forced a
          readMyPostedSales round trip on EVERY edit. _psvVoid above already does exactly this

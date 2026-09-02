@@ -170,7 +170,16 @@ function _readCachedMainData() {
    logout and on _forceReauth, so notes — which are CUSTOMER CONTENT and now outlive the tab
    exactly like the blob — leave the device at sign-out for free. A prettier `as_notes_`
    prefix would have silently created a data-retention hole on shared machines. */
-function _notesCacheKey() { return 'as_data_notes_' + CFG.officeId + '_' + _mainDataUser(); }
+/* ⚠⚠ `v2` IS A MIGRATION, NOT DECORATION. Until 2026-09-02 _bgRefreshNotes had no office
+   guard, so a readNotes issued under office A could land after a switch and be written here
+   under office B's key AND stamped office B — making the poisoned record indistinguishable
+   from a good one on read. Bumping the key orphans every pre-fix record; _purgeLegacyPlainNotes
+   then deletes them. Cost is one cold notes load per rep, which is the right trade for
+   customer content.
+   🔑 THE `as_data_notes_` PREFIX IS PRESERVED ON PURPOSE — _purgeLegacyPlainNotes,
+   _pruneNotesCache and _pruneDataCache all prefix-match on it, and _clearDataCache sweeps
+   `as_data_` at logout. A prettier `as_notes_v2_` would silently escape all four. */
+function _notesCacheKey() { return 'as_data_notes_v2_' + CFG.officeId + '_' + _mainDataUser(); }
 /* ⚠⚠ ENCRYPTED BEFORE IT TOUCHES DISK, EXACTLY LIKE THE BLOB — AND FOR THE SAME REASON.
    🔴 THIS CACHE WAS PLAINTEXT UNTIL 2026-08-13, AND ITS ONLY PROTECTION WAS A CALL THAT
    `d49f189` DELETED. That commit encrypted the blob and changed _forceReauth to drop the KEY
@@ -247,6 +256,12 @@ function _purgeLegacyPlainNotes() {
     for (var i = 0; i < localStorage.length; i++) {
       var k = localStorage.key(i);
       if (!k || k.indexOf('as_data_notes_') !== 0) continue;
+      /* 🔴 PRE-v2 RECORDS GO REGARDLESS OF SHAPE. A record written before the 2026-09-02
+         office guard may hold ANOTHER OFFICE'S notes under this office's name, and nothing
+         on the record can tell you which — the stamp was written from the same global the
+         read-guard checks it against. Encrypted-and-well-formed is not evidence of
+         correctness here, so the version is the only safe discriminator. */
+      if (k.indexOf('as_data_notes_v2_') !== 0) { rm.push(k); continue; }
       var o = null;
       try { o = JSON.parse(localStorage.getItem(k)); } catch (e) { o = null; }
       if (!o || o.notes || !o.enc) rm.push(k);       // unparseable or plaintext-shaped
@@ -676,8 +691,19 @@ function _bgRefreshNotes() {
   if (_CACHE.notesFlight || _noteAddFlight) return;   // skip while a fetch or a local add is running
   if (!_notesTabActive()) return;                     // only poll where notes are visible
   _CACHE.notesFlight = true;
+  var _reqOffice = CFG.officeId;
   api({ action:'readNotes' }).then(function(res) {
     _CACHE.notesFlight = false;
+    /* 🔴 OFFICE GUARD — THE MOST IMPORTANT ONE IN THIS FILE. Without it a readNotes issued
+       under office A that lands after a switch to office B was written to disk by _cacheNotes
+       below under office B's KEY and stamped with office B's NAME — because both are read from
+       CFG.officeId at write time. _readCachedNotes then compares that stamp against the same
+       global, so the poisoned record VALIDATES ITSELF (R-088: a guard holding its own copy
+       tests its own memory) and localStorage is shared across TABS, so any other tab on office
+       B instant-painted office A's notes. Notes name customers. Reported live 2026-09-02.
+       ⚠ The flight flag is cleared ABOVE this line on purpose: returning first would leave
+       notesFlight true forever and silently wedge the poll. Same order as the main blob. */
+    if (CFG.officeId !== _reqOffice) return;
     if (!res || res.error || !res.notes) return;
     DATA.notes = res.notes;
     _CACHE.notesAt = Date.now();          // when notes were last KNOWN good — see _notesKickOnTab
@@ -783,8 +809,14 @@ function _refreshOpenNotesModal() {
 function _bgRefreshLst() {
   if (_CACHE.lstFlight) return;
   _CACHE.lstFlight = true;
+  var _reqOffice = CFG.officeId;
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
     _CACHE.lstFlight = false;
+    /* Office guard. readPostedSales is ungated and office-wide on the server BY DECISION
+       (D-051), so the client is the only thing deciding whose sales are on screen — which
+       makes a stale response here a cross-office display leak, not a cosmetic one.
+       ⚠ Flag cleared above the return, or the LST poll wedges silently. */
+    if (CFG.officeId !== _reqOffice) return;
     _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     _CACHE.lstSalesTs = Date.now();
     if (CURRENT_TAB === 'livesales') document.getElementById('main-content').innerHTML = _lstBuild();
@@ -794,8 +826,13 @@ function _bgRefreshLst() {
 function _preloadArLines() {
   if (_AR_LINES !== null || _AR_LOADING) return;
   _AR_LOADING = true;
+  var _reqOffice = CFG.officeId;
   api({ action:'readActRateLines' }).then(function(resp) {
     _AR_LOADING = false;
+    /* Office guard. _AR_LINES/_AR_AGG are module-level and are read by BOTH the Activation
+       Rates tab and the Teams detail view, so a stale fill is not confined to one screen.
+       ⚠ _AR_LOADING cleared above the return, or the preload can never run again this session. */
+    if (CFG.officeId !== _reqOffice) return;
     _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
     _AR_AGG   = (resp && resp.arAgg) ? resp.arAgg : null;
     if (CURRENT_TAB === 'actrates') {

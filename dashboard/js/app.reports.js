@@ -479,9 +479,14 @@ function drSelectDate(date) {
   _DR_LOADING = true;
   var c = document.getElementById('main-content');
   if (c) c.innerHTML = loadingState('Loading…', { icon:'dailyreport' });
+  var _reqOffice = CFG.officeId;
   api({action:'readDailyReport', date:date}).then(function(r) {
-    _DR_DATA = (r && r.report) ? r.report : null;
     _DR_LOADING = false;
+    /* Office guard, same reasoning as the weekly report above: a report is the last surface
+       where one office's numbers under another office's header would be survivable.
+       ⚠ _DR_LOADING cleared above the return, or the tab wedges on "Loading…". */
+    if (CFG.officeId !== _reqOffice) return;
+    _DR_DATA = (r && r.report) ? r.report : null;
     var c2 = document.getElementById('main-content'); if (c2) c2.innerHTML = _drBuildHtml();
   }).catch(function() { _DR_LOADING = false; });
 }
@@ -495,12 +500,17 @@ function drRefresh() {
   // force:true — Refresh is an explicit user request, so it must bypass the PERF-4 cache
   // and genuinely rebuild. Without this the button could silently return a cached build
   // and look broken. An un-redeployed backend ignores the extra field and rebuilds anyway.
+  var _reqOffice = CFG.officeId;
   apiPost({action:'generateDailyReport', date:selDate, force:true}).then(function() {
+    /* Bail BEFORE the second call rather than after it — no point spending another ~2s
+       round trip on an office the user has already left. */
+    if (CFG.officeId !== _reqOffice) return null;
     _DR_DATA = undefined;
     return api({action:'readDailyReport', date:selDate});
   }).then(function(r) {
-    _DR_DATA = (r && r.report) ? r.report : null;
     _DR_LOADING = false;
+    if (CFG.officeId !== _reqOffice) return;   // office guard — see drSelectDate
+    _DR_DATA = (r && r.report) ? r.report : null;
     var c2 = document.getElementById('main-content'); if (c2) c2.innerHTML = _drBuildHtml();
   }).catch(function() { _DR_LOADING = false; });
 }

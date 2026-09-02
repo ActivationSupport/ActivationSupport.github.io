@@ -105,8 +105,12 @@ function renderFiberCalendarTab() {
   if (_FIB.installs !== null) { _fibPaint(); return; }
   if (!_FIB.flight) {
     _FIB.flight = true;
+    var _reqOffice = CFG.officeId;
     api({ action:'readFiberInstalls', officeId:CFG.officeId }).then(function(res) {
       _FIB.flight = false;
+      /* Office guard — these are customer install appointments. ⚠ _FIB.flight cleared above
+         the return, or the calendar sticks on its skeleton for the rest of the session. */
+      if (CFG.officeId !== _reqOffice) return;
       _FIB.installs = (res && res.installs) ? res.installs : [];
       if (CURRENT_TAB === 'fibercal') _fibPaint();
     }).catch(function(e) {

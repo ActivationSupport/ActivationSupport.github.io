@@ -11,8 +11,12 @@ function renderActRates() {
   if (_AR_LINES) return _renderActRatesWithData();
   if (_AR_LOADING) return loadingState('Loading activation rates…', { icon:'actrates', bare:true });
   _AR_LOADING = true;
+  var _reqOffice = CFG.officeId;
   api({ action: 'readActRateLines' }).then(function(resp) {
     _AR_LOADING = false;
+    /* Office guard. ⚠ _AR_LOADING is cleared ABOVE the return deliberately — bail first and
+       the flag stays true for the session, so this tab could never load again. */
+    if (CFG.officeId !== _reqOffice) return;
     _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
     _AR_AGG   = (resp && resp.arAgg) ? resp.arAgg : null;
     if (CURRENT_TAB === 'actrates') {
@@ -251,7 +255,14 @@ function ratingPill(dsi, safeId) {
 var PEOPLE_TABLEAU_NAMES = null;
 function ensureTableauNames(cb) {
   if (PEOPLE_TABLEAU_NAMES !== null) { cb(); return; }
+  var _reqOffice = CFG.officeId;
   api({ action: 'readRepNames' }).then(function(res) {
+    /* Office guard. These are ROSTER names for one office; filling them from a response that
+       outlived a switch puts the previous office's people into every picker that reads this.
+       🔑 cb() is deliberately NOT called on the stale path: the office switch re-renders the
+       tab anyway, and PEOPLE_TABLEAU_NAMES stays null so the next call refetches for the new
+       office. There is no in-flight flag here, so bailing cannot wedge anything. */
+    if (CFG.officeId !== _reqOffice) return;
     PEOPLE_TABLEAU_NAMES = res.names || [];
     cb();
   }).catch(function() { PEOPLE_TABLEAU_NAMES = []; cb(); });
@@ -1599,8 +1610,11 @@ function _asFetchStatus(force){
   if(_asStatusFlight) return;
   if(_AS_STATUS && !force) return;
   _asStatusFlight=true; _AS_STATUS_ERR=false;
+  var _reqOffice = CFG.officeId;
   api({action:'readAutoEmailStatus'}).then(function(res){
     _asStatusFlight=false;
+    // Office guard. ⚠ flight flag cleared above the return, or this never fetches again.
+    if (CFG.officeId !== _reqOffice) return;
     if(res && !res.error) _AS_STATUS=res; else _AS_STATUS_ERR=true;
     _asPaintSignifier();
   }).catch(function(){ _asStatusFlight=false; _AS_STATUS_ERR=true; _asPaintSignifier(); });
@@ -1627,8 +1641,11 @@ function renderTrainingTab() {
   else c.innerHTML = skelLoader();
   if (_trFlight) return;                       // a preload / live fetch is already running
   _trFlight = true;
+  var _reqOffice = CFG.officeId;
   api({ action:'readTrainingOrders' }).then(function(res) {
     _trFlight = false;
+    // Office guard. ⚠ _trFlight cleared above the return, or Training wedges on "Loading…".
+    if (CFG.officeId !== _reqOffice) return;
     if (res && !res.error) {
       _TRAINING_ORDERS = res.orders || [];
       if (CURRENT_TAB === 'training') { if (have) _trRenderRows(); else { _trPaint(); _trStartLive(); } }
@@ -1648,8 +1665,11 @@ function _preloadTraining() {
   if (_TRAINING_ORDERS !== null || _trFlight) return;
   if (ROLES_TRAINING.indexOf(SESSION.role) === -1) return;
   _trFlight = true;
+  var _reqOffice = CFG.officeId;
   api({ action:'readTrainingOrders' }).then(function(res) {
     _trFlight = false;
+    // Office guard — a background warm-up must never seed another office's training orders.
+    if (CFG.officeId !== _reqOffice) return;
     if (!res || res.error) return;
     _TRAINING_ORDERS = res.orders || [];
     if (CURRENT_TAB === 'training') { _trPaint(); _trStartLive(); }
@@ -1666,8 +1686,12 @@ function _trStartLive() {
     if (document.hidden) return;   // background tab — skip this pull
     if (_trFlight) return;
     _trFlight = true;
+    var _reqOffice = CFG.officeId;
     api({ action:'readTrainingOrders' }).then(function(res) {
       _trFlight = false;
+      /* Office guard. This 30s poller is the likeliest of the three to straddle a switch,
+         because it keeps firing while the user navigates. */
+      if (CFG.officeId !== _reqOffice) return;
       if (CURRENT_TAB !== 'training' || !res || res.error) return;
       _TRAINING_ORDERS = res.orders || [];
       _trRenderRows();

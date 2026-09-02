@@ -25,7 +25,12 @@ function renderLiveSalesTracker() {
   var c = document.getElementById('main-content');
   if (_LST_SALES !== null) { c.innerHTML = _lstBuild(); return; }
   c.innerHTML = skelLoader();
+  var _reqOffice = CFG.officeId;
   api({ action:'readPostedSales', officeId:CFG.officeId }).then(function(res) {
+    /* Office guard. readPostedSales is office-wide and UNGATED on the server by decision
+       (D-051), so the client is the only thing deciding whose sales are on screen — a
+       response that outlives an office switch paints another office's sales here. */
+    if (CFG.officeId !== _reqOffice) return;
     _LST_POSTED = res.sales || []; _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // legacy re-merged in _applyMainData once DATA is ready
     c.innerHTML = _lstBuild();
   }).catch(function(e) {
@@ -929,10 +934,15 @@ function _lstShowRepProfile(email) {
   _LST_BD_VIEW = _LST_VIEW === 'weeks' ? 'weeks' : 'days';
   var c = document.getElementById('main-content');
   c.innerHTML = skelLoader();
+  var _reqOffice = CFG.officeId;
   var p1 = api({ action:'readRepNames', officeId:CFG.officeId });
   var p2 = api({ action:'readRepLineStats', officeId:CFG.officeId, repEmail:email });
   var p3 = _AR_LINES ? null : api({ action:'readActRateLines' });
   Promise.all(p3 ? [p1,p2,p3] : [p1,p2]).then(function(res) {
+    /* Office guard. This writes THREE module-level globals (_LST_TBL_NAMES, _AR_LINES,
+       _AR_AGG) that other tabs read, so a stale fill here is not confined to this profile —
+       it is the widest of the LST leaks, not the narrowest. */
+    if (CFG.officeId !== _reqOffice) return;
     _LST_TBL_NAMES = res[0].names || [];
     var lineStats = res[1];
     if (res[2] && res[2].actRateLines) { _AR_LINES = res[2].actRateLines; _AR_AGG = res[2].arAgg || null; }
@@ -957,7 +967,13 @@ function lstSaveTableauName(email, btn) {
   var sel = document.getElementById('rp-tbl-sel');
   if (!sel || !sel.value) return;
   btn.disabled = true; btn.textContent = 'Saving…';
+  var _reqOffice = CFG.officeId;
   apiPost({ action:'setTableauName', email:email, tableauName:sel.value }).then(function(r) {
+    /* Office guard. The WRITE itself is safe — the server scoped it to the office that issued
+       it — but DATA.roster below belongs to whichever office is loaded NOW, so applying this
+       after a switch would stamp one office's Tableau name onto another office's roster in
+       the live model. Bail: the new office's own load is the source of truth. */
+    if (CFG.officeId !== _reqOffice) return;
     if (r && r.ok) {
       if (DATA.roster && DATA.roster[email]) DATA.roster[email].tableauName = sel.value;
       _lstShowRepProfile(email);
