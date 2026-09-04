@@ -926,7 +926,7 @@ function _drSectionActivation(arSummary) {
       _DR_AR_BUCKETS.map(function(b){return _drArCell(r.buckets[b],b);}).join('')+'</tr>';
   }).join('');
   return '<div class="dr-section"><div class="dr-sec-hdr">Activation Rates '+
-    '<span class="dr-subhdr">office summary + bottom 5 reps</span></div>'+
+    '<span class="dr-subhdr">office summary + top 5 reps by 8-14 Day inactive lines</span></div>'+
     '<div class="tbl-wrap"><table class="call-table"><thead><tr>'+hdr+
     '</tr></thead><tbody>'+totRow+repRows+'</tbody></table></div></div>';
 }
@@ -963,7 +963,7 @@ function _drSectionChurn(churnSummary) {
       _DR_CHURN_BUCKETS.map(function(b){return _drChurnCell(r.buckets[b],b,false);}).join('')+'</tr>';
   }).join('');
   return '<div class="dr-section"><div class="dr-sec-hdr">Churn Rates '+
-    '<span class="dr-subhdr">office summary + top 5 reps by 0-30 Day disconnects</span></div>'+
+    '<span class="dr-subhdr">office summary + top 5 reps by 0-30 Day lines churned</span></div>'+
     '<div class="tbl-wrap"><table class="call-table"><thead><tr>'+hdr+
     '</tr></thead><tbody>'+totRow+repRows+'</tbody></table></div></div>';
 }
@@ -1347,7 +1347,7 @@ function _drBuildEmailHtml() {
   var arHdr='<tr><th style="'+TH+'">Rep</th>'+_DR_AR_BUCKETS.map(function(b){return '<th style="'+TH+'">'+b+'</th>';}).join('')+'</tr>';
   var arTot='<tr><td style="'+TDG+'">Grand Total</td>'+_DR_AR_BUCKETS.map(function(b){return eArCell(offAr[b],b);}).join('')+'</tr>';
   var arReps=repAr.map(function(r,i){return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+'">'+esc(r.rep)+'</td>'+_DR_AR_BUCKETS.map(function(b){return eArCell(r.buckets[b],b);}).join('')+'</tr>';}).join('');
-  var arSec=eHdr('Activation Rates — office summary + bottom 5 reps')+eTbl(arHdr,arTot+arReps);
+  var arSec=eHdr('Activation Rates — office summary + top 5 reps by 8-14 Day inactive lines')+eTbl(arHdr,arTot+arReps);
 
   // Churn rates
   var crSum=rpt.churnSummary||{},offCr=crSum.officeTotal||{},repCr=crSum.repImpact||[];
@@ -1355,7 +1355,7 @@ function _drBuildEmailHtml() {
   var crHdr='<tr><th style="'+TH+'">Rep</th>'+CR_BKTS.map(function(b){return '<th style="'+TH+'">'+b+'</th>';}).join('')+'</tr>';
   var crTot='<tr><td style="'+TDG+'">Grand Total</td>'+CR_BKTS.map(function(b){return eCrCell(offCr[b],b,true);}).join('')+'</tr>';
   var crReps=repCr.map(function(r,i){return '<tr'+(i%2?' style="'+ZEB+'"':'')+'><td style="'+TD+'">'+esc(r.rep)+'</td>'+CR_BKTS.map(function(b){return eCrCell(r.buckets[b],b,false);}).join('')+'</tr>';}).join('');
-  var crSec=eHdr('Churn Rates — office summary + top 5 reps by 0-30 Day disconnects')+eTbl(crHdr,crTot+crReps);
+  var crSec=eHdr('Churn Rates — office summary + top 5 reps by 0-30 Day lines churned')+eTbl(crHdr,crTot+crReps);
 
   // Calls worked — slim Rep | Order | Notes; notes dedupe to the highest-priority section.
   var cwDupEsc={},cwDupNa={};

@@ -1750,8 +1750,9 @@ var ROLES_CALL = ['master-admin','owner','admin','activator','jd','manager'];
 var ROLES_DAYAFTER = ['master-admin','owner','admin','activator'];
 /* 🗑 ROLES_DAILY IS GONE (2026-08-31). It existed for ONE DAY: leaders were given the Daily
    Report on 08-30, then taken back off it on 08-31 once we looked at what the report contains —
-   `activationSummary.repImpact` and `churnSummary.repImpact` are the office's 5 WORST activation
-   rates and 5 HIGHEST churn rates, BY REP NAME, across every team. User's call: Daily and Weekly
+   `activationSummary.repImpact` and `churnSummary.repImpact` name the office's five reps with the
+   most 8-14 Day lines INACTIVE and the five with the most 0-30 Day lines CHURNED (the tabs' own
+   top five, 2026-09-04), BY REP NAME, across every team. User's call: Daily and Weekly
    are both jd / manager / admin / owner / activator, i.e. plain ROLES_CALL.
    ⚠ The backend `_DAILY_READ_ROLES` was deleted with it. If leaders are ever given the Daily
    again, split BOTH again — `_DR_ROLES` also gates the WEEKLY reads and the generateDailyReport
