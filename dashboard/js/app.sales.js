@@ -625,8 +625,16 @@ function _rehashText(d) {
     s.push('📅 Appointment Manager Portal');
     s.push('   • https://www.att.com/support/article/u-verse-high-speed-internet/KM1046993/', '');
   }
-  // Always
-  s.push('🔕 Opt Out of AutoPay with Your Old Provider', '');
+  /* Old-provider guidance splits by product (user, 2026-09-04):
+     Wireless → opt out of the old carrier's AutoPay (the number ports, the old bill stops).
+     Fiber / Air → do NOT cancel anything until every new service is installed and working — an
+     install can slip, and a customer with no internet in the gap blames the rep.
+     A mixed order gets BOTH lines; they are about different old providers. */
+  if (hasW) s.push('🔕 Opt Out of AutoPay with Your Old Provider', '');
+  if (hasF || hasA) {
+    s.push('⏳ Keep Your Current Services for Now');
+    s.push('   • Please do not cancel any existing services until all of your new AT&T services have been installed and are working', '');
+  }
   s.push('✅ Validate Signature / Appreciation Discounts');
   s.push('   • www.ATT.com/verification/signaturehub', '');
   // Order status — Wireless (all), Air (all), Fiber (Consumer only)
