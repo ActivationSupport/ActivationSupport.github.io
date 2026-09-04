@@ -11,9 +11,11 @@
    ⚠⚠ THE PICKER LISTS ONLY COMPLETED Mon–Sun WEEKS. The current, in-progress week is excluded
    by `getWeeklyReportWeeks` on purpose — a partial week reads as a collapse rather than as a
    Tuesday, and this report exists for week-over-week comparison.
-   ⚠ No Refresh button, unlike the daily. The daily has one because it REBUILDS a stored,
-   cacheable artifact; the weekly is computed fresh on every read, so a refresh control would
-   promise something it does not do. Re-selecting the week is the refresh. */
+   ⚠ No Refresh button, unlike the daily. The daily has one because today's inputs keep
+   moving. A completed week is FINAL: since 2026-09-03 the backend serves the row the Monday
+   email wrote (computing only when a week is absent), so the tab shows exactly what the
+   office was emailed and a refresh control would promise something it does not do (D-059).
+   Re-selecting the week is the refresh. */
 var _WR_DATA = undefined;   // undefined = not loaded · null = no data for this week
 var _WR_WEEKS_LIST = null;
 var _WR_SEL = null;         // the selected week's Monday, yyyy-MM-dd
@@ -27,51 +29,89 @@ var _WR_SERIES = null;
    is what the EMAIL always uses — so the tab's DEFAULT view matches the email exactly (D-033),
    and choosing another week is an interactive extra an email cannot have. */
 var _WR_CMP = null;
+/* Where the numbers came from: `stored` when the backend served the row the Monday email
+   wrote (the normal case since 2026-09-03), with `storedAt`; `backfilled` when that row was
+   filled from history rather than sent. Null when computed on the spot or unknown. */
+var _WR_META = null;
+/* INSTANT RE-ENTRY (2026-09-03). What this office showed last time, keyed by office, so
+   coming back to the tab paints at once and the refresh lands behind it. Keyed by office
+   because switchOffice swaps CFG in place — a memo read under the wrong key would be the
+   cross-office bleed all over again. The memo is REPLACED the moment a refresh lands, never
+   trusted over it. */
+var _WR_MEMO = {};
+
+function _wrPaint() { var c = document.getElementById('main-content'); if (c) c.innerHTML = _wrBuildHtml(); }
+function _wrRemember(office) {
+  _WR_MEMO[office] = { weeks:_WR_WEEKS_LIST, rpt:_WR_DATA, trend:_WR_TREND, series:_WR_SERIES, sel:_WR_SEL, meta:_WR_META };
+}
+function _wrMetaOf(res) {
+  return res ? { stored: !!res.stored, storedAt: res.storedAt || '', backfilled: !!res.backfilled } : null;
+}
 
 function renderWeeklyReport() {
-  if (_WR_LOADING) return loadingState('Loading the weekly report…', { icon:'inbox' });
-  _WR_LOADING = true;
-  _WR_DATA = undefined;
   /* Pin the office, exactly as the daily does. Without this a slow response can paint one
      office's numbers under another office's header after a switch — and a report is the last
      surface where that is survivable. */
   var selOffice = CFG.officeId;
-  var weeksP = api({action:'getWeeklyReportWeeks'}).then(function(d){ return (d && d.weeks) || []; })
-                                                   .catch(function(){ return _WR_WEEKS_LIST || []; });
-  var r = weeksP.then(function(weeks){
-    if (!weeks.length) return { weeks:weeks, rpt:null };
-    /* Default to the newest COMPLETED week — the one the last email covered, which is what
-       someone opening this tab is almost always looking for. */
-    var want = _WR_SEL && weeks.some(function(w){ return w.start === _WR_SEL; }) ? _WR_SEL : weeks[0].start;
-    _WR_SEL = want;
-    /* ⚠⚠ ALL THREE IN FLIGHT AT ONCE, NOT CHAINED. The report and the trend each cost a ~2s
-       backend summary; run sequentially they would breach the standing sub-5s bar once
-       Google's own 2–4s transport floor is added. In parallel the tab pays the slowest, not
-       the sum. That is why readWeeklyTrend is its own action rather than part of the report.
-       ⚠ Trend and series failures must never cost you the report — each catches to null and
-       its section simply does not render. */
-    return Promise.all([
-      api({action:'readWeeklyReport', weekStart:want}),
-      api({action:'readWeeklyTrend',  weekStart:want}).catch(function(){ return null; }),
-      api({action:'readWeeklySeries'}).catch(function(){ return null; })
-    ]).then(function(all){
-      return { weeks:weeks, rpt:(all[0] && all[0].report) || null,
-               trend:(all[1] && all[1].trend) || null, series:all[2] || null };
-    });
-  });
-  r.then(function(out){
+  var memo = _WR_MEMO[selOffice] || null;
+  if (_WR_LOADING) {
+    // A refresh is already running for this office: keep what is painted, never a spinner over it.
+    return (memo && _WR_LOADING === selOffice) ? _wrBuildHtml() : loadingState('Loading the weekly report…', { icon:'inbox' });
+  }
+  _WR_LOADING = selOffice;
+  if (memo) { _WR_WEEKS_LIST = memo.weeks; _WR_DATA = memo.rpt; _WR_TREND = memo.trend; _WR_SERIES = memo.series; _WR_SEL = memo.sel; _WR_META = memo.meta; }
+  else { _WR_DATA = undefined; _WR_TREND = null; _WR_SERIES = null; _WR_META = null; }
+  _WR_CMP = null;
+  /* Keep a week the user picked earlier this session; otherwise the newest COMPLETED week —
+     the one the last email covered, which is what someone opening this tab is almost always
+     looking for. 'latest' is resolved by the BACKEND, so the list and the report agree by
+     construction rather than by two clocks happening to match at a week boundary. */
+  var want = (memo && memo.sel) ? memo.sel : 'latest';
+  /* ⚠⚠ ALL FOUR IN FLIGHT AT ONCE. The week list used to be fetched FIRST and the other three
+     only after it landed — a whole round trip (~3s, measured 2026-09-03) spent waiting on
+     date math. The report and trend each still cost a backend read; in parallel the tab pays
+     the slowest, not the sum. That is why readWeeklyTrend is its own action.
+     ⚠ Trend and series failures must never cost you the report — each catches to null and
+     its section simply does not render. */
+  var weeksP  = api({action:'getWeeklyReportWeeks'}).then(function(d){ return (d && d.weeks) || []; })
+                                                    .catch(function(){ return _WR_WEEKS_LIST || []; });
+  var reportP = api({action:'readWeeklyReport', weekStart:want});
+  var trendP  = api({action:'readWeeklyTrend',  weekStart:want}).catch(function(){ return null; });
+  var seriesP = api({action:'readWeeklySeries'}).catch(function(){ return null; });
+  Promise.all([weeksP, reportP, trendP, seriesP]).then(function(all){
+    var res = all[1] || {};
+    var weeks = (res.weeks && res.weeks.length) ? res.weeks : all[0];
+    if (!weeks.length) return { weeks:[], rpt:null, trend:null, series:all[3], sel:null, meta:null };
+    /* A backend from before 2026-09-03 does not know 'latest' and answers with an error.
+       Fall back to the old two-step — ask again with the newest week from the list. One extra
+       round trip until the backend is redeployed; never a wrong week, never a blank tab. */
+    if (res.error && want === 'latest') {
+      var w0 = weeks[0].start;
+      return Promise.all([
+        api({action:'readWeeklyReport', weekStart:w0}),
+        api({action:'readWeeklyTrend',  weekStart:w0}).catch(function(){ return null; })
+      ]).then(function(b){
+        var r2 = b[0] || {};
+        return { weeks:weeks, rpt:r2.report || null, trend:(b[1] && b[1].trend) || null, series:all[3], sel:w0, meta:_wrMetaOf(r2) };
+      });
+    }
+    var sel = (res.range && res.range.start) || (want === 'latest' ? weeks[0].start : want);
+    return { weeks:weeks, rpt:res.report || null, trend:(all[2] && all[2].trend) || null, series:all[3], sel:sel, meta:_wrMetaOf(res) };
+  }).then(function(out){
     _WR_LOADING = false;
     if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice) return;
-    _WR_WEEKS_LIST = out.weeks; _WR_DATA = out.rpt;
-    _WR_TREND = out.trend; _WR_SERIES = out.series;
-    var c = document.getElementById('main-content'); if (c) c.innerHTML = _wrBuildHtml();
+    _WR_WEEKS_LIST = out.weeks; _WR_DATA = out.rpt; _WR_SEL = out.sel;
+    _WR_TREND = out.trend; _WR_SERIES = out.series; _WR_META = out.meta;
+    _wrRemember(selOffice);
+    _wrPaint();
   }).catch(function(){
     _WR_LOADING = false;
     if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice) return;
-    _WR_DATA = null; _WR_TREND = null;
-    var c = document.getElementById('main-content'); if (c) c.innerHTML = _wrBuildHtml();
+    if (_WR_DATA === undefined) { _WR_DATA = null; _WR_TREND = null; }   // nothing painted yet: say so
+    _wrPaint();
   });
-  return loadingState('Loading the weekly report for ' + (CFG.officeName||CFG.officeId) + '…', { icon:'inbox' });
+  return memo ? _wrBuildHtml()
+              : loadingState('Loading the weekly report for ' + (CFG.officeName||CFG.officeId) + '…', { icon:'inbox' });
 }
 
 /* Re-point the comparison. Only the trend changes — the selected week's own numbers are
@@ -84,7 +124,7 @@ function wrCompareTo(weekStart) {
   api(q).then(function(res){
     if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice || _WR_SEL !== sel) return;
     _WR_TREND = (res && res.trend) || null;
-    var c = document.getElementById('main-content'); if (c) c.innerHTML = _wrBuildHtml();
+    _wrPaint();
   }).catch(function(){ /* leave the last good trend rendered rather than blanking the tab */ });
 }
 
@@ -94,8 +134,8 @@ function wrSelectWeek(weekStart) {
      selected week against a week that may now be AFTER it — a comparison that looks perfectly
      normal and is backwards. */
   _WR_CMP = null;
-  _WR_LOADING = true;
   var selOffice = CFG.officeId;
+  _WR_LOADING = selOffice;
   var c = document.getElementById('main-content');
   if (c) c.innerHTML = loadingState('Loading…', { icon:'inbox' });
   // Parallel, for the same reason as the initial load. The series does NOT change with the
@@ -113,8 +153,14 @@ function wrSelectWeek(weekStart) {
        selection's comparison under this selection's header — the exact class of mismatch the
        office-pinning above exists to prevent. */
     _WR_TREND = (both[1] && both[1].trend) || null;
-    var c2 = document.getElementById('main-content'); if (c2) c2.innerHTML = _wrBuildHtml();
-  }).catch(function(){ _WR_LOADING = false; });
+    _WR_META = _wrMetaOf(res);
+    _wrRemember(selOffice);
+    _wrPaint();
+  }).catch(function(){
+    _WR_LOADING = false;
+    if (CURRENT_TAB !== 'weeklyreport' || CFG.officeId !== selOffice) return;
+    _wrPaint();   // back to what was showing, rather than a spinner that never ends
+  });
 }
 
 // "Aug 17 – Aug 23, 2026" from the two ISO ends. Noon anchor, same as _drFmtDate: a bare
@@ -153,6 +199,10 @@ function _wrBuildHtml() {
       (officeNm?'<span class="dr-office">'+esc(officeNm)+'</span>':'')+
       '<span class="dr-title">'+icon('inbox')+' Weekly Report</span>'+
       (rangeLabel?'<span class="dr-daylabel">'+esc(rangeLabel)+'</span>':'')+
+      /* When the numbers were taken. A stored week is the row the Monday email wrote, so it
+         says so; a backfilled one was filled from history and never sent. */
+      ((_WR_META && _WR_META.stored && _WR_META.storedAt)
+        ? '<span class="dr-gents">'+(_WR_META.backfilled ? 'Stored ' : 'As emailed ')+_drFmtTs(_WR_META.storedAt)+'</span>' : '')+
     '</div>'+
     '<div class="dr-controls">'+
       (opts.length?'<select class="dr-date-sel" onchange="wrSelectWeek(this.value)" aria-label="Week">'+opts.join('')+'</select>':'')+
@@ -414,6 +464,16 @@ var _DR_DATA = undefined; // undefined=not loaded, null=no report for this date
 var _DR_DATES = null;
 var _DR_SEL_DATE = null;
 var _DR_LOADING = false;
+var _DR_LOADING_FOR = '';   // office|date the in-flight load belongs to
+var _DR_UPDATING = false;   // a rebuild is running BEHIND the painted report
+/* INSTANT RE-ENTRY (2026-09-03): office|date → { report, dates }. Coming back to the tab
+   paints the last report at once; the read then lands behind it and repaints if anything
+   moved. Keyed by office AND date because switchOffice swaps CFG in place and the tab always
+   re-pins to today. Replaced on every landing, never trusted over one. */
+var _DR_MEMO = {};
+
+function _drPaint() { var c = document.getElementById('main-content'); if (c) c.innerHTML = _drBuildHtml(); }
+function _drRemember(office, date) { if (_DR_DATA) _DR_MEMO[office + '|' + date] = { report:_DR_DATA, dates:_DR_DATES }; }
 
 function _drTodayStr() {
   var d = new Date();
@@ -443,51 +503,81 @@ function renderDailyReport() {
   // the same minute no longer trigger ten identical rebuilds.
   // The date picker still pulls older SAVED reports via drSelectDate (read-only).
   _DR_SEL_DATE = _drTodayStr();            // reset to today on every entry (handles midnight rollover)
-  if (_DR_LOADING) return loadingState('Generating today’s report…', { icon:'dailyreport' });
-  _DR_LOADING = true;
-  _DR_DATA    = undefined;
   var selDate   = _DR_SEL_DATE;
   var selOffice = CFG.officeId;             // pin office so a stale regen can't paint over a new one
-  // Dates list (for the picker) loads in parallel with the generate→read chain.
-  var datesP  = api({action:'getDailyReportDates'}).then(function(d){ return d.dates || []; }).catch(function(){ return _DR_DATES || []; });
-  // Read → rebuild only if needed → re-read. The common case is now ONE cheap GET.
-  var reportP = api({action:'readDailyReport', date:selDate}).then(function(r){
-    if (_drStoredIsCurrent(r)) return r;
-    return apiPost({action:'generateDailyReport', date:selDate})
-      .then(function(){ return api({action:'readDailyReport', date:selDate}); });
-  });
-  Promise.all([datesP, reportP]).then(function(res) {
-    _DR_LOADING = false;
+  var key = selOffice + '|' + selDate;
+  if (_DR_LOADING) {
+    // A load is already running for exactly this office+day: keep what is painted.
+    return (_DR_LOADING_FOR === key && _DR_DATA) ? _drBuildHtml() : loadingState('Generating today’s report…', { icon:'dailyreport' });
+  }
+  _DR_LOADING = true; _DR_LOADING_FOR = key;
+  var memo = _DR_MEMO[key] || null;
+  _DR_DATA = memo ? memo.report : undefined;
+  if (memo) _DR_DATES = memo.dates;
+  _DR_UPDATING = !!memo;
+  var reportP = api({action:'readDailyReport', date:selDate});
+  /* The dates list rides INSIDE readDailyReport since 2026-09-03 (same column read that
+     found the row). A backend from before that omits it, and the picker is fetched the old
+     way — one extra call, only until the redeploy. */
+  var datesP  = reportP.then(function(r){
+    return (r && r.dates) ? r.dates : api({action:'getDailyReportDates'}).then(function(d){ return d.dates || []; });
+  }).catch(function(){ return _DR_DATES || []; });
+  Promise.all([reportP, datesP]).then(function(res) {
+    var r = res[0];
     // Bail if the user navigated away, switched office, or changed the date mid-flight.
-    if (CURRENT_TAB !== 'dailyreport' || CFG.officeId !== selOffice || _DR_SEL_DATE !== selDate) return;
-    _DR_DATES = res[0];
-    _DR_DATA  = (res[1] && res[1].report) ? res[1].report : null;
-    var c = document.getElementById('main-content'); if (c) c.innerHTML = _drBuildHtml();
+    if (CURRENT_TAB !== 'dailyreport' || CFG.officeId !== selOffice || _DR_SEL_DATE !== selDate) { _DR_LOADING = false; _DR_UPDATING = false; return; }
+    _DR_DATES = res[1];
+    /* ⚠⚠ PAINT FIRST, REBUILD BEHIND. The stored build paints as soon as it lands — ONE round
+       trip. If the backend says its inputs have moved since, the rebuild runs AFTER the paint
+       and repaints when it finishes, with "updating…" beside the timestamp meanwhile. The tab
+       used to hold a spinner through read → rebuild → read, three round trips, on essentially
+       every open (measured 2026-09-03: 16–20s). Nothing about WHAT is shown changed: the
+       backend still decides freshness (`fresh`), and a stale build still rebuilds. */
+    if (r && r.report) { _DR_DATA = r.report; _DR_UPDATING = !_drStoredIsCurrent(r); _drRemember(selOffice, selDate); _drPaint(); }
+    if (_drStoredIsCurrent(r)) { _DR_LOADING = false; _DR_UPDATING = false; return; }
+    // Re-pinned here (equal to selOffice — the guard above just proved it) so the rebuild's
+    // own handler carries its capture in scope, the shape officerace_harness audits for.
+    var reqOffice = CFG.officeId;
+    return apiPost({action:'generateDailyReport', date:selDate})
+      .then(function(){ return api({action:'readDailyReport', date:selDate}); })
+      .then(function(r2) {
+        _DR_LOADING = false; _DR_UPDATING = false;
+        if (CURRENT_TAB !== 'dailyreport' || CFG.officeId !== reqOffice || _DR_SEL_DATE !== selDate) return;
+        _DR_DATA = (r2 && r2.report) ? r2.report : (_DR_DATA || null);
+        if (r2 && r2.dates) _DR_DATES = r2.dates;
+        _drRemember(selOffice, selDate);
+        _drPaint();
+      });
   }).catch(function() {
-    _DR_LOADING = false;
+    _DR_LOADING = false; _DR_UPDATING = false;
     if (CURRENT_TAB !== 'dailyreport' || CFG.officeId !== selOffice || _DR_SEL_DATE !== selDate) return;
-    _DR_DATA = null;
-    var c = document.getElementById('main-content'); if (c) c.innerHTML = _drBuildHtml();
+    if (_DR_DATA === undefined) _DR_DATA = null;   // nothing painted yet: say so
+    _drPaint();
   });
-  return loadingState('Generating today’s report for ' + (CFG.officeName||CFG.officeId) + '…', {
-    icon:'dailyreport', sub:'This may take a moment.' });
+  return memo ? _drBuildHtml()
+              : loadingState('Generating today’s report for ' + (CFG.officeName||CFG.officeId) + '…', {
+                  icon:'dailyreport', sub:'This may take a moment.' });
 }
 
 function drSelectDate(date) {
   _DR_SEL_DATE = date;
-  _DR_DATA = undefined;
-  _DR_LOADING = true;
-  var c = document.getElementById('main-content');
-  if (c) c.innerHTML = loadingState('Loading…', { icon:'dailyreport' });
+  _DR_UPDATING = false;
   var _reqOffice = CFG.officeId;
+  var memo = _DR_MEMO[_reqOffice + '|' + date] || null;
+  _DR_DATA = memo ? memo.report : undefined;
+  _DR_LOADING = true; _DR_LOADING_FOR = _reqOffice + '|' + date;
+  var c = document.getElementById('main-content');
+  if (c) c.innerHTML = memo ? _drBuildHtml() : loadingState('Loading…', { icon:'dailyreport' });
   api({action:'readDailyReport', date:date}).then(function(r) {
     _DR_LOADING = false;
     /* Office guard, same reasoning as the weekly report above: a report is the last surface
        where one office's numbers under another office's header would be survivable.
        ⚠ _DR_LOADING cleared above the return, or the tab wedges on "Loading…". */
-    if (CFG.officeId !== _reqOffice) return;
+    if (CFG.officeId !== _reqOffice || _DR_SEL_DATE !== date) return;
     _DR_DATA = (r && r.report) ? r.report : null;
-    var c2 = document.getElementById('main-content'); if (c2) c2.innerHTML = _drBuildHtml();
+    if (r && r.dates) _DR_DATES = r.dates;
+    _drRemember(_reqOffice, date);
+    _drPaint();
   }).catch(function() { _DR_LOADING = false; });
 }
 
@@ -511,7 +601,9 @@ function drRefresh() {
     _DR_LOADING = false;
     if (CFG.officeId !== _reqOffice) return;   // office guard — see drSelectDate
     _DR_DATA = (r && r.report) ? r.report : null;
-    var c2 = document.getElementById('main-content'); if (c2) c2.innerHTML = _drBuildHtml();
+    if (r && r.dates) _DR_DATES = r.dates;
+    _drRemember(_reqOffice, selDate);
+    _drPaint();
   }).catch(function() { _DR_LOADING = false; });
 }
 
@@ -543,7 +635,7 @@ function _drBuildHtml() {
     ? '<img class="dr-logo'+(_drLg.fullLight ? ' dr-logo-dark' : '')+'" src="'+_drLg.full+'" alt="'+esc(officeNm)+'" style="height:'+_drH+'px">'
       + (_drLg.fullLight ? '<img class="dr-logo dr-logo-light" src="'+_drLg.fullLight+'" alt="'+esc(officeNm)+'" style="height:'+_drH+'px">' : '')
     : '';
-  var genAt = rpt ? '<span class="dr-gents">Generated '+_drFmtTs(rpt.generatedAt)+'</span>' : '';
+  var genAt = rpt ? '<span class="dr-gents">Generated '+_drFmtTs(rpt.generatedAt)+(_DR_UPDATING ? ' · updating…' : '')+'</span>' : '';
   var header = '<div class="card-header dark dr-header">'+
     '<div class="dr-titlewrap">'+
       drLogoImg+
