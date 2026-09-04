@@ -641,8 +641,8 @@ function _rehashText(d) {
   s.push('   • Proration (31-60 days of service)');
   s.push('   • Activation fees (will be reimbursed)');
   s.push('   • Delayed credits (not applied yet)');
-  s.push('   • Trade-in credits (will be reimbursed)');
-  s.push('   • $150 port credits (will be reimbursed)', '');
+  s.push('   • Trade-in credits (will be reimbursed)', '');
+  // The "$150 port credits" line was removed from every text 2026-09-04 (user) — do not re-add.
   s.push('2️⃣  Second Bill:');
   s.push('   • No more proration (only 30 days of service)');
   s.push('   • Delayed credits (not applied yet)', '');
