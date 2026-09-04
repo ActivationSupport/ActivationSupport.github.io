@@ -7,6 +7,57 @@ var _AR_LINES = null;
 var _AR_AGG = null;
 var _AR_LOADING = false;
 
+/* ── ROW ORDER — Activation Rates + Churn (user, 2026-09-04) ─────────────────────────────
+   "Sort from highest to lowest": Churn = most lines churned, then highest percent; Activation
+   Rates = most lines, then most lines activated.
+   🔑 THE DEFAULT COLUMN IS THE USER'S PICK from a rendered preview (ratesort_preview_build.js):
+   Churn opens on 0-30 Day, Activation Rates on 8–14 Days — NOT the total across buckets, which
+   was offered and declined ("B is closest to what we are wanting, churn 0-30 activation rate
+   8-14"). 'total' remains reachable only through the sort logic, not a header.
+   Clicking a bucket header sorts by that bucket alone with the same two keys; clicking Rep
+   sorts A–Z; clicking the active header flips direction. Ties stay A–Z in either direction.
+   Module-level state on purpose — every change re-renders the wrap through innerHTML.
+   ⚠ Headers are only clickable when there are 2+ rep rows: a client-rep's own row and the
+   Teams page's total-only churn table (app.people.js) get plain headers and no caption. */
+var _AR_SORT = { col: 'b8_14', dir: -1 };
+var _CH_SORT = { col: '0-30 Day', dir: -1 };
+function _rateNextSort(st, col) {
+  return { col: col, dir: (st.col === col) ? -st.dir : (col === 'rep' ? 1 : -1) };
+}
+/* One header emitter and one caption for BOTH tabs, so they cannot drift in how a sort shows. */
+function _rateTh(col, label, sortable, st, handler, style) {
+  var sty = style ? ' style="' + style + '"' : '';
+  if (!sortable) return '<th' + sty + '>' + label + '</th>';
+  var on = st.col === col;
+  return '<th class="sort-th"' + sty + ' onclick="' + handler + '(\'' + col + '\')" title="Sort by ' + label + '">' +
+    label + (on ? (st.dir === -1 ? ' ↓' : ' ↑') : '') + '</th>';
+}
+function _rateSortCaption(st, cols, noun) {
+  var label = '';
+  cols.forEach(function(c) { if (c[0] === st.col) label = c[1]; });
+  var what = st.col === 'rep'   ? (st.dir === 1 ? 'Rep A–Z' : 'Rep Z–A')
+           : st.col === 'total' ? ('total ' + noun + (st.dir === -1 ? ', most first' : ', fewest first'))
+           :                      (label + ' ' + noun + (st.dir === -1 ? ', most first' : ', fewest first'));
+  return '<div style="font-size:.78rem;color:var(--text2);margin:0 0 8px">Sorted by ' + what +
+    ' &middot; click a column header to change</div>';
+}
+function _arSortBy(col) { _AR_SORT = _rateNextSort(_AR_SORT, col); refreshActRates(); }
+function _arSortedReps(repData) {
+  var s = _AR_SORT;
+  function tot(d, f) { return d.b0_7[f] + d.b8_14[f] + d.b15_30[f] + d.b31_60[f]; }
+  function k(rep) {
+    var d = repData[rep];
+    if (s.col === 'total') return [tot(d, 't'), tot(d, 'a')];
+    var b = d[s.col] || { t: 0, a: 0 };
+    return [b.t, b.a];
+  }
+  return Object.keys(repData).sort(function(x, y) {
+    if (s.col === 'rep') return s.dir * x.localeCompare(y);
+    var kx = k(x), ky = k(y), c = (kx[0] - ky[0]) || (kx[1] - ky[1]);
+    return c ? s.dir * c : x.localeCompare(y);
+  });
+}
+
 function renderActRates() {
   if (_AR_LINES) return _renderActRatesWithData();
   if (_AR_LOADING) return loadingState('Loading activation rates…', { icon:'actrates', bare:true });
@@ -154,7 +205,8 @@ function _buildArTable(repFilter) {
     return '<td class="ar-cell"><div class="ar-badge '+cls+'">('+b.a+'/'+b.t+')<br>'+pct+'%</div></td>';
   }
 
-  var repRows = Object.keys(repData).sort().map(function(rep) {
+  var repOrder = _arSortedReps(repData);
+  var repRows = repOrder.map(function(rep) {
     var d=repData[rep];
     return '<tr><td class="ar-rep">'+esc(rep)+'</td>'+cell(d.b0_7,'b0_7',false)+cell(d.b8_14,'b8_14',false)+cell(d.b15_30,'b15_30',false)+cell(d.b31_60,'b31_60',false)+'</tr>';
   }).join('');
@@ -163,8 +215,11 @@ function _buildArTable(repFilter) {
 
   var grandRow = '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+cell(totals.b0_7,'b0_7',true)+cell(totals.b8_14,'b8_14',true)+cell(totals.b15_30,'b15_30',true)+cell(totals.b31_60,'b31_60',true)+'</tr>';
 
-  return '<div class="tbl-wrap"><table class="call-table"><thead><tr>' +
-    '<th>Rep</th><th>0–7 Days</th><th>8–14 Days</th><th>15–30 Days</th><th>31–60 Days</th>' +
+  var sortable = repOrder.length > 1;
+  var AR_COLS = [['rep','Rep'],['b0_7','0–7 Days'],['b8_14','8–14 Days'],['b15_30','15–30 Days'],['b31_60','31–60 Days']];
+  var ths = AR_COLS.map(function(c) { return _rateTh(c[0], c[1], sortable, _AR_SORT, '_arSortBy'); }).join('');
+  return (sortable ? _rateSortCaption(_AR_SORT, AR_COLS, 'lines') : '') +
+    '<div class="tbl-wrap"><table class="call-table"><thead><tr>' + ths +
     '</tr></thead><tbody>'+grandRow+repRows+'</tbody></table></div>';
 }
 
@@ -2028,6 +2083,37 @@ function _churnCls(color) {
   return c==='green'?'ar-green':c==='yellow'?'ar-yellow':c==='red'?'ar-red':'';
 }
 
+/* Churn sort — see the ROW ORDER block at the top of this file. Column ids are the bucket
+   strings themselves (they are the repMap keys); 'total' sums every bucket; 'rep' is A–Z.
+   ⚠ Re-renders through renderChurn(), NOT refreshChurn(): refreshChurn reads DATA.churnReport
+   unscoped and is only ever reached from the admin-tier rep dropdown. Going through renderChurn
+   keeps a leader's team scope and a client-rep's own-row scope intact. The dropdown value is
+   carried across so an admin's rep filter survives the click. */
+function _chSortBy(col) {
+  _CH_SORT = _rateNextSort(_CH_SORT, col);
+  var sel = document.getElementById('churn-rep-sel'), v = sel ? sel.value : '';
+  var c = document.getElementById('main-content'); if (!c) return;
+  c.innerHTML = renderChurn();
+  if (v) { var s2 = document.getElementById('churn-rep-sel'); if (s2) { s2.value = v; refreshChurn(); } }
+}
+function _chSortedReps(repList, repMap) {
+  var s = _CH_SORT;
+  function k(rep) {
+    var m = repMap[rep] || {}, d = 0, a = 0;
+    if (s.col === 'total') {
+      CHURN_BUCKETS.forEach(function(b) { var r = m[b]; if (r) { d += r.disconnects || 0; a += r.activated || 0; } });
+    } else {
+      var r1 = m[s.col]; if (r1) { d = r1.disconnects || 0; a = r1.activated || 0; }
+    }
+    return [d, a ? d / a : 0];
+  }
+  return repList.slice().sort(function(x, y) {
+    if (s.col === 'rep') return s.dir * x.localeCompare(y);
+    var kx = k(x), ky = k(y), c = (kx[0] - ky[0]) || (kx[1] - ky[1]);
+    return c ? s.dir * c : x.localeCompare(y);
+  });
+}
+
 function _buildChurnRepMap(rows, repFilter) {
   var repMap = {}, repList = [];
   (rows||[]).forEach(function(r) {
@@ -2101,13 +2187,17 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
     var cls = churnTotalCls(bkt, pct, pctR);
     return '<td class="ar-cell"><span class="ar-badge '+cls+'">('+fmtN(disco)+'/'+fmtN(acts)+')<br>'+pct.toFixed(1)+'%</span></td>';
   }
-  var hdr = '<th style="min-width:160px">Rep</th>' +
-    CHURN_BUCKETS.map(function(b){return '<th style="min-width:110px">'+esc(b)+'</th>';}).join('');
+  var order = _chSortedReps(repList, repMap);
+  var sortable = order.length > 1;
+  var CH_COLS = [['rep','Rep']].concat(CHURN_BUCKETS.map(function(b) { return [b, esc(b)]; }));
+  var hdr = _rateTh('rep', 'Rep', sortable, _CH_SORT, '_chSortBy', 'min-width:160px') +
+    CHURN_BUCKETS.map(function(b){ return _rateTh(b, esc(b), sortable, _CH_SORT, '_chSortBy', 'min-width:110px'); }).join('');
   var grandRow = '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+CHURN_BUCKETS.map(totalCell).join('')+'</tr>';
-  var repRows = repList.map(function(rep){
+  var repRows = order.map(function(rep){
     return '<tr><td class="ar-rep">'+esc(rep)+'</td>'+CHURN_BUCKETS.map(function(bkt){return cell(repMap[rep][bkt]);}).join('')+'</tr>';
   }).join('');
-  return '<div class="tbl-wrap"><table><thead><tr>'+hdr+'</tr></thead><tbody>'+grandRow+repRows+'</tbody></table></div>';
+  return (sortable ? _rateSortCaption(_CH_SORT, CH_COLS, 'lines churned') : '') +
+    '<div class="tbl-wrap"><table><thead><tr>'+hdr+'</tr></thead><tbody>'+grandRow+repRows+'</tbody></table></div>';
 }
 
 /* Expand the identity-free `churnAgg` into the (repList, repMap) shape `_churnTableHtml`
