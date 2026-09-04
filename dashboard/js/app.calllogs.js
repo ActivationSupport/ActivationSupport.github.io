@@ -41,6 +41,14 @@ function _rateSortCaption(st, cols, noun) {
   return '<div style="font-size:.78rem;color:var(--text2);margin:0 0 8px">Sorted by ' + what +
     ' &middot; click a column header to change</div>';
 }
+/* First non-zero difference along a key chain. Every key chain below ends in the rep's TOTALS
+   across all buckets, so a rep with nothing in the sorted column still lands somewhere
+   meaningful instead of in an alphabetical block at the bottom (user, 2026-09-04: "activations
+   do not seem to be organized at all" — the 8–14 column was empty for most reps). */
+function _rateCmp(kx, ky) {
+  for (var i = 0; i < kx.length; i++) { var c = kx[i] - ky[i]; if (c) return c; }
+  return 0;
+}
 function _arSortBy(col) { _AR_SORT = _rateNextSort(_AR_SORT, col); refreshActRates(); }
 function _arSortedReps(repData) {
   var s = _AR_SORT;
@@ -49,11 +57,11 @@ function _arSortedReps(repData) {
     var d = repData[rep];
     if (s.col === 'total') return [tot(d, 't'), tot(d, 'a')];
     var b = d[s.col] || { t: 0, a: 0 };
-    return [b.t, b.a];
+    return [b.t, b.a, tot(d, 't'), tot(d, 'a')];   // bucket lines, bucket acts, then totals
   }
   return Object.keys(repData).sort(function(x, y) {
     if (s.col === 'rep') return s.dir * x.localeCompare(y);
-    var kx = k(x), ky = k(y), c = (kx[0] - ky[0]) || (kx[1] - ky[1]);
+    var c = _rateCmp(k(x), k(y));
     return c ? s.dir * c : x.localeCompare(y);
   });
 }
@@ -2099,17 +2107,18 @@ function _chSortBy(col) {
 function _chSortedReps(repList, repMap) {
   var s = _CH_SORT;
   function k(rep) {
-    var m = repMap[rep] || {}, d = 0, a = 0;
-    if (s.col === 'total') {
-      CHURN_BUCKETS.forEach(function(b) { var r = m[b]; if (r) { d += r.disconnects || 0; a += r.activated || 0; } });
-    } else {
-      var r1 = m[s.col]; if (r1) { d = r1.disconnects || 0; a = r1.activated || 0; }
-    }
-    return [d, a ? d / a : 0];
+    var m = repMap[rep] || {}, td = 0, ta = 0;
+    CHURN_BUCKETS.forEach(function(b) { var r = m[b]; if (r) { td += r.disconnects || 0; ta += r.activated || 0; } });
+    if (s.col === 'total') return [td, ta ? td / ta : 0, ta];
+    var d = 0, a = 0, r1 = m[s.col]; if (r1) { d = r1.disconnects || 0; a = r1.activated || 0; }
+    /* lines churned, then percent, then ACTIVATED lines — so the reps with sales and no churn
+       (user, 2026-09-04: "reps who have sales but no churn [need] to be sorted as well") rank
+       by how much they sold rather than by name — then the totals across buckets. */
+    return [d, a ? d / a : 0, a, td, ta];
   }
   return repList.slice().sort(function(x, y) {
     if (s.col === 'rep') return s.dir * x.localeCompare(y);
-    var kx = k(x), ky = k(y), c = (kx[0] - ky[0]) || (kx[1] - ky[1]);
+    var c = _rateCmp(k(x), k(y));
     return c ? s.dir * c : x.localeCompare(y);
   });
 }
