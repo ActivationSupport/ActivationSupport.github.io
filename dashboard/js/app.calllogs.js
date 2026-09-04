@@ -9,7 +9,9 @@ var _AR_LOADING = false;
 
 /* ── ROW ORDER — Activation Rates + Churn (user, 2026-09-04) ─────────────────────────────
    "Sort from highest to lowest": Churn = most lines churned, then highest percent; Activation
-   Rates = most lines, then most lines activated.
+   Rates = most lines sitting INACTIVE (volume minus activations), then most lines active
+   (user, later the same day: "who has the most lines sitting unactive and who has the most
+   lines active" — the first cut ranked by volume, which is not the same question).
    🔑 THE DEFAULT COLUMN IS THE USER'S PICK from a rendered preview (ratesort_preview_build.js):
    Churn opens on 0-30 Day, Activation Rates on 8–14 Days — NOT the total across buckets, which
    was offered and declined ("B is closest to what we are wanting, churn 0-30 activation rate
@@ -54,10 +56,10 @@ function _arSortedReps(repData) {
   var s = _AR_SORT;
   function tot(d, f) { return d.b0_7[f] + d.b8_14[f] + d.b15_30[f] + d.b31_60[f]; }
   function k(rep) {
-    var d = repData[rep];
-    if (s.col === 'total') return [tot(d, 't'), tot(d, 'a')];
+    var d = repData[rep], ti = tot(d, 't') - tot(d, 'a'), ta = tot(d, 'a');
+    if (s.col === 'total') return [ti, ta];
     var b = d[s.col] || { t: 0, a: 0 };
-    return [b.t, b.a, tot(d, 't'), tot(d, 'a')];   // bucket lines, bucket acts, then totals
+    return [b.t - b.a, b.a, ti, ta];   // bucket INACTIVE, bucket active, then the same totals
   }
   return Object.keys(repData).sort(function(x, y) {
     if (s.col === 'rep') return s.dir * x.localeCompare(y);
@@ -226,7 +228,7 @@ function _buildArTable(repFilter) {
   var sortable = repOrder.length > 1;
   var AR_COLS = [['rep','Rep'],['b0_7','0–7 Days'],['b8_14','8–14 Days'],['b15_30','15–30 Days'],['b31_60','31–60 Days']];
   var ths = AR_COLS.map(function(c) { return _rateTh(c[0], c[1], sortable, _AR_SORT, '_arSortBy'); }).join('');
-  return (sortable ? _rateSortCaption(_AR_SORT, AR_COLS, 'lines') : '') +
+  return (sortable ? _rateSortCaption(_AR_SORT, AR_COLS, 'inactive lines') : '') +
     '<div class="tbl-wrap"><table class="call-table"><thead><tr>' + ths +
     '</tr></thead><tbody>'+grandRow+repRows+'</tbody></table></div>';
 }
