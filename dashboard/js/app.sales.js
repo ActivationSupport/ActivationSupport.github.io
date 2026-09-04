@@ -598,6 +598,10 @@ function _rehashText(d) {
     s.push('   • After activating your new AT&T phones, your old carrier will send a final bill with the remaining balance of any unpaid devices');
     s.push('   • Submit that bill here: https://rewardcenteroffers.com/ETF');
     s.push('   • Can take 8-11 weeks to receive', '');
+  }
+  // $150 gift card — Wireless CONSUMER only. Business orders do not get it (user, 2026-09-04),
+  // so a Business text must not promise a redemption email that never comes.
+  if (hasW && !isBiz) {
     s.push('🎁 $150 Gift Card');
     s.push('   • Redemption will be emailed 3 weeks after activation');
     s.push('   • https://rewardcenter.att.com/home.aspx', '');
