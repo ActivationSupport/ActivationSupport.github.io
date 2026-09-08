@@ -465,10 +465,10 @@ function _asParse(r, meta) {
           kerr.asCode = 'AUTH-02'; kerr.asTransport = true; kerr.asRetryable = true;
           throw kerr;
         }
-        _ERR.report('AUTH-02', { message: 'unauthorized' }, {
+        _ERR.report('AUTH-02', { message: 'unauthorized' }, _asExtra(meta, {
           action: meta.action || '', kind: meta.write ? 'write' : 'read',
           attempts: meta.attempts || 1
-        });
+        }));
         return _authIntercept(j);
       }
       if (j.error && !_asExpectedRefusal(j, meta)) _asReportJsonError(j.error, meta);
@@ -532,11 +532,11 @@ function _asParse(r, meta) {
        it was the single case guaranteed to stay invisible.
        🔑 The condition is "is a retry actually coming", not "is this the last attempt". */
     if (!meta.noReport || err.asRetryable === false) {
-      _ERR.report(code, err, {
+      _ERR.report(code, err, _asExtra(meta, {
         action: meta.action || '', http: r.status, kind: meta.write ? 'write' : 'read',
         bodyStart: body.slice(0, 200), bodyLen: body.length,
         attempts: meta.attempts || 1
-      });
+      }));
     }
     throw err;
   });
@@ -630,6 +630,22 @@ function _asCreatesRecord(action, write) {
   return !_AS_NONWRITE_ACTIONS[String(action || '')];
 }
 
+/* The Extra of an error report, carrying `waited` ONLY when the caller said whether a person
+   was looking at the result. api({}, {waited:true}) is the first load with the skeleton on
+   screen; {waited:false} is the 90-second background refresh. Absent means the caller did not
+   say, and the error digest keeps its honest "loading" bucket for that row.
+   🔑 WHY (2026-09-08): the main blob is the one action that is BOTH a wait and a poll, and the
+   digest could not tell eleven "loading" failures apart — a rep staring at a skeleton or a
+   background tick nobody saw. The first-load site already knows (`painted`); this carries it.
+   ⚠ Only a boolean is copied — _safeVal turns undefined into null, which would read as a
+   claim of "not waiting" on every row that simply did not say. */
+function _asExtra(meta, fields) {
+  var x = {};
+  for (var k in fields) if (Object.prototype.hasOwnProperty.call(fields, k)) x[k] = fields[k];
+  if (meta && typeof meta.waited === 'boolean') x.waited = meta.waited;
+  return x;
+}
+
 /* A JSON `{error:…}` is the server saying no, on purpose. We still want it CODED and
    COUNTED — "9 reps hit forbidden_office this week" is the kind of fact that is invisible
    today — but the value is returned to the caller unchanged. */
@@ -645,7 +661,7 @@ function _asReportJsonError(e, meta) {
        nothing, so WRITE-01 ("it definitely did not save") is as wrong here as WRITE-02 is on
        the transport path. This is what produced the WRITE-01 validatePin rows. */
     else code = _asCreatesRecord(meta.action, meta.write) ? 'WRITE-01' : 'DATA-02';
-    _ERR.report(code, { message: s }, { action: meta.action || '', kind: meta.write ? 'write' : 'read' });
+    _ERR.report(code, { message: s }, _asExtra(meta, { action: meta.action || '', kind: meta.write ? 'write' : 'read' }));
   } catch (_) {}
 }
 
@@ -678,9 +694,9 @@ function _asNetworkError(e, action, write, meta, timeoutMs) {
     if (!meta.noReport) {
       _ERR.report(code, { message: aborted ? ('timed out after ' + timeoutMs + 'ms') : String(e && e.message || e),
                           stack: e && e.stack },
-                    { action: action || '', kind: write ? 'write' : 'read',
+                    _asExtra(meta, { action: action || '', kind: write ? 'write' : 'read',
                       attempts: meta.attempts || 1,
-                      timedOut: aborted || undefined, timeoutMs: aborted ? timeoutMs : undefined });
+                      timedOut: aborted || undefined, timeoutMs: aborted ? timeoutMs : undefined }));
     }
     return err;
   } catch (_) { return e; }
@@ -877,10 +893,10 @@ function _asAttempt(url, payload, meta, attempt) {
        backoff before the rep sees anything — the retry would be making the wait worse, which is
        the opposite of the point. Re-report so the log records the real, final attempt count. */
     if (meta.deadlineAt && Date.now() >= meta.deadlineAt) {
-      if (m.noReport) _ERR.report(err.asCode || 'NET-01', err, {
+      if (m.noReport) _ERR.report(err.asCode || 'NET-01', err, _asExtra(meta, {
         action: act, kind: meta.write ? 'write' : 'read',
         attempts: attempt + 1, gaveUp: 'deadline'
-      });
+      }));
       throw err;
     }
     /* ⚠⚠ AND NOT INTO A BUDGET THAT CANNOT FINISH. The deadline gate above only asks "is there
@@ -904,12 +920,12 @@ function _asAttempt(url, payload, meta, attempt) {
     var _leftNow = meta.deadlineAt ? (meta.deadlineAt - Date.now()) : Infinity;
     var _nextBudget = _leftNow - (_AS_RETRY_BACKOFF[attempt] || 0);
     if (_nextBudget < _AS_MIN_ATTEMPT_MS) {
-      if (m.noReport) _ERR.report(err.asCode || 'NET-01', err, {
+      if (m.noReport) _ERR.report(err.asCode || 'NET-01', err, _asExtra(meta, {
         action: act, kind: meta.write ? 'write' : 'read',
         attempts: attempt + 1, gaveUp: 'no-budget',
         leftMs: Math.max(0, Math.round(_nextBudget)), needMs: _AS_MIN_ATTEMPT_MS,
         firstTimedOut: err.asTimedOut || undefined
-      });
+      }));
       throw err;
     }
     /* ⚠ `timedOut` is appended so dumpRetryOutcomes can split SURVIVING retries by whether the
@@ -942,7 +958,9 @@ var _API_INFLIGHT = {};
    kills EVERY read in the portal.
    ⚠ The in-flight de-dupe still keys on the same serialised params — it just is not a URL
    any more. Keep it: it is what collapses the first-paint overlaps. */
-function api(params) {
+/* `opts.waited` (boolean) says whether a person is looking at this request's result; it rides
+   in the transport meta, never in the payload, and reaches the error log via _asExtra. */
+function api(params, opts) {
   params.key = API_KEY;
   params.officeId = CFG.officeId;
   if (SESSION && SESSION.token) params.token = SESSION.token;   // Phase 1 Stage B: carry the badge
@@ -961,7 +979,9 @@ function api(params) {
   var body = {};
   Object.keys(params).forEach(function(k) { body[k] = params[k]; });
   body._read = true;
-  var p = _asFetch(APPS_SCRIPT_URL, body, { action: params.action || 'read' });
+  var meta = { action: params.action || 'read' };
+  if (opts && typeof opts.waited === 'boolean') meta.waited = opts.waited;
+  var p = _asFetch(APPS_SCRIPT_URL, body, meta);
   _API_INFLIGHT[key] = p;
   var clear = function() { delete _API_INFLIGHT[key]; };
   p.then(clear, clear);

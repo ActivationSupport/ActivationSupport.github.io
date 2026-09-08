@@ -477,7 +477,9 @@ function loadData(forceFresh) {
   if (!painted) { document.getElementById('main-content').innerHTML = skelLoader(); _skelStartNote(); }
   _CACHE.mainFlight = true;
   var _reqOffice = CFG.officeId;
-  var _mainP = api({});                  // FIRST in the queue — the visible tab needs it
+  /* `waited` tells the error log whether a person is staring at the skeleton for this blob
+     (no instant paint) or already looking at cached data. The digest cannot tell otherwise. */
+  var _mainP = api({}, { waited: !painted });   // FIRST in the queue — the visible tab needs it
   _bgRefreshLst();                       // then the secondaries, behind it rather than ahead
   _preloadArLines();
   _mainP.then(function(res) {
@@ -565,7 +567,7 @@ function _bgRefreshMain() {
   if (_CACHE.mainFlight) return;
   _CACHE.mainFlight = true;
   var _reqOffice = CFG.officeId;
-  api({}).then(function(res) {
+  api({}, { waited: false }).then(function(res) {   // the 90s refresh — nobody is waiting on it
     _CACHE.mainFlight = false;
     if (CFG.officeId !== _reqOffice) return;   // office switched mid-refresh — discard (no cross-office DATA)
     /* ⚠ A FAILED REFRESH USED TO COST A FULL TTL. mainDataTs was left untouched, so the
