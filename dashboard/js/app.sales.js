@@ -1653,7 +1653,6 @@ function _fbcDeviceCategories() {
   FBC_DEVICES.forEach(function(x){ if (!seen[x.category]) { seen[x.category] = 1; out.push(x.category); } });
   return out;
 }
-function _fbcDeviceLabel(x) { return x.make + ' ' + x.model + (x.storage ? ' - ' + x.storage : ''); }
 // The model WITHOUT its capacity — the key the first dropdown lists and the device row stores.
 function _fbcBaseLabel(x) { return x.make + ' ' + x.model; }
 // Every catalogue row for one model, cheapest first. A single-SKU device returns one row
