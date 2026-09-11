@@ -369,10 +369,109 @@ var _modalDsi = '';
 var _modalOffice = '';   // office the modal's notes belong to (cross-office dashboard support)
 var _modalApptId = '';   // set when opened from an appointment → note adds route via addAppointmentNote
 
+/* ⚠⚠ A HINT, NOT A GATE. User, 2026-09-11: *"only the person who posted them or a master
+   admin."* This decides whether to DRAW the pencil; the server decides whether the edit lands
+   (`_authorizeNoteEdit`). Never let this stand in for the real check — the same rule the posted
+   sales list states about `_psvCanEditAll`.
+   ⚠ `rowIndex` is stamped by the server in readNotes. A note without one predates the field, or
+   arrived by a path that does not carry it, and simply cannot be edited — no pencil, no error. */
+function _noteCanEdit(n) {
+  if (!n || !n.rowIndex) return false;
+  var me = String((typeof SESSION!=='undefined' && SESSION.email) || '').trim().toLowerCase();
+  if (String(SESSION.rank||'').trim().toLowerCase() === 'master-admin') return true;
+  return !!me && String(n.authorEmail||'').trim().toLowerCase() === me;
+}
 function _noteItemHtml(n) {
   var la=Math.max(0,parseInt(n.linesActivated,10)||0);
   var badge=la>0?' <span class="nm-lines-badge">'+icon('zap')+' '+la+' line'+(la===1?'':'s')+' activated</span>':'';
-  return '<div class="nm-note"><div class="nm-note-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(_noteAuthor(n))+badge+'</div><div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
+  var rx=parseInt(n.rowIndex,10)||0;
+  var pencil=_noteCanEdit(n)?'<button class="nm-note-edit" title="Edit this note" onclick="_noteEditOpen('+rx+')">'+icon('edit')+'</button>':'';
+  // Lines are only offered where they mean something — the backend zeroes them on every
+  // non-activation type, so showing the field elsewhere would promise an edit that cannot happen.
+  var editable=(n.noteType||'activation')==='activation';
+  return '<div class="nm-note" id="nm-note-'+rx+'" data-lines="'+la+'" data-editable="'+(editable?'1':'0')+'">'+
+    '<div class="nm-note-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(_noteAuthor(n))+badge+pencil+'</div>'+
+    '<div class="nm-note-text">'+esc(n.noteText)+'</div></div>';
+}
+
+/* ── Editing a note in place ───────────────────────────────────────────────────
+   Swaps the note body for a textarea (+ a line count on activation notes) and back. It edits
+   the DOM node it was given rather than re-rendering the list, so an open composer, the scroll
+   position and any other note being read all survive — the same reason the live notes poll
+   repaints histories rather than the modal (D-045: saves repaint the ITEM, not the portal). */
+/* The edit box, as its OWN emitter rather than a string built inside the DOM handler.
+   Pulled out so the rendered preview can call the SHIPPING markup instead of a hand-drawn
+   copy of it — a fixture that approves a drawing approves nothing (R-003). */
+function _noteEditBoxHtml(rowIndex, cur, wantLines) {
+  return '<div class="nm-note-edit-box">' +
+      '<textarea class="nm-textarea nm-note-edit-ta" id="nm-note-ta-'+rowIndex+'">'+esc(cur)+'</textarea>' +
+      (wantLines ? '<div class="nm-note-edit-lines">'+_linesFieldHtml('nm-note-'+rowIndex, icon('zap')+' Lines activated')+'</div>' : '') +
+      '<div class="nm-cx-err" id="nm-note-err-'+rowIndex+'"></div>' +
+      '<div class="nm-cx-form-actions">' +
+        '<button class="nm-add-btn" onclick="_noteEditSave('+rowIndex+')">SAVE</button>' +
+        '<button class="nm-close-btn" onclick="_noteEditCancel('+rowIndex+')">CANCEL</button>' +
+      '</div>' +
+    '</div>';
+}
+function _noteEditOpen(rowIndex) {
+  var el = document.getElementById('nm-note-'+rowIndex); if (!el) return;
+  if (el.querySelector('.nm-note-edit-box')) return;          // already open
+  var txt = el.querySelector('.nm-note-text'); if (!txt) return;
+  var cur = txt.textContent || '';
+  var la  = parseInt(el.getAttribute('data-lines'),10) || 0;
+  var wantLines = el.getAttribute('data-editable') === '1';
+  el.setAttribute('data-prev', cur);
+  txt.outerHTML = _noteEditBoxHtml(rowIndex, cur, wantLines);
+  if (wantLines) _linesSet('nm-note-'+rowIndex, la);
+  var ta = document.getElementById('nm-note-ta-'+rowIndex); if (ta) { ta.focus(); ta.selectionStart = ta.value.length; }
+}
+function _noteEditCancel(rowIndex) {
+  var el = document.getElementById('nm-note-'+rowIndex); if (!el) return;
+  var box = el.querySelector('.nm-note-edit-box'); if (!box) return;
+  box.outerHTML = '<div class="nm-note-text">'+esc(el.getAttribute('data-prev')||'')+'</div>';
+}
+function _noteEditSave(rowIndex) {
+  var el = document.getElementById('nm-note-'+rowIndex); if (!el) return;
+  var ta = document.getElementById('nm-note-ta-'+rowIndex); if (!ta) return;
+  var text = String(ta.value||'').trim();
+  var errEl = document.getElementById('nm-note-err-'+rowIndex);
+  // The backend refuses an empty note too — this only saves the round trip.
+  if (!text) { if (errEl) errEl.textContent = 'A note can’t be left empty. Edit the text, or press Cancel.'; ta.focus(); return; }
+  if (errEl) errEl.textContent = '';
+  var wantLines = el.getAttribute('data-editable') === '1';
+  var lines = wantLines ? _linesGet('nm-note-'+rowIndex) : 0;
+
+  // Optimistic, and scoped to this one note.
+  var box = el.querySelector('.nm-note-edit-box');
+  if (box) box.outerHTML = '<div class="nm-note-text">'+esc(text)+'</div>';
+  el.setAttribute('data-lines', lines);
+  var list = (DATA.notes && DATA.notes[_modalDsi]) || [];
+  for (var i=0;i<list.length;i++) {
+    if (parseInt(list[i].rowIndex,10) === rowIndex) { list[i].noteText = text; if (wantLines) list[i].linesActivated = lines; break; }
+  }
+  _noteAddFlight = true;
+  var _done = function(){ _noteAddFlight = false; };
+  /* 🔴 OFFICE RACE GUARD — app.calllogs.js was fixed for exactly this on 2026-09-02 and
+     officerace_harness flagged this handler as a regression the moment it was written.
+     Between the request and its reply the user can switch office; without this the rollback
+     below would paint one office's note text into another office's open modal. Same shape as
+     the main blob's guard (app.data.js:464/479) and _pseSave's. */
+  var _ofc = CFG.officeId;
+  apiPost({ action:'editNote', rowIndex:rowIndex, noteText:text, linesActivated:lines })
+    .then(function(res){
+      _done();
+      if (CFG.officeId !== _ofc) return;
+      /* ⚠ The server is the authority on BOTH the permission and the line count (it zeroes
+         lines on any non-activation type). If it refused, put the old text back rather than
+         leaving a screen that disagrees with the sheet — an optimistic repaint that hides a
+         backend rejection is the exact trap the booking code warns about. */
+      if (!res || res.error) {
+        var back = el.getAttribute('data-prev') || text;
+        var t2 = el.querySelector('.nm-note-text'); if (t2) t2.textContent = back;
+        if (typeof _drToast === 'function') _drToast(res && res.error ? res.error : 'That edit did not save.');
+      }
+    })
+    .catch(_done);
 }
 
 // NEWEST FIRST. The history boxes are only ~200px tall, so whatever renders first is
@@ -479,6 +578,86 @@ function notesCancelBlockHtml(cancelNotes) {
 // inline (not a second modal, which would fight the reason picker's own "+ Add" popup).
 // Reason is REQUIRED; 'Other' additionally requires the detail, since "Other" on its
 // own tells the Daily Report nothing.
+/* Cx INQUIRY requests — the cancel block's sibling. Amber, and deliberately simpler:
+   NO reason picker, because the user asked for *"just a note box that is required to be
+   filled"*. Anything that looks like a reason list here is scope nobody asked for. */
+function notesInquiryBlockHtml(inquiryNotes) {
+  if (!inquiryNotes || !inquiryNotes.length) return '';
+  var items = inquiryNotes.map(function(n) {
+    return '<div class="nm-iq-item">' +
+        '<div class="nm-iq-detail">'+esc(n.noteText)+'</div>' +
+        '<div class="nm-iq-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(_noteAuthor(n))+'</div>' +
+      '</div>';
+  }).join('');
+  return '<div class="nm-iq-block" id="nm-iq-block">' +
+      '<div class="nm-iq-hdr">'+icon('mail')+' Cx Inquiry Request' +
+        (inquiryNotes.length > 1 ? '<span class="nm-iq-count">'+inquiryNotes.length+'</span>' : '') +
+      '</div>' + items +
+    '</div>';
+}
+function notesInquiryFormHtml() {
+  return '<div id="nm-iq-wrap">' +
+      '<button type="button" class="nm-iq-open-btn" id="nm-iq-open" onclick="toggleInquiryForm()">' +
+        icon('mail') + ' Cx Inquiry Request</button>' +
+      '<div class="nm-iq-form" id="nm-iq-form" style="display:none">' +
+        '<div class="nm-cx-form-label">What did they ask? <span class="nm-cx-req">required</span></div>' +
+        '<textarea class="nm-textarea" id="nm-inquiry-detail" placeholder="What the customer wants to know" style="margin:9px 0 0"></textarea>' +
+        '<div class="nm-cx-err" id="nm-inquiry-err"></div>' +
+        '<div class="nm-cx-form-actions">' +
+          '<button class="nm-add-btn nm-iq-add-btn" onclick="modalAddInquiryRequest()">LOG INQUIRY REQUEST</button>' +
+          '<button class="nm-close-btn" onclick="toggleInquiryForm(false)">CANCEL</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
+function toggleInquiryForm(open) {
+  var f = document.getElementById('nm-iq-form'), b = document.getElementById('nm-iq-open');
+  if (!f || !b) return;
+  var show = (open === undefined) ? (f.style.display === 'none') : !!open;
+  f.style.display = show ? '' : 'none';
+  b.style.display = show ? 'none' : '';
+  if (show) { var d = document.getElementById('nm-inquiry-detail'); if (d) d.focus(); }
+  else { var d2 = document.getElementById('nm-inquiry-detail'); if (d2) d2.value = ''; _inquiryErr(''); }
+}
+function _inquiryErr(msg) {
+  var e = document.getElementById('nm-inquiry-err'); if (e) e.textContent = msg || '';
+}
+function modalAddInquiryRequest() {
+  var dEl = document.getElementById('nm-inquiry-detail');
+  var noteText = dEl ? String(dEl.value || '').trim() : '';
+  if (!noteText) { _inquiryErr('Say what they asked — an inquiry with no note can’t be reported on.'); if (dEl) dEl.focus(); return; }
+  _inquiryErr('');
+  var entry = { ts:new Date().toISOString(), authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email,
+                noteText:noteText, noteType:'inquiry', linesActivated:0 };
+
+  toggleInquiryForm(false);
+  if (!DATA.notes) DATA.notes = {};
+  if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
+  DATA.notes[_modalDsi].push(entry);
+  var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
+  if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
+
+  var all = _notesNewestFirst((DATA.notes[_modalDsi]||[]).filter(function(n){ return n.noteType==='inquiry'; }));
+  var block = document.getElementById('nm-iq-block');
+  if (block) block.outerHTML = notesInquiryBlockHtml(all);
+  else {
+    var cx = document.getElementById('nm-cx-block');
+    if (cx) cx.insertAdjacentHTML('afterend', notesInquiryBlockHtml(all));
+    else { var body = document.getElementById('modal-body'); if (body) body.insertAdjacentHTML('afterbegin', notesInquiryBlockHtml(all)); }
+  }
+
+  _noteAddFlight = true;
+  var _done = function(){ _noteAddFlight = false; };
+  if (_modalApptId && _modalOffice !== CFG.officeId) {
+    _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'inquiry',
+                linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
+  } else {
+    apiPost({ action:'addNote', dsi:_modalDsi, noteText:noteText, noteType:'inquiry',
+              clientKey:_clientKey('note'),
+              authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }).then(_done).catch(_done);
+  }
+}
+
 function notesCancelFormHtml() {
   var reasons = cancelReasonList();
   var picker;
@@ -618,6 +797,8 @@ function openNotesModal(dsi, customer, rep, opts) {
   var actNotes = _notesNewestFirst(notes.filter(function(n){ return (n.noteType||'activation')==='activation'; }));
   var repNotes = _notesNewestFirst(notes.filter(function(n){ return n.noteType==='rep' || n.noteType==='note'; }));
   var cancelNotes = _notesNewestFirst(notes.filter(function(n){ return n.noteType==='cancel'; }));
+  // 'inquiry' matches none of the three filters above either — same reasoning as 'cancel'.
+  var inquiryNotes = _notesNewestFirst(notes.filter(function(n){ return n.noteType==='inquiry'; }));
 
   var actHistHtml = actNotes.length ? actNotes.map(_noteItemHtml).join('') : _notesEmptyHtml('activation');
   var repHistHtml = repNotes.length ? repNotes.map(_noteItemHtml).join('') : _notesEmptyHtml('rep');
@@ -648,6 +829,7 @@ function openNotesModal(dsi, customer, rep, opts) {
     (custNote ? notesCustomerNoteHtml(custNote) : '') +
     // Spotlight: an order the customer has asked to cancel says so before anything else.
     notesCancelBlockHtml(cancelNotes) +
+    notesInquiryBlockHtml(inquiryNotes) +
     '<div class="nm-section-label nm-act-label">Activation Notes</div>' +
     '<div class="nm-history" id="nm-act-hist">'+actHistHtml+'</div>' +
     (canAddActivation ? '<textarea class="nm-textarea" id="nm-act-input" placeholder="Add activation note…" style="margin-bottom:8px"></textarea>'+_linesFieldHtml('modal-body',icon('zap')+' Lines activated on this order')+'<button class="nm-add-btn" onclick="modalAddNote(\'activation\')" style="margin-bottom:14px">ADD ACTIVATION NOTE</button>' : '') +
@@ -667,6 +849,7 @@ function openNotesModal(dsi, customer, rep, opts) {
     // _cross guard on purpose: a cancel request isn't a rating, and a cross-office
     // appointment can hear one just the same.
     (canAddRep ? notesCancelFormHtml() : '') +
+    (canAddRep ? notesInquiryFormHtml() : '') +
     '<div class="nm-actions"><button class="nm-close-btn" style="width:100%" onclick="closeModal()">CLOSE</button></div>';
 
   document.getElementById('detail-modal').classList.add('open');

@@ -787,12 +787,19 @@ function _refreshOpenNotesModal() {
   var notes = (DATA.notes || {})[_modalDsi] || [];
   var actNotes = _notesNewestFirst(notes.filter(function(n) { return (n.noteType || 'activation') === 'activation'; }));
   var repNotes = _notesNewestFirst(notes.filter(function(n) { return n.noteType === 'rep' || n.noteType === 'note'; }));
-  if (actHist) {
+  /* 🔴 DO NOT REPAINT A HISTORY THAT HAS AN EDIT OPEN IN IT. This poll rewrites innerHTML every
+     ~25s. Before notes were editable that only cost scroll position, which the code below
+     already restores. Now it would silently delete whatever the person had typed, mid-sentence,
+     with no error and nothing to recover — the same class as an optimistic repaint hiding a
+     rejection. The list refreshes on the next tick once the edit is saved or cancelled.
+     ⚠ Sibling of the existing rule that this function never touches the composer textareas. */
+  var _editOpen = function (el) { return !!(el && el.querySelector('.nm-note-edit-box')); };
+  if (actHist && !_editOpen(actHist)) {
     var atTopA = actHist.scrollTop < 4;
     actHist.innerHTML = actNotes.length ? actNotes.map(_noteItemHtml).join('') : _notesEmptyHtml('activation');
     if (atTopA) actHist.scrollTop = 0;
   }
-  if (repHist) {
+  if (repHist && !_editOpen(repHist)) {
     var atTopR = repHist.scrollTop < 4;
     repHist.innerHTML = repNotes.length ? repNotes.map(_noteItemHtml).join('') : _notesEmptyHtml('rep');
     if (atTopR) repHist.scrollTop = 0;
@@ -805,6 +812,16 @@ function _refreshOpenNotesModal() {
   else if (cancels.length) {
     var mb = document.getElementById('modal-body');
     if (mb) mb.insertAdjacentHTML('afterbegin', notesCancelBlockHtml(cancels));
+  }
+  // Same for an inquiry — it is pinned under the cancel block, so it is inserted after it
+  // when one exists and at the top when it does not.
+  var inquiries = _notesNewestFirst(notes.filter(function(n) { return n.noteType === 'inquiry'; }));
+  var iqBlock = document.getElementById('nm-iq-block');
+  if (iqBlock) iqBlock.outerHTML = notesInquiryBlockHtml(inquiries);
+  else if (inquiries.length) {
+    var cx2 = document.getElementById('nm-cx-block');
+    if (cx2) cx2.insertAdjacentHTML('afterend', notesInquiryBlockHtml(inquiries));
+    else { var mb2 = document.getElementById('modal-body'); if (mb2) mb2.insertAdjacentHTML('afterbegin', notesInquiryBlockHtml(inquiries)); }
   }
 }
 

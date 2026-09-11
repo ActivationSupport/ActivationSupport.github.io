@@ -868,6 +868,12 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .dr-cx-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-lg);background:rgba(207,107,98,.14);border:1px solid rgba(207,107,98,.3);color:var(--text);font-size:.76rem}
 .dr-cx-chip b{color:#e9756a}
 .dr-cx-reason{display:inline-block;padding:2px 8px;border-radius:var(--r-lg);background:rgba(207,107,98,.18);color:#e9756a;font-size:.74rem;font-weight:700;white-space:nowrap}
+/* Cx INQUIRY requests — the cancel block’s amber sibling. Amber, not red, on purpose:
+   a customer asking a question is not a customer leaving, and giving both the same colour
+   teaches the eye to skim both. No chip/reason rules — an inquiry has no reason list. */
+.dr-glance-iq{color:#d99a4e}
+.dr-sec-hdr-iq{color:#d99a4e}
+.dr-section-iq{border:1px solid rgba(217,154,78,.35);border-radius:var(--r-md);padding:2px 10px 10px;background:rgba(217,154,78,.05)}
 
 /* Cx request to cancel — the one thing in this modal that must read as urgent. */
 .nm-cx-block{background:rgba(207,107,98,.12);border:1.5px solid rgba(207,107,98,.5);border-left-width:4px;border-radius:var(--r-md);padding:10px 12px;margin-bottom:14px}
@@ -884,6 +890,32 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .nm-cx-open-btn:hover{background:rgba(207,107,98,.16);border-color:rgba(207,107,98,.7)}
 .nm-cx-open-btn.active{background:rgba(207,107,98,.18);border-color:#cf6b62}
 .nm-cx-form{border:1.5px solid rgba(207,107,98,.4);border-radius:var(--r-md);padding:11px 12px;margin:-6px 0 14px}
+
+/* ── Cx INQUIRY requests + in-place note editing (2026-09-11) ──────────────────
+   AMBER, not the cancel block’s red. A customer asking a question is not a customer
+   leaving, and giving both the same colour trains the eye to skim both. There is no
+   .nm-iq-reason rule on purpose — an inquiry has no reason list. */
+.nm-iq-block{background:rgba(217,154,78,.12);border:1.5px solid rgba(217,154,78,.5);border-left-width:4px;border-radius:var(--r-md);padding:10px 12px;margin-bottom:14px}
+.nm-iq-hdr{display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#d99a4e;margin-bottom:7px}
+.nm-iq-count{margin-left:auto;padding:1px 7px;border-radius:var(--r-md);background:#d99a4e;color:#1b1205;font-size:.68rem;font-weight:700}
+.nm-iq-item{padding:6px 0;border-bottom:1px solid rgba(217,154,78,.22)}
+.nm-iq-item:last-child{border-bottom:none}
+.nm-iq-detail{font-size:.88rem;color:var(--text);white-space:pre-wrap}
+.nm-iq-meta{font-size:.72rem;color:var(--text2);margin-top:3px}
+.nm-iq-open-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;margin:0 0 14px;padding:9px 14px;border:1.5px solid rgba(217,154,78,.45);border-radius:var(--r-md);background:rgba(217,154,78,.10);color:#d99a4e;font-size:.78rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.nm-iq-open-btn:hover{background:rgba(217,154,78,.16);border-color:rgba(217,154,78,.7)}
+.nm-iq-form{border:1.5px solid rgba(217,154,78,.4);border-radius:var(--r-md);padding:11px 12px;margin:-6px 0 14px}
+.nm-iq-add-btn{background:#d99a4e;color:#1b1205}
+
+/* The pencil rides in the note’s meta line, pushed right. Low-contrast until hover so a
+   list of notes still reads as notes rather than as a row of buttons. */
+.nm-note-edit{margin-left:auto;background:none;border:none;padding:0 2px;cursor:pointer;color:var(--text2);opacity:.55;line-height:1}
+.nm-note-edit:hover{opacity:1;color:var(--accent)}
+.nm-note .nm-note-meta{display:flex;align-items:center;gap:6px}
+.nm-note-edit-box{margin-top:4px}
+.nm-note-edit-ta{min-height:64px}
+.nm-note-edit-lines{margin-top:7px}
+
 .nm-cx-form .ss-combo-input,.nm-cx-form select.ps-input{width:100%}
 .nm-cx-form-label{font-size:.78rem;font-weight:700;color:#e9756a;margin-bottom:7px}
 .nm-cx-req{margin-left:5px;padding:1px 6px;border-radius:var(--r-md);background:rgba(207,107,98,.18);font-size:.64rem;letter-spacing:.04em;text-transform:uppercase}

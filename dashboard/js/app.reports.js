@@ -247,6 +247,7 @@ function _wrBuildHtml() {
     tile(sm.escalations, 'Escalations', '1–2★')+
     tile(sm.noAnswers, 'No Answers', 'this week')+
     tile(sm.cancelRequests, 'Cancel Requests', topReason)+
+    tile(sm.inquiryRequests, 'Inquiry Requests', 'this week')+
     tile(sm.openIssues, 'Open Order Issues', 'current')+
     tile(sm.deliveredNotActive, 'Delivered – Not Active', 'current')+
   '</div>';
@@ -316,7 +317,8 @@ function _wrBuildHtml() {
       ['Appointments Completed', (sm.apptResults||{}).completed||0,(P.apptResults||{}).completed||0, false],
       ['Escalations',            sm.escalations,                   P.escalations,                    true],
       ['No Answers',             sm.noAnswers,                     P.noAnswers,                      true],
-      ['Cancel Requests',        sm.cancelRequests,                P.cancelRequests,                 true]
+      ['Cancel Requests',        sm.cancelRequests,                P.cancelRequests,                 true],
+      ['Inquiry Requests',       sm.inquiryRequests,               P.inquiryRequests,                true]
     ];
     var pr = TR.prevRange || {};
     /* The comparison picker. Lists every OTHER stored week, so any two weeks can be measured
@@ -412,7 +414,8 @@ function _wrBuildHtml() {
         '<td class="wr-num">'+dO+'</td>'+
         '<td class="wr-num">'+(s.apptBooked||0)+'</td>'+
         '<td class="wr-num">'+(s.escalations||0)+'</td>'+
-        '<td class="wr-num">'+(s.cancelRequests||0)+'</td></tr>';
+        '<td class="wr-num">'+(s.cancelRequests||0)+'</td>'+
+        '<td class="wr-num">'+(s.inquiryRequests||0)+'</td></tr>';
     }).join('');
     var missing = (_WR_SERIES.weeksRequested||0) - ser.length;
     seriesSec = '<div class="wr-section"><h3 class="wr-h">Multi-week comparison '+
@@ -420,7 +423,8 @@ function _wrBuildHtml() {
       '<table><thead><tr><th>Week</th><th class="wr-num">Activated</th><th class="wr-num">vs prev</th>'+
       '<th class="wr-num">Orders</th><th class="wr-num">vs prev</th>'+
       '<th class="wr-num">Appts</th><th class="wr-num">Escal</th>'+
-      '<th class="wr-num">Cancels</th></tr></thead><tbody>'+srows+'</tbody></table>'+
+      '<th class="wr-num">Cancels</th>'+
+      '<th class="wr-num">Inquiries</th></tr></thead><tbody>'+srows+'</tbody></table>'+
       (missing > 0 ? '<p class="wr-gap">'+missing+' earlier week'+(missing===1?' is':'s are')+
         ' not stored yet. Weeks are saved as they are emailed or opened, so this fills in over '+
         'time — nothing is missing from the weeks shown.</p>' : '')+
@@ -662,9 +666,10 @@ function _drBuildHtml() {
   var _drDup = _drNotesShownSet(rpt);
   return '<div class="card">'+header+'<div class="card-body dr-body">'+
     _drAtAGlance(rpt)+
-    _drStatBar(rpt.callCategories||{}, rpt.appointments, rpt.activatedToday, rpt.ordersSubmitted, rpt.cancelRequests)+
+    _drStatBar(rpt.callCategories||{}, rpt.appointments, rpt.activatedToday, rpt.ordersSubmitted, rpt.cancelRequests, rpt.inquiryRequests)+
     // Leads the sections: an order the customer is trying to leave outranks the rest.
     _drSectionCancelRequests(rpt.cancelRequests)+
+    _drSectionInquiryRequests(rpt.inquiryRequests)+
     _drSectionEscalations(rpt.escalations||[])+
     _drSectionNoAnswers(rpt.noAnswers||[])+
     _drSectionCallsWorked(rpt.callsWorked||{}, _drDup)+
@@ -698,10 +703,11 @@ function _drFmtDate(iso) {
 }
 
 // ── KPI SUMMARY ROW ───────────────────────────────────────────────────────
-function _drStatBar(cats, ap, act, ordersSubmitted, cx) {
+function _drStatBar(cats, ap, act, ordersSubmitted, cx, iq) {
   ap = ap || {};
   act = act || { lines:0, orders:0 };
   cx = cx || { total:0 };
+  iq = iq || { total:0 };
   var bk = ap.booked || { total: (ap.bookedToday||0) };
   var sc = ap.statusChanges || { completed: 0 };
   var daT=cats.dayAfterTotal||0, daW=cats.dayAfterWorked||0;
@@ -724,6 +730,7 @@ function _drStatBar(cats, ap, act, ordersSubmitted, cx) {
     tile(cats.noAnswerTotal||0,'No Answers','#e9756a')+
     tile(cats.escalationTotal||0,'Escalations','#cf6b62')+
     tile(cx.total||0,'Cancel Requests','#7f1d1d')+
+    tile(iq.total||0,'Inquiry Requests','#b45309')+
     tile(bk.total||0,'Appts Booked','#4A9FD4')+
     tile(sc.completed||0,'Appts Completed','#3b82f6')+
   '</div>';
@@ -743,12 +750,33 @@ function _drAtAGlance(rpt) {
   if (attn) parts.push('<b>'+attn+'</b> item'+(attn===1?'':'s')+' need attention');
   var cx=(rpt.cancelRequests||{}).total||0;
   if (cx) parts.push('<b class="dr-glance-cx">'+cx+'</b> cancel request'+(cx===1?'':'s'));
+  var iq=(rpt.inquiryRequests||{}).total||0;
+  if (iq) parts.push('<b class="dr-glance-iq">'+iq+'</b> inquiry request'+(iq===1?'':'s'));
   return '<div class="dr-glance">'+parts.join(' &nbsp;·&nbsp; ')+'</div>';
 }
 
 // ── CX REQUESTS TO CANCEL ─────────────────────────────────────────────────
 // Reason counts first (the 5-second read), then every request in full. Renders
 // nothing at all on a day with none, so a clean day stays clean.
+/* Cx inquiry requests — the cancel section's sibling, minus the Reason column.
+   🔑 FOUR columns, not five: an inquiry has no reason list by decision (user 2026-09-11:
+   *"just need a note box that is required to be filled"*), so there are no chips to render and
+   nothing to rank by frequency. Do not add a Reason column "for symmetry" — it would be blank
+   on every row. */
+function _drSectionInquiryRequests(iq) {
+  iq = iq || { total:0, list:[] };
+  if (!iq.total) return '';
+  var rows = (iq.list||[]).map(function(x){
+    return '<tr><td class="dr-nw">'+_drDsiCell(x.dsi)+'</td>'+
+      '<td>'+(x.detail?esc(x.detail):'<span class="dr-muted">—</span>')+'</td>'+
+      '<td class="dr-nw">'+esc(x.author||'—')+'</td>'+
+      '<td class="dr-nw">'+esc(_drFmtTs(x.ts))+'</td></tr>';
+  }).join('');
+  return '<div class="dr-section dr-section-iq"><div class="dr-sec-hdr dr-sec-hdr-iq">'+icon('mail')+' Cx Inquiry Requests '+
+    '<span class="dr-subhdr">'+iq.total+' request'+(iq.total===1?'':'s')+'</span></div>'+
+    '<div class="tbl-wrap"><table class="dr-table"><thead><tr><th>DSI</th><th>What they asked</th><th>Logged by</th><th>When</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
 function _drSectionCancelRequests(cx) {
   cx = cx || { total:0, byReason:{}, list:[] };
   if (!cx.total) return '';
@@ -1263,6 +1291,7 @@ function _drBuildEmailHtml() {
     eTile(cats.noAnswerTotal||0,'No Answers','#dc2626')+
     eTile(cats.escalationTotal||0,'Escalations','#b91c1c')+
     eTile((rpt.cancelRequests||{}).total||0,'Cancel Requests','#7f1d1d')+
+    eTile((rpt.inquiryRequests||{}).total||0,'Inquiry Requests','#b45309')+
     eTile(eBk.total||0,'Appts Booked','#0891b2')+
     eTile(eSc.completed||0,'Appts Completed','#3b82f6');
 
@@ -1438,6 +1467,24 @@ function _drBuildEmailHtml() {
       eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">Reason</th><th style="'+TH+'">What they said</th><th style="'+TH+'">Logged by</th></tr>',cxRows);
   }
 
+  /* Cx inquiry requests — amber sibling of the block above, three columns (no Reason).
+     ⚠⚠ THIS BLOCK EXISTS TWICE: here and in Code.gs's _buildDailyReportEmailHtml. There is NO
+     parity harness across the daily pair (the weekly pair has one), so a change to either must
+     be made to both BY HAND until that guard exists. */
+  var eIq=rpt.inquiryRequests||{total:0,list:[]};
+  var iqSec='';
+  if (eIq.total) {
+    var iqRows=(eIq.list||[]).map(function(x,i){
+      return '<tr'+(i%2?' style="'+ZEB+'"':'')+'>'+
+        '<td style="'+TD+';white-space:nowrap">'+esc(x.dsi)+'</td>'+
+        '<td style="'+TD+'">'+(x.detail?esc(x.detail):'<span style="color:#94a3b8;font-size:11px">&mdash;</span>')+'</td>'+
+        '<td style="'+TD+';white-space:nowrap">'+esc(x.author||'—')+'</td></tr>';
+    }).join('');
+    iqSec='<div style="background:#fffbeb;color:#92400e;font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-left:4px solid #d97706;border-radius:0 5px 5px 0;margin:0">'+
+        '&#9993; Cx Inquiry Requests ('+eIq.total+')</div>'+
+      eTbl('<tr><th style="'+TH+'">DSI</th><th style="'+TH+'">What they asked</th><th style="'+TH+'">Logged by</th></tr>',iqRows);
+  }
+
   // Lines Activated Today
   var actSec='';
   if ((eAct.list||[]).length) {
@@ -1503,6 +1550,7 @@ function _drBuildEmailHtml() {
     '<div style="margin-bottom:14px">'+glanceSec+'</div>'+
     '<div style="margin-bottom:16px">'+statBar+'</div>'+
     (cxSec?'<div style="margin-top:18px">'+cxSec+'</div>':'')+
+    (iqSec?'<div style="margin-top:18px">'+iqSec+'</div>':'')+
     (escSec?'<div style="margin-top:18px">'+escSec+'</div>':'')+
     (naSec?'<div style="margin-top:18px">'+naSec+'</div>':'')+
     (cwSec?'<div style="margin-top:18px">'+cwSec+'</div>':'')+
