@@ -378,7 +378,15 @@ var _modalApptId = '';   // set when opened from an appointment → note adds ro
 function _noteCanEdit(n) {
   if (!n || !n.rowIndex) return false;
   var me = String((typeof SESSION!=='undefined' && SESSION.email) || '').trim().toLowerCase();
-  if (String(SESSION.rank||'').trim().toLowerCase() === 'master-admin') return true;
+  /* 🔴 `SESSION.role`, NOT `SESSION.rank`. The BACKEND calls this field `rank` and sends it as
+     `res.rank`; app.core.js stores it as `SESSION.role` (:1445). `SESSION.rank` is undefined
+     everywhere in the frontend, so the first version of this check silently refused a
+     master-admin and drew no pencil for anyone — with no error, because an absent field is
+     falsy. Every other permission test in this codebase reads `SESSION.role`; match them.
+     ⚠ Deliberately the EFFECTIVE role, not `_actualRole`: previewing as another role should
+     show what that role sees. The server re-checks the real badge either way, so this can only
+     under-promise, never over-grant. */
+  if (String(SESSION.role||'').trim().toLowerCase() === 'master-admin') return true;
   return !!me && String(n.authorEmail||'').trim().toLowerCase() === me;
 }
 function _noteItemHtml(n) {
