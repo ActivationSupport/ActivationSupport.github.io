@@ -714,6 +714,18 @@ function _bgRefreshNotes() {
        ⚠ The flight flag is cleared ABOVE this line on purpose: returning first would leave
        notesFlight true forever and silently wedge the poll. Same order as the main blob. */
     if (CFG.officeId !== _reqOffice) return;
+    /* 🔎 ONE-LINE DIAGNOSTIC, console only, reps never see it. A note with no `rowIndex` draws
+       no pencil and reports nothing — correct, but indistinguishable from "editing is broken",
+       and that ambiguity cost several rounds on 2026-09-11. `rowIndex` is absent for exactly
+       two reasons and this says WHICH: the backend has not been pasted, or this browser is
+       serving a pre-v3 cached note list. Says nothing at all when everything is wired. */
+    try {
+      var _ns = res && res.notes, _any = 0, _idx = 0;
+      for (var _d in _ns) { if (!Object.prototype.hasOwnProperty.call(_ns, _d)) continue;
+        for (var _q = 0; _q < _ns[_d].length; _q++) { _any++; if (_ns[_d][_q] && _ns[_d][_q].rowIndex) _idx++; } }
+      if (_any && !_idx) console.warn('[notes] ' + _any + ' note(s) arrived with NO rowIndex — note editing stays hidden. ' +
+        'Either the backend Code.gs paste is missing the readNotes rowIndex stamp, or this browser is on a stale bundle.');
+    } catch (_e) {}
     if (!res || res.error || !res.notes) return;
     DATA.notes = res.notes;
     _CACHE.notesAt = Date.now();          // when notes were last KNOWN good — see _notesKickOnTab
