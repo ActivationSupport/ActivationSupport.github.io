@@ -179,7 +179,15 @@ function _readCachedMainData() {
    🔑 THE `as_data_notes_` PREFIX IS PRESERVED ON PURPOSE — _purgeLegacyPlainNotes,
    _pruneNotesCache and _pruneDataCache all prefix-match on it, and _clearDataCache sweeps
    `as_data_` at logout. A prettier `as_notes_v2_` would silently escape all four. */
-function _notesCacheKey() { return 'as_data_notes_v2_' + CFG.officeId + '_' + _mainDataUser(); }
+/* 🔴 v2 → v3, 2026-09-11: readNotes now stamps a `rowIndex` on every note and the edit
+   affordance is useless without it. A cached v2 record is encrypted, office-guarded and
+   perfectly valid — it simply predates the field, and NOTHING EXPIRES IT. There is no TTL on
+   this cache, so without a version bump a rep keeps the old shape on that device forever and
+   the pencil never appears, with no error to explain why. (Found the hard way: the backend was
+   pasted, the fix was live, and the browser kept serving a note list from before either.)
+   ⚠⚠ THE VERSION IS PINNED IN TWO PLACES — here and in _purgeLegacyPlainNotes below. Bump one
+   and the purge treats every new record as legacy and deletes it on sight. */
+function _notesCacheKey() { return 'as_data_notes_v3_' + CFG.officeId + '_' + _mainDataUser(); }
 /* ⚠⚠ ENCRYPTED BEFORE IT TOUCHES DISK, EXACTLY LIKE THE BLOB — AND FOR THE SAME REASON.
    🔴 THIS CACHE WAS PLAINTEXT UNTIL 2026-08-13, AND ITS ONLY PROTECTION WAS A CALL THAT
    `d49f189` DELETED. That commit encrypted the blob and changed _forceReauth to drop the KEY
@@ -261,7 +269,7 @@ function _purgeLegacyPlainNotes() {
          on the record can tell you which — the stamp was written from the same global the
          read-guard checks it against. Encrypted-and-well-formed is not evidence of
          correctness here, so the version is the only safe discriminator. */
-      if (k.indexOf('as_data_notes_v2_') !== 0) { rm.push(k); continue; }
+      if (k.indexOf('as_data_notes_v3_') !== 0) { rm.push(k); continue; }
       var o = null;
       try { o = JSON.parse(localStorage.getItem(k)); } catch (e) { o = null; }
       if (!o || o.notes || !o.enc) rm.push(k);       // unparseable or plaintext-shaped
