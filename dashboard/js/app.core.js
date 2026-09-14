@@ -1530,12 +1530,17 @@ function doSetPin() {
     if (res.ok && res.valid) {
       _adoptSession(res);
     } else {
-      err.textContent = res.error || 'Failed to set password. Try again.';
+      err.textContent = (res.error === 'unauthorized')
+        ? 'That didn’t go through — the connection dropped it, so your password was not set. Please press the button again.'
+        : (res.error || 'Failed to set password. Try again.');
       err.style.display = 'block';
       btn.disabled = false; btn.textContent = 'Set Password & Sign In';
     }
   }).catch(function() {
-    err.textContent = 'Connection error. Try again.';
+    /* R-109 (2026-09-14). 12 setPin timeouts in _Errors, and the password usually HAD been set: the
+       retry then met writeSetPin's "PIN already set. Use Sign In." — and a DIFFERENT password typed on
+       that retry is not the one that stuck. So point at the password they just typed, not at retrying. */
+    err.textContent = 'We couldn’t confirm your password was set — it usually is. Refresh the page and sign in with the password you just typed. Only if that doesn’t work, set it again.';
     err.style.display = 'block';
     btn.disabled = false; btn.textContent = 'Set Password & Sign In';
   });

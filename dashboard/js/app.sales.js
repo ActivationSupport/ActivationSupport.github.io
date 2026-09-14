@@ -396,10 +396,22 @@ function _psSubmit(btn) {
     else {
       btn.disabled=false; btn.textContent='SUBMIT';
       // Duplicate = the order already saved (option A): show the plain message, no scary "Error:".
-      alert((res&&res.duplicate) ? (res.error||'This order was already posted today.') : ('Error: '+(res&&res.error?res.error:'Unknown error')));
+      alert((res&&res.duplicate) ? (res.error||'This order was already posted today.')
+          : (res&&res.error==='unauthorized') ? _PS_MSG_DROPPED
+          : ('Error: '+(res&&res.error?res.error:'Unknown error')));
     }
-  }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert('Submission failed. Please try again.'); });
+  }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert(_PS_MSG_UNCONFIRMED); });
 }
+/* R-109 / R-113 (2026-09-14). The old catch said "Submission failed. Please try again." — but a
+   transport failure on postSale almost always LANDED: writePostSale waits up to 20s for its lock after
+   the browser gives up at 15s, and a Google 404 page means the script already ran (R-112). 95 of these
+   in _Errors, 13 from two reps in one Sunday evening, each told their sale failed.
+   🔑 Pressing SUBMIT again IS safe and self-verifying: _postedSaleDup (inside the lock) answers
+   "already posted — it is saved". So say exactly that.
+   `unauthorized` is the opposite case: Google dropped the body, the key check refused it, NOTHING was
+   saved — the one time "it didn't go through" is literally true. */
+var _PS_MSG_UNCONFIRMED = 'We couldn’t confirm this sale went through — it usually does. It’s safe to press SUBMIT again: if it already saved, you’ll get a message saying so, and it won’t be posted twice.';
+var _PS_MSG_DROPPED = 'That sale didn’t go through — the connection dropped it, so nothing was saved. Please press SUBMIT again.';
 
 // ── REHASH TEXT ───────────────────────────────────────────────────────────
 // Reps fill 4 fields → generates the AT&T welcome/rehash text to copy & send to
@@ -2128,7 +2140,11 @@ function _pseSave(btn) {
       }
       _psInvalidateDownstream(); closeModal(); renderPostedSalesTab();
     }
-    else { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert('Error: ' + (res && res.error ? res.error : 'Unknown error')); }
-  }).catch(function() { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert('Save failed. Please try again.'); });
+    else { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert(res && res.error === 'unauthorized'
+      ? 'Your changes didn’t go through — the connection dropped them, so nothing was saved. Please press SAVE CHANGES again.'
+      : 'Error: ' + (res && res.error ? res.error : 'Unknown error')); }
+  /* R-109 (2026-09-14): an edit that timed out usually landed. updatePostedSale writes by row, so
+     pressing again is harmless — say that instead of "Save failed". */
+  }).catch(function() { btn.disabled = false; btn.textContent = 'SAVE CHANGES'; alert('We couldn’t confirm your changes saved — they usually do. It’s safe to press SAVE CHANGES again.'); });
 }
 

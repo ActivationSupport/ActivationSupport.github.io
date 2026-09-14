@@ -90,7 +90,11 @@ var AS_ERR = (function (w, d) {
        split is diagnostic, not cosmetic, and a rep being signed out should not read a scarier
        message because we got better at classifying it. */
     'AUTH-01': { label: 'Sign-in stopped working',     hint: 'Sign in again — nothing you did was lost. If this repeats, tell an admin.' },
-    'AUTH-02': { label: 'Sign-in was refused',         hint: 'Tell an admin this code — your access may need updating.' },
+    /* AUTH-02 REWORDED 2026-09-14. It is Google dropping the POST body (core _asParse: "a client cannot
+       send a wrong key"), never an access problem — yet it told reps "your access may need updating",
+       and 6 recent rows showed that on a read that simply ran out of retry budget. The CODE is unchanged,
+       so the digest, the dumps and the history still group it as AUTH-02. */
+    'AUTH-02': { label: 'That didn’t go through',      hint: 'Press Try again — the connection dropped the request. This is not a problem with your access.' },
     'AUTH-03': { label: 'Wrong office for this badge', hint: 'Switch back to your own office, or sign in again.' },
     'AUTH-04': { label: 'Your sign-in expired',        hint: 'Sign in again — nothing you did was lost.' },
 

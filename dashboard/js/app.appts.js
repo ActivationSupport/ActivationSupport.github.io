@@ -1310,11 +1310,16 @@ function submitApptBooking() {
         outside_window:'That date is outside the booking window.',
         'missing issue category':'Please choose an issue category.',
         'unknown issue category':'That category no longer exists — pick one from the list.',
-        'missing issue detail':'“Other” needs a short detail.'
+        'missing issue detail':'“Other” needs a short detail.',
+        // AUTH-02: Google dropped the request body, the key check refused it — nothing was booked.
+        // It used to show the raw word "unauthorized", which reads as an access problem (2026-09-14).
+        unauthorized:'That booking didn’t go through — the connection dropped it, so nothing was booked. Please press Confirm Booking again.'
       }[res.error];
       errEl.textContent=_msg||res.error||'Booking failed. Try again.';errEl.style.display='block';
     }
-  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}errEl.textContent='Connection error. Try again.';errEl.style.display='block';});
+  /* R-109 (2026-09-14): a timed-out booking may have LANDED, and pressing again would then meet our own
+     slot as "That slot was just taken". Say so, instead of a bare "Connection error". */
+  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}errEl.textContent='We couldn’t confirm this booking went through. Check the calendar before booking again — if this slot now shows as taken, it is probably this booking.';errEl.style.display='block';});
 }
 
 function closeApptModal() { document.getElementById('appt-booking-modal').classList.remove('open'); }

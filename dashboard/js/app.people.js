@@ -501,8 +501,12 @@ function savePerson(existingEmail) {
       var rec = { name:name, rank:rank, team:team, tableauName:tableauName, phone:phone, permissions:permissions, deactivated:deactivated };
       if (!_peopleAfterSave(existingEmail || emailVal, rec, existingEmail ? 'update' : 'add')) refreshData();
     }
-    else alert(res.error || 'Save failed.');
-  }).catch(function(){ alert('Connection error.'); });
+    else alert(res.error === 'unauthorized'
+      ? 'That didn’t go through — the connection dropped it, so nothing was saved. Please save again.'
+      : (res.error || 'Save failed.'));
+  /* R-109 (2026-09-14): a timed-out add usually LANDED — the retry then said "email already exists"
+     (10 in _Errors). Say what is known, and point at the list before a second save. */
+  }).catch(function(){ alert('We couldn’t confirm this saved — it usually does. Close this and check the People list; only save again if the change isn’t there.'); });
 }
 
 function deletePerson(email) {
@@ -1427,8 +1431,12 @@ function saveTeamModal(existingId) {
       closeModal();
       var rec = { name:name, emoji:emoji, leaderId:leaderId, parentId:parentId };
       if (!_teamsAfterSave(body.teamId, rec, existingId ? 'update' : 'add')) refreshData();
-    } else alert(res.error||'Save failed.');
-  }).catch(function(){ alert('Connection error.'); });
+    } else alert(res.error === 'unauthorized'
+      ? 'That didn’t go through — the connection dropped it, so nothing was saved. Please save again.'
+      : (res.error||'Save failed.'));
+  /* R-109 (2026-09-14): a timed-out team save usually landed — the retry then said "team name already
+     exists" (5 in _Errors). */
+  }).catch(function(){ alert('We couldn’t confirm this saved — it usually does. Close this and check the team list; only save again if the change isn’t there.'); });
 }
 
 function _tmDelete(teamId) {
