@@ -583,7 +583,14 @@ function _bgRefreshMain() {
        the 2-minute budget on a single hiccup. Back the clock off instead, so the next tick
        (≤15s away) retries. */
     if (res.error) { _CACHE.mainDataTs = Date.now() - (_CACHE.MAIN_TTL - 15000); return; }
+    /* 🔴 NOTES MUST SURVIVE THIS SWAP TOO (fixed 2026-09-14). _applyMainData has kept DATA.notes across its
+       wholesale replace since 2026-08-11 ("notes are missing") — but this 90s background refresh does its OWN
+       `DATA = res` and never got that fix. The blob carries NO notes key, so DATA.notes went undefined after
+       every refresh until the next 25s notes poll: note counts dropped out, an order opened in that window
+       showed no notes, and a note save settling in it found its list gone. Same restore, same reason (R-032). */
+    var _keepNotes = DATA && DATA.notes;
     DATA = res;
+    if (_keepNotes && !DATA.notes) DATA.notes = _keepNotes;
     _CACHE.mainDataTs = Date.now();
     _markDataFresh();
     var me = (DATA.roster || {})[SESSION.email];

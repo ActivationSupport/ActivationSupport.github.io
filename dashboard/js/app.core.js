@@ -1733,6 +1733,13 @@ function switchOffice(newOfficeId) {
   if (newOfficeId === 'salessupport' || CFG.officeId === 'salessupport') { window.location.href = window.location.pathname + '?office=' + newOfficeId; return; }
   CFG.officeId = newOfficeId;
   CFG.officeName = OFFICE_NAMES[newOfficeId];
+  /* 🔴 DROP THE PREVIOUS OFFICE'S NOTES (2026-09-14, review). Notes are fetched outside the blob and are
+     deliberately PRESERVED across main-data swaps (_applyMainData, _bgRefreshMain) — so an office switch
+     has to clear them itself, or office A's notes ride into office B until B's own readNotes lands (and the
+     notes poll never runs on Appointments / Teams / LST / People, which still show counts from DATA.notes).
+     Clearing _NOTES_LOADED and notesAt too is what lets _paintCachedNotes paint B's cached notes at once.
+     Done FIRST, before anything below that touches the DOM and could throw. */
+  if (DATA) DATA.notes = undefined; _NOTES_LOADED = false; if (_CACHE) _CACHE.notesAt = 0;   // office switch drops notes
   applyOfficeTheme(newOfficeId);   // recolor the UI to the new office
   _setSidebarOfficeLogo(newOfficeId);
   window.history.pushState({}, '', window.location.pathname + '?office=' + newOfficeId);
