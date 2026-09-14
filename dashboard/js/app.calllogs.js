@@ -397,45 +397,69 @@ function _noteItemHtml(n) {
   // Lines are only offered where they mean something — the backend zeroes them on every
   // non-activation type, so showing the field elsewhere would promise an edit that cannot happen.
   var editable=(n.noteType||'activation')==='activation';
-  /* R-113 (2026-09-14). `_pid` marks a note added in this tab and not yet answered for, so the save
-     handler can find THIS node again. `_unconfirmed` is set only when the save's outcome is UNKNOWN
-     (the request was lost in transit) — the note stays, and says so, until the next notes refresh
-     shows whether the server has it. Reuses .nm-cx-err so no stylesheet change is needed. */
+  /* R-113 (2026-09-14). `_pid` marks a note added in this tab whose save has not been answered for, so its
+     settle can find THIS node again. `_unconfirmed` names which "not confirmed" state it is in (see
+     _NOTE_MARKER). Reuses .nm-cx-err so no stylesheet change is needed. */
   var pend=n._pid?' data-pending="'+esc(n._pid)+'"':'';
-  var unconf=n._unconfirmed?'<div class="nm-cx-err nm-note-unconfirmed" style="display:block">'+esc(_NOTE_UNCONFIRMED_MSG)+'</div>':'';
   return '<div class="nm-note" id="nm-note-'+rx+'"'+pend+' data-lines="'+la+'" data-editable="'+(editable?'1':'0')+'">'+
     '<div class="nm-note-meta">'+fmtDateTime(n.ts)+' &mdash; '+esc(_noteAuthor(n))+badge+pencil+'</div>'+
-    '<div class="nm-note-text">'+esc(n.noteText)+'</div>'+unconf+'</div>';
+    '<div class="nm-note-text">'+esc(n.noteText)+'</div>'+_nmUnconfirmedHtml(n)+'</div>';
 }
 
-/* ══ R-113 — EVERY OPTIMISTIC NOTE / RATING WRITE HAS A FAILURE PATH (2026-09-14) ════════════════
-   User: "find what are actual errors … lets do it". Until today the three note composers pushed the
-   note, repainted, and ended in `.then(_done).catch(_done)` — `_done` only cleared a flight flag — and
-   modalSetRating fired a bare apiPost. Success, a lost request and a server refusal all ended on the
-   SAME screen: the note/rating looked saved and silently vanished on the next refresh. `_Errors` held
-   32 such note failures and 42 rating failures (08-05 → 09-14); the rep was told nothing each time.
-   🔑 THE TWO FAILURES ARE DIFFERENT AND MUST STAY DIFFERENT:
-     · REFUSED — a JSON {error} from the server. Known NOT saved ⇒ take it back off the screen, say why,
-       and give the text back where there is a box for it.
-     · UNKNOWN — the promise rejected (timeout, dropped connection, 404 page). addNote has already been
-       retried with its clientKey by the transport, and a 404-HTML means the script RAN (R-112), so it
-       very likely DID save. ⇒ KEEP it, marked "not confirmed", and let the 25s notes poll settle it.
-       ⛔ Do NOT roll an unknown note back and hand the text back: the rep re-adds it under a NEW
-       clientKey and, if the first one landed, creates a duplicate.
-   ⚠ A `{}` or `{ok:true}` or `{duplicate:true}` reply is success. Only an explicit `error` is a refusal.
-   🛡 savefeedback_harness · _failcheck_savefeedback. */
-var _NOTE_UNCONFIRMED_MSG = 'Not confirmed yet. If this note disappears in the next minute, it didn’t save — add it again.';
+/* ══ R-113 — EVERY OPTIMISTIC NOTE / RATING WRITE HAS A FAILURE PATH (2026-09-14, revised the same day) ══
+   User: "find what are actual errors … lets do it", then "lets be sure its is all accurate and was 100%
+   done correctly". Until today the three note composers pushed the note, repainted, and ended in
+   `.then(_done).catch(_done)`, and modalSetRating fired a bare apiPost: a lost or refused save looked saved
+   and silently vanished on the next refresh (32 note + 42 rating failures in _Errors, 08-05 → 09-14).
+   🔑 THREE OUTCOMES — KEEP THEM APART:
+     · REFUSED — the server answered {error} and wrote nothing ⇒ take it off the screen, say why in plain
+       words, and give the text back (into the box while the notes window still shows that order, else in
+       the alert itself).
+     · UNKNOWN — the request was lost (timeout, dropped connection, Google's 404 page — which means the script
+       may have RUN, R-112) ⇒ keep it, marked, and FIND OUT. A same-office note is read back after
+       _NOTE_VERIFY_DELAY_MS (longer than any server lock wait) and the rep is either left with a normal note
+       or told "didn't save" with the text back. Until then, re-adding the SAME text on the SAME order reuses
+       the lost request's clientKey, so the server returns the first note instead of writing a second
+       (_IDEMPOTENCY_TTL is 15 min). Cross-office notes go through the Scheduler, which has no clientKey and
+       no read-back here ⇒ they stay marked, and the wording says how to check (reload).
+     · `unauthorized` on addNote is UNKNOWN, not REFUSED: the transport RETRIES addNote, and an earlier attempt
+       may have been a 404 page that ran (review 2026-09-14). Scheduler writes are not retried, so there
+       `unauthorized` does mean nothing ran.
+   ⚠ `{}` / `{ok:true}` / `{duplicate:true}` are success.
+   ⚠ "The notes window shows this order" = #detail-modal open AND _modalDsi === dsi AND the notes history
+     exists. #detail-modal is shared by ~11 other modals and _modalDsi is never cleared, so the first two alone
+     put a note's failure message into the People form (review 2026-09-14).
+   🛡 savefeedback_harness · _failcheck_savefeedback · savefeedback_browser_test (real Chrome). */
 var _NOTE_PID = 0;
-
-/* An inline message beside whatever the person just touched. Falls back through the anchors given, then
-   the top of the modal; if the modal is closed or showing another order, a plain alert — the one case a
-   silent failure would otherwise be total. */
-function _nmNotice(anchorIds, dsi, msg) {
-  var old = document.getElementById('nm-save-notice'); if (old && old.remove) old.remove();
+var _NOTE_VERIFY_DELAY_MS = 30000;   // after the transport gives up; writeNoteEntry's _safeAppend lock wait is 25s
+var _NOTE_RETRY_KEYS = {};           // "dsi|type|text" → clientKey of an add whose outcome is unknown
+var _modalNotesSrc = null, _modalNotesDsi = '';   // the list openNotesModal rendered a CROSS-office order from
+var _NOTE_MARKER = {
+  checking:  'Not confirmed yet — checking whether this saved…',
+  unchecked: 'Not confirmed — we couldn’t check whether this saved. Reload the page and look for it before adding it again.',
+  cross:     'Not confirmed — this may not have saved. Reload the page and check this appointment’s notes before adding it again.'
+};
+function _nmUnconfirmedHtml(n) {
+  if (!n || !n._unconfirmed) return '';
+  return '<div class="nm-cx-err nm-note-unconfirmed" style="display:block">' +
+    esc(_NOTE_MARKER[n._unconfirmed] || _NOTE_MARKER.checking) + '</div>';
+}
+function _nmModalShowing(dsi) {
   var dm = document.getElementById('detail-modal');
-  var open = !!(dm && dm.classList && dm.classList.contains('open')) && _modalDsi === dsi;
-  var html = '<div class="nm-cx-err" id="nm-save-notice" role="alert" style="display:block">'+esc(msg)+'</div>';
-  if (open) {
+  return !!(dm && dm.classList && dm.classList.contains('open')) && _modalDsi === dsi && !!document.getElementById('nm-act-hist');
+}
+// Removes the inline save message — only one of `kind` when given, so a note's success does not wipe a
+// rating failure that is still true.
+function _nmClearNotice(kind) {
+  var old = document.getElementById('nm-save-notice');
+  if (old && old.remove && (!kind || old.getAttribute('data-kind') === kind)) old.remove();
+}
+/* An inline message beside whatever the person just touched, while the notes window shows that order;
+   otherwise a plain alert — the one case a silent failure would otherwise be total. */
+function _nmNotice(anchorIds, dsi, msg, kind) {
+  _nmClearNotice();
+  var html = '<div class="nm-cx-err" id="nm-save-notice" data-kind="'+esc(kind || 'note')+'" role="alert" style="display:block">'+esc(msg)+'</div>';
+  if (_nmModalShowing(dsi)) {
     for (var i = 0; i < anchorIds.length; i++) {
       var a = document.getElementById(anchorIds[i]);
       if (a && a.insertAdjacentHTML) { a.insertAdjacentHTML('afterend', html); return 'inline'; }
@@ -446,51 +470,140 @@ function _nmNotice(anchorIds, dsi, msg) {
   if (typeof alert === 'function') alert(msg + (dsi ? '\n\nDSI: ' + dsi : ''));
   return 'alert';
 }
-// A server refusal in words a rep can act on. `unauthorized` is Google dropping the request body
-// (AUTH-02) — nothing ran, so it is a connection problem, never an access problem.
+// A server refusal in words a rep can act on — never a raw server code.
+var _SAVE_REFUSAL_WORDS = {
+  'unauthorized':            'the connection dropped it',
+  'auth_required':           'your sign-in had expired — sign in again first',
+  'forbidden':               'your role can’t make this change',
+  'forbidden_office':        'this order belongs to a different office',
+  'invalid rating':          'that isn’t a rating the portal accepts',
+  'missing dsi or rating':   'it had no order attached',
+  'missing dsi or noteText': 'it was empty or had no order attached'
+};
 function _saveRefusalReason(err) {
   var e = String(err || '').trim();
-  if (e === 'unauthorized') return 'the connection dropped it, so nothing was saved';
-  return e || 'the server did not accept it';
+  return _SAVE_REFUSAL_WORDS[e] || e || 'the server did not accept it';
 }
 // Is this reply a refusal? Anything else — ok, duplicate, or an empty object — is left alone.
 function _saveRefused(res) { return !!(res && res.error && !res.ok && !res.duplicate); }
 
-/* Settles one optimistically-added note. o = { entry, dsi, ofc, what, list(), repaint(), anchors[],
-   restore(text)? }. Both halves re-check the office: between request and reply the user can switch,
-   and a repaint then would put one office's note into another office's modal (officerace_harness). */
+// Re-adding a note whose save is still UNKNOWN reuses that save's clientKey (see the header above).
+function _nmRetryId(dsi, type, text) { return String(dsi) + '|' + (type || 'activation') + '|' + String(text || '').trim(); }
+function _nmNoteKey(dsi, type, text) {
+  var id = _nmRetryId(dsi, type, text), k = _NOTE_RETRY_KEYS[id];
+  if (k) { delete _NOTE_RETRY_KEYS[id]; return k; }
+  return _clientKey('note');
+}
+// "The same note": same text, author and type, written within 10 minutes (device and server clocks differ).
+function _nmSameNote(a, b) {
+  if (String(a.noteText || '').trim() !== String(b.noteText || '').trim()) return false;
+  if (String(a.authorEmail || '').trim().toLowerCase() !== String(b.authorEmail || '').trim().toLowerCase()) return false;
+  if ((a.noteType || 'activation') !== (b.noteType || 'activation')) return false;
+  var ta = Date.parse(a.ts), tb = Date.parse(b.ts);
+  return !(ta && tb) || Math.abs(ta - tb) < 600000;
+}
+// How many SERVER-KNOWN copies of `e` a list holds — this tab's still-pending adds carry _pid and are skipped.
+function _nmMatchCount(list, e) {
+  var n = 0;
+  (list || []).forEach(function (x) { if (x !== e && !x._pid && _nmSameNote(x, e)) n++; });
+  return n;
+}
+// The list a cancel / inquiry request lives in: a CROSS-office order's own notes (what the modal rendered),
+// else this office's DATA.notes. `noCreate` = read only.
+function _nmTypeList(dsi, cross, noCreate) {
+  if (cross && _modalNotesSrc && _modalNotesDsi === dsi) return _modalNotesSrc;
+  if (noCreate) return (DATA.notes || {})[dsi] || null;
+  if (!DATA.notes) DATA.notes = {};
+  if (!DATA.notes[dsi]) DATA.notes[dsi] = [];
+  return DATA.notes[dsi];
+}
+
+/* Settles one optimistically-added note.
+   o = { entry, dsi, ofc, what, key?, retried, cross, list(), repaint(kind), anchors[], restore(text)? }
+     key     — the clientKey sent (same-office addNote only)
+     retried — the transport retries this write (addNote) ⇒ `unauthorized` is UNKNOWN, not REFUSED
+     cross   — a Scheduler write: no read-back and no clientKey
+   Every branch re-checks the office: between request and reply the user can switch, and a repaint would
+   then put one office's note into another office's modal (officerace_harness). */
 function _noteSettle(o) {
+  var e = o.entry;
+  var before = _nmMatchCount(o.list(), e);
+  var retryId = _nmRetryId(o.dsi, e.noteType, e.noteText);
+  function inList() { var l = o.list(); return !!(l && l.indexOf(e) >= 0); }
+  function drop() { var l = o.list(); var i = l ? l.indexOf(e) : -1; if (i >= 0) l.splice(i, 1); o.repaint('removed'); }
+  function tellNotSaved(lead) {
+    var shown = _nmModalShowing(o.dsi);
+    var back = !!(shown && o.restore && o.restore(e.noteText));
+    _nmNotice(o.anchors, o.dsi, lead + ' ' + (back ? 'Your text is back in the box.'
+      : shown ? 'Please add it again.' : 'Please add it again. You wrote: “' + e.noteText + '”'));
+  }
+  function unchecked() {
+    if (CFG.officeId !== o.ofc) return;
+    e._unconfirmed = 'unchecked';
+    if (inList() && _nmModalShowing(o.dsi)) o.repaint('unconfirmed');
+    else _nmNotice(o.anchors, o.dsi, 'We couldn’t check whether your ' + o.what + ' saved. Reload the page and look for it before adding it again.');
+  }
+  function verify() {
+    if (CFG.officeId !== o.ofc) return;
+    api({ action: 'readNotes' }).then(function (res) {
+      if (CFG.officeId !== o.ofc) return;
+      if (!res || res.error || !res.notes) return unchecked();
+      if (_nmMatchCount(res.notes[o.dsi] || [], e) > before) {
+        // It saved. From here an identical note is a genuinely new one, so its key is no longer reused.
+        if (_NOTE_RETRY_KEYS[retryId] === o.key) delete _NOTE_RETRY_KEYS[retryId];
+        delete e._unconfirmed; delete e._pid;
+        if (inList()) o.repaint('confirmed');
+        if (_nmModalShowing(o.dsi)) _nmClearNotice('note');
+        return;
+      }
+      if (inList()) drop(); else o.repaint('removed');
+      tellNotSaved('That ' + o.what + ' didn’t save.');
+    }).catch(unchecked);
+  }
+  function unknown() {
+    if (CFG.officeId !== o.ofc) return;
+    var seen = inList(), shown = _nmModalShowing(o.dsi);
+    e._unconfirmed = o.cross ? 'cross' : 'checking';
+    if (seen) o.repaint('unconfirmed');
+    // Nowhere to show the marker (window closed, another order open, or the list was replaced) ⇒ say it.
+    if (!seen || !shown) {
+      _nmNotice(o.anchors, o.dsi, o.cross
+        ? 'We couldn’t confirm your ' + o.what + ' saved. Reload the page and check this appointment’s notes before adding it again.'
+        : 'We couldn’t confirm your ' + o.what + ' saved yet — checking now. You’ll be told if it didn’t.');
+    }
+    if (o.cross) return;
+    if (o.key) _NOTE_RETRY_KEYS[retryId] = o.key;
+    setTimeout(verify, _NOTE_VERIFY_DELAY_MS);
+  }
   return {
     ok: function (res) {
       if (CFG.officeId !== o.ofc) return;
-      if (!_saveRefused(res)) return;
-      var list = o.list(); var i = list ? list.indexOf(o.entry) : -1;
-      if (i >= 0) list.splice(i, 1);
-      o.repaint('removed');
-      var back = !!(o.restore && o.restore(o.entry.noteText));
-      _nmNotice(o.anchors, o.dsi, 'That ' + o.what + ' didn’t save — ' + _saveRefusalReason(res.error) + '. ' +
-        (back ? 'Your text is back in the box.' : 'Please add it again.'));
+      if (res && res.error === 'unauthorized' && o.retried) return unknown();
+      if (_saveRefused(res)) { drop(); return tellNotSaved('That ' + o.what + ' didn’t save — ' + _saveRefusalReason(res.error) + '.'); }
+      /* Success. `duplicate` = the server handed back an EARLIER copy of this exact note (a re-add of an
+         unknown save that had landed after all) — drop the second local copy while the first is on screen. */
+      var twin = false;
+      (o.list() || []).forEach(function (x) { if (x !== e && _nmSameNote(x, e)) twin = true; });
+      if (res && res.duplicate && twin) drop();
+      else { delete e._pid; delete e._unconfirmed; }
+      if (_nmModalShowing(o.dsi)) _nmClearNotice('note');
     },
-    fail: function () {
-      if (CFG.officeId !== o.ofc) return;
-      o.entry._unconfirmed = true;
-      o.repaint('unconfirmed');
-      var dm = document.getElementById('detail-modal');
-      var open = !!(dm && dm.classList && dm.classList.contains('open')) && _modalDsi === o.dsi;
-      if (!open && typeof alert === 'function') {
-        alert('We couldn’t confirm your ' + o.what + ' saved. Open this order again in a minute — if it isn’t there, add it again.\n\nDSI: ' + o.dsi);
-      }
-    }
+    fail: unknown
   };
 }
-// Repaints one pinned block (cancel / inquiry) and the row's note count from DATA.notes.
-function _nmRepaintTypeBlock(dsi, type) {
-  var nc = document.getElementById('nc-' + String(dsi).replace(/\W/g, '_'));
-  if (nc && DATA.notes && DATA.notes[dsi]) nc.textContent = DATA.notes[dsi].length;
-  if (_modalDsi !== dsi) return;
-  var all = _notesNewestFirst(((DATA.notes || {})[dsi] || []).filter(function (n) { return n.noteType === type; }));
+// Repaints one pinned block (cancel / inquiry) from the list it lives in, and the row count for same-office.
+function _nmRepaintTypeBlock(dsi, type, list, sameOffice) {
+  var src = list || [];
+  if (sameOffice) { var nc = document.getElementById('nc-' + String(dsi).replace(/\W/g, '_')); if (nc) nc.textContent = src.length; }
+  if (!_nmModalShowing(dsi)) return;
+  var all = _notesNewestFirst(src.filter(function (n) { return n.noteType === type; }));
+  var html = (type === 'cancel') ? notesCancelBlockHtml(all) : notesInquiryBlockHtml(all);
   var block = document.getElementById(type === 'cancel' ? 'nm-cx-block' : 'nm-iq-block');
-  if (block) block.outerHTML = (type === 'cancel') ? notesCancelBlockHtml(all) : notesInquiryBlockHtml(all);
+  if (block) { block.outerHTML = html; return; }
+  if (!html) return;
+  if (type === 'inquiry') { var cx = document.getElementById('nm-cx-block'); if (cx) { cx.insertAdjacentHTML('afterend', html); return; } }
+  var body = document.getElementById('modal-body');
+  if (body) body.insertAdjacentHTML('afterbegin', html);
 }
 
 /* ── Editing a note in place ───────────────────────────────────────────────────
@@ -535,8 +648,9 @@ function _noteEditSave(rowIndex) {
   var text = String(ta.value||'').trim();
   var errEl = document.getElementById('nm-note-err-'+rowIndex);
   // The backend refuses an empty note too — this only saves the round trip.
-  if (!text) { if (errEl) errEl.textContent = 'A note can’t be left empty. Edit the text, or press Cancel.'; ta.focus(); return; }
-  if (errEl) errEl.textContent = '';
+  // ⚠ .nm-cx-err is display:none in app.css — setting only the text left this message invisible (review 2026-09-14).
+  if (!text) { if (errEl) { errEl.textContent = 'A note can’t be left empty. Edit the text, or press Cancel.'; errEl.style.display = 'block'; } ta.focus(); return; }
+  if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
   var wantLines = el.getAttribute('data-editable') === '1';
   var lines = wantLines ? _linesGet('nm-note-'+rowIndex) : 0;
 
@@ -654,13 +768,9 @@ function _cancelFmt(reason, detail) {
 
 // The spotlight block: pinned high in the modal, never collapsed, never hidden behind
 // a scroll. Only rendered when the order actually has a request.
-/* R-113: the pinned cancel / inquiry blocks draw their own items rather than _noteItemHtml, so they
-   carry the same "not confirmed" marker through this — one wording, one place. */
-function _nmUnconfirmedHtml(n, noun) {
-  if (!n || !n._unconfirmed) return '';
-  return '<div class="nm-cx-err nm-note-unconfirmed" style="display:block">' +
-    esc('Not confirmed yet. If this ' + noun + ' disappears in the next minute, it didn’t save — add it again.') + '</div>';
-}
+/* R-113: the pinned cancel / inquiry blocks draw their own items rather than _noteItemHtml, so they carry
+   the same "not confirmed" marker through _nmUnconfirmedHtml (defined with _NOTE_MARKER above) — one
+   wording, one place. ⚠ Do not re-declare it here: a later function declaration silently wins. */
 function notesCancelBlockHtml(cancelNotes) {
   if (!cancelNotes || !cancelNotes.length) return '';
   var items = cancelNotes.map(function(n) {
@@ -728,7 +838,9 @@ function toggleInquiryForm(open) {
   else { var d2 = document.getElementById('nm-inquiry-detail'); if (d2) d2.value = ''; _inquiryErr(''); }
 }
 function _inquiryErr(msg) {
-  var e = document.getElementById('nm-inquiry-err'); if (e) e.textContent = msg || '';
+  // ⚠ .nm-cx-err is display:none in app.css — setting only the text left this message invisible (review 2026-09-14).
+  var e = document.getElementById('nm-inquiry-err'); if (!e) return;
+  e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none';
 }
 function modalAddInquiryRequest() {
   var dEl = document.getElementById('nm-inquiry-detail');
@@ -736,41 +848,33 @@ function modalAddInquiryRequest() {
   if (!noteText) { _inquiryErr('Say what they asked — an inquiry with no note can’t be reported on.'); if (dEl) dEl.focus(); return; }
   _inquiryErr('');
   var entry = { ts:new Date().toISOString(), authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email,
-                noteText:noteText, noteType:'inquiry', linesActivated:0 };
+                noteText:noteText, noteType:'inquiry', linesActivated:0, _pid:'p'+(++_NOTE_PID) };
 
   toggleInquiryForm(false);
-  if (!DATA.notes) DATA.notes = {};
-  if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
-  DATA.notes[_modalDsi].push(entry);
-  var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
-  if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
-
-  var all = _notesNewestFirst((DATA.notes[_modalDsi]||[]).filter(function(n){ return n.noteType==='inquiry'; }));
-  var block = document.getElementById('nm-iq-block');
-  if (block) block.outerHTML = notesInquiryBlockHtml(all);
-  else {
-    var cx = document.getElementById('nm-cx-block');
-    if (cx) cx.insertAdjacentHTML('afterend', notesInquiryBlockHtml(all));
-    else { var body = document.getElementById('modal-body'); if (body) body.insertAdjacentHTML('afterbegin', notesInquiryBlockHtml(all)); }
-  }
+  /* R-113: the request lives in the list the modal rendered it from — a CROSS-office appointment's own notes,
+     else this office's DATA.notes. The cross-office path used to push into DATA.notes and repaint the block from
+     it, which dropped that appointment's EXISTING requests from view the moment one was added. */
+  var _ofc = CFG.officeId, _dsi = _modalDsi;
+  var _cross = !!(_modalApptId && _modalOffice !== CFG.officeId);
+  var _list = _nmTypeList(_dsi, _cross);
+  _list.push(entry);
+  _nmRepaintTypeBlock(_dsi, 'inquiry', _list, !_cross);
 
   _noteAddFlight = true;
   var _done = function(){ _noteAddFlight = false; };
-  /* R-113: settle the optimistic entry. Both paths render this block from DATA.notes, so the repaint is
-     the block + the row count — never the whole modal (a cross-office modal's history is not DATA.notes). */
-  var _ofc = CFG.officeId, _dsi = _modalDsi;
-  var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'inquiry request',
-    list: function(){ return (DATA.notes || {})[_dsi]; },
-    repaint: function(){ _nmRepaintTypeBlock(_dsi, 'inquiry'); },
+  var _key = _cross ? '' : _nmNoteKey(_dsi, 'inquiry', noteText);
+  var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'inquiry request', key:_key, retried:!_cross, cross:_cross,
+    list: function(){ return _nmTypeList(_dsi, _cross, true); },
+    repaint: function(){ _nmRepaintTypeBlock(_dsi, 'inquiry', _nmTypeList(_dsi, _cross, true), !_cross); },
     anchors: ['nm-iq-block', 'nm-iq-wrap'] });
-  if (_modalApptId && _modalOffice !== CFG.officeId) {
+  if (_cross) {
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'inquiry',
                 linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email })
       .then(function(res){ _done(); if (CFG.officeId !== _ofc) return; _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   } else {
-    apiPost({ action:'addNote', dsi:_modalDsi, noteText:noteText, noteType:'inquiry',
-              clientKey:_clientKey('note'),
+    apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'inquiry',
+              clientKey:_key,
               authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
       .then(function(res){ _done(); if (CFG.officeId !== _ofc) return; _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
@@ -857,40 +961,32 @@ function modalAddCancelRequest() {
   _cancelErr('');
   var noteText = _cancelFmt(reason, detail);
   var entry = { ts:new Date().toISOString(), authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email,
-                noteText:noteText, noteType:'cancel', linesActivated:0 };
+                noteText:noteText, noteType:'cancel', linesActivated:0, _pid:'p'+(++_NOTE_PID) };
 
   toggleCancelForm(false);   // clears the fields and collapses back to the button
-  if (!DATA.notes) DATA.notes = {};
-  if (!DATA.notes[_modalDsi]) DATA.notes[_modalDsi] = [];
-  DATA.notes[_modalDsi].push(entry);
-  var noteCount = document.getElementById('nc-'+_modalDsi.replace(/\W/g,'_'));
-  if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
-
+  // R-113: same list rule and settle as the inquiry request — see modalAddInquiryRequest.
+  var _ofc = CFG.officeId, _dsi = _modalDsi;
+  var _cross = !!(_modalApptId && _modalOffice !== CFG.officeId);
+  var _list = _nmTypeList(_dsi, _cross);
+  _list.push(entry);
   // Repaint the spotlight in place so the request appears where it will live.
-  var all = _notesNewestFirst((DATA.notes[_modalDsi]||[]).filter(function(n){ return n.noteType==='cancel'; }));
-  var block = document.getElementById('nm-cx-block');
-  if (block) block.outerHTML = notesCancelBlockHtml(all);
-  else {
-    var body = document.getElementById('modal-body');
-    if (body) body.insertAdjacentHTML('afterbegin', notesCancelBlockHtml(all));
-  }
+  _nmRepaintTypeBlock(_dsi, 'cancel', _list, !_cross);
 
   _noteAddFlight = true;
   var _done = function(){ _noteAddFlight = false; };
-  // R-113: same settle as the inquiry request — see modalAddInquiryRequest.
-  var _ofc = CFG.officeId, _dsi = _modalDsi;
-  var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'cancel request',
-    list: function(){ return (DATA.notes || {})[_dsi]; },
-    repaint: function(){ _nmRepaintTypeBlock(_dsi, 'cancel'); },
+  var _key = _cross ? '' : _nmNoteKey(_dsi, 'cancel', noteText);
+  var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'cancel request', key:_key, retried:!_cross, cross:_cross,
+    list: function(){ return _nmTypeList(_dsi, _cross, true); },
+    repaint: function(){ _nmRepaintTypeBlock(_dsi, 'cancel', _nmTypeList(_dsi, _cross, true), !_cross); },
     anchors: ['nm-cx-block', 'nm-cx-wrap'] });
-  if (_modalApptId && _modalOffice !== CFG.officeId) {
+  if (_cross) {
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'cancel',
                 linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email })
       .then(function(res){ _done(); if (CFG.officeId !== _ofc) return; _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   } else {
-    apiPost({ action:'addNote', dsi:_modalDsi, noteText:noteText, noteType:'cancel',
-              clientKey:_clientKey('note'),
+    apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'cancel',
+              clientKey:_key,
               authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
       .then(function(res){ _done(); if (CFG.officeId !== _ofc) return; _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
@@ -914,6 +1010,8 @@ function openNotesModal(dsi, customer, rep, opts) {
   _modalApptId = opts.appointmentId || '';
   var _cross = !!_modalApptId && _modalOffice !== CFG.officeId;
   var notes = _cross ? (opts.notes || []) : ((DATA.notes||{})[dsi] || opts.notes || []);
+  // R-113: remember WHICH list a cross-office order was drawn from, so a request added to it joins that list.
+  _modalNotesSrc = _cross ? notes : null; _modalNotesDsi = dsi;
   var apptNotes = _notesNewestFirst(opts.apptNotes || []);
   var custNote = String(opts.customerNote || '').trim();
   var rating = (DATA.ratings||{})[dsi] || '';
@@ -1003,7 +1101,7 @@ function openNotesModal(dsi, customer, rep, opts) {
 /* Paints one order's rating: the modal buttons (only while the modal is on that order) and the row pill.
    An empty rating is a real state — the pill goes blank, exactly as an unrated row renders. */
 function _ratingPaint(dsi, rating) {
-  if (_modalDsi === dsi) {
+  if (_nmModalShowing(dsi)) {
     document.querySelectorAll('#nm-rating-row .nm-r-btn').forEach(function(btn) {
       var r = btn.textContent.trim();
       var active = r===rating ? ' active-'+(r==='No Answer'?'na':r.replace(' Stars','').replace(' Star','')) : '';
@@ -1020,36 +1118,46 @@ function _ratingPaint(dsi, rating) {
 /* R-113 (2026-09-14). This used to paint and fire a bare apiPost with no handler: 42 rating failures in
    _Errors, mostly one admin on QC rounds across four offices, each told nothing while the rating
    silently reverted on the next refresh.
-   🔑 ON ANY FAILURE, PUT THE PREVIOUS RATING BACK AND SAY SO. Unlike a note, retrying is always safe —
-   writeRatingEntry is an upsert keyed on DSI — so even when the outcome is UNKNOWN the honest screen is
-   the old value plus "tap it again".
-   ⚠⚠ ONLY THE LATEST TAP MAY UNDO. Tapping 3 then 4 fires two requests; if the first fails after the
-   second succeeded, reverting would paint the wrong rating over a good one. `_RATING_SEQ` makes a stale
-   reply a no-op. */
-var _RATING_SEQ = {};
+   🔑 ON ANY FAILURE, PUT BACK THE LAST RATING THE SERVER CONFIRMED, AND SAY SO. Tapping again is the fix:
+   writeRatingEntry is an upsert keyed on DSI. ⚠ It is NOT "always safe" — its read-then-append is not one
+   locked unit, so if the first request is still running server-side a second tap can add a second row for
+   the same order. The wording therefore promises only "tap it again" (corrected 2026-09-14).
+   ⚠⚠ ONLY THE LATEST TAP MAY UNDO (`_RATING_SEQ`): tapping 3 then 4 fires two requests, and if the first
+   fails after the second succeeded, reverting would paint the wrong rating over a good one.
+   ⚠⚠ AND IT UNDOES TO `_RATING_OK` — the value last CONFIRMED — never to "whatever showed before this tap",
+   which can itself be a tap that failed (review 2026-09-14). */
+var _RATING_SEQ = {}, _RATING_OK = {}, _RATING_INFLIGHT = {};
 function modalSetRating(rating) {
   if (!_modalDsi) return;
   var dsi = _modalDsi;
   if (!DATA.ratings) DATA.ratings = {};
-  var prev = DATA.ratings[dsi] || '';
+  // Nothing in flight for this order ⇒ what is showing is what the server last gave us.
+  if (!_RATING_INFLIGHT[dsi]) _RATING_OK[dsi] = DATA.ratings[dsi] || '';
+  _RATING_INFLIGHT[dsi] = (_RATING_INFLIGHT[dsi] || 0) + 1;
   DATA.ratings[dsi] = rating;
   _ratingPaint(dsi, rating);
   var seq = _RATING_SEQ[dsi] = (_RATING_SEQ[dsi] || 0) + 1;
   var _ofc = CFG.officeId;
+  var landed = function() { _RATING_INFLIGHT[dsi] = Math.max(0, (_RATING_INFLIGHT[dsi] || 1) - 1); };
   var undo = function(msg) {
     if (CFG.officeId !== _ofc) return;        // office race guard (officerace_harness)
     if (_RATING_SEQ[dsi] !== seq) return;      // a newer tap owns the display now
-    if (DATA.ratings) { if (prev) DATA.ratings[dsi] = prev; else delete DATA.ratings[dsi]; }
-    _ratingPaint(dsi, prev);
-    _nmNotice(['nm-rating-row'], dsi, msg);
+    var back = _RATING_OK[dsi] || '';
+    if (DATA.ratings) { if (back) DATA.ratings[dsi] = back; else delete DATA.ratings[dsi]; }
+    _ratingPaint(dsi, back);
+    _nmNotice(['nm-rating-row'], dsi, msg, 'rating');
   };
   apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:SESSION.email })
     .then(function(res) {
+      landed();
       if (CFG.officeId !== _ofc) return;
-      if (_saveRefused(res)) undo('That rating didn’t save — ' + _saveRefusalReason(res.error) + ' — so it was put back. Tap it again.');
+      if (_saveRefused(res)) return undo('That rating didn’t save — ' + _saveRefusalReason(res.error) + ' — so it was put back. Tap it again.');
+      _RATING_OK[dsi] = rating;
+      if (_RATING_SEQ[dsi] === seq && _nmModalShowing(dsi)) _nmClearNotice('rating');
     })
     .catch(function() {
-      undo('We couldn’t confirm that rating saved, so it was put back. Tap it again — that’s always safe.');
+      landed();
+      undo('We couldn’t confirm that rating saved, so it was put back. Tap it again.');
     });
 }
 
@@ -1125,10 +1233,11 @@ function modalAddNote(noteType) {
     /* R-113: a cross-office modal's history is NOT DATA.notes, so settle the one node inserted above,
        found again by its _pid, and recount the dashboard badge from the appointment's own list. */
     var _ofc = CFG.officeId, _dsi = _modalDsi, _apptId = _modalApptId;
-    var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'note', restore:_noteRestorer(inputId, _dsi),
+    var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'note', cross:true, retried:false,
+      restore:_noteRestorer(inputId, _dsi),
       list: function(){ return ap ? ap.notes : null; },
       repaint: function(kind){
-        var h = document.getElementById(histId);
+        var h = _nmModalShowing(_dsi) ? document.getElementById(histId) : null;
         var node = (h && h.querySelector) ? h.querySelector('[data-pending="'+entry._pid+'"]') : null;
         if (node) { if (kind === 'removed') node.remove(); else node.outerHTML = _noteItemHtml(entry); }
         var mb2 = document.getElementById('manote-' + _apptId);
@@ -1146,25 +1255,30 @@ function modalAddNote(noteType) {
     if (noteCount) noteCount.textContent = DATA.notes[_modalDsi].length;
     // R-113: same-office history IS DATA.notes, so the settle repaints through the notes poll's own painter.
     var _ofc2 = CFG.officeId, _dsi2 = _modalDsi;
-    var _s2 = _noteSettle({ entry:entry, dsi:_dsi2, ofc:_ofc2, what:'note', restore:_noteRestorer(inputId, _dsi2),
+    // Re-adding the exact text of a note whose save is still UNKNOWN reuses that save's key (see _noteSettle).
+    var _key2 = _nmNoteKey(_dsi2, noteType, text);
+    var _s2 = _noteSettle({ entry:entry, dsi:_dsi2, ofc:_ofc2, what:'note', key:_key2, retried:true, cross:false,
+      restore:_noteRestorer(inputId, _dsi2),
       list: function(){ return (DATA.notes || {})[_dsi2]; },
       repaint: function(){
+        var l = (DATA.notes || {})[_dsi2];
         var nc = document.getElementById('nc-'+String(_dsi2).replace(/\W/g,'_'));
-        if (nc && DATA.notes && DATA.notes[_dsi2]) nc.textContent = DATA.notes[_dsi2].length;
-        if (_modalDsi === _dsi2 && typeof _refreshOpenNotesModal === 'function') _refreshOpenNotesModal();
+        if (nc && l) nc.textContent = l.length;
+        if (_nmModalShowing(_dsi2) && typeof _refreshOpenNotesModal === 'function') _refreshOpenNotesModal();
       },
       anchors: [histId] });
-    apiPost({ action:'addNote', dsi:_modalDsi, noteText:text, noteType:noteType, linesActivated:lines, clientKey:_clientKey('note'), authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+    apiPost({ action:'addNote', dsi:_dsi2, noteText:text, noteType:noteType, linesActivated:lines, clientKey:_key2, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
       .then(function(res){ _done(); if (CFG.officeId !== _ofc2) return; _s2.ok(res); })
       .catch(function(){ _done(); _s2.fail(); });
   }
 }
-/* Puts refused note text back into its composer — only if the modal is still on that order and the box
-   is still empty, so nothing typed since is overwritten. Returns whether it did. */
+/* Puts refused note text back into its composer — only while the notes window still SHOWS that order (a
+   closed or reused #detail-modal keeps a hidden, doomed textarea) and the box is still empty, so nothing typed
+   since is overwritten. Returns whether it did; when it didn't, the message carries the text instead. */
 function _noteRestorer(inputId, dsi) {
   return function (text) {
     var box = document.getElementById(inputId);
-    if (!box || _modalDsi !== dsi || box.value) return false;
+    if (!box || !_nmModalShowing(dsi) || box.value) return false;
     box.value = text; return true;
   };
 }

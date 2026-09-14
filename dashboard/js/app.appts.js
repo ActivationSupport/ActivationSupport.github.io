@@ -1317,9 +1317,20 @@ function submitApptBooking() {
       }[res.error];
       errEl.textContent=_msg||res.error||'Booking failed. Try again.';errEl.style.display='block';
     }
-  /* R-109 (2026-09-14): a timed-out booking may have LANDED, and pressing again would then meet our own
-     slot as "That slot was just taken". Say so, instead of a bare "Connection error". */
-  }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}errEl.textContent='We couldn’t confirm this booking went through. Check the calendar before booking again — if this slot now shows as taken, it is probably this booking.';errEl.style.display='block';});
+  /* R-109 + R-002 (2026-09-14). A timed-out booking may have LANDED. The first wording pointed at the slot
+     ("if it now shows as taken, it is probably this booking") and the review showed that is wrong twice over:
+     the calendar is not re-read here, so the slot cannot show as taken yet; and with Next Available Agent
+     (`__next__`) the booking lands with WHICHEVER activator was free, so the slot can still look open and a
+     second press books the same customer again with someone else. ⇒ Tell them not to rebook until they have
+     looked for the CUSTOMER, and drop the cached appointments so the next calendar paint re-reads them. */
+  }).catch(function(){
+    if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
+    _APPT.appointments=null;
+    errEl.textContent=(actEmail==='__next__')
+      ?'We couldn’t confirm this booking went through — it may have, with whichever activator was free. Don’t book again yet: close this, reopen the calendar and look for this customer first.'
+      :'We couldn’t confirm this booking went through — it may have. Don’t book again yet: close this, reopen the calendar and look for this customer first.';
+    errEl.style.display='block';
+  });
 }
 
 function closeApptModal() { document.getElementById('appt-booking-modal').classList.remove('open'); }

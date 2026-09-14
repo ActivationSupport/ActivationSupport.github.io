@@ -505,8 +505,9 @@ function savePerson(existingEmail) {
       ? 'That didn’t go through — the connection dropped it, so nothing was saved. Please save again.'
       : (res.error || 'Save failed.'));
   /* R-109 (2026-09-14): a timed-out add usually LANDED — the retry then said "email already exists"
-     (10 in _Errors). Say what is known, and point at the list before a second save. */
-  }).catch(function(){ alert('We couldn’t confirm this saved — it usually does. Close this and check the People list; only save again if the change isn’t there.'); });
+     (10 in _Errors). Say what is known. ⚠ "Check the list" alone was wrong (review): the People list reads
+     DATA.roster, which a lost save never updated, so it has to be a RELOAD before looking. */
+  }).catch(function(){ alert('We couldn’t confirm this saved — it usually does. Before saving again, reload the page and check the People list.'); });
 }
 
 function deletePerson(email) {
@@ -1435,8 +1436,9 @@ function saveTeamModal(existingId) {
       ? 'That didn’t go through — the connection dropped it, so nothing was saved. Please save again.'
       : (res.error||'Save failed.'));
   /* R-109 (2026-09-14): a timed-out team save usually landed — the retry then said "team name already
-     exists" (5 in _Errors). */
-  }).catch(function(){ alert('We couldn’t confirm this saved — it usually does. Close this and check the team list; only save again if the change isn’t there.'); });
+     exists" (5 in _Errors). ⚠ The team list reads DATA.teams, which a lost save never updated, so it has
+     to be a RELOAD before looking (review 2026-09-14). */
+  }).catch(function(){ alert('We couldn’t confirm this saved — it usually does. Before saving again, reload the page and check the team list.'); });
 }
 
 function _tmDelete(teamId) {

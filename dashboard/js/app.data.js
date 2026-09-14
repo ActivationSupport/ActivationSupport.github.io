@@ -802,6 +802,12 @@ function _applyNoteCounts() {
 function _refreshOpenNotesModal() {
   var dm = document.getElementById('detail-modal');
   if (!dm || !dm.classList.contains('open') || !_modalDsi) return;
+  /* 🔴 NOT A CROSS-OFFICE MODAL (fixed 2026-09-14, found by savefeedback_browser_test in real Chrome).
+     An appointment opened from My Appointments for ANOTHER office renders its history from that office's
+     notes (opts.notes). This poll repaints from DATA.notes — THIS office's — so ~25s after opening, the
+     other office's notes were replaced by "No activation notes yet." every time. Its history is not ours
+     to repaint; the modal re-reads it when reopened. */
+  if (typeof _modalApptId !== 'undefined' && _modalApptId && _modalOffice && _modalOffice !== CFG.officeId) return;
   var actHist = document.getElementById('nm-act-hist'), repHist = document.getElementById('nm-rep-hist');
   if (!actHist && !repHist) return;   // a different modal is reusing detail-modal
   var notes = (DATA.notes || {})[_modalDsi] || [];
