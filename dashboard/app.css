@@ -463,7 +463,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .field input{width:100%;padding:10px 12px;border:1.5px solid var(--field-border);border-radius:var(--r-md);font-size:.95rem;outline:none;transition:border .15s;background:var(--field-bg);color:var(--text)}
 .field input:focus{border-color:var(--blue2)}
 .btn{width:100%;padding:11px;background:var(--blue);color:var(--blueText);border:none;border-radius:var(--r-md);font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s}
-.btn:hover{background:var(--blueHover)}
+/* ⚠ #2563a8 used to be hard-coded on .nm-add-btn / .add-note-row button / .appt-book-btn hovers.
+   It is :root's ORIGINAL --blueHover — the pre-office default — so every office's note and Book
+   buttons flashed the old portal blue while THIS rule already used the office's own. 2026-09-17. */
+.btn:hover{background:var(--blueHover);color:var(--blueHoverText,var(--blueText))}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 #login-error{color:#e74c3c;font-size:.82rem;margin-top:10px;display:none}
 .login-who{font-size:.88rem;color:var(--login-accent);font-weight:600;margin-bottom:14px;word-break:break-all}
@@ -975,12 +978,12 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 .nm-lines-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:var(--r-lg);background:rgba(82,199,133,.16);color:#52c785;font-size:.7rem;font-weight:700}
 .ao-label{display:block;font-size:.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
 .nm-add-btn{flex:1;padding:10px;background:var(--blue);color:var(--blueText);border:none;border-radius:var(--r-md);font-size:.88rem;font-weight:700;cursor:pointer;transition:background .15s}
-.nm-add-btn:hover{background:#2563a8;color:#fff}
+.nm-add-btn:hover{background:var(--blueHover);color:var(--blueHoverText,var(--blueText))}
 .nm-close-btn{padding:10px 20px;border:1.5px solid var(--field-border);background:var(--control-bg);border-radius:var(--r-md);font-size:.88rem;font-weight:600;cursor:pointer;color:var(--text2);transition:border-color .15s,color .15s}
 .nm-close-btn:hover{border-color:#666;color:var(--text)}
 .add-note-row input:focus{border-color:var(--blue2)}
 .add-note-row button{padding:7px 14px;background:var(--blue);color:var(--blueText);border:none;border-radius:var(--r-md);font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap}
-.add-note-row button:hover{background:#2563a8;color:#fff}
+.add-note-row button:hover{background:var(--blueHover);color:var(--blueHoverText,var(--blueText))}
 
 /* ── DSI TOAST ── */
 #dsi-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e3a5f;color:#fff;padding:10px 22px;border-radius:var(--r-md);font-size:.85rem;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:400;white-space:nowrap}
@@ -1611,7 +1614,7 @@ html[data-theme="dark"] .wr-delta.bad{color:#f87171}
 .appt-select{padding:7px 12px;background:var(--field-bg);color:var(--text);border:1.5px solid var(--field-border);border-radius:var(--r-md);font-size:.85rem;cursor:pointer}
 .appt-select:focus{border-color:var(--blue2);outline:none}
 .appt-book-btn{padding:8px 16px;background:var(--blue);color:var(--blueText);border:none;border-radius:var(--r-md);font-size:.85rem;font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap}
-.appt-book-btn:hover{background:#2563a8;color:#fff}
+.appt-book-btn:hover{background:var(--blueHover);color:var(--blueHoverText,var(--blueText))}
 .appt-book-btn:disabled{opacity:.45;cursor:not-allowed}
 .appt-manage-btn{padding:7px 14px;background:var(--control-bg);color:var(--text2);border:1px solid var(--field-border);border-radius:var(--r-md);font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s}
 .appt-manage-btn:hover{border-color:var(--blue2);color:var(--blue2)}

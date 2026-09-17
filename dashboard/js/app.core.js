@@ -27,6 +27,23 @@ var API_KEY = 'activation-dash-2026-secret';
 // _private/preview/office_uniformity.js before changing any of these; do not copy another
 // office's numbers, which is exactly how apexpremier ended up the smallest logo we ship.
 var OFFICE_CONFIG = {
+  /* ── HOVER POLARITY (user, 2026-09-17): "every other office, letter have it be darker and when
+     hovered it is highlighted" ⇒ the resting `btn` is the DARKER tone and `hover` is the brighter
+     brand tone. Picked as option B from a rendered A/B/C over every office.
+     ⛔ VANGUARD IS EXCLUDED BY NAME — user: "on vanguard it was on purpose to do it."
+     🔑 Only FIVE offices were swapped (viridian · elevate · leadsphere · apexpremier · eaglespeak):
+     evolution, revamped and powershift ALREADY hovered brighter, so touching them would have
+     inverted the very thing being asked for. Check the direction before "fixing" one of them.
+     ⚠ apexpremier: D-039 chose the TRUE logo red #D30000 for btn. That red is still what the button
+     shows ON HOVER, and `accent`/`color` are untouched; only the resting fill is the darker #AA0000.
+     The user approved this from the rendered table on 2026-09-17. Do not silently revert either way.
+     ⚠ A darker rest is less prominent on the dark card (elevate is lowest at 1.48:1). It reads fine
+     because the hue differs — vanguard 1.36:1 was grey-on-grey. Guard: hoverpolarity_harness.
+     ── LIGHT-MODE NAV (`lightNav`, same date): in light mode --blue2 becomes lightInk, a colour meant
+     for WHITE, but the sidebar is dark in BOTH themes — so the selected item was ink-on-dark:
+     viridian 3.10:1 · evolution 3.49:1 · eaglespeak 1.86:1. lightNav gives those three a colour meant
+     for the dark sidebar (9.89 · 11.62 · 5.44). eaglespeak gets a LIGHTER tint of their orange, not
+     their accent: their own accent measures only 3.03:1 on their slate sidebar. */
   viridian: {
     // Accent is GOLD (#C9A23C); the green is the fill/band. lightInk keeps gold accent text legible in light mode.
     name:'Viridian', color:'#C9A23C',
@@ -36,7 +53,7 @@ var OFFICE_CONFIG = {
        problem (12.9:1); the button SHAPE was. Now 2.96:1 / 2.07:1, still green, green on
        hover. ⚠ Gold was rejected here: a gold button needs dark ink, and dark ink on any
        green hover is ~1.2:1 — and --blueText has no hover variant to swap it. */
-    theme:{ btn:'#2E7A4E', accent:'#D9C87E', dark:'#16281e', hover:'#226039', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A', lightInk:'#7a6a2e' },
+    theme:{ btn:'#226039', accent:'#D9C87E', dark:'#16281e', hover:'#2E7A4E', lightNav:'#D9C87E', glow:'#7a5f18', band:'#1B3A2D', onBand:'#EFE2A2', sidebar:'#10221a', loginAccent:'#16382A', onAccent:'#16382A', lightInk:'#7a6a2e' },
     reportBrand:{ band:'#1B3A2D', headerText:'#EAF1EA', headerSub:'#cfd9cf', accent:'#D9C87E', accentText:'#D9C87E', logo:'viridian-logo-full.png', logoH:54 },
     /* ⚠⚠ HEIGHTS ARE BALANCED ON RENDERED AREA, NOT ON THE NUMBER. Source aspect ratios
        run 1:1 (this square monogram) to 5.5:1 (elevate), so identical heights gave a 3x
@@ -49,7 +66,7 @@ var OFFICE_CONFIG = {
   },
   elevate: {
     name:'Elevate', color:'#0B2E9C',
-    theme:{ btn:'#0A1FFF', accent:'#3D5BFF', dark:'#14224a', hover:'#0816cc', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
+    theme:{ btn:'#0816cc', accent:'#3D5BFF', dark:'#14224a', hover:'#0A1FFF', glow:'#16306a', band:'#0B2E9C', onBand:'#ffffff', sidebar:'#111827' },
     reportBrand:{ band:'#111827', headerText:'#ffffff', headerSub:'#aab8d6', accent:'#0A1FFF', accentText:'#0A1FFF', logo:'elevate-logo-full-standard-blue.png', logoH:40 },
     logos:{ full:'assets/elevate-logo-full-standard-blue.png', emblem:'assets/elevate-logo-symbol-only-blue.png', sidebarH:36 },
     bookTint:'#3D5BFF', bookLogo:'elevate-logo-symbol-only-blue.png'
@@ -87,7 +104,7 @@ var OFFICE_CONFIG = {
   leadsphere: {
     // NAVY structure + BRIGHT-BLUE buttons/accent. White logo on dark chrome.
     name:'LeadSphere Solutions', color:'#2B6AFF',
-    theme:{ btn:'#2B6AFF', accent:'#2B6AFF', dark:'#132a45', hover:'#1B4EC4', glow:'#173a63', band:'#0A2540', onBand:'#ffffff', sidebar:'#0b1a2b' },
+    theme:{ btn:'#1B4EC4', accent:'#2B6AFF', dark:'#132a45', hover:'#2B6AFF', glow:'#173a63', band:'#0A2540', onBand:'#ffffff', sidebar:'#0b1a2b' },
     reportBrand:{ band:'#0A2540', headerText:'#ffffff', headerSub:'#9db4d8', accent:'#2B6AFF', accentText:'#2B6AFF', logo:'leadsphere-logo-full-reverse.png', logoH:42 },
     logos:{ full:'assets/leadsphere-logo-full-reverse.png', emblem:'assets/leadsphere-logo-symbol.png', sidebarH:44, drHeaderH:30 },
     bookTint:'#2B6AFF', bookLogo:'leadsphere-logo-symbol.png'
@@ -99,7 +116,7 @@ var OFFICE_CONFIG = {
     // ⚠ Gold is BRIGHT (L=0.600): white on it is 1.9:1, so `onAccent` MUST stay dark —
     // and `lightInk` exists because gold accent TEXT is illegible on a light surface.
     name:'Evolution Concepts', color:'#F7C45D',
-    theme:{ btn:'#8A4B12', accent:'#F7C45D', dark:'#2A1D10', hover:'#A85C18', glow:'#4A3110', band:'#1A1512', onBand:'#ffffff', sidebar:'#151110', onAccent:'#2A1B08', lightInk:'#8A6410' },
+    theme:{ btn:'#8A4B12', accent:'#F7C45D', lightNav:'#F7C45D', dark:'#2A1D10', hover:'#A85C18', glow:'#4A3110', band:'#1A1512', onBand:'#ffffff', sidebar:'#151110', onAccent:'#2A1B08', lightInk:'#8A6410' },
     reportBrand:{ band:'#1A1512', headerText:'#ffffff', headerSub:'#D9C7A5', accent:'#F7C45D', accentText:'#B4791C', logo:'evolution-logo-full.png', logoH:46 },
     // ⚠ Two-line lockup (3:1), so it needs MORE height than the wide offices to reach
     // the same visual weight, and slightly LESS on login where it was already largest.
@@ -137,7 +154,7 @@ var OFFICE_CONFIG = {
        with a BLUE in-app accent (#3D67E8) and red only on btn/login/accent2b, so the two
        read as different offices. Verified rendered, not asserted. */
     name:'Apex Premier Management', color:'#D30000',
-    theme:{ btn:'#D30000', accent:'#D30000', dark:'#2A1010', hover:'#AA0000', glow:'#4A1212', band:'#1A0E0E', onBand:'#ffffff', sidebar:'#161010', btnText:'#ffffff', onAccent:'#ffffff' },
+    theme:{ btn:'#AA0000', accent:'#D30000', dark:'#2A1010', hover:'#D30000', glow:'#4A1212', band:'#1A0E0E', onBand:'#ffffff', sidebar:'#161010', btnText:'#ffffff', onAccent:'#ffffff' },
     reportBrand:{ band:'#1A0E0E', headerText:'#ffffff', headerSub:'#E0B3B3', accent:'#D30000', accentText:'#D30000', logo:'apexpremier-logo-full-reverse.png', logoH:40 },
     /* ⚠⚠ ONLY THE REVERSE IS WIRED, AND THAT IS NOT AN OMISSION. Their master lockup sets
        "MANAGEMENT" in near-black, and the sidebar is dark in BOTH themes — so the standard
@@ -187,7 +204,7 @@ var OFFICE_CONFIG = {
        options B/C kept the nav dark and were declined in favour of the full slate.
        ⚠ `band` is NOT changed here — it drives the Daily Report EMAIL header and is mirrored in
        Code.gs OFFICE_BRAND, so it cannot move without a backend paste AND a redeploy (R-019). */
-    theme:{ btn:'#B4530F', accent:'#F57614', lightInk:'#C1551A', dark:'#141F3D', hover:'#8F400B', glow:'#1B2A52', band:'#101B3A', onBand:'#ffffff', sidebar:'#414D63', btnText:'#ffffff', onAccent:'#141433' },
+    theme:{ btn:'#8F400B', accent:'#F57614', lightInk:'#C1551A', lightNav:'#FFC38A', dark:'#141F3D', hover:'#B4530F', glow:'#1B2A52', band:'#101B3A', onBand:'#ffffff', sidebar:'#414D63', btnText:'#ffffff', onAccent:'#141433' },
     /* 🔴 band FOLLOWS THE SIDEBAR to their header slate — 2026-08-26, user's call, and it is a
        MIRRORED value: Code.gs OFFICE_BRAND.eaglespeak carries the same `band` AND `header`, so
        this edit is inert in a sent email until that is pasted AND REDEPLOYED (R-019).
