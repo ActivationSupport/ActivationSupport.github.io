@@ -259,10 +259,11 @@
     // ⚠ logoBg for the same reason as apexpremier: the eagle is NAVY (luma 0.171), so on the
     // dark tile only its orange beak would survive. The guard named it, red, by luma.
     eaglespeak:{accent:'#F57614',accent2:'#F9A05C',dim:'#141f3d',deep:'#B4530F',on:'#141433',glow:'#16234a',logo:'eaglespeak-logo-symbol.png',logoBg:'#ffffff'},
-    // ⚠ powershift is a STEEL office (onboarded 2026-09-17): their brand has no hue. The accent
-    // #A1A1A1 is light, so `on` is DARK (7.66:1). The mark is grey-gradient letters on
-    // transparent, bright enough for the dark tile without logoBg (the drift guard measures it).
-    powershift:{accent:'#A1A1A1',accent2:'#C4C4C4',dim:'#1f1f1f',deep:'#6B6B6B',on:'#0A0A0A',glow:'#262626',logo:'powershift-logo-symbol.png'}
+    // ⚠ powershift is MONOCHROME (onboarded 2026-09-17), in the user's four greys
+    // (#FFFFFF · #E5E5E5 · #A1A1A1 · #606060). The fills are pale, so `on` is DARK: #0A0A0A on the
+    // #E5E5E5→#A1A1A1 button is 7.7–15.7:1. The mark is grey-gradient letters, bright enough for
+    // the dark tile without logoBg (the drift guard measures it).
+    powershift:{accent:'#E5E5E5',accent2:'#FFFFFF',dim:'#1f1f1f',deep:'#A1A1A1',on:'#0A0A0A',glow:'#3a3a3a',logo:'powershift-logo-symbol.png'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t=THEMES[o]; if(!t) return;

@@ -222,29 +222,36 @@ var OFFICE_CONFIG = {
     bookTint:'#F57614', bookLogo:'eaglespeak-logo-symbol.png'
   },
   powershift: {
-    /* STEEL office (onboarded 2026-09-17), picked by the user from a rendered A/B
-       (_private/preview/powershift_brand_preview.js; B "chrome" was declined).
-       🔑 THEIR BRAND HAS NO HUE. The logo is a grey-gradient monogram, and their site's
-       Elementor palette is all neutrals: primary #606060, secondary #A1A1A1, #6B6B6B,
-       text #0A0A0A. Every value below is one of theirs; none is invented.
-       ⚠ btn #6B6B6B sits at 2.91:1 against the dark card. That is above vanguard's rejected
-       1.36:1 but under 3:1, and it was accepted from the render. White on it is 5.33:1.
-       ⚠ Accent #A1A1A1 is light (6.01:1 as text on the dark card), so `onAccent` is DARK
-       (7.66:1), and `lightInk` #606060 carries accent text on white (6.29:1).
-       ⚠ Tableau spells the company "power shift" (two words); the brand and this name
-       spell it as one. Both are correct, in different places. */
-    name:'Powershift Marketing', color:'#A1A1A1',
-    theme:{ btn:'#6B6B6B', accent:'#A1A1A1', lightInk:'#606060', dark:'#1F1F1F', hover:'#555555', glow:'#3A3A3A', band:'#1A1A1A', onBand:'#ffffff', sidebar:'#0A0A0A', btnText:'#ffffff', onAccent:'#0A0A0A' },
-    // MIRRORED in Code.gs OFFICE_CONFIG.powershift.brand; move the two together.
-    reportBrand:{ band:'#1A1A1A', headerText:'#ffffff', headerSub:'#BDBDBD', accent:'#A1A1A1', accentText:'#606060', logo:'powershift-logo-full-reverse.png', logoH:40 },
+    /* MONOCHROME office (onboarded 2026-09-17). Their brand has NO hue (logo, site CSS and site
+       imagery all checked), so the palette is the FOUR GREYS THE USER SUPPLIED as a swatch image,
+       2026-09-17: "These are the 4 colors wed want to be using" = #FFFFFF · #E5E5E5 · #A1A1A1 · #606060
+       (all four also appear in their own Elementor CSS).
+       🔴 HISTORY: theme A "steel" (btn #6B6B6B, accent #A1A1A1) shipped first in c8027d4, and the user
+       called it "way to grey washed". Round-3 option G ("bright") was picked from a rendered
+       side-by-side (_private/preview/powershift_brand_v3_preview.js).
+       🔑 THE BUTTON IS PALE (#E5E5E5 with black text), so it would vanish on the light theme's white
+       cards (1.26:1, measured). lightBtn/lightBtnText/lightHover swap it for #606060 + white in light
+       mode, and lightNav keeps the sidebar highlight WHITE: the sidebar is dark in both themes, and
+       the #606060 ink measured only 3.15:1 there. These keys are opt-in; see applyOfficeTheme.
+       Measured: btn vs dark card 12.3:1 · btn text 15.7:1 · accent text 15.5:1 · light btn 6.29:1 ·
+       light nav 19.8:1. The only non-swatch values are #0A0A0A (their site's text colour) and #3D3D3D
+       (their site's dark), used for structure and the light-mode hover.
+       ⚠ Tableau spells the company "power shift" (two words); the brand and this name use one. */
+    name:'Powershift Marketing', color:'#E5E5E5',
+    theme:{ btn:'#E5E5E5', accent:'#FFFFFF', lightInk:'#606060', dark:'#1F1F1F', hover:'#FFFFFF', glow:'#606060', band:'#0A0A0A', onBand:'#ffffff', sidebar:'#0A0A0A', btnText:'#0A0A0A', onAccent:'#0A0A0A',
+            lightBtn:'#606060', lightBtnText:'#FFFFFF', lightHover:'#3D3D3D', lightNav:'#FFFFFF' },
+    /* MIRRORED in Code.gs OFFICE_CONFIG.powershift.brand; move the two together. The email BODY is
+       white, so the accent stripe and section text use the DARK swatch (#606060), since white would
+       vanish. The black band and white lockup carry the crisp look. */
+    reportBrand:{ band:'#0A0A0A', headerText:'#ffffff', headerSub:'#E5E5E5', accent:'#606060', accentText:'#606060', logo:'powershift-logo-full-reverse.png', logoH:40 },
     /* Official RGBA uploads from their site, resized by logo_build.js (nothing redrawn).
        The lockup is 5.27:1, near vanguard's 4.80:1, so the width caps bind first.
        `fullLight` is their own black-wordmark lockup for the light Daily Report header. */
     logos:{ full:'assets/powershift-logo-full-reverse.png', fullLight:'assets/powershift-logo-full.png', emblem:'assets/powershift-logo-symbol.png', sidebarH:40 },
-    /* ⚠ A grey tint sits near the calendar's multi-office neutral (#8a94a0). The cell's
-       sub-label ("elsewhere" vs "N offices") and the tooltip still name the office, and the
-       slot is blocked either way, so the double-booking guard is unaffected. */
-    bookTint:'#A1A1A1', bookLogo:'powershift-logo-symbol.png'
+    /* ⚠ A pale tint, clearly not the calendar's multi-office neutral (#8a94a0) on dark. It is faint on
+       the light theme, but the cell still reads "Booked · elsewhere" and names the office in the
+       tooltip. The slot is blocked either way, so the double-booking guard is unaffected. */
+    bookTint:'#E5E5E5', bookLogo:'powershift-logo-symbol.png'
   },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
   // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
@@ -280,23 +287,33 @@ function _drReportBrand(officeId) {
 function applyOfficeTheme(officeId) {
   var t = OFFICE_THEME[officeId]; if (!t) return;
   var r = document.documentElement.style;
-  r.setProperty('--blue', t.btn);
   // In LIGHT mode, gold offices (Viridian) swap their pale accent for a darker
   // "ink" so accent TEXT/borders stay legible on the white surfaces; the accent FILLS then
   // need white on-accent text. One pair of var swaps cascades to every --blue2 usage.
   var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  /* OPT-IN LIGHT-THEME BUTTON (2026-09-17, powershift). An office whose button is PALE (a light
+     grey or white fill with dark text) vanishes on the light theme's white cards: one `btn` can't
+     serve both. lightBtn / lightBtnText / lightHover replace the three button vars in light mode
+     only. An office that sets none of them is byte-for-byte unchanged. */
+  r.setProperty('--blue', (isLight && t.lightBtn) ? t.lightBtn : t.btn);
   var ink = (isLight && t.lightInk) ? t.lightInk : t.accent;
   r.setProperty('--blue2', ink);
   r.setProperty('--accent2b', t.accent2b || ink);   // dual accent; non-vanguard offices fall back to their main accent (no change)
   r.setProperty('--blue3', t.dark);
-  r.setProperty('--blueHover', t.hover);
-  r.setProperty('--blueText', t.btnText || '#fff');
+  r.setProperty('--blueHover', (isLight && t.lightHover) ? t.lightHover : t.hover);
+  r.setProperty('--blueText', (isLight && t.lightBtnText) ? t.lightBtnText : (t.btnText || '#fff'));
   r.setProperty('--login-accent', t.loginAccent || t.accent);   // login is ALWAYS dark → keep the brand accent (not the ink)
   r.setProperty('--on-accent', (isLight && t.lightInk) ? '#fff' : (t.onAccent || '#fff'));   // dark ink fill needs white text
   r.setProperty('--sidebar-bg', t.sidebar || '#111827');
   r.setProperty('--blue2-fade', _hexToRgba(ink, 0.14));
   r.setProperty('--blue2-faint', _hexToRgba(ink, 0.06));
   r.setProperty('--blue2-rgb', _hexToRgbTriplet(ink));   // accent "r,g,b" for rgba(var(--blue2-rgb),a) tints
+  /* The SIDEBAR is dark in BOTH themes, but its active item used --blue2, i.e. the light-surface
+     INK in light mode (a dark colour on a dark sidebar). Opt-in `lightNav` gives it a colour meant
+     for the dark sidebar; without it --nav-accent is --blue2 exactly as before. */
+  var nav = (isLight && t.lightNav) ? t.lightNav : ink;
+  r.setProperty('--nav-accent', nav);
+  r.setProperty('--nav-accent-rgb', _hexToRgbTriplet(nav));
   var ls = document.getElementById('login-screen');
   if (ls) ls.style.background = 'radial-gradient(ellipse at center, '+t.glow+' 0%, #111 65%)';
 }
