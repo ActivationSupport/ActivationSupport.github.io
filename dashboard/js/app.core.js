@@ -251,6 +251,12 @@ var OFFICE_CONFIG = {
     /* ⚠ A pale tint, clearly not the calendar's multi-office neutral (#8a94a0) on dark. It is faint on
        the light theme, but the cell still reads "Booked · elsewhere" and names the office in the
        tooltip. The slot is blocked either way, so the double-booking guard is unaffected. */
+    /* DEFAULTS TO LIGHT — user's call 2026-09-17: "it should default to the light mode instead of our
+       standard dark mode like our other portals". Only the DEFAULT moves; the toggle is unchanged and a
+       saved choice still wins. The reason every office defaults to dark (see _applyTheme) was that
+       light mode hid light-inked logos — this office ships `fullLight`, their own black-ink lockup, so
+       that defect cannot apply here. Their dark-mode lift stays for anyone who switches. */
+    defaultTheme:'light',
     bookTint:'#E5E5E5', bookLogo:'powershift-logo-symbol.png'
   },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
@@ -331,7 +337,10 @@ function _hexToRgbTriplet(hex) {
   var n = parseInt(hex, 16);
   return ((n>>16)&255)+','+((n>>8)&255)+','+(n&255);
 }
-var OFFICE_LOGOS = _ocfg('logos');   // derived from OFFICE_CONFIG (see top of file)
+var OFFICE_LOGOS = _ocfg('logos');
+/* Per-office theme DEFAULT, used only when the browser has no saved choice (_applyTheme).
+   Absent ⇒ 'dark', which is every office except powershift. */
+var OFFICE_DEFAULT_THEME = _ocfg('defaultTheme');   // derived from OFFICE_CONFIG (see top of file)
 
 var CFG = {};
 var SESSION = {};
@@ -1636,6 +1645,14 @@ function _startInactivityWatcher() {
 function _themeAllowed() {
   return true;   // every role can see + use the toggle; ALL roles now DEFAULT to dark (see _applyTheme)
 }
+/* The office whose default applies: CFG once signed in, else the ?office= in the URL, because the
+   login screen paints before CFG exists and must not flash the wrong theme. */
+function _officeDefaultTheme() {
+  var oid = (typeof CFG !== 'undefined' && CFG && CFG.officeId) ? CFG.officeId : '';
+  if (!oid) { try { oid = (new URLSearchParams(window.location.search).get('office') || '').toLowerCase().trim(); } catch (e) { oid = ''; } }
+  var d = OFFICE_DEFAULT_THEME[oid];
+  return (d === 'light' || d === 'dark') ? d : 'dark';
+}
 function _applyTheme() {
   var allowed = _themeAllowed(), pref = '';
   try { pref = localStorage.getItem('as_theme') || ''; } catch (e) {}
@@ -1647,7 +1664,7 @@ function _applyTheme() {
   //   how the white-on-white Daily Report headers went unnoticed for so long. The toggle
   //   is unchanged and still available to every role; an explicit choice is remembered in
   //   localStorage and wins over this line.
-  else theme = 'dark';
+  else theme = _officeDefaultTheme();
   var _ssOffice = (typeof CFG !== 'undefined' && CFG && CFG.officeId === 'salessupport');
   if (_ssOffice) theme = 'dark';   // Sales Support is locked to its deep-space dark theme
   document.documentElement.setAttribute('data-theme', theme);
