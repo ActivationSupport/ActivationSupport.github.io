@@ -289,7 +289,7 @@
      🔴 apexpremier and eaglespeak were absent from 2026-08-25 to 2026-08-29: the THEMES table
      below had them (that is what officeconfig_drift checks) and this did not, so the drift
      guard stayed green while their customers hit a dead page. ADD EVERY NEW OFFICE HERE. */
-  var OFFICE_NAMES = { elevate:"Elevate", viridian:"Viridian", vanguard:"Vanguard", leadsphere:"LeadSphere Solutions", evolution:"Evolution Concepts", revamped:"Revamped Strategies", apexpremier:"Apex Premier Management", eaglespeak:"Eagles' Peak Enterprises" };
+  var OFFICE_NAMES = { elevate:"Elevate", viridian:"Viridian", vanguard:"Vanguard", leadsphere:"LeadSphere Solutions", evolution:"Evolution Concepts", revamped:"Revamped Strategies", apexpremier:"Apex Premier Management", eaglespeak:"Eagles' Peak Enterprises", powershift:"Powershift Marketing" };
   var PRODUCTS = ["Wireless", "Air", "Fiber - Self Install"];
   var qty = {};
   var win = null, selectedSlot = "", loadingSlots = false, ACTS = [];
@@ -331,7 +331,11 @@
     // is 2.81:1 — the same call as evolution's gold and viridian.
     // ⚠ logoBg for the same reason as apexpremier: the eagle is NAVY (luma 0.171), so on the
     // dark tile only its orange beak would survive. The guard named it, red, by luma.
-    eaglespeak:{accent:'#F57614',accent2:'#F9A05C',dim:'#141f3d',deep:'#B4530F',on:'#141433',glow:'#16234a',logo:'eaglespeak-logo-symbol.png',logoBg:'#ffffff'}
+    eaglespeak:{accent:'#F57614',accent2:'#F9A05C',dim:'#141f3d',deep:'#B4530F',on:'#141433',glow:'#16234a',logo:'eaglespeak-logo-symbol.png',logoBg:'#ffffff'},
+    // ⚠ powershift is a STEEL office (onboarded 2026-09-17): their brand has no hue. The accent
+    // #A1A1A1 is light, so `on` is DARK (7.66:1). The mark is grey-gradient letters on
+    // transparent, bright enough for the dark tile without logoBg (the drift guard measures it).
+    powershift:{accent:'#A1A1A1',accent2:'#C4C4C4',dim:'#1f1f1f',deep:'#6B6B6B',on:'#0A0A0A',glow:'#262626',logo:'powershift-logo-symbol.png'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t = THEMES[o]; if(!t) return;
@@ -395,7 +399,7 @@
     /* ⚠ Same trap as OFFICE_NAMES above, quieter: a missing entry does not block the booking,
        it just drops the "Times shown in … time (CT)" note, so the customer is never told which
        zone the slots are in. Add every new office here too. */
-    var OFFICE_TZ_ABBR = { elevate:"PT", viridian:"CT", vanguard:"ET", leadsphere:"CT", evolution:"ET", revamped:"CT", apexpremier:"PT", eaglespeak:"ET" };
+    var OFFICE_TZ_ABBR = { elevate:"PT", viridian:"CT", vanguard:"ET", leadsphere:"CT", evolution:"ET", revamped:"CT", apexpremier:"PT", eaglespeak:"ET", powershift:"ET" };
     var _tza = OFFICE_TZ_ABBR[OFFICE];
     if (_tza) $("tznote").textContent = "🕓 Times shown in " + OFFICE_NAMES[OFFICE] + " time (" + _tza + ").";
 

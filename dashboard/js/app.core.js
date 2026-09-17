@@ -221,6 +221,31 @@ var OFFICE_CONFIG = {
             emblem:'assets/eaglespeak-logo-symbol.png', sidebarH:60, loginW:290, drHeaderH:22 },
     bookTint:'#F57614', bookLogo:'eaglespeak-logo-symbol.png'
   },
+  powershift: {
+    /* STEEL office (onboarded 2026-09-17), picked by the user from a rendered A/B
+       (_private/preview/powershift_brand_preview.js; B "chrome" was declined).
+       🔑 THEIR BRAND HAS NO HUE. The logo is a grey-gradient monogram, and their site's
+       Elementor palette is all neutrals: primary #606060, secondary #A1A1A1, #6B6B6B,
+       text #0A0A0A. Every value below is one of theirs; none is invented.
+       ⚠ btn #6B6B6B sits at 2.91:1 against the dark card. That is above vanguard's rejected
+       1.36:1 but under 3:1, and it was accepted from the render. White on it is 5.33:1.
+       ⚠ Accent #A1A1A1 is light (6.01:1 as text on the dark card), so `onAccent` is DARK
+       (7.66:1), and `lightInk` #606060 carries accent text on white (6.29:1).
+       ⚠ Tableau spells the company "power shift" (two words); the brand and this name
+       spell it as one. Both are correct, in different places. */
+    name:'Powershift Marketing', color:'#A1A1A1',
+    theme:{ btn:'#6B6B6B', accent:'#A1A1A1', lightInk:'#606060', dark:'#1F1F1F', hover:'#555555', glow:'#3A3A3A', band:'#1A1A1A', onBand:'#ffffff', sidebar:'#0A0A0A', btnText:'#ffffff', onAccent:'#0A0A0A' },
+    // MIRRORED in Code.gs OFFICE_CONFIG.powershift.brand; move the two together.
+    reportBrand:{ band:'#1A1A1A', headerText:'#ffffff', headerSub:'#BDBDBD', accent:'#A1A1A1', accentText:'#606060', logo:'powershift-logo-full-reverse.png', logoH:40 },
+    /* Official RGBA uploads from their site, resized by logo_build.js (nothing redrawn).
+       The lockup is 5.27:1, near vanguard's 4.80:1, so the width caps bind first.
+       `fullLight` is their own black-wordmark lockup for the light Daily Report header. */
+    logos:{ full:'assets/powershift-logo-full-reverse.png', fullLight:'assets/powershift-logo-full.png', emblem:'assets/powershift-logo-symbol.png', sidebarH:40 },
+    /* ⚠ A grey tint sits near the calendar's multi-office neutral (#8a94a0). The cell's
+       sub-label ("elsewhere" vs "N offices") and the tooltip still name the office, and the
+       slot is blocked either way, so the double-booking guard is unaffected. */
+    bookTint:'#A1A1A1', bookLogo:'powershift-logo-symbol.png'
+  },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
   // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
   // dark is FORCED (see _applyTheme + the html[data-office="salessupport"] block in
