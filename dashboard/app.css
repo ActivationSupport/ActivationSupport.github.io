@@ -173,6 +173,43 @@ html[data-office="salessupport"] .ss-card{
 .ss-addpop{ width:100%;max-width:380px }
 .ss-addpop-fields{ display:flex;flex-direction:column;gap:12px;margin-bottom:6px }
 
+
+/* ═══════════════════ POWERSHIFT — DARK-MODE LIFT (2026-09-17, user: "the dark mode is to dark
+   could we increase the contrast ?" → option L from a rendered A/B) ═══════════════════
+   Cosmetic branding gated on office id, which R-005 allows; the feature set is untouched.
+   🔑 SCOPE IS THE WHOLE SELECTOR, AND EVERY PART OF IT MATTERS:
+     · [data-office="powershift"] — no other office can match.
+     · [data-theme="dark"]        — light mode is left exactly as it was (it was not the complaint).
+     · body                       — NOT html. applyOfficeTheme writes --sidebar-bg as an INLINE style
+       on <html>, and an inline style beats any rule on the same element. Declaring these on <body>
+       lets them inherit down to everything inside, sidebar included.
+   ⚠ --kpi-bg is restated on purpose. :root defines it as var(--panel2-bg), and that reference is
+   RESOLVED AT :root, so overriding --panel2-bg further down does not reach it. Without this line the
+   stat tiles stay navy-black while every surface around them lifts. Seen in the preview render.
+   ⚠ The sidebar is their #606060 swatch, so its text can no longer be low-alpha white: on #606060 the
+   stock values measured 1.6:1 (group label), 2.3:1 (office) and 2.7:1 (user line). Raised below.
+   ⚠ Status chips (.sp-*, .rp-*, .badge-*, .pill-*) keep their own dark tints by design — they are
+   semantic, not surfaces, and they still read on the lifted card.
+   Measured after the lift: card vs page 1.32 · text on card 9.70:1 · secondary 6.97:1 ·
+   button #E5E5E5 on card 8.62:1 · white nav on the #606060 sidebar 6.29:1.
+   Rebuild the comparison with _private/preview/powershift_dark_preview.js. */
+html[data-office="powershift"][data-theme="dark"] body{
+  --bg:#2A2A2A; --surface:#3D3D3D; --surface2:#474747; --sidebar-bg:#606060;
+  --border:rgba(255,255,255,.16);
+  --field-bg:#333333; --field-border:#5A5A5A; --control-bg:#454545; --inset-bg:#303030;
+  --panel2-bg:#333333; --panel2-border:#4F4F4F; --kpi-bg:#333333;
+  --text:#F2F2F2; --text2:#CFCFCF;
+}
+/* Sidebar text on the mid-grey: alpha whites, raised to clear 4.5:1 (label 4.34, office/user 5.3+). */
+html[data-office="powershift"][data-theme="dark"] .nav-item{ color:rgba(255,255,255,.88) }
+html[data-office="powershift"][data-theme="dark"] .nav-group-label{ color:rgba(255,255,255,.75) }
+html[data-office="powershift"][data-theme="dark"] .sidebar-office{ color:rgba(255,255,255,.78) }
+html[data-office="powershift"][data-theme="dark"] .sidebar-user{ color:rgba(255,255,255,.85) }
+html[data-office="powershift"][data-theme="dark"] .sign-out{ color:rgba(255,255,255,.8) }
+/* The header/footer hairlines are 8% white, which vanishes on #606060. */
+html[data-office="powershift"][data-theme="dark"] .sidebar-header,
+html[data-office="powershift"][data-theme="dark"] .sidebar-footer{ border-color:rgba(255,255,255,.22) }
+
 /* ═══════════════════ MILLENNIUM FALCON COCKPIT — dashboard reskin (login frozen) ═══════════════════
    Sales Support DASHBOARD only. Scoped to #app + the two body-level overlays (#ticket-modal, .ss-addpop-bg)
    that live OUTSIDE #app, so #login-screen keeps the original Jedi look untouched. Palette vars are redefined
