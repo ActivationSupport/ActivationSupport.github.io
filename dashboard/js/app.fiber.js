@@ -9,7 +9,15 @@
 // Orders whose install date isn't set yet come back with installDate:'' and are
 // listed under "N/A — not yet scheduled" beneath the grid rather than dropped.
 
-var _FIB = { monthOffset: 0, installs: null, flight: false, statusFilter: 'all' };
+var _FIB = { monthOffset: 0, installs: null, flight: false, statusFilter: 'all', seq: 0 };
+
+/* 🔴 OFFICE SWITCH DROPS THE CALENDAR (2026-09-18). switchOffice cleared every other tab cache but
+   not this one, so after a switch the calendar repainted the PREVIOUS office's installs (customer
+   DSIs) under the new office's name. Bumping seq also orphans any fetch still in flight for the old
+   office, so it can neither paint nor clear the new office's flight flag. */
+function _fibResetForOffice() {
+  _FIB.installs = null; _FIB.flight = false; _FIB.statusFilter = 'all'; _FIB.monthOffset = 0; _FIB.seq++;
+}
 
 // Status groups for the filter view: the three "closed" outcomes each stand alone,
 // everything else is the in-flight pipeline. Posted means the same thing as Active,
@@ -105,8 +113,11 @@ function renderFiberCalendarTab() {
   if (_FIB.installs !== null) { _fibPaint(); return; }
   if (!_FIB.flight) {
     _FIB.flight = true;
-    var _reqOffice = CFG.officeId;
+    var _reqOffice = CFG.officeId, _reqSeq = _FIB.seq;
     api({ action:'readFiberInstalls', officeId:CFG.officeId }).then(function(res) {
+      /* Stale-request guard — an office switch bumped seq and already cleared flight, so a
+         late answer for the old office must touch NOTHING. The office check is belt-and-braces. */
+      if (_reqSeq !== _FIB.seq) return;
       _FIB.flight = false;
       /* Office guard — these are customer install appointments. ⚠ _FIB.flight cleared above
          the return, or the calendar sticks on its skeleton for the rest of the session. */
@@ -114,6 +125,7 @@ function renderFiberCalendarTab() {
       _FIB.installs = (res && res.installs) ? res.installs : [];
       if (CURRENT_TAB === 'fibercal') _fibPaint();
     }).catch(function(e) {
+      if (_reqSeq !== _FIB.seq) return;
       _FIB.flight = false;
       if (CURRENT_TAB === 'fibercal') document.getElementById('main-content').innerHTML =
         errorState('Couldn’t load fiber installs.', { code:errCode(e), retry:'renderFiberCalendarTab()' });
@@ -132,10 +144,12 @@ function _fibThisMonth() { _FIB.monthOffset = 0; _fibPaint(); }
 
 // Filter view — separate the closed outcomes (Active / Canceled / Disconnected)
 // from the in-flight pipeline. Each chip shows its own count so empty groups read
-// at a glance.
-function _fibFilterBar(everything) {
-  var counts = { all: everything.length, inflight:0, active:0, canceled:0, disconnected:0 };
-  everything.forEach(function(o) { counts[_fibStatusGroup(o)]++; });
+// at a glance. ⚠ The counts are the MONTH ON SCREEN (user, 2026-09-18: "these numbers
+// should be showing what is being visually shown each month") — callers pass that month's
+// installs, never the whole retention window or the unscheduled list.
+function _fibFilterBar(monthItems) {
+  var counts = { all: monthItems.length, inflight:0, active:0, canceled:0, disconnected:0 };
+  monthItems.forEach(function(o) { counts[_fibStatusGroup(o)]++; });
   var cur = _FIB.statusFilter || 'all';
   return '<div class="fib-filter">' + FIB_FILTERS.map(function(f) {
     return '<button class="fib-fbtn'+(cur===f.key?' active':'')+'" onclick="_fibSetFilter(\''+f.key+'\')">'+
@@ -176,11 +190,13 @@ function _fibBuild() {
   var daysInMonth = new Date(year, month + 1, 0).getDate();
   var lead = first.getDay();                       // blank cells before the 1st
   var monthPrefix = year + '-' + ('0'+(month+1)).slice(-2) + '-';
+  // Everything scheduled in the month on screen, before the status filter — the chips count this.
+  var monthAll = everything.filter(function(o) { return o.installDate && o.installDate.indexOf(monthPrefix) === 0; });
   var monthCount = 0, overdueCount = 0;
   Object.keys(byDay).forEach(function(ymd) {
     if (ymd.indexOf(monthPrefix) === 0) monthCount += byDay[ymd].length;
   });
-  all.forEach(function(o) { if (_fibIsOverdue(o)) overdueCount++; });
+  all.forEach(function(o) { if (o.installDate && o.installDate.indexOf(monthPrefix) === 0 && _fibIsOverdue(o)) overdueCount++; });
 
   var head =
     '<div class="fib-bar">' +
@@ -194,7 +210,7 @@ function _fibBuild() {
         '<span class="fib-count">'+monthCount+' install'+(monthCount===1?'':'s')+' this month</span>' +
         (overdueCount ? '<span class="fib-count fib-count-warn">'+overdueCount+' past install date</span>' : '') +
       '</div>' +
-    '</div>' + _fibFilterBar(everything) + _fibLegend();
+    '</div>' + _fibFilterBar(monthAll) + _fibLegend();
 
   // ── month grid ──
   var cells = '';

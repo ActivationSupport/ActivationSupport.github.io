@@ -1835,6 +1835,7 @@ function switchOffice(newOfficeId) {
   _TRAINING_ORDERS = null;
   _PSV_SALES = null;
   PEOPLE_TABLEAU_NAMES = null;
+  _fibResetForOffice();   // fiber calendar — its installs are the previous office's customers
   loadData();
 }
 
