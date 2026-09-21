@@ -369,6 +369,7 @@ function _applyMainData(res, ts) {
   var _keepNotes = DATA && DATA.notes;
   DATA = res;
   if (_keepNotes && !DATA.notes) DATA.notes = _keepNotes;
+  if (typeof _ratingApplyHolds === 'function') _ratingApplyHolds();   // a just-set rating outlives a stale blob
   if (_LST_POSTED !== null) _LST_SALES = _LST_POSTED.concat(_lstLegacyRows());   // re-merge legacy once the bundle (with legacyLstSales) is loaded
   _CACHE.mainDataTs = ts || Date.now();
   var roster = DATA.roster || {};
@@ -591,6 +592,7 @@ function _bgRefreshMain() {
     var _keepNotes = DATA && DATA.notes;
     DATA = res;
     if (_keepNotes && !DATA.notes) DATA.notes = _keepNotes;
+    if (typeof _ratingApplyHolds === 'function') _ratingApplyHolds();   // same as _applyMainData — see app.calllogs.js
     _CACHE.mainDataTs = Date.now();
     _markDataFresh();
     var me = (DATA.roster || {})[SESSION.email];
@@ -704,13 +706,49 @@ function _notesTabActive() {
   var dm = document.getElementById('detail-modal');
   return !!(dm && dm.classList.contains('open') && document.getElementById('nm-act-hist'));
 }
+/* 🔴 A POLL ALREADY IN FLIGHT WHEN A NOTE IS ADDED MUST NOT LAND (2026-09-21, "notes not saving"). The
+   `_noteAddFlight` check below only stops a poll from STARTING during a save. One that started a moment before
+   read the sheet before the append, and on arrival replaced DATA.notes with a list that lacks the new note — it
+   vanished from the open window (and the counts) until the next poll ~25s later, which looks exactly like a lost
+   save. Every local add/edit stamps `_NOTE_LOCAL_AT` when it STARTS and again when it SETTLES; a reply to a request
+   sent before that stamp is dropped and the next tick fetches again. Only once notes have loaded — the first load
+   has nothing local to protect.
+   ⚠ `_sentAt` is when the request REALLY went out: api() merges identical in-flight reads, so this poll can join a
+   readNotes sent earlier (a note's 30s read-back) — p._sentAt carries that older time (review 2026-09-21).
+   🔑 A save whose reply was LOST settles long before the server's append may land (`_safeAppend` waits up to 25s),
+   so a later poll can still miss it. Its entry keeps `_pid` until it is confirmed — `_notesKeepPending` carries
+   such entries into the new list, the same object, so `_noteSettle` still finds and settles it (review 2026-09-21). */
+var _NOTE_LOCAL_AT = 0;
+/* Returns what DATA.notes should become: the server's lists plus any of this tab's still-pending entries they lack.
+   ⚠ NEVER MUTATES `newN` — that is the server copy `_cacheNotes` writes to disk, and a pending entry cached there
+   would come back on the next load with no settle attached, carried forward by every poll: a note that never saved,
+   shown for good. Only the lists that gain an entry are copied. */
+function _notesKeepPending(oldN, newN) {
+  if (!oldN || !newN) return newN;
+  var same = (typeof _nmSameNote === 'function') ? _nmSameNote
+    : function (a, b) { return String(a.noteText || '').trim() === String(b.noteText || '').trim(); };
+  var out = newN;
+  Object.keys(oldN).forEach(function (dsi) {
+    (oldN[dsi] || []).forEach(function (e) {
+      if (!e || !e._pid) return;
+      var srv = out[dsi] || [];
+      if (srv.some(function (x) { return x !== e && same(x, e); })) return;   // the server has it now
+      if (out === newN) out = Object.assign({}, newN);
+      out[dsi] = srv.concat([e]);
+    });
+  });
+  return out;
+}
 function _bgRefreshNotes() {
   if (_CACHE.notesFlight || _noteAddFlight) return;   // skip while a fetch or a local add is running
   if (!_notesTabActive()) return;                     // only poll where notes are visible
   _CACHE.notesFlight = true;
   var _reqOffice = CFG.officeId;
-  api({ action:'readNotes' }).then(function(res) {
+  var _req = api({ action:'readNotes' });
+  var _sentAt = (_req && _req._sentAt) || Date.now();
+  _req.then(function(res) {
     _CACHE.notesFlight = false;
+    if (_NOTES_LOADED && (_noteAddFlight || _NOTE_LOCAL_AT >= _sentAt)) return;   // raced a local save — stale
     /* 🔴 OFFICE GUARD — THE MOST IMPORTANT ONE IN THIS FILE. Without it a readNotes issued
        under office A that lands after a switch to office B was written to disk by _cacheNotes
        below under office B's KEY and stamped with office B's NAME — because both are read from
@@ -734,7 +772,7 @@ function _bgRefreshNotes() {
         'Either the backend Code.gs paste is missing the readNotes rowIndex stamp, or this browser is on a stale bundle.');
     } catch (_e) {}
     if (!res || res.error || !res.notes) return;
-    DATA.notes = res.notes;
+    DATA.notes = _notesKeepPending(DATA.notes, res.notes);   // + an unconfirmed save the server may not have written yet
     _CACHE.notesAt = Date.now();          // when notes were last KNOWN good — see _notesKickOnTab
     _cacheNotes(res.notes);               // so the NEXT load opens with notes already on screen
     var first = !_NOTES_LOADED;

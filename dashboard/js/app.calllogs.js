@@ -662,8 +662,8 @@ function _noteEditSave(rowIndex) {
   for (var i=0;i<list.length;i++) {
     if (parseInt(list[i].rowIndex,10) === rowIndex) { list[i].noteText = text; if (wantLines) list[i].linesActivated = lines; break; }
   }
-  _noteAddFlight = true;
-  var _done = function(){ _noteAddFlight = false; };
+  _noteAddFlight = true; _NOTE_LOCAL_AT = Date.now();
+  var _done = function(){ _noteAddFlight = false; _NOTE_LOCAL_AT = Date.now(); };
   /* 🔴 OFFICE RACE GUARD — app.calllogs.js was fixed for exactly this on 2026-09-02 and
      officerace_harness flagged this handler as a regression the moment it was written.
      Between the request and its reply the user can switch office; without this the rollback
@@ -860,8 +860,8 @@ function modalAddInquiryRequest() {
   _list.push(entry);
   _nmRepaintTypeBlock(_dsi, 'inquiry', _list, !_cross);
 
-  _noteAddFlight = true;
-  var _done = function(){ _noteAddFlight = false; };
+  _noteAddFlight = true; _NOTE_LOCAL_AT = Date.now();
+  var _done = function(){ _noteAddFlight = false; _NOTE_LOCAL_AT = Date.now(); };
   var _key = _cross ? '' : _nmNoteKey(_dsi, 'inquiry', noteText);
   var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'inquiry request', key:_key, retried:!_cross, cross:_cross,
     list: function(){ return _nmTypeList(_dsi, _cross, true); },
@@ -972,8 +972,8 @@ function modalAddCancelRequest() {
   // Repaint the spotlight in place so the request appears where it will live.
   _nmRepaintTypeBlock(_dsi, 'cancel', _list, !_cross);
 
-  _noteAddFlight = true;
-  var _done = function(){ _noteAddFlight = false; };
+  _noteAddFlight = true; _NOTE_LOCAL_AT = Date.now();
+  var _done = function(){ _noteAddFlight = false; _NOTE_LOCAL_AT = Date.now(); };
   var _key = _cross ? '' : _nmNoteKey(_dsi, 'cancel', noteText);
   var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'cancel request', key:_key, retried:!_cross, cross:_cross,
     list: function(){ return _nmTypeList(_dsi, _cross, true); },
@@ -1126,7 +1126,43 @@ function _ratingPaint(dsi, rating) {
    fails after the second succeeded, reverting would paint the wrong rating over a good one.
    ⚠⚠ AND IT UNDOES TO `_RATING_OK` — the value last CONFIRMED — never to "whatever showed before this tap",
    which can itself be a tap that failed (review 2026-09-14). */
-var _RATING_SEQ = {}, _RATING_OK = {}, _RATING_INFLIGHT = {};
+/* 🔴 A LOST REPLY IS NOT A LOST RATING (2026-09-21, "ratings not saving" — Eagles' Peak, viridian). All 8 rating
+   failures in 72h were OUR 15s abort; writeRatingEntry is a sub-second upsert the server finishes after we stop
+   listening (R-109). Putting the old rating back on the spot told people a save had failed when it had almost
+   certainly landed — and it reappeared a refresh later. So an UNKNOWN save now KEEPS the tap on screen, says it is
+   being checked, and READS THE SHEET BACK after `_RATING_VERIFY_DELAY_MS` (readRatings reads `_Ratings_` directly —
+   no cache in the way). Only a read-back that disagrees puts a rating back, and then it shows what the SHEET holds.
+   A REFUSAL ({error}) is still known-not-saved and is put back at once.
+   🔑 THE HOLD (`_RATING_HOLD`): the 90s refresh replaces DATA.ratings wholesale, from a server blob that can be up to
+   ~75s older than the write (a rebuild that began before the save caches its copy after the save's bust), or from a
+   poll already in flight when the tap happened. Either way the rating flipped back for a minute or two and then
+   returned — which looks exactly like "it didn't save". `_ratingApplyHolds` (called from both DATA swaps in
+   app.data.js) keeps this browser's latest tap on screen until the server agrees or `_RATING_HOLD_MS` passes.
+   ⚠ A hold is per office and dropped on a switch (`_ratingResetForOffice`, R-119). */
+var _RATING_SEQ = {}, _RATING_OK = {}, _RATING_INFLIGHT = {}, _RATING_HOLD = {};
+var _RATING_VERIFY_DELAY_MS = 30000;   // after the 15s abort; the same margin notes use over the server's lock wait
+var _RATING_HOLD_MS = 180000;          // > blob cache TTL (75s) + a rebuild + one 90s refresh
+var _RATING_AGREE_MS = 90000;          // once the server agrees: > the 75s TTL a racing stale rebuild can still occupy
+function _ratingHold(dsi, rating, ofc, confirmed) {
+  _RATING_HOLD[dsi] = { rating: rating, ofc: ofc, confirmed: !!confirmed, until: Date.now() + _RATING_HOLD_MS };
+}
+// Called right after every wholesale DATA swap. Re-lays a held tap over a server copy that does not show it yet.
+function _ratingApplyHolds() {
+  if (!DATA) return;
+  var now = Date.now();
+  for (var dsi in _RATING_HOLD) {
+    if (!Object.prototype.hasOwnProperty.call(_RATING_HOLD, dsi)) continue;
+    var h = _RATING_HOLD[dsi];
+    if (h.ofc !== CFG.officeId || now > h.until) { delete _RATING_HOLD[dsi]; continue; }
+    if (!DATA.ratings) DATA.ratings = {};
+    /* The server has it. A confirmed hold is NOT dropped on the first agreeing copy: a rebuild that began before the
+       save can still cache its older copy after a fresh one (two builds racing), for up to the 75s TTL — so the hold
+       just shortens to cover that window (review 2026-09-21). */
+    if ((DATA.ratings[dsi] || '') === h.rating) { if (h.confirmed) h.until = Math.min(h.until, now + _RATING_AGREE_MS); continue; }
+    DATA.ratings[dsi] = h.rating;
+  }
+}
+function _ratingResetForOffice() { _RATING_HOLD = {}; }
 function modalSetRating(rating) {
   if (!_modalDsi) return;
   var dsi = _modalDsi;
@@ -1138,26 +1174,54 @@ function modalSetRating(rating) {
   _ratingPaint(dsi, rating);
   var seq = _RATING_SEQ[dsi] = (_RATING_SEQ[dsi] || 0) + 1;
   var _ofc = CFG.officeId;
+  _ratingHold(dsi, rating, _ofc, false);
+  // ⚠ An UNKNOWN save stays "in flight" until its read-back settles, so a tap meanwhile cannot adopt the
+  // unconfirmed value as the undo target (review 2026-09-14, item 9).
   var landed = function() { _RATING_INFLIGHT[dsi] = Math.max(0, (_RATING_INFLIGHT[dsi] || 1) - 1); };
-  var undo = function(msg) {
-    if (CFG.officeId !== _ofc) return;        // office race guard (officerace_harness)
-    if (_RATING_SEQ[dsi] !== seq) return;      // a newer tap owns the display now
-    var back = _RATING_OK[dsi] || '';
+  var mine = function() { return CFG.officeId === _ofc && _RATING_SEQ[dsi] === seq; };   // office race guard + latest tap only
+  // Shows `back` — what the server holds — and says why. Only the latest tap may do this.
+  var putBack = function(back, msg) {
+    if (!mine()) return;
+    delete _RATING_HOLD[dsi];
+    _RATING_OK[dsi] = back;
     if (DATA.ratings) { if (back) DATA.ratings[dsi] = back; else delete DATA.ratings[dsi]; }
     _ratingPaint(dsi, back);
     _nmNotice(['nm-rating-row'], dsi, msg, 'rating');
+  };
+  var confirmed = function() {
+    _RATING_OK[dsi] = rating;
+    if (!mine()) return;
+    _ratingHold(dsi, rating, _ofc, true);
+    if (_nmModalShowing(dsi)) _nmClearNotice('rating');
+  };
+  var verify = function() {
+    if (!mine()) return landed();
+    // then(ok, fail), not then().catch(): a throw inside `ok` must not run landed() twice and read as a lost reply.
+    api({ action:'readRatings' }).then(function(res) {
+      landed();
+      if (!mine()) return;
+      if (!res || res.error || !res.ratings) return unchecked();
+      var got = String(res.ratings[dsi] || '');
+      if (got === rating) return confirmed();
+      putBack(got, 'That rating didn’t save' + (got ? ' — the saved rating is ' + got + '.' : ', so the order is unrated again.') + ' Tap it again.');
+    }, function() { landed(); if (mine()) unchecked(); });
+  };
+  var unchecked = function() {
+    delete _RATING_HOLD[dsi];   // the next refresh shows the sheet's value
+    _nmNotice(['nm-rating-row'], dsi, 'We couldn’t check whether that rating saved. Reload the page to see the saved rating.', 'rating');
   };
   apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:SESSION.email })
     .then(function(res) {
       landed();
       if (CFG.officeId !== _ofc) return;
-      if (_saveRefused(res)) return undo('That rating didn’t save — ' + _saveRefusalReason(res.error) + ' — so it was put back. Tap it again.');
-      _RATING_OK[dsi] = rating;
-      if (_RATING_SEQ[dsi] === seq && _nmModalShowing(dsi)) _nmClearNotice('rating');
-    })
-    .catch(function() {
-      landed();
-      undo('We couldn’t confirm that rating saved, so it was put back. Tap it again.');
+      if (_saveRefused(res)) return putBack(_RATING_OK[dsi] || '', 'That rating didn’t save — ' + _saveRefusalReason(res.error) + ' — so it was put back. Tap it again.');
+      confirmed();
+    }, function() {
+      if (!mine()) return landed();
+      // Kept on screen. Said inline only while the window shows this order — an alert for a save that most
+      // likely landed would interrupt for nothing; the read-back alerts if it really did not.
+      if (_nmModalShowing(dsi)) _nmNotice(['nm-rating-row'], dsi, 'Checking whether that rating saved…', 'rating');
+      setTimeout(verify, _RATING_VERIFY_DELAY_MS);
     });
 }
 
@@ -1217,8 +1281,8 @@ function modalAddNote(noteType) {
     hist.innerHTML = _noteItemHtml(entry) + hist.innerHTML;
     hist.scrollTop = 0;
   }
-  _noteAddFlight = true;
-  var _done = function() { input.disabled = false; _noteAddFlight = false; };
+  _noteAddFlight = true; _NOTE_LOCAL_AT = Date.now();
+  var _done = function() { input.disabled = false; _noteAddFlight = false; _NOTE_LOCAL_AT = Date.now(); };
   if (_modalApptId && _modalOffice !== CFG.officeId) {
     // Cross-office (activator dashboard): route to the appointment's own office via the
     // scheduler; update the dashboard's cached notes + count badge (not DATA.notes).

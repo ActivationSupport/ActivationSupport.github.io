@@ -417,6 +417,7 @@ function showError(msg) {
 var _reauthing = false;
 function _forceReauth() {
   if (_reauthing) return; _reauthing = true;
+  if (typeof _ratingResetForOffice === 'function') _ratingResetForOffice();   // the next sign-in may be someone else
   var _who = (SESSION && SESSION.email) ? String(SESSION.email).toLowerCase() : '';
   try { sessionStorage.removeItem('as_session_' + CFG.officeId); } catch(e) {}
   /* 🔑 A BADGE EXPIRY DROPS THE KEY, NOT THE DATA — AND THAT IS THE WHOLE POINT OF ENCRYPTING.
@@ -1050,6 +1051,7 @@ function api(params, opts) {
   var meta = { action: params.action || 'read' };
   if (opts && typeof opts.waited === 'boolean') meta.waited = opts.waited;
   var p = _asFetch(APPS_SCRIPT_URL, body, meta);
+  p._sentAt = Date.now();   // when the request really went out — a caller that JOINS it inherits this (_bgRefreshNotes)
   _API_INFLIGHT[key] = p;
   var clear = function() { delete _API_INFLIGHT[key]; };
   p.then(clear, clear);
@@ -1615,6 +1617,7 @@ function doSetPin() {
 }
 
 function signOut() {
+  if (typeof _ratingResetForOffice === 'function') _ratingResetForOffice();   // held ratings belong to this person
   clearInterval(_inactivityInterval);
   clearInterval(_bgInterval);
   clearInterval(_luInterval);
@@ -1836,6 +1839,7 @@ function switchOffice(newOfficeId) {
   _PSV_SALES = null;
   PEOPLE_TABLEAU_NAMES = null;
   _fibResetForOffice();   // fiber calendar — its installs are the previous office's customers
+  if (typeof _ratingResetForOffice === 'function') _ratingResetForOffice();   // held ratings are the previous office's orders
   loadData();
 }
 
