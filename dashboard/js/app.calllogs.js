@@ -2685,16 +2685,90 @@ function _chSortedReps(repList, repMap) {
   });
 }
 
+/* Tableau's churn colour thresholds per bucket — green up to the first number, yellow up to the second, red
+   above (rate rounded to 0.1). Checked against the user's Tableau screenshot 2026-09-21: every Product Type
+   cell and the Grand Total agree. ⚠ The same numbers live in app.reports.js (_DR_CHURN_THRESH) and Code.gs
+   (_CHURN_THRESH); churnproduct_harness fails if any copy drifts (R-085). */
+var _CHURN_THRESH = { '0-30 Day': [2.4, 3.0], '30 Day': [4.9, 6.9], '60 Day': [8.9, 9.9], '90 Day': [10.9, 13.9], '120 Day': [13.9, 17.9] };
+function _churnThreshColor(bkt, pct) {
+  var t = _CHURN_THRESH[bkt]; if (!t) return '';
+  var p = Math.round(pct * 10) / 10;
+  return p <= t[0] ? 'Green' : p <= t[1] ? 'Yellow' : 'Red';
+}
+/* ⚠ SUMS, NEVER ASSIGNS (2026-09-21). One row per rep×bucket was assumed and the LAST row won
+   (`repMap[rep][bucket] = r`). When the synced "Churn" view carries Product Type there are several — the
+   backend now combines them (readChurnReport), and this is the second line of defence for a browser or a
+   cached blob that still receives them split: a rep's cell is the SUM, its rate and colour recomputed. */
 function _buildChurnRepMap(rows, repFilter) {
   var repMap = {}, repList = [];
   (rows||[]).forEach(function(r) {
     if (!r.rep || CHURN_BUCKETS.indexOf(r.bucket) === -1) return;
     if (repFilter && r.rep !== repFilter) return;
     if (!repMap[r.rep]) { repMap[r.rep] = {}; repList.push(r.rep); }
-    repMap[r.rep][r.bucket] = r;
+    var c = repMap[r.rep][r.bucket];
+    if (!c) { repMap[r.rep][r.bucket] = r; return; }
+    if (!c._summed) c = repMap[r.rep][r.bucket] = { rep: c.rep, bucket: c.bucket, activated: c.activated || 0, disconnects: c.disconnects || 0, _summed: true };
+    c.activated += r.activated || 0; c.disconnects += r.disconnects || 0;
+    var pct = c.activated ? c.disconnects / c.activated * 100 : 0;
+    c.churnRate = pct.toFixed(1) + '%';
+    c.color = c.activated ? _churnThreshColor(c.bucket, pct) : '';
   });
   repList.sort();
   return { repMap: repMap, repList: repList };
+}
+
+/* ── CHURN BY PRODUCT TYPE — click a rep (2026-09-21) ──
+   User: *"I still want to see the cumulative churn that we have now but if you click each person it should
+   show their break down per category"*. `DATA.churnByProduct` = the per-Product-Type rows behind a rep's
+   combined row, scoped per badge by the backend exactly like churnReport. Empty until the synced Tableau view
+   carries Product Type — and then no name is clickable, so nothing half-works. */
+function _churnProductRows(rep) {
+  var all = (typeof DATA !== 'undefined' && DATA && DATA.churnByProduct) || [];
+  return all.filter(function (r) { return r.rep === rep && r.product && CHURN_BUCKETS.indexOf(r.bucket) !== -1; });
+}
+function _churnRepCellHtml(rep) {
+  if (!_churnProductRows(rep).length) return esc(rep);
+  // Dotted underline = "this opens something"; .lst-rep-link adds the pointer + solid hover underline.
+  return '<span class="lst-rep-link" role="button" tabindex="0" title="Show churn by product type" style="text-decoration:underline dotted;text-underline-offset:3px" data-rep="' + esc(rep) + '"' +
+    ' onclick="_churnProductOpen(this.getAttribute(\'data-rep\'))"' +
+    ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();_churnProductOpen(this.getAttribute(\'data-rep\'));}">' +
+    esc(rep) + '</span>';
+}
+function _churnProductTableHtml(rep) {
+  var rows = _churnProductRows(rep);
+  if (!rows.length) return '<div class="rp-no-data">No product breakdown for this rep yet.</div>';
+  var products = [], grid = {};
+  rows.forEach(function (r) {   // Tableau's own product order: first appearance
+    if (!grid[r.product]) { grid[r.product] = {}; products.push(r.product); }
+    var c = grid[r.product][r.bucket];
+    if (!c) grid[r.product][r.bucket] = { activated: r.activated || 0, disconnects: r.disconnects || 0, color: r.color };
+    else { c.activated += r.activated || 0; c.disconnects += r.disconnects || 0; c.color = ''; }
+  });
+  /* Compact on purpose: five buckets must fit the shared 520px #detail-modal without a sideways scroll. Inline
+     styles, not a new class — a wider modal class would stay on #detail-modal for the next window that reuses it. */
+  var TD = ' style="padding:3px 2px"', BADGE = ' style="min-width:0;padding:4px 6px;font-size:.76rem"', NAME = ' style="padding:6px 4px;font-size:.8rem"';
+  function cell(d, bkt) {
+    if (!d || !d.activated) return '<td class="ar-cell"' + TD + '><span class="ar-badge ar-none"' + BADGE + '>—</span></td>';
+    var pct = d.disconnects / d.activated * 100;
+    var cls = _churnCls(d.color) || _churnCls(_churnThreshColor(bkt, pct));   // Tableau's colour, else its thresholds
+    return '<td class="ar-cell"' + TD + '><span class="ar-badge ' + cls + '"' + BADGE + '>(' + Number(d.disconnects).toLocaleString() + '/' +
+      Number(d.activated).toLocaleString() + ')<br>' + pct.toFixed(1) + '%</span></td>';
+  }
+  var total = _buildChurnRepMap(rows, rep).repMap[rep] || {};
+  var hdr = '<th style="padding:6px 4px">Product type</th>' + CHURN_BUCKETS.map(function (b) { return '<th style="padding:6px 2px;text-align:center;white-space:nowrap">' + esc(b) + '</th>'; }).join('');
+  var body = '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep"' + NAME + '>All products</td>' +
+    CHURN_BUCKETS.map(function (b) { return cell(total[b], b); }).join('') + '</tr>' +
+    products.map(function (p) {
+      return '<tr><td class="ar-rep"' + NAME + '>' + esc(p) + '</td>' + CHURN_BUCKETS.map(function (b) { return cell(grid[p][b], b); }).join('') + '</tr>';
+    }).join('');
+  return '<div class="rp-hint">Buckets are <strong>tenure</strong> — disconnected within that many days of <strong>activation</strong>. (disconnected / activated)</div>' +
+    '<div class="tbl-wrap"><table><thead><tr>' + hdr + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+}
+function _churnProductOpen(rep) {
+  if (!rep) return;
+  document.getElementById('modal-title').innerHTML = esc(rep) + ' — churn by product type';
+  document.getElementById('modal-body').innerHTML = _churnProductTableHtml(rep);
+  document.getElementById('detail-modal').classList.add('open');
 }
 
 function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
@@ -2728,11 +2802,8 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
     });
   });
   function churnFixedCls(bkt, pctR) {   // fallback only when a bucket has no colored rows at all
-    if (bkt==='0-30 Day') return pctR<=2.4 ?'ar-green':pctR<=3.0 ?'ar-yellow':'ar-red';
-    if (bkt==='30 Day')   return pctR<=4.9 ?'ar-green':pctR<=6.9 ?'ar-yellow':'ar-red';
-    if (bkt==='60 Day')   return pctR<=8.9 ?'ar-green':pctR<=9.9 ?'ar-yellow':'ar-red';
-    if (bkt==='90 Day')   return pctR<=10.9?'ar-green':pctR<=13.9?'ar-yellow':'ar-red';
-    if (bkt==='120 Day')  return pctR<=13.9?'ar-green':pctR<=17.9?'ar-yellow':'ar-red';
+    var c = _churnThreshColor(bkt, pctR);   // the one FE copy of Tableau's thresholds (2026-09-21)
+    if (c) return _churnCls(c);
     return 'ar-blue';
   }
   function churnTotalCls(bkt, pct, pctR) {
@@ -2765,9 +2836,11 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
     CHURN_BUCKETS.map(function(b){ return _rateTh(b, esc(b), sortable, _CH_SORT, '_chSortBy', 'min-width:110px'); }).join('');
   var grandRow = '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep">Grand Total</td>'+CHURN_BUCKETS.map(totalCell).join('')+'</tr>';
   var repRows = order.map(function(rep){
-    return '<tr><td class="ar-rep">'+esc(rep)+'</td>'+CHURN_BUCKETS.map(function(bkt){return cell(repMap[rep][bkt]);}).join('')+'</tr>';
+    return '<tr><td class="ar-rep">'+_churnRepCellHtml(rep)+'</td>'+CHURN_BUCKETS.map(function(bkt){return cell(repMap[rep][bkt]);}).join('')+'</tr>';
   }).join('');
+  var anyLink = order.some(function (rep) { return _churnProductRows(rep).length > 0; });
   return (sortable ? _rateSortCaption(_CH_SORT, CH_COLS, 'lines churned') : '') +
+    (anyLink ? '<div class="rp-hint">Click a rep’s name to see their churn by product type.</div>' : '') +
     '<div class="tbl-wrap"><table><thead><tr>'+hdr+'</tr></thead><tbody>'+grandRow+repRows+'</tbody></table></div>';
 }
 
