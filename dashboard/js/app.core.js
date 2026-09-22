@@ -1840,6 +1840,7 @@ function switchOffice(newOfficeId) {
   PEOPLE_TABLEAU_NAMES = null;
   _fibResetForOffice();   // fiber calendar — its installs are the previous office's customers
   if (typeof _ratingResetForOffice === 'function') _ratingResetForOffice();   // held ratings are the previous office's orders
+  if (typeof _chpResetForOffice === 'function') _chpResetForOffice();         // churn-by-product rows name the previous office's reps
   loadData();
 }
 

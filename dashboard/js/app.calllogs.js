@@ -2719,30 +2719,57 @@ function _buildChurnRepMap(rows, repFilter) {
 
 /* ── CHURN BY PRODUCT TYPE — click a rep (2026-09-21) ──
    User: *"I still want to see the cumulative churn that we have now but if you click each person it should
-   show their break down per category"*. `DATA.churnByProduct` = the per-Product-Type rows behind a rep's
-   combined row, scoped per badge by the backend exactly like churnReport. Empty until the synced Tableau view
-   carries Product Type — and then no name is clickable, so nothing half-works. */
-function _churnProductRows(rep) {
-  var all = (typeof DATA !== 'undefined' && DATA && DATA.churnByProduct) || [];
-  return all.filter(function (r) { return r.rep === rep && r.product && CHURN_BUCKETS.indexOf(r.bucket) !== -1; });
-}
+   show their break down per category"* — the six categories are the user's: Air/AWB · New Internet ·
+   Tablet/Wearable · Upgrade Internet · Voice · Wireless.
+   🔑 LOADED ON CLICK, NOT WITH THE PAGE: the rows come from `readChurnByProduct` (the TableauSync project's
+   twice-daily per-product pull, scoped per badge server-side). The blob only says whether that tab exists
+   (`DATA.churnByProductOn`) — no name is a link until it does.
+   ⚠⚠ "ALL PRODUCTS" IS THE REP'S REAL TOTAL FROM THE TABLE (DATA.churnReport, hourly), NEVER THE SUM OF THE
+   PRODUCTS: Tableau counts an order with two product types as activated under BOTH, so products overlap
+   (probe 2026-09-21: 20,622 product activations vs 15,815 in total; disconnects did partition exactly).
+   ⚠ R-119: _CHP is an office-specific cache — reset in switchOffice (_chpResetForOffice), and its seq token
+   orphans a reply that was in flight across the switch. */
+var CHURN_PRODUCTS = [['AIR/AWB', 'Air/AWB'], ['NEW INTERNET', 'New Internet'], ['TABLET/WEARABLE', 'Tablet/Wearable'],
+                      ['UPGRADE INTERNET', 'Upgrade Internet'], ['VOICE', 'Voice'], ['WIRELESS', 'Wireless']];
+var _CHP = { ofc: '', rows: null, at: '', loadedAt: 0, flight: null, seq: 0 };
+var _CHP_TTL_MS = 30 * 60 * 1000;   // the pull runs twice a day; half an hour keeps one session's clicks to one read
+function _chpResetForOffice() { _CHP.seq++; _CHP.ofc = ''; _CHP.rows = null; _CHP.at = ''; _CHP.loadedAt = 0; _CHP.flight = null; }
+function _churnProductOn() { return !!(typeof DATA !== 'undefined' && DATA && DATA.churnByProductOn); }
 function _churnRepCellHtml(rep) {
-  if (!_churnProductRows(rep).length) return esc(rep);
+  if (!_churnProductOn()) return esc(rep);
   // Dotted underline = "this opens something"; .lst-rep-link adds the pointer + solid hover underline.
   return '<span class="lst-rep-link" role="button" tabindex="0" title="Show churn by product type" style="text-decoration:underline dotted;text-underline-offset:3px" data-rep="' + esc(rep) + '"' +
     ' onclick="_churnProductOpen(this.getAttribute(\'data-rep\'))"' +
     ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();_churnProductOpen(this.getAttribute(\'data-rep\'));}">' +
     esc(rep) + '</span>';
 }
-function _churnProductTableHtml(rep) {
-  var rows = _churnProductRows(rep);
-  if (!rows.length) return '<div class="rp-no-data">No product breakdown for this rep yet.</div>';
-  var products = [], grid = {};
-  rows.forEach(function (r) {   // Tableau's own product order: first appearance
-    if (!grid[r.product]) { grid[r.product] = {}; products.push(r.product); }
-    var c = grid[r.product][r.bucket];
-    if (!c) grid[r.product][r.bucket] = { activated: r.activated || 0, disconnects: r.disconnects || 0, color: r.color };
-    else { c.activated += r.activated || 0; c.disconnects += r.disconnects || 0; c.color = ''; }
+function _chpLoad() {
+  if (_CHP.rows && _CHP.ofc === CFG.officeId && Date.now() - _CHP.loadedAt < _CHP_TTL_MS) return Promise.resolve(_CHP);
+  if (_CHP.flight) return _CHP.flight;
+  var ofc = CFG.officeId;
+  var seq = _CHP.seq;
+  _CHP.flight = api({ action: 'readChurnByProduct' }).then(function (res) {
+    if (seq !== _CHP.seq || CFG.officeId !== ofc) return null;   // an office switch orphaned this reply (officerace_harness)
+    _CHP.flight = null;
+    if (!res || res.error || !Array.isArray(res.rows)) throw new Error((res && res.error) || 'no data');
+    _CHP.ofc = ofc; _CHP.rows = res.rows; _CHP.at = res.syncedAt || ''; _CHP.loadedAt = Date.now();
+    return _CHP;
+  }, function (e) { if (seq === _CHP.seq) _CHP.flight = null; throw e; });
+  return _CHP.flight;
+}
+function _chpWhen(at) {
+  var d = at ? new Date(at) : null;
+  if (!d || isNaN(d.getTime())) return '';
+  try { return d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return d.toISOString(); }
+}
+function _churnProductTableHtml(rep, rows, syncedAt) {
+  var mine = (rows || []).filter(function (r) { return r.rep === rep && r.product && CHURN_BUCKETS.indexOf(r.bucket) !== -1; });
+  if (!mine.length) return '<div class="rp-no-data">No product breakdown for this rep yet.</div>';
+  var grid = {}, extra = [];
+  mine.forEach(function (r) {
+    var p = r.product;
+    if (!grid[p]) { grid[p] = {}; if (!CHURN_PRODUCTS.some(function (x) { return x[0] === p; })) extra.push(p); }
+    grid[p][r.bucket] = { activated: r.activated || 0, disconnects: r.disconnects || 0, color: r.color };
   });
   /* Compact on purpose: five buckets must fit the shared 520px #detail-modal without a sideways scroll. Inline
      styles, not a new class — a wider modal class would stay on #detail-modal for the next window that reuses it. */
@@ -2754,21 +2781,40 @@ function _churnProductTableHtml(rep) {
     return '<td class="ar-cell"' + TD + '><span class="ar-badge ' + cls + '"' + BADGE + '>(' + Number(d.disconnects).toLocaleString() + '/' +
       Number(d.activated).toLocaleString() + ')<br>' + pct.toFixed(1) + '%</span></td>';
   }
-  var total = _buildChurnRepMap(rows, rep).repMap[rep] || {};
+  function row(label, cells, cls) {
+    return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td class="ar-rep' + (cls ? ' ar-grand-rep' : '') + '"' + NAME + '>' + esc(label) + '</td>' +
+      CHURN_BUCKETS.map(function (b) { return cell(cells[b], b); }).join('') + '</tr>';
+  }
+  // The rep's REAL total — the same cells as their row in the Churn table. Never the products added up.
+  var total = _buildChurnRepMap((typeof DATA !== 'undefined' && DATA && DATA.churnReport) || [], rep).repMap[rep] || {};
   var hdr = '<th style="padding:6px 4px">Product type</th>' + CHURN_BUCKETS.map(function (b) { return '<th style="padding:6px 2px;text-align:center;white-space:nowrap">' + esc(b) + '</th>'; }).join('');
-  var body = '<tr class="ar-grand-row"><td class="ar-rep ar-grand-rep"' + NAME + '>All products</td>' +
-    CHURN_BUCKETS.map(function (b) { return cell(total[b], b); }).join('') + '</tr>' +
-    products.map(function (p) {
-      return '<tr><td class="ar-rep"' + NAME + '>' + esc(p) + '</td>' + CHURN_BUCKETS.map(function (b) { return cell(grid[p][b], b); }).join('') + '</tr>';
-    }).join('');
+  var body = row('All products', total, 'ar-grand-row') +
+    CHURN_PRODUCTS.map(function (x) { return row(x[1], grid[x[0]] || {}); }).join('') +
+    extra.map(function (p) { return row(p, grid[p]); }).join('');
+  var when = _chpWhen(syncedAt);
   return '<div class="rp-hint">Buckets are <strong>tenure</strong> — disconnected within that many days of <strong>activation</strong>. (disconnected / activated)</div>' +
-    '<div class="tbl-wrap"><table><thead><tr>' + hdr + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+    '<div class="tbl-wrap"><table><thead><tr>' + hdr + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+    '<div class="rp-hint" style="margin-top:8px">An order with more than one product type counts under each, so the products don’t add up to All products.' +
+    (when ? ' Product breakdown updated ' + esc(when) + '.' : '') + '</div>';
+}
+// Is the breakdown window still showing THIS rep? (#detail-modal is shared by ~11 other windows.)
+function _chpShowing(rep) {
+  var dm = document.getElementById('detail-modal'), b = document.getElementById('chp-body');
+  return !!(dm && dm.classList && dm.classList.contains('open') && b && b.getAttribute('data-rep') === rep);
 }
 function _churnProductOpen(rep) {
   if (!rep) return;
+  var ofc = CFG.officeId;
   document.getElementById('modal-title').innerHTML = esc(rep) + ' — churn by product type';
-  document.getElementById('modal-body').innerHTML = _churnProductTableHtml(rep);
+  document.getElementById('modal-body').innerHTML = '<div id="chp-body" data-rep="' + esc(rep) + '"><div class="rp-no-data">Loading the product breakdown…</div></div>';
   document.getElementById('detail-modal').classList.add('open');
+  _chpLoad().then(function (c) {
+    if (!c || CFG.officeId !== ofc || !_chpShowing(rep)) return;
+    document.getElementById('chp-body').innerHTML = _churnProductTableHtml(rep, c.rows, c.at);
+  }, function () {
+    if (CFG.officeId !== ofc || !_chpShowing(rep)) return;
+    document.getElementById('chp-body').innerHTML = '<div class="rp-no-data">Couldn’t load the product breakdown. Close this and click the name again.</div>';
+  });
 }
 
 function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
@@ -2838,7 +2884,7 @@ function _churnTableHtml(repList, repMap, gtRepList, gtRepMap) {
   var repRows = order.map(function(rep){
     return '<tr><td class="ar-rep">'+_churnRepCellHtml(rep)+'</td>'+CHURN_BUCKETS.map(function(bkt){return cell(repMap[rep][bkt]);}).join('')+'</tr>';
   }).join('');
-  var anyLink = order.some(function (rep) { return _churnProductRows(rep).length > 0; });
+  var anyLink = order.length > 0 && _churnProductOn();
   return (sortable ? _rateSortCaption(_CH_SORT, CH_COLS, 'lines churned') : '') +
     (anyLink ? '<div class="rp-hint">Click a rep’s name to see their churn by product type.</div>' : '') +
     '<div class="tbl-wrap"><table><thead><tr>'+hdr+'</tr></thead><tbody>'+grandRow+repRows+'</tbody></table></div>';
