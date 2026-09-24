@@ -603,7 +603,10 @@ function _bgRefreshMain() {
     // main-tick rebuild brings no new data and only risks disrupting the view.
     // (postsale form, dailyreport, training live-refresh, postedsales + actrates
     // caches, livesales handled by _bgRefreshLst.)
-    var skipRender = { postsale:1, dailyreport:1, training:1, postedsales:1, actrates:1, livesales:1 };
+    /* appointments (2026-09-24, third review): it does not read the blob and has its own 30s in-place refresh.
+       Re-rendering it here every 90s re-sent getActivators (a sweep of every roster — D-065), refetched every
+       date's blocks, orphaned a background refresh in flight, and reset a rep browsing next week back to this week. */
+    var skipRender = { postsale:1, dailyreport:1, training:1, postedsales:1, actrates:1, livesales:1, appointments:1 };
     if (skipRender[CURRENT_TAB]) return;
     // In-place soft refresh for the call-log/order list tabs — updates rows only,
     // so search, sort, filters, scroll and open menus are all kept (no flash, no reset).

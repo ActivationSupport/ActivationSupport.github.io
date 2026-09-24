@@ -48,7 +48,8 @@ function _apptFetchBlocks(dates){
   need.forEach(function(d){ _APPT.blockedLoaded[d]='loading'; });   // in flight — reads as NOT ready, and de-dupes
   return _apptGet({action:'getOfficeBlocks',officeId:ofc,dates:need.join(','),role:SESSION.role}).then(function(res){
     if (CFG.officeId !== ofc) return false;
-    if (!res || res.error) throw Object.assign(new Error((res && res.error) || 'no data'), { asCode: (res && res.asCode) || '' });
+    if (!res || res.error || !res.blocks || typeof res.blocks !== 'object')   // no blocks object ≠ "no blocks" (third review)
+      throw Object.assign(new Error((res && res.error) || 'no blocks'), { asCode: (res && res.asCode) || '' });
     // Only NOW is this date's cross-office state known. A date the backend returned no
     // entry for is still loaded — it genuinely has no blocks.
     _apptSwapBlocks(need, res.blocks||{}, sentAt);
@@ -69,17 +70,22 @@ function _apptFetchBlocks(dates){
    fresh stay on screen meanwhile; dates we cannot vouch for are marked 'loading' (so they read as not ready,
    and the lazy loader does not send a duplicate). Used on tab open (_apptFetchAll). Resolves true when a
    repaint is due (new state, or a failure the banner should report). */
-function _apptRefreshBlocksFor(dates) {
+function _apptRefreshBlocksFor(dates, since) {
   var win = _apptWindow();
-  var need = dates.filter(function (d) { return d >= win.min && d <= win.max && _APPT.blockedLoaded[d] !== 'loading'; });
+  var need = dates.filter(function (d) {
+    if (d < win.min || d > win.max || _APPT.blockedLoaded[d] === 'loading') return false;
+    // Loaded after this open began (the first paint's lazy fetch beat us to it) — already as fresh as ours.
+    return !(since && _apptBlockFresh(d) && ((_APPT.blockedAt || {})[d] || 0) >= since);
+  });
   if (!need.length) return Promise.resolve(false);
   var mark = need.filter(function (d) { return !_apptBlockFresh(d); });
   mark.forEach(function (d) { _APPT.blockedLoaded[d] = 'loading'; });
   var ofc = CFG.officeId, sentAt = Date.now();
   return _apptGet({ action:'getOfficeBlocks', officeId:ofc, dates:need.join(','), role:SESSION.role }).then(function (res) {
     if (CFG.officeId !== ofc) return false;
-    if (!res || res.error) throw Object.assign(new Error((res && res.error) || 'no data'), { asCode: (res && res.asCode) || '' });
-    _apptSwapBlocks(need, res.blocks || {}, sentAt);
+    if (!res || res.error || !res.blocks || typeof res.blocks !== 'object')
+      throw Object.assign(new Error((res && res.error) || 'no blocks'), { asCode: (res && res.asCode) || '' });
+    _apptSwapBlocks(need, res.blocks, sentAt);
     _APPT.blockRetryAt = 0;
     if (_apptListFresh()) { _APPT.refreshFailed = false; _APPT.failKind = ''; }
     return true;
@@ -88,12 +94,15 @@ function _apptRefreshBlocksFor(dates) {
     mark.forEach(function (d) { if (_APPT.blockedLoaded[d] === 'loading') delete _APPT.blockedLoaded[d]; });
     _APPT.refreshFailed = true; _APPT.lastErrCode = errCode(e);
     if (_APPT.failKind !== 'list') _APPT.failKind = 'blocks';
+    _APPT.blockRetryAt = Date.now() + _APPT_BLOCK_COOLDOWN_MS;
     return true;
   });
 }
 // Replace the block state for exactly these dates, in one step — never blank them first — and stamp each.
 function _apptSwapBlocks(need, bl, at) {
   if (!_APPT.blockedAt) _APPT.blockedAt = {};
+  // A reply sent BEFORE the state a date already holds must not overwrite it — the data would go backwards.
+  if (at) need = need.filter(function (d) { return !(_APPT.blockedLoaded[d] === true && (_APPT.blockedAt[d] || 0) > at); });
   need.forEach(function (d) {
     Object.keys(_APPT.blocked).forEach(function (k) { if (k.slice(-(d.length + 1)) === '|' + d) delete _APPT.blocked[k]; });
   });
@@ -459,13 +468,18 @@ function _apptLegend(appts, acts, ws){
 // Shared fetch for the Appointments tab — one in-flight promise dedupes the on-open
 // render and the background preload. Refreshes activators + appointments + the block
 // state for the opening view. Office-guarded so a mid-flight office switch is discarded.
-var _apptFlight = null;
+var _apptFlight = null, _apptFlightSeq = -1;
 function _apptFetchAll() {
-  if (_apptFlight) return _apptFlight;
+  /* Reuse a fetch already in flight ONLY if nothing was written since it was sent. A booking / delete /
+     reschedule bumps _APPT.seq before reloading — a fetch sent BEFORE that write reads the sheet without it, and
+     reusing it painted the new booking's slot as "+ Book", stamped fresh (third review, 2026-09-24). */
+  if (_apptFlight && _apptFlightSeq === (_APPT.seq || 0)) return _apptFlight;
   var office = CFG.officeId;
   _APPT.loading = true;
   _APPT.seq = (_APPT.seq || 0) + 1;   // a background refresh already in flight must not land over this (review 2026-09-24)
+  var mySeq = _APPT.seq;
   var sentAt = Date.now();            // freshness is stamped at SEND — the conservative end of the window
+  var flight;
   /* Activators (their SCHEDULES are the third input to availability) used to be fetched once per session.
      Now every open / reload refetches them; the cached set paints meanwhile, and a failed refetch keeps it. */
   var cachedActs = _APPT.activators;
@@ -475,8 +489,10 @@ function _apptFetchAll() {
     throw Object.assign(new Error((r && r.error) || 'no activators'), { asCode: (r && r.asCode) || '' });
   }, function (e) { if (cachedActs) return { activators: cachedActs }; throw e; });
   var apptP = _apptGet({action:'getAppointments',officeId:office,bookerEmail:SESSION.email,role:SESSION.role});
-  _apptFlight = Promise.all([actsP, apptP]).then(function(res) {
-    if (office !== CFG.officeId) { _APPT.loading = false; _apptFlight = null; return false; }
+  flight = Promise.all([actsP, apptP]).then(function(res) {
+    if (office !== CFG.officeId) return false;
+    // Superseded by a newer fetch (a write happened meanwhile): apply nothing, hand the caller the newer one.
+    if (mySeq !== (_APPT.seq || 0)) return (_apptFlight && _apptFlight !== flight) ? _apptFlight : false;
     if (res[0].activators) _APPT.activators = res[0].activators;
     /* 🔴 R-002 (second review): the Scheduler answers {error} on any exception and _asFetch RESOLVES it. This
        line used to turn that into an EMPTY bookings list — and, once freshness existed, stamp it fresh: every
@@ -487,6 +503,7 @@ function _apptFetchAll() {
     _APPT.appointments = r1.appointments;
     _APPT.apptsAt = sentAt;   // the bookings list is one of the inputs to availability — see _apptListFresh
     _APPT.refreshFailed = false; _APPT.failKind = '';
+    if (typeof _SEC_TS !== 'undefined') _SEC_TS.appointments = Date.now();   // the tick must not re-fire right after this
     // Refresh cross-office / calendar block state for the opening view. Load it in the
     // BACKGROUND + re-render when ready — do NOT gate the appointments render on it: an
     // out-of-window view fetches no blocks (resolves false) and that must never read as
@@ -495,17 +512,19 @@ function _apptFetchAll() {
        whole grid as "…". Now dates whose state is still fresh stay on screen while it is refetched and swapped
        in; anything older reads as not ready by itself (_apptBlockFresh), so the grid fails closed there until
        fresh state lands (R-002). */
-    _apptRefreshBlocksFor(_apptViewDates()).then(function(did){ if(did && CURRENT_TAB==='appointments') _apptPaintInPlace(); });
+    _apptRefreshBlocksFor(_apptViewDates(), sentAt).then(function(did){ if(did && CURRENT_TAB==='appointments') _apptPaintInPlace(); });
     return true;
   }).then(function(r) {
-    _APPT.loading = false; _apptFlight = null; return r;
+    if (_apptFlight === flight) { _APPT.loading = false; _apptFlight = null; }   // only THE flight clears the flag
+    return r;
   }).catch(function(e) {
     /* This resolves to `false` rather than rejecting, so the caller learns THAT it failed
        but not WHY — and the code would be lost. Stash it for the render site to read. */
-    _APPT.lastErrCode = errCode(e);
-    _APPT.loading = false; _apptFlight = null; return false;
+    if (_apptFlight === flight) { _APPT.lastErrCode = errCode(e); _APPT.loading = false; _apptFlight = null; }
+    return false;
   });
-  return _apptFlight;
+  _apptFlight = flight; _apptFlightSeq = mySeq;
+  return flight;
 }
 function renderAppointmentsTab() {
   var c = document.getElementById('main-content');
@@ -568,18 +587,20 @@ function _apptRefreshInPlace() {
     _APPT.refreshing = false;
     if (CFG.officeId !== ofc) return;
     var a = r[0], b = r[1];
-    var aOk = a.ok && a.v && !a.v.error && Array.isArray(a.v.appointments), bOk = b.ok && b.v && !b.v.error;
+    var aOk = a.ok && a.v && !a.v.error && Array.isArray(a.v.appointments);
+    var bOk = b.ok && b.v && !b.v.error && !!b.v.blocks && typeof b.v.blocks === 'object';
     /* A newer reload (book / cancel / outcome) owns the bookings LIST now — drop ours. But block state is
        office-level, not list-level: keep it if it arrived, and repaint either way. Returning silently here
        used to leave every marked date as "…" until the next tick — the very symptom (second review). */
     if ((_APPT.seq || 0) !== seq) {
-      if (bOk) _apptSwapBlocks(need, b.v.blocks || {}, sentAt); else unmark();
+      if (bOk) _apptSwapBlocks(need, b.v.blocks, sentAt); else { unmark(); _APPT.blockRetryAt = Date.now() + _APPT_BLOCK_COOLDOWN_MS; }
       _apptPaintInPlace();
       return;
     }
     if (typeof _SEC_TS !== 'undefined') _SEC_TS.appointments = Date.now();   // next try after a full TTL, pass or fail
     if (aOk) { _APPT.appointments = a.v.appointments; _APPT.apptsAt = sentAt; }
-    if (bOk) { _apptSwapBlocks(need, b.v.blocks || {}, sentAt); _APPT.blockRetryAt = 0; } else unmark();
+    if (bOk) { _apptSwapBlocks(need, b.v.blocks, sentAt); _APPT.blockRetryAt = 0; }
+    else { unmark(); _APPT.blockRetryAt = Date.now() + _APPT_BLOCK_COOLDOWN_MS; }   // the repaint's lazy fetch must not re-send at once
     if (aOk && bOk) { _APPT.refreshFailed = false; _APPT.failKind = ''; }
     else {
       _APPT.refreshFailed = true;
@@ -1501,7 +1522,7 @@ function submitApptBooking() {
     apptType:_ABM.type, issueCategory:cat, issueDetail:detail
   }).then(function(res){
     if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
-    if(res.ok){closeApptModal();_APPT.appointments=null;renderAppointmentsTab();}
+    if(res.ok){closeApptModal();_APPT.seq=(_APPT.seq||0)+1;_APPT.appointments=null;renderAppointmentsTab();}
     else{
       var _msg={
         slot_unavailable:'That slot was just taken — please pick another time.',
@@ -1523,7 +1544,7 @@ function submitApptBooking() {
      looked for the CUSTOMER, and drop the cached appointments so the next calendar paint re-reads them. */
   }).catch(function(){
     if(btn){btn.disabled=false;btn.textContent='Confirm Booking';}
-    _APPT.appointments=null;
+    _APPT.seq=(_APPT.seq||0)+1;_APPT.appointments=null;
     errEl.textContent=(actEmail==='__next__')
       ?'We couldn’t confirm this booking went through — it may have, with whichever activator was free. Don’t book again yet: close this, reopen the calendar and look for this customer first.'
       :'We couldn’t confirm this booking went through — it may have. Don’t book again yet: close this, reopen the calendar and look for this customer first.';
@@ -1592,7 +1613,7 @@ function deleteApptUI(id) {
   if (SESSION.role!=='master-admin') return;
   if (!confirm('Permanently DELETE this appointment? This removes the row entirely and cannot be undone.')) return;
   _apptPost({action:'deleteAppointment',appointmentId:id,role:SESSION.role,email:SESSION.email}).then(function(res){
-    if(res.ok){_APPT.appointments=null;renderAppointmentsTab();}
+    if(res.ok){_APPT.seq=(_APPT.seq||0)+1;_APPT.appointments=null;renderAppointmentsTab();}
     else alert(res.error||'Delete failed.');
   }).catch(function(){ alert('Connection error.'); });
 }
@@ -1739,7 +1760,7 @@ function submitReschedule() {
   if(chosen) body.activatorEmail=chosen;
   _apptPost(body).then(function(res){
     if(btn){btn.disabled=false;btn.textContent='Confirm New Time';}
-    if(res.ok){closeApptReschedModal();_APPT.appointments=null;renderAppointmentsTab();}
+    if(res.ok){closeApptReschedModal();_APPT.seq=(_APPT.seq||0)+1;_APPT.appointments=null;renderAppointmentsTab();}
     else{err.textContent=res.error==='slot_unavailable'?'That slot is no longer open — pick another.':
       (res.error==='outside_window'?'Pick a date within the next 7 days.':(res.error||'Reschedule failed.'));
       err.style.display='block';}
