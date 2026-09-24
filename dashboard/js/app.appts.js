@@ -21,42 +21,113 @@ function _apptXofficeCell(label, oid){
   var c=OFFICE_BOOK_TINT[oid];
   return '<div class="appt-cal-cell appt-cell-blocked" style="background:'+_hexToRgba(c,.22)+';box-shadow:inset 3px 0 0 '+c+'" title="'+esc(label)+'"><img class="appt-xoffice-logo" src="assets/'+OFFICE_BOOK_LOGO[oid]+'" alt=""></div>';
 }
-// Fetch cross-office / calendar block state for `dates` (skips already-loaded +
-// out-of-window). Stores into _APPT.blocked; resolves true if it actually fetched.
+// Fetch cross-office / calendar block state for `dates` (skips fresh-loaded, in-flight and
+// out-of-window dates). Stores into _APPT.blocked; resolves true when a repaint is due.
 // ⚠⚠ NEVER-DOUBLE-BOOK: blockedLoaded[d] is a three-state flag, not a boolean —
-//   undefined = never fetched · 'loading' = in flight · true = loaded and trustworthy.
+//   undefined = never fetched · 'loading' = in flight · true = loaded (see _apptBlockFresh for how long).
 // It used to be set to `true` up-front purely to de-duplicate in-flight requests, which
 // meant a FAILED fetch was indistinguishable from a successful one: the date was never
 // retried and every cross-office booking on it silently rendered as an open "+ Book" cell
 // for the rest of the session. That failed OPEN — the one direction booking must never
 // fail. On failure we now DELETE the flag so the next render retries it.
+/* 2026-09-24 (independent review of the refresh-in-place fix — each point below was a real hole):
+   · an {error} reply used to count as SUCCESS (the Scheduler answers {error} on any exception, and _asFetch
+     resolves it) → every date marked loaded with no blocks → every slot OPEN. It now throws.
+   · no office check: a late reply from the previous office wrote ITS blocks into this one. Now guarded.
+   · a failure returned true → repaint → the repaint's lazy load refetched → an endless loop while the
+     Scheduler was down. It now asks for ONE repaint (so the banner shows) and never again until it recovers.
+   · a date loaded once was "fresh" forever. Freshness is now per date (blockedAt) — see _apptBlockFresh. */
 function _apptFetchBlocks(dates){
+  // After a failure, the lazy loader waits out a short cooldown — otherwise the banner repaint's own lazy fetch
+  // sent a SECOND request straight away (review 2026-09-24). The tick and "Try again" are not subject to it.
+  if (Date.now() < (_APPT.blockRetryAt || 0)) return Promise.resolve(false);
   var win=_apptWindow();
-  var need=dates.filter(function(d){ return d>=win.min && d<=win.max && !_APPT.blockedLoaded[d]; });
+  var need=dates.filter(function(d){ return d>=win.min && d<=win.max && _APPT.blockedLoaded[d]!=='loading' && !_apptBlockFresh(d); });
   if(!need.length) return Promise.resolve(false);
-  need.forEach(function(d){ _APPT.blockedLoaded[d]='loading'; });   // in flight — truthy, so still de-dupes
-  return _apptGet({action:'getOfficeBlocks',officeId:CFG.officeId,dates:need.join(','),role:SESSION.role}).then(function(res){
-    var bl=res.blocks||{};
-    Object.keys(bl).forEach(function(email){
-      var byDate=bl[email]||{};
-      Object.keys(byDate).forEach(function(d){ _APPT.blocked[email+'|'+d]=byDate[d]||{}; });
-    });
+  var ofc = CFG.officeId, sentAt = Date.now();
+  need.forEach(function(d){ _APPT.blockedLoaded[d]='loading'; });   // in flight — reads as NOT ready, and de-dupes
+  return _apptGet({action:'getOfficeBlocks',officeId:ofc,dates:need.join(','),role:SESSION.role}).then(function(res){
+    if (CFG.officeId !== ofc) return false;
+    if (!res || res.error) throw Object.assign(new Error((res && res.error) || 'no data'), { asCode: (res && res.asCode) || '' });
     // Only NOW is this date's cross-office state known. A date the backend returned no
     // entry for is still loaded — it genuinely has no blocks.
-    need.forEach(function(d){ _APPT.blockedLoaded[d]=true; });
+    _apptSwapBlocks(need, res.blocks||{}, sentAt);
+    _APPT.blockRetryAt = 0;
+    if (_apptListFresh()) { _APPT.refreshFailed = false; _APPT.failKind = ''; }   // a stale bookings list is still worth the banner
     return true;
-  }).catch(function(){
-    need.forEach(function(d){ delete _APPT.blockedLoaded[d]; });   // allow a retry
-    return false;
+  }).catch(function(e){
+    if (CFG.officeId !== ofc) return false;
+    need.forEach(function(d){ if (_APPT.blockedLoaded[d]==='loading') delete _APPT.blockedLoaded[d]; });   // allow a retry
+    var first = !_APPT.refreshFailed;
+    _APPT.refreshFailed = true; _APPT.lastErrCode = errCode(e);
+    if (_APPT.failKind !== 'list') _APPT.failKind = 'blocks';
+    _APPT.blockRetryAt = Date.now() + _APPT_BLOCK_COOLDOWN_MS;
+    return first;   // repaint ONCE so the banner shows; the repaint's own lazy fetch then returns false — no loop
   });
 }
-// Is this date's cross-office/block state actually known? Anything short of a completed
-// fetch is NOT known, and availability must treat it as unavailable (fail closed).
+/* Refetch block state for the dates in view and swap it in ONLY when it arrives. Dates whose state is still
+   fresh stay on screen meanwhile; dates we cannot vouch for are marked 'loading' (so they read as not ready,
+   and the lazy loader does not send a duplicate). Used on tab open (_apptFetchAll). Resolves true when a
+   repaint is due (new state, or a failure the banner should report). */
+function _apptRefreshBlocksFor(dates) {
+  var win = _apptWindow();
+  var need = dates.filter(function (d) { return d >= win.min && d <= win.max && _APPT.blockedLoaded[d] !== 'loading'; });
+  if (!need.length) return Promise.resolve(false);
+  var mark = need.filter(function (d) { return !_apptBlockFresh(d); });
+  mark.forEach(function (d) { _APPT.blockedLoaded[d] = 'loading'; });
+  var ofc = CFG.officeId, sentAt = Date.now();
+  return _apptGet({ action:'getOfficeBlocks', officeId:ofc, dates:need.join(','), role:SESSION.role }).then(function (res) {
+    if (CFG.officeId !== ofc) return false;
+    if (!res || res.error) throw Object.assign(new Error((res && res.error) || 'no data'), { asCode: (res && res.asCode) || '' });
+    _apptSwapBlocks(need, res.blocks || {}, sentAt);
+    _APPT.blockRetryAt = 0;
+    if (_apptListFresh()) { _APPT.refreshFailed = false; _APPT.failKind = ''; }
+    return true;
+  }).catch(function (e) {
+    if (CFG.officeId !== ofc) return false;
+    mark.forEach(function (d) { if (_APPT.blockedLoaded[d] === 'loading') delete _APPT.blockedLoaded[d]; });
+    _APPT.refreshFailed = true; _APPT.lastErrCode = errCode(e);
+    if (_APPT.failKind !== 'list') _APPT.failKind = 'blocks';
+    return true;
+  });
+}
+// Replace the block state for exactly these dates, in one step — never blank them first — and stamp each.
+function _apptSwapBlocks(need, bl, at) {
+  if (!_APPT.blockedAt) _APPT.blockedAt = {};
+  need.forEach(function (d) {
+    Object.keys(_APPT.blocked).forEach(function (k) { if (k.slice(-(d.length + 1)) === '|' + d) delete _APPT.blocked[k]; });
+  });
+  Object.keys(bl).forEach(function (email) {
+    var byDate = bl[email] || {};
+    Object.keys(byDate).forEach(function (d) { _APPT.blocked[email + '|' + d] = byDate[d] || {}; });
+  });
+  var now = at || Date.now();   // callers pass the SEND time
+  need.forEach(function (d) { _APPT.blockedLoaded[d] = true; _APPT.blockedAt[d] = now; });
+}
+/* 🔒 R-002 FRESHNESS BOUND — the user's 2-minute rule (2026-08-04) applied to AVAILABILITY. A slot may only
+   render bookable if BOTH inputs to that decision are known and under _APPT_STALE_MAX_MS old:
+     · that date's cross-office block state (blockedAt — per date, because only the dates in view are
+       refreshed; a week visited 20 minutes ago must not come back "open"), and
+     · this office's appointments list (apptsAt — other reps' and customers' bookings live there).
+   Checked at EVERY render, not only when a refresh fails — so the bound holds even when no failure is ever
+   seen (a backgrounded tab brought back, a refresh still in flight). The server re-checks every booking
+   inside its lock regardless (bookAppointment → slot_unavailable); this keeps the SCREEN honest.
+   ⚠ Activator SCHEDULES are the third input. They are refreshed on every open / reload (_apptFetchAll), not on
+   the 30s tick (getActivators sweeps every roster — D-065), so an hours change shows by the next open. */
+function _apptBlockFresh(d) {
+  return _APPT.blockedLoaded[d] === true && (Date.now() - ((_APPT.blockedAt || {})[d] || 0)) <= _APPT_STALE_MAX_MS;
+}
+function _apptListFresh() {
+  return _APPT.appointments !== null && (Date.now() - (_APPT.apptsAt || 0)) <= _APPT_STALE_MAX_MS;
+}
+// Is this date's availability actually known? Anything short of fresh block state AND a fresh bookings list
+// is NOT known, and availability must treat it as unavailable (fail closed).
 // Dates outside the booking window are never bookable anyway, so they count as ready.
 function _apptBlocksReady(ds){
   var win=_apptWindow();
   if(ds<win.min || ds>win.max) return true;
-  return _APPT.blockedLoaded[ds]===true;
+  if(!_apptListFresh()) return false;
+  return _apptBlockFresh(ds);
 }
 // Dates the current view needs block data for (week = its 7 days; all = that day).
 function _apptViewDates(){
@@ -393,18 +464,38 @@ function _apptFetchAll() {
   if (_apptFlight) return _apptFlight;
   var office = CFG.officeId;
   _APPT.loading = true;
-  var actsP = _APPT.activators ? Promise.resolve({activators:_APPT.activators}) : _apptGet({action:'getActivators',officeId:office});
+  _APPT.seq = (_APPT.seq || 0) + 1;   // a background refresh already in flight must not land over this (review 2026-09-24)
+  var sentAt = Date.now();            // freshness is stamped at SEND — the conservative end of the window
+  /* Activators (their SCHEDULES are the third input to availability) used to be fetched once per session.
+     Now every open / reload refetches them; the cached set paints meanwhile, and a failed refetch keeps it. */
+  var cachedActs = _APPT.activators;
+  var actsP = _apptGet({action:'getActivators',officeId:office}).then(function (r) {
+    if (r && Array.isArray(r.activators)) return r;
+    if (cachedActs) return { activators: cachedActs };
+    throw Object.assign(new Error((r && r.error) || 'no activators'), { asCode: (r && r.asCode) || '' });
+  }, function (e) { if (cachedActs) return { activators: cachedActs }; throw e; });
   var apptP = _apptGet({action:'getAppointments',officeId:office,bookerEmail:SESSION.email,role:SESSION.role});
   _apptFlight = Promise.all([actsP, apptP]).then(function(res) {
     if (office !== CFG.officeId) { _APPT.loading = false; _apptFlight = null; return false; }
     if (res[0].activators) _APPT.activators = res[0].activators;
-    _APPT.appointments = res[1].appointments || [];
+    /* 🔴 R-002 (second review): the Scheduler answers {error} on any exception and _asFetch RESOLVES it. This
+       line used to turn that into an EMPTY bookings list — and, once freshness existed, stamp it fresh: every
+       slot booked at this office read as "+ Book" for 2 minutes. A reply that is not a list is a failure. */
+    var r1 = res[1];
+    if (!r1 || r1.error || !Array.isArray(r1.appointments))
+      throw Object.assign(new Error((r1 && r1.error) || 'no appointments'), { asCode: (r1 && r1.asCode) || '' });
+    _APPT.appointments = r1.appointments;
+    _APPT.apptsAt = sentAt;   // the bookings list is one of the inputs to availability — see _apptListFresh
+    _APPT.refreshFailed = false; _APPT.failKind = '';
     // Refresh cross-office / calendar block state for the opening view. Load it in the
     // BACKGROUND + re-render when ready — do NOT gate the appointments render on it: an
     // out-of-window view fetches no blocks (resolves false) and that must never read as
     // a load failure (was the "Failed to load" on week nav).
-    _APPT.blocked = {}; _APPT.blockedLoaded = {};
-    _apptFetchBlocks(_apptViewDates()).then(function(did){ if(did && CURRENT_TAB==='appointments') _apptRerender(); });
+    /* 2026-09-24: this used to wipe the block state on EVERY open, so each return to the tab repainted the
+       whole grid as "…". Now dates whose state is still fresh stay on screen while it is refetched and swapped
+       in; anything older reads as not ready by itself (_apptBlockFresh), so the grid fails closed there until
+       fresh state lands (R-002). */
+    _apptRefreshBlocksFor(_apptViewDates()).then(function(did){ if(did && CURRENT_TAB==='appointments') _apptPaintInPlace(); });
     return true;
   }).then(function(r) {
     _APPT.loading = false; _apptFlight = null; return r;
@@ -429,6 +520,106 @@ function renderAppointmentsTab() {
     code:_APPT.lastErrCode || '', retry:'renderAppointmentsTab()' });
   });
 }
+/* ── REFRESH IN PLACE (2026-09-24 — "loading weirdly… just showing …") ─────────────────────────────
+   The 30s freshness tick (app.data.js _SEC_REFRESH) used to DROP _APPT.appointments and re-render: the
+   rep got a full-page "Loading appointments…", then _apptFetchAll wiped the conflict state, so the grid
+   came back with EVERY in-window cell as "…" until getOfficeBlocks answered — and on a slow line that is
+   most of every 30s. When that call timed out, the dots stayed until the next tick did it all again.
+   Now the grid stays up: appointments and block state are fetched in the background and swapped in when
+   they land. A failed refresh keeps the last good grid and says so.
+   🔒 R-002 STILL HOLDS. The calendar is ADVISORY — bookAppointment re-reads the sheet and re-checks the
+   slot inside the script lock (slot_unavailable). And the screen itself never shows a slot bookable on
+   inputs older than _APPT_STALE_MAX_MS: _apptBlocksReady checks the date's block state AND the bookings
+   list against it on every render (see _apptBlockFresh / _apptListFresh).
+   🔑 Hardened after an independent review the same day: a sequence token so a slow refresh cannot land over
+   a fresh book/cancel reload; dates we cannot vouch for are marked 'loading' (no duplicate lazy fetch, and
+   they read as not ready); if anything in view is already past the bound it is repainted as "…" FIRST, then
+   fetched; and the typing guard no longer blocks on the read-only booking-link box. */
+var _APPT_STALE_MAX_MS = 120000;   // the user's 2-minute freshness rule (2026-08-04), applied to availability
+var _APPT_BLOCK_COOLDOWN_MS = 15000;   // after a failed lazy block fetch — one request per trigger, not two
+function _apptRefreshInPlace() {
+  if (CURRENT_TAB !== 'appointments' || _APPT.appointments === null) return false;   // My Appointments etc.: old path
+  if (_apptFlight || _APPT.refreshing) return true;
+  _APPT.refreshing = true;
+  var ofc = CFG.officeId;
+  var seq = _APPT.seq || 0, sentAt = Date.now();
+  var mark = [];
+  var unmark = function () { mark.forEach(function (d) { if (_APPT.blockedLoaded[d] === 'loading') delete _APPT.blockedLoaded[d]; }); };
+  /* ⚠ A synchronous throw in here (a render bug, a null SESSION) used to leave _APPT.refreshing true for the
+     session — every later tick returned early and the marked dates showed "…" forever (second review). */
+  try {
+    var win = _apptWindow();
+    var need = _apptViewDates().filter(function (d) { return d >= win.min && d <= win.max && _APPT.blockedLoaded[d] !== 'loading'; });
+    mark = need.filter(function (d) { return !_apptBlockFresh(d); });
+    mark.forEach(function (d) { _APPT.blockedLoaded[d] = 'loading'; });
+    var settle = function (p) { return p.then(function (v) { return { ok: true, v: v }; }, function (e) { return { ok: false, e: e }; }); };
+    // Requests go out FIRST, then any repaint — a paint that throws can no longer stop the fetch.
+    var apptP = settle(_apptGet({ action:'getAppointments', officeId:ofc, bookerEmail:SESSION.email, role:SESSION.role }));
+    var blkP  = need.length ? settle(_apptGet({ action:'getOfficeBlocks', officeId:ofc, dates:need.join(','), role:SESSION.role }))
+                            : Promise.resolve({ ok: true, v: { blocks: {} } });
+    // Something in view is already past the bound (a backgrounded tab brought back): show it as "…" NOW, not
+    // after a fetch that may take the full 20s deadline.
+    if (mark.length || !_apptListFresh()) _apptPaintInPlace();
+  } catch (err) {
+    _APPT.refreshing = false; unmark();
+    return false;   // the tick falls back to the old drop-and-render path
+  }
+  Promise.all([apptP, blkP]).then(function (r) {
+    _APPT.refreshing = false;
+    if (CFG.officeId !== ofc) return;
+    var a = r[0], b = r[1];
+    var aOk = a.ok && a.v && !a.v.error && Array.isArray(a.v.appointments), bOk = b.ok && b.v && !b.v.error;
+    /* A newer reload (book / cancel / outcome) owns the bookings LIST now — drop ours. But block state is
+       office-level, not list-level: keep it if it arrived, and repaint either way. Returning silently here
+       used to leave every marked date as "…" until the next tick — the very symptom (second review). */
+    if ((_APPT.seq || 0) !== seq) {
+      if (bOk) _apptSwapBlocks(need, b.v.blocks || {}, sentAt); else unmark();
+      _apptPaintInPlace();
+      return;
+    }
+    if (typeof _SEC_TS !== 'undefined') _SEC_TS.appointments = Date.now();   // next try after a full TTL, pass or fail
+    if (aOk) { _APPT.appointments = a.v.appointments; _APPT.apptsAt = sentAt; }
+    if (bOk) { _apptSwapBlocks(need, b.v.blocks || {}, sentAt); _APPT.blockRetryAt = 0; } else unmark();
+    if (aOk && bOk) { _APPT.refreshFailed = false; _APPT.failKind = ''; }
+    else {
+      _APPT.refreshFailed = true;
+      _APPT.failKind = !aOk ? 'list' : 'blocks';
+      var bad = !aOk ? a : b;
+      _APPT.lastErrCode = bad.ok ? ((bad.v && bad.v.asCode) || '') : errCode(bad.e);
+    }
+    _apptPaintInPlace();
+  });
+  return true;
+}
+// Repaint the grid where it stands — scroll kept, and never while the rep is TYPING (a read-only box such as
+// the booking link keeps focus after Copy and must not freeze every refresh; a select is safe to repaint).
+function _apptPaintInPlace() {
+  if (CURRENT_TAB !== 'appointments') return;
+  var c = document.getElementById('main-content'), ae = document.activeElement;
+  if (!c) return;
+  if (ae && c.contains(ae) && /^(INPUT|TEXTAREA)$/.test(ae.tagName) && !ae.readOnly) return;   // fresh data is in memory
+  var snap = typeof _snapScroll === 'function' ? _snapScroll() : null;
+  c.innerHTML = _apptBuildView(); _apptBindEvents();
+  if (snap) _restoreScroll(snap);
+}
+// "Try again" on the banner — an immediate refresh, same safe path as the tick.
+function _apptRefreshNow() { if (!_apptRefreshInPlace() && CURRENT_TAB === 'appointments') renderAppointmentsTab(); }
+function _apptStaleBanner() {
+  if (!_APPT.refreshFailed) return '';
+  var when = '';
+  if (_APPT.apptsAt) { try { when = new Date(_APPT.apptsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) {} }
+  var msg = !_apptListFresh()
+    ? 'Couldn’t reach the scheduler for over 2 minutes, so open slots are hidden until it answers.'
+    : _APPT.failKind === 'blocks'
+      ? 'Couldn’t check other offices for conflicts, so some slots show “…” until it answers.'
+      : 'Couldn’t refresh appointments' + (when ? ' — showing what loaded at ' + when + '.' : '.');
+  return '<div class="appt-stale" role="status" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--yellow);' +
+    'border-radius:8px;padding:9px 13px;margin:0 0 12px;background:rgba(240,180,41,.10);font-size:.85rem;line-height:1.4">' +
+    '<span style="flex:1;min-width:200px">' + icon('issues') + ' ' + esc(msg) +
+    (_APPT.lastErrCode ? ' <span style="opacity:.7">(' + esc(_APPT.lastErrCode) + ')</span>' : '') + '</span>' +
+    '<button class="appt-nav-btn" style="width:auto;padding:4px 12px" onclick="_apptRefreshNow()">Try again</button></div>';
+}
+
 // Warm the Appointments cache in the background after login.
 function _preloadAppointments() {
   if (_APPT.appointments !== null || _apptFlight) return;
@@ -504,6 +695,7 @@ function _apptBuildView() {
         '<button class="appt-book-btn" onclick="openApptBookingModal(\'\',\'\',\'\')">+ Book Appointment</button>'+
       '</div>'+
     '</div>'+
+    _apptStaleBanner()+
     (_officeTzLabel(CFG.officeId) ? '<div class="appt-tz-note">'+icon('clock')+' Times shown in <strong>'+esc(_officeTzLabel(CFG.officeId))+'</strong>. Each activator works the hours &amp; timezone set in their own schedule.</div>' : '')+
     _apptUtilStrip(appts, acts, mode, ws, dStr)+
     body+
@@ -799,6 +991,11 @@ function _apptAllActGrid(appts, acts, dStr){
           '<div class="appt-cell-glyphs">'+_apptCellMeta(ap)+'</div></div>';
       } else if(offWin){
         html+='<div class="appt-cal-cell appt-cell-offwindow" title="Outside the booking window">·</div>';
+      } else if(inSched && !_apptBlocksReady(dStr)){
+        /* 🔴 R-002 (second review, 2026-09-24): this view offered "+ Book" on ANY in-schedule slot not in
+           _APPT.blocked — including before the day's block state had loaded, after a failed fetch, and past the
+           2-minute bound. Unknown availability is unavailable, exactly as _apptCalGrid renders it. */
+        html+='<div class="appt-cal-cell appt-cell-checking" title="Checking other offices for conflicts…">…</div>';
       } else if(inSched && _apptBlocked(a.email,dStr,asl)){
         var _bl=_apptBlocked(a.email,dStr,asl), _oid=_apptBlockOffice(_bl);
         html+= _oid ? _apptXofficeCell(_bl,_oid)
@@ -1384,7 +1581,7 @@ function _apptNotesNoDsiBody(a){
 function cancelAppt(id) {
   if (!confirm('Cancel this appointment?')) return;
   _apptPost({action:'cancelAppointment',appointmentId:id,role:SESSION.role,email:SESSION.email}).then(function(res){
-    if(res.ok){ var ap=_apptFindAppt(id); if(ap) ap.status='cancelled'; _apptRerender(); }   // in-place, no refetch
+    if(res.ok){ _APPT.seq=(_APPT.seq||0)+1; var ap=_apptFindAppt(id); if(ap) ap.status='cancelled'; _apptRerender(); }   // in-place; seq ⇒ a refresh already in flight cannot put it back
     else alert(res.error||'Cancel failed.');
   });
 }
@@ -1462,6 +1659,7 @@ function submitApptOutcome() {
   _apptPost({action:'setApptOutcome',appointmentId:id,outcome:outcome,note:note,linesActivated:lines,dsi:dsi,
     role:SESSION.role,email:SESSION.email}).then(function(res){
     if(res.ok){
+      _APPT.seq=(_APPT.seq||0)+1;   // a refresh already in flight must not land the pre-save list over this
       // Update just this appointment in cache + re-render from cache (no full refetch).
       var ap=_apptFindAppt(id);
       if(ap){

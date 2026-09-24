@@ -78,17 +78,90 @@ function renderActRates() {
     /* Office guard. ⚠ _AR_LOADING is cleared ABOVE the return deliberately — bail first and
        the flag stays true for the session, so this tab could never load again. */
     if (CFG.officeId !== _reqOffice) return;
+    // A refusal ({error}) is a failed load too — not "no activation rate data".
+    if (resp && resp.error) throw Object.assign(new Error(resp.error), { asCode: resp.asCode || '' });
     _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
     _AR_AGG   = (resp && resp.arAgg) ? resp.arAgg : null;
+    _AR_FAILED = false;
     if (CURRENT_TAB === 'actrates') {
       var c = document.getElementById('main-content');
       if (c) c.innerHTML = _renderActRatesWithData();
     }
-  }).catch(function() {
+  }).catch(function(e) {
+    /* ⚠ NEVER LEAVE THE SPINNER UP (2026-09-24 — "loads correctly, then reloads but never comes back up").
+       This used to set _AR_LINES = [] and repaint nothing, so the "Loading…" returned below stayed on screen
+       for good, and the next open claimed "No activation rate data available." Say it failed, offer a retry. */
     _AR_LOADING = false;
-    _AR_LINES = []; _AR_AGG = null;
+    if (CFG.officeId !== _reqOffice) return;   // ⚠ BEFORE clearing: a late failure from the old office must not wipe this one's lines
+    _AR_LINES = null; _AR_AGG = null; _AR_FAILED = true;
+    if (CURRENT_TAB !== 'actrates') return;
+    var c = document.getElementById('main-content');
+    if (c) c.innerHTML = _arFailedHtml(e);
   });
   return loadingState('Loading activation rates…', { icon:'actrates', bare:true });
+}
+function _arFailedHtml(e) {
+  return errorState('Couldn’t load activation rates.', { icon:'actrates', bare:true,
+    sub:'Check your connection, then try again.', code: errCode(e), retry:'_arRetry()' });
+}
+function _arRetry() {
+  _AR_FAILED = false;
+  var c = document.getElementById('main-content');
+  if (c && CURRENT_TAB === 'actrates') c.innerHTML = renderActRates();
+}
+/* Set when the lines FAILED to load (not when they are merely unloaded). Consumers that would otherwise
+   auto-refetch on null (the Teams detail card) show "didn't load" instead — a failing backend plus an
+   auto-retrying repaint was an endless loop (review 2026-09-24). Cleared on success, retry, Refresh, switch. */
+var _AR_FAILED = false;
+/* The 75s freshness tick, for the rep who is ON this tab (see _SEC_REFRESH in app.data.js). Fetches in the
+   background and swaps only when new lines arrive — the table never blanks, and a failed refresh leaves
+   the last good table on screen. Returns false when it does not apply, so the caller falls back. */
+var _AR_REFRESHING = false;
+function _arRefreshInPlace() {
+  if (CURRENT_TAB !== 'actrates' || !_AR_LINES) return false;
+  if (_AR_REFRESHING || _AR_LOADING) return true;
+  _AR_REFRESHING = true;
+  var ofc = CFG.officeId;
+  var failed = function () {
+    if (typeof _SEC_TS !== 'undefined') _SEC_TS.arlines = Date.now();   // retry after a full TTL, table untouched
+    // The table stays — but say it is not fresh, rather than letting stale numbers pass as current.
+    var c = document.getElementById('main-content');
+    if (CURRENT_TAB === 'actrates' && c && !document.getElementById('ar-stale')) {
+      c.insertAdjacentHTML('afterbegin', '<div id="ar-stale" role="status" style="border:1px solid var(--yellow);border-radius:8px;' +
+        'padding:8px 12px;margin:0 0 12px;background:rgba(240,180,41,.10);font-size:.85rem">' + icon('issues') +
+        ' Couldn’t refresh activation rates — showing the last numbers that loaded. <button class="ps-btn" style="margin-left:8px" onclick="_arRefreshNowBtn()">Try again</button></div>');
+    }
+  };
+  api({ action: 'readActRateLines' }, { waited: false }).then(function(resp) {
+    _AR_REFRESHING = false;
+    if (CFG.officeId !== ofc) return;
+    // An {error} or malformed reply is a failed refresh too — it used to keep stale numbers with NO note (second review).
+    if (!resp || resp.error || !Array.isArray(resp.actRateLines)) return failed();
+    if (typeof _SEC_TS !== 'undefined') _SEC_TS.arlines = Date.now();
+    _AR_LINES = resp.actRateLines;
+    _AR_AGG   = resp.arAgg || null;
+    _AR_FAILED = false;
+    if (CURRENT_TAB !== 'actrates') return;
+    // Don't yank the view from under someone typing; the fresh lines are already in memory.
+    var c = document.getElementById('main-content'), ae = document.activeElement;
+    if (!c || (ae && c.contains(ae) && /^(INPUT|TEXTAREA)$/.test(ae.tagName) && !ae.readOnly)) return;
+    // Keep a manager's rep filter across the swap (a full rebuild used to reset it to "All Reps" every 75s).
+    var sel = document.getElementById('ar-rep-sel'), keep = sel ? sel.value : '';
+    var snap = typeof _snapScroll === 'function' ? _snapScroll() : null;
+    c.innerHTML = _renderActRatesWithData();
+    var sel2 = document.getElementById('ar-rep-sel');
+    if (keep && sel2) { sel2.value = keep; if (sel2.value === keep) refreshActRates(); }
+    if (snap) _restoreScroll(snap);
+  }, function() {
+    _AR_REFRESHING = false;
+    if (CFG.officeId !== ofc) return;
+    failed();
+  });
+  return true;
+}
+function _arRefreshNowBtn() {
+  var n = document.getElementById('ar-stale'); if (n) n.remove();
+  if (!_arRefreshInPlace()) _arRetry();
 }
 
 function _renderActRatesWithData() {

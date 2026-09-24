@@ -1834,6 +1834,19 @@ function switchOffice(newOfficeId) {
   }
   // Tab data caches are office-specific — clear them so the new office refetches.
   _APPT.appointments = null; _APPT.activators = null; _APPT.blocked = {}; _APPT.blockedLoaded = {}; _APPT.filterEmail = ''; _apptFlight = null;
+  _APPT.apptsAt = 0; _APPT.blockedAt = {}; _APPT.refreshFailed = false; _APPT.refreshing = false; _APPT.lastErrCode = '';   // in-place refresh state (2026-09-24)
+  _APPT.seq = (_APPT.seq || 0) + 1;   // orphans a refresh still in flight from the previous office
+  /* 🔴 R-119, FOUND 2026-09-24: these four were never reset here — only by a manual Refresh — so after a
+     switch, Activation Rates (and the Teams AR table), Live Sales and a sub-team's orders showed the PREVIOUS
+     office's reps and numbers until a timer happened to replace them (up to 75s). Every cache refreshData()
+     clears must be cleared here too; officeswitch_reset_harness pins that as a closed list (R-117). */
+  if (typeof _AR_LINES !== 'undefined') { _AR_LINES = null; _AR_AGG = null; _AR_LOADING = false; }
+  if (typeof _AR_FAILED !== 'undefined') { _AR_FAILED = false; _AR_REFRESHING = false; }
+  if (_APPT) { _APPT.blockRetryAt = 0; _APPT.failKind = ''; }
+  if (typeof _LST_SALES !== 'undefined') { _LST_SALES = null; _LST_POSTED = null; }
+  if (_CACHE) _CACHE.lstSalesTs = 0;
+  if (typeof _TM_ORDERS !== 'undefined') { _TM_ORDERS = {}; _TM_ORD_LOADING = {}; }
+  if (typeof _MTO_F !== 'undefined') { _MTO_F = {}; _MTO_TEAM_ORDERS = {}; }
   if (_trTimer) { clearInterval(_trTimer); _trTimer = null; }
   _TRAINING_ORDERS = null;
   _PSV_SALES = null;

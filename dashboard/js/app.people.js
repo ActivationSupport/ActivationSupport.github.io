@@ -731,6 +731,9 @@ function _tmEnsureOrders(teamId) {
     }
   }).catch(function() {
     _TM_ORD_LOADING[teamId] = false;
+    // Office guard (second review, 2026-09-24): switchOffice now resets _TM_ORDERS, so a late failure from the
+    // previous office could otherwise write [] into a same-id team here and hide its orders.
+    if (CFG.officeId !== _reqOffice) return;
     _TM_ORDERS[teamId] = [];   // stop retrying; the sections render empty
   });
 }
@@ -1112,8 +1115,20 @@ function _tmSubTeamsHtml(teamId) {
 // Team Activation Rates — same coloring/structure as the main AR tab (_buildArTable),
 // but filtered to an arbitrary team's tableau names (the main one keys off the logged-in
 // user's role/team, so it can't render a team you're just viewing).
+function _tmArRetry() {
+  if (CURRENT_TAB === 'teams' && _TM_VIEW === 'detail' && _TM_DETAIL_ID) {
+    var tc = document.getElementById('main-content');
+    if (tc) tc.innerHTML = _tmBuildDetail(_TM_DETAIL_ID);   // _AR_LINES is null → the card starts one fresh load
+  }
+}
 function _tmArTableHtml(memberTabs) {
-  if (_AR_LINES === null) { _preloadArLines(); return loadingState('Loading activation rates…', { icon:'actrates', bare:true }); }
+  if (_AR_LINES === null) {
+    /* 2026-09-24: after a FAILED load this used to call the preload again on every repaint — and the preload's
+       failure repaints this card — an endless loop while the backend was down. Say it failed; retry on click. */
+    if (typeof _AR_FAILED !== 'undefined' && _AR_FAILED) return errorState('Couldn’t load activation rates.', { icon:'actrates', bare:true,
+      sub:'Check your connection, then try again.', retry:'_AR_FAILED=false;_tmArRetry()' });
+    _preloadArLines(); return loadingState('Loading activation rates…', { icon:'actrates', bare:true });
+  }
   if (!_AR_LINES.length)  return noData('No activation rate data.', { icon:'actrates', bare:true });
   var BKT_MAP = { '0-7 Days':'b0_7', '8-14 Days':'b8_14', '15-30 Days':'b15_30', '31-60 Days':'b31_60' };
   var lines = _AR_LINES.filter(function(l){ return memberTabs.indexOf(String(l.rep||'').trim().toLowerCase()) !== -1; });

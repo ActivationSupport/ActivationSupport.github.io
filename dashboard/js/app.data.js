@@ -558,6 +558,7 @@ function refreshData() {
   TAB_CACHE = {};
   _CACHE.mainDataTs = 0; _CACHE.lstSalesTs = 0;
   _LST_SALES = null; _AR_LINES = null; _AR_AGG = null; _AR_LOADING = false;
+  if (typeof _AR_FAILED !== 'undefined') _AR_FAILED = false;
   _TRAINING_ORDERS = null; _PSV_SALES = null; _APPT.appointments = null;   // re-warm the secondary tabs too
   _TM_ORDERS = {}; _TM_ORD_LOADING = {};   // Teams tab: re-pull any sub-team order payloads
   if (typeof _MTO_F !== 'undefined') { _MTO_F = {}; _MTO_TEAM_ORDERS = {}; }   // grouped My Team's Orders filters
@@ -923,8 +924,10 @@ function _preloadArLines() {
        Rates tab and the Teams detail view, so a stale fill is not confined to one screen.
        ⚠ _AR_LOADING cleared above the return, or the preload can never run again this session. */
     if (CFG.officeId !== _reqOffice) return;
+    if (resp && resp.error) throw Object.assign(new Error(resp.error), { asCode: resp.asCode || '' });   // a refusal is a failed load
     _AR_LINES = (resp && resp.actRateLines) ? resp.actRateLines : [];
     _AR_AGG   = (resp && resp.arAgg) ? resp.arAgg : null;
+    if (typeof _AR_FAILED !== 'undefined') _AR_FAILED = false;
     if (CURRENT_TAB === 'actrates') {
       var c = document.getElementById('main-content');
       if (c) c.innerHTML = _renderActRatesWithData();
@@ -932,7 +935,23 @@ function _preloadArLines() {
       var tc = document.getElementById('main-content');
       if (tc) tc.innerHTML = _tmBuildDetail(_TM_DETAIL_ID);   // team AR table was waiting on this
     }
-  }).catch(function() { _AR_LOADING = false; _AR_LINES = []; _AR_AGG = null; });
+  }).catch(function(e) {
+    /* ⚠ A FAILED LOAD IS NOT "NO DATA" (2026-09-24). This used to set _AR_LINES = [] and repaint nothing:
+       a tab waiting on this preload sat on "Loading activation rates…" forever, and the next open said
+       "No activation rate data available." — a false fact. Leave it unloaded (the next render retries)
+       and tell whoever is waiting. */
+    _AR_LOADING = false;
+    if (CFG.officeId !== _reqOffice) return;   // ⚠ BEFORE clearing — a late failure from the old office must not wipe this one's lines
+    _AR_LINES = null; _AR_AGG = null;
+    if (typeof _AR_FAILED !== 'undefined') _AR_FAILED = true;   // the Teams card shows "didn't load" instead of re-requesting (no loop)
+    if (CURRENT_TAB === 'actrates' && typeof _arFailedHtml === 'function') {
+      var c = document.getElementById('main-content');
+      if (c) c.innerHTML = _arFailedHtml(e);
+    } else if (CURRENT_TAB === 'teams' && _TM_VIEW === 'detail' && _TM_DETAIL_ID) {
+      var tc = document.getElementById('main-content');
+      if (tc) tc.innerHTML = _tmBuildDetail(_TM_DETAIL_ID);   // its AR card reads _AR_FAILED and says "didn't load"
+    }
+  });
 }
 // Warm the People tab's roster-name lookup in the background (one cheap call).
 function _preloadPeople() {
@@ -996,6 +1015,22 @@ var _TAB_SURFACE = {
 };
 function _secStale(name) { return !!_SEC_TS[name] && (Date.now() - _SEC_TS[name]) >= _secTtl(name); }
 
+/* 🔴 REFRESH IN PLACE, DON'T BLANK (2026-09-24 — "appointments loading weirdly… just showing …" and
+   "activation rates load correctly, then reload but never come back up").
+   Dropping the cache and re-rendering THREW AWAY what was on screen before the refetch had even started:
+   Appointments went to a full-page "Loading appointments…" and then a grid of "…" every 30s; Activation
+   Rates went to a spinner every 75s — and when that refetch failed, nothing ever put the table back.
+   For the surface the rep is LOOKING AT, a refresher now fetches in the background and swaps only when
+   new data arrives; on failure the old data stays and the tab says so. Each refresher returns FALSE when
+   it does not apply (e.g. My Appointments shares the 'appointments' surface but not its grid) and the old
+   drop-and-rerender path runs instead. Surfaces NOT on screen are still just invalidated (no fetch).
+   ⚠ The refresher re-stamps _SEC_TS itself, on success AND failure, so a failing backend is retried once
+   per TTL — never on every 15s tick. */
+var _SEC_REFRESH = {
+  arlines:      function () { return typeof _arRefreshInPlace === 'function' ? _arRefreshInPlace() : false; },
+  appointments: function () { return typeof _apptRefreshInPlace === 'function' ? _apptRefreshInPlace() : false; }
+};
+
 /* Each entry: the cache to drop, and how to tell whether it currently holds anything.
    Dropping the cache is enough — every one of these renderers refetches when its cache is
    null, which is the same path a manual Refresh already uses and is therefore proven. */
@@ -1011,6 +1046,10 @@ function _invalidateStaleSecondary() {
     if (!has()) { delete _SEC_TS[name]; return; }   // gone already (mutation/office switch)
     if (!_SEC_TS[name]) { _SEC_TS[name] = Date.now(); return; }
     if (!_secStale(name)) return;
+    // The surface on screen refreshes in place (see _SEC_REFRESH) — the cache is NOT cleared.
+    // ⚠ typeof-guarded: a ReferenceError here is swallowed by the try below and silently stops EVERY drop.
+    var refresh = (typeof _SEC_REFRESH !== 'undefined') && _SEC_REFRESH[name];
+    if (refresh && typeof _TAB_SURFACE !== 'undefined' && _TAB_SURFACE[CURRENT_TAB] === name && refresh()) return;
     clear(); delete _SEC_TS[name]; dropped.push(name);
   }
   try {
@@ -1025,7 +1064,7 @@ function _invalidateStaleSecondary() {
       function(){ _PSV_SALES = null; });
     drop('arlines',
       function(){ return typeof _AR_LINES !== 'undefined' && _AR_LINES; },
-      function(){ _AR_LINES = null; _AR_AGG = null; if (typeof _AR_LOADING !== 'undefined') _AR_LOADING = false; });
+      function(){ _AR_LINES = null; _AR_AGG = null; if (typeof _AR_LOADING !== 'undefined') _AR_LOADING = false; if (typeof _AR_FAILED !== 'undefined') _AR_FAILED = false; });
     drop('teamorders',
       function(){ return typeof _TM_ORDERS !== 'undefined' && _TM_ORDERS && Object.keys(_TM_ORDERS).length; },
       function(){ _TM_ORDERS = {}; if (typeof _TM_ORD_LOADING !== 'undefined') _TM_ORD_LOADING = {}; });
