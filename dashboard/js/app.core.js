@@ -418,6 +418,8 @@ var _reauthing = false;
 function _forceReauth() {
   if (_reauthing) return; _reauthing = true;
   if (typeof _ratingResetForOffice === 'function') _ratingResetForOffice();   // the next sign-in may be someone else
+  /* ⚠ Post Sale is deliberately NOT reset here (re-review 2026-09-28): a badge expiry is the same person signing back
+     in, and resetting would silently kill a pending save check and wipe the typed sale. signOut() resets it. */
   var _who = (SESSION && SESSION.email) ? String(SESSION.email).toLowerCase() : '';
   try { sessionStorage.removeItem('as_session_' + CFG.officeId); } catch(e) {}
   /* 🔑 A BADGE EXPIRY DROPS THE KEY, NOT THE DATA — AND THAT IS THE WHOLE POINT OF ENCRYPTING.
@@ -1031,7 +1033,9 @@ var _API_INFLIGHT = {};
    in the transport meta, never in the payload, and reaches the error log via _asExtra. */
 function api(params, opts) {
   params.key = API_KEY;
-  params.officeId = CFG.officeId;
+  /* opts.officeId: a save CHECK-BACK must read the office the save went to, even if the user has switched
+     office since (2026-09-28 — a switch used to end the check silently). The server still gates it on the badge. */
+  params.officeId = (opts && opts.officeId) || CFG.officeId;
   if (SESSION && SESSION.token) params.token = SESSION.token;   // Phase 1 Stage B: carry the badge
   /* ⚠⚠ THE DE-DUPE KEY MUST BE UNAMBIGUOUS, NOT JUST STABLE.
      Two requirements, and an early version of this satisfied only the first:
@@ -1618,6 +1622,7 @@ function doSetPin() {
 
 function signOut() {
   if (typeof _ratingResetForOffice === 'function') _ratingResetForOffice();   // held ratings belong to this person
+  if (typeof _psResetForSession === 'function') _psResetForSession();         // so does a pending Post Sale check (review 2026-09-28)
   clearInterval(_inactivityInterval);
   clearInterval(_bgInterval);
   clearInterval(_luInterval);

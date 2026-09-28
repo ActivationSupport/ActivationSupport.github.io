@@ -56,6 +56,32 @@ document.getElementById('detail-modal').addEventListener('click', function(e) { 
 // ── POST SALE ─────────────────────────────────────────────────────────────
 var _PS_STEP = 1;
 var _PS_DATA = null;
+/* ── A SUBMIT IS NEVER LEFT UNANSWERED (2026-09-28) ─────────────────────────────────────────
+   User: "ppl complaing about their orders not posting … some times its not even giving the error message".
+   Measured (wrlCheckWrites, 7 days): 44 of 206 posts (21%) got no answer inside the 15s the browser waits —
+   and 42 of those 44 HAD saved; the row lands ~2s after SUBMIT, the ANSWER is what is late. The rep was told
+   "we couldn't confirm", pressed again (one rep five times), each repeat was correctly refused as a duplicate —
+   and that answer timed out too. Nobody was ever told "it saved".
+   🔑 So after a lost answer the portal FINDS OUT for itself: it reads Posted Sales for this office and looks
+   for the same DSI + date (the server's own one-per-DSI-per-day rule, non-voided rows) once the server's lock
+   window has passed, and settles on one of: saved · already posted earlier · did NOT save · couldn't check.
+   ⚠ A wrong "did NOT save" is SAFE by construction: pressing SUBMIT again is refused as a duplicate, which
+   now shows the "Already Posted" screen instead of an alert.
+   ⚠ The check survives a tab or office switch (it reads the sale's OWN office) and is never silent: off the
+   Post Sale screen, anything but "saved" is an alert naming the DSI. */
+var _PS_CHECK = null;   // null | { phase:'sending'|'checking'|'notsaved'|'unchecked', ofc, dsi, date, sentAt, tries, seq }
+var _PS_DONE = '';      // which success screen step 4 shows: 'saved' | 'already'
+var _PS_SEQ = 0;        // only the newest submit may settle the screen
+var _PS_VERIFY_AFTER_MS = 27000;   // from SEND: the row is stamped ~2s in, then writePostSale waits up to 20s for its lock
+var _PS_VERIFY_TRIES = 3;          // the check is a read on the same slow server — it can time out too
+var _PS_VERIFY_RETRY_MS = 15000;
+function _psBusy() { return !!(_PS_CHECK && (_PS_CHECK.phase === 'sending' || _PS_CHECK.phase === 'checking')); }
+// ⚠ MIRROR of Code.gs _normDsiKey — the server's duplicate rule. savefeedback_harness (Post Sale section) runs both on the same inputs.
+function _psNormDsi(s) {
+  var x = String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (x.indexOf('DSI') === 0) x = x.slice(3);
+  return x;
+}
 
 // "Today" as YYYY-MM-DD in the CURRENT OFFICE's timezone, so the Post Sale date rolls at
 // office-midnight — not UTC (rolled at ~5pm Pacific → pre-filled tomorrow), and not the
@@ -77,6 +103,7 @@ function _psOfficeToday() {
 function _psInit() {
   if (_PS_DATA) return;
   _PS_DATA = {
+    _ofc: CFG.officeId,   // the office this sale belongs to — see _psWrongOffice
     dateOfSale: _psOfficeToday(),
     dsi: '', accountType: 'Consumer', processedVia: 'Sara',
     underSomeoneCodes: 'No', codesUsedBy: '', trainee: '', traineeName: '', notes: '',
@@ -86,14 +113,58 @@ function _psInit() {
   };
 }
 function resetPostSaleForm() {
-  _PS_STEP = 1; _PS_DATA = null; _psInit();
+  if (_psBusy()) return;   // a submit still being checked must be allowed to report back
+  _PS_STEP = 1; _PS_DATA = null; _PS_CHECK = null; _PS_DONE = ''; _psInit();
   document.getElementById('main-content').innerHTML = renderPostSale();
 }
+/* 🔴 A SALE BELONGS TO THE OFFICE IT WAS STARTED IN (review, 2026-09-28). switchOffice keeps Post Sale's state, and
+   apiPost sends to CFG.officeId — so a sale started (or already sent) in A and submitted after a switch to B went into
+   B, where B's duplicate check cannot see A's rows: a real cross-office double post. Now another office's sale is
+   shown as a card, never as a live form. A sale never sent may be MOVED on purpose; one already sent may not (it may
+   have saved where it was sent). */
+// DSIs are usually typed WITH their prefix ('DSI275185026') — never print 'DSI DSI…'.
+function _psDsiLabel(dsi) { var x = String(dsi || '').trim(); return /^dsi/i.test(x) ? x : 'DSI ' + x; }
+function _psOfficeName(id) { return (typeof OFFICE_NAMES !== 'undefined' && OFFICE_NAMES[id]) || id; }
+function _psWrongOffice() { return !!(_PS_DATA && _PS_DATA._ofc && _PS_DATA._ofc !== CFG.officeId); }
+function _psWrongOfficeHtml() {
+  var d = _PS_DATA, from = esc(_psOfficeName(d._ofc)), here = esc(_psOfficeName(CFG.officeId)), busy = _psBusy();
+  var what = 'This sale' + (d.dsi ? ' (' + esc(_psDsiLabel(d.dsi)) + ')' : '') + ' was started in <b>' + from + '</b>';
+  if (_PS_STEP === 4) {   // it SAVED in the other office — say so, never "finish it"
+    return '<div class="ps-verify info" role="status">Your sale' + (d.dsi ? ' (' + esc(_psDsiLabel(d.dsi)) + ')' : '') + ' in <b>' + from + '</b> was posted.</div>' +
+      '<div class="ps-btn-row"><button class="ps-btn" onclick="_psStartHere()">Start a new sale in ' + here + '</button></div>';
+  }
+  var h = '<div class="ps-verify ' + (busy ? 'info' : 'warn') + '" role="status">' + what +
+    (busy ? ' and is still being checked — you’ll get a popup with the result.'
+     : d._tried ? ' and was already sent from there, so it can’t be posted into ' + here + '. Switch back to ' + from + ' to finish it.'
+     : '. Switch back to ' + from + ' to finish it — or move it to ' + here + ' if that’s where it belongs.') + '</div>';
+  if (!busy) {
+    h += '<div class="ps-btn-row">';
+    if (!d._tried) h += '<button class="ps-btn secondary" onclick="_psMoveHere()">Move it to ' + here + '</button>';
+    h += '<button class="ps-btn" onclick="_psStartHere()">Start a new sale in ' + here + '</button></div>';
+  }
+  return h;
+}
+function _psMoveHere() {
+  if (_psBusy() || !_PS_DATA || _PS_DATA._tried) return;
+  _PS_DATA._ofc = CFG.officeId; _PS_CHECK = null;
+  document.getElementById('main-content').innerHTML = renderPostSale();
+}
+function _psStartHere() {
+  if (_psBusy()) return;
+  // An unsent sale with a DSI typed in is real work — do not discard it on one tap.
+  if (_PS_DATA && _PS_DATA.dsi && !_PS_DATA._tried && _PS_STEP !== 4 && typeof confirm === 'function' &&
+      !confirm('Discard the unsent sale (DSI ' + _PS_DATA.dsi + ') from ' + _psOfficeName(_PS_DATA._ofc) + '?')) return;
+  _PS_STEP = 1; _PS_DATA = null; _PS_CHECK = null; _PS_DONE = '';
+  document.getElementById('main-content').innerHTML = renderPostSale();
+}
+// Sign-out / forced re-auth: the next person must not inherit a pending check or a half-filled sale.
+function _psResetForSession() { _PS_SEQ++; _PS_CHECK = null; _PS_DATA = null; _PS_STEP = 1; _PS_DONE = ''; }
 function renderPostSale() {
   _psInit();
   var html = '<div class="ps-wrap">';
   html += '<div class="ps-header"><h2>Post Sale</h2>';
   html += '<p class="ps-sub">Logging sale for ' + esc(SESSION.name || SESSION.email) + '</p></div>';
+  if (_psWrongOffice()) return html + _psWrongOfficeHtml() + '</div>';
   html += _psStepIndicator();
   if (_PS_STEP === 1)      html += _psStep1Html();
   else if (_PS_STEP === 2) html += _psStep2Html();
@@ -292,7 +363,11 @@ function _psNext2() {
   _PS_STEP = 3;
   document.getElementById('main-content').innerHTML = renderPostSale();
 }
-function _psGoStep(n) { _PS_STEP = n; document.getElementById('main-content').innerHTML = renderPostSale(); }
+function _psGoStep(n) {
+  if (_psBusy()) return;
+  if (n !== 3) _PS_CHECK = null;   // editing the sale makes an old "did not save" notice about a different submit
+  _PS_STEP = n; document.getElementById('main-content').innerHTML = renderPostSale();
+}
 // Shared sale recap (SALE INFO + PRODUCTS). showEdit=true on the review step
 // (with EDIT links); false on the success screen (read-only confirmation).
 function _psRecapHtml(showEdit) {
@@ -322,10 +397,23 @@ function _psRecapHtml(showEdit) {
   return h;
 }
 function _psStep3Html() {
-  var h = _psRecapHtml(true);
-  h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="_psGoStep(2)">BACK</button>';
-  h += '<button class="ps-btn" id="ps-submit-btn" onclick="_psSubmit(this)">SUBMIT</button></div>';
+  var c = _PS_CHECK, busy = _psBusy();
+  var h = _psRecapHtml(!busy);   // no EDIT links while a submit is in flight — the recap IS what was sent
+  if (c) h += _psCheckNoticeHtml(c);
+  h += '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="_psGoStep(2)"' + (busy ? ' disabled' : '') + '>BACK</button>';
+  h += '<button class="ps-btn" id="ps-submit-btn" onclick="_psSubmit(this)"' + (busy ? ' disabled' : '') + '>' +
+       (c && c.phase === 'sending' ? 'Submitting...' : c && c.phase === 'checking' ? 'Checking...' : 'SUBMIT') + '</button></div>';
   return h;
+}
+// What the rep is told while a submit is unresolved, and after a check that could not say "saved".
+function _psCheckNoticeHtml(c) {
+  var name = (typeof OFFICE_NAMES !== 'undefined' && OFFICE_NAMES[c.ofc]) || c.ofc;
+  var elsewhere = (typeof CFG !== 'undefined' && CFG.officeId !== c.ofc) ? ' (' + esc(name) + ')' : '';
+  if (c.phase === 'checking') return '<div class="ps-verify info" role="status">The server is slow to answer, so we’re checking whether your sale' + elsewhere +
+    ' saved. This usually takes under a minute — keep the portal open. If it didn’t save, you’ll be told even if you leave this screen.</div>';
+  if (c.phase === 'notsaved') return '<div class="ps-verify bad" role="alert">We checked — this sale did NOT save. Press SUBMIT to send it again.</div>';
+  if (c.phase === 'unchecked') return '<div class="ps-verify warn" role="alert">' + esc(_PS_MSG_UNCHECKED) + '</div>';
+  return '';
 }
 function _psRRow(label, val) {
   return '<div class="ps-review-row"><span class="ps-rl">'+label+'</span><span class="ps-rv">'+esc(String(val||''))+'</span></div>';
@@ -336,7 +424,17 @@ function _psCalcUnits() {
     (d.products.fiber&&d.fiberPackage?1:0)+(d.voipQty||0)+(d.products.dtv?1:0);
 }
 function _psStep4Html() {
-  var units = _psCalcUnits();
+  var units = _psCalcUnits(), already = _PS_DONE === 'already';
+  /* ⚠ "Already Posted" makes NO claim about units or products (review, 2026-09-28): the sheet keeps the FIRST row,
+     and the form may have been edited since — "N units logged" would describe something that was not saved. */
+  if (already) {
+    return '<div class="ps-success"><div class="ps-success-icon">&#10003;</div>' +
+      '<div class="ps-success-title">Already Posted</div>' +
+      '<div class="ps-success-sub">' + esc(_psDsiLabel(_PS_DATA.dsi)) + ' for ' + esc(_PS_DATA.dateOfSale) + ' was already saved &mdash; it hasn\'t been posted twice.<br>' +
+      'If you changed anything since, correct it in Posted Sales.</div></div>' +
+      '<div class="ps-btn-row"><button class="ps-btn secondary" onclick="resetPostSaleForm()">Post Another Sale</button>' +
+      '<button class="ps-btn" onclick="switchTab(\'postedsales\')">Open Posted Sales ' + icon('arrow-right') + '</button></div>';
+  }
   var h = '<div class="ps-success"><div class="ps-success-icon">&#10003;</div>' +
     '<div class="ps-success-title">Sale Posted!</div>' +
     '<div class="ps-success-sub">Saved successfully &mdash; here\'s what was logged:</div>' +
@@ -363,8 +461,11 @@ function _psToRehash() {
   switchTab('rehash');
 }
 function _psSubmit(btn) {
-  btn.disabled = true; btn.textContent = 'Submitting...';
+  if (_psBusy()) return;   // one submit at a time — a second press while checking would race the check
+  if (_psWrongOffice()) return;   // never post one office's sale into another (the card hides SUBMIT; this is the backstop)
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
   var d = _PS_DATA;
+  d._tried = true;   // once sent, it may have saved where it was sent — it can no longer be moved to another office
   var traineeName = (d.trainee==='Yes') ? (d.traineeName||'').trim() : '';
   var payload = {
     action:'postSale', key:API_KEY, officeId:CFG.officeId,
@@ -382,25 +483,90 @@ function _psSubmit(btn) {
     dtvPackage:d.products.dtv?d.dtvPackage:'',
     notes:d.notes
   };
-  var _reqOffice = CFG.officeId;
+  var chk = _PS_CHECK = { phase:'sending', ofc:CFG.officeId, dsi:d.dsi, date:d.dateOfSale, sentAt:Date.now(), tries:0, seq:++_PS_SEQ };
+  _PS_DONE = '';
   apiPost(payload).then(function(res) {
-    /* Office guard. The SALE itself is safe — the server booked it against the office that
-       sent it — but advancing to the step-4 confirmation and repainting would show a
-       "submitted" screen under a DIFFERENT office's header if the user switched while it was
-       in flight. Bail: the switch has already re-rendered the tab. */
-    if (CFG.officeId !== _reqOffice) return;
-    if (res&&res.ok) {
-      _PS_STEP=4;
-      document.getElementById('main-content').innerHTML=renderPostSale();
+    if (res && res.ok) return _psSettle(chk, 'saved');
+    // Duplicate = this DSI is already posted for that date (an earlier press that landed) — it IS saved.
+    if (res && res.duplicate) return _psSettle(chk, 'already');
+    _psSettle(chk, 'refused', (res && res.error === 'unauthorized') ? _PS_MSG_DROPPED
+      : ('Error: ' + (res && res.error ? res.error : 'Unknown error')));
+  }).catch(function() { _psStartCheck(chk); });
+}
+/* Repaint Post Sale if it is the tab on screen. Returns true only when the rep is looking at THIS sale's result
+   (its own office). In another office renderPostSale draws the "started in <office>" card, never this sale's form —
+   so repainting there is what keeps that screen from sticking on "Checking…" (review, 2026-09-28). */
+function _psRepaintIfShown(chk) {
+  if (CURRENT_TAB !== 'postsale') return false;
+  var mc = document.getElementById('main-content'); if (!mc) return false;
+  mc.innerHTML = renderPostSale();
+  return CFG.officeId === chk.ofc;
+}
+function _psStartCheck(chk) {
+  if (chk.seq !== _PS_SEQ) return;
+  chk.phase = 'checking';
+  _psRepaintIfShown(chk);
+  setTimeout(function() { _psVerify(chk); }, Math.max(0, chk.sentAt + _PS_VERIFY_AFTER_MS - Date.now()));
+}
+function _psVerify(chk) {
+  if (chk.seq !== _PS_SEQ) return;
+  api({ action:'readPostedSales' }, { officeId: chk.ofc }).then(function(res) {
+    if (!res || res.error || !Array.isArray(res.sales)) return _psCheckFailed(chk);
+    var want = _psNormDsi(chk.dsi), hit = null;
+    res.sales.forEach(function(s) {
+      if (!hit && s && !s.voided && _psNormDsi(s.dsi) === want && String(s.dateOfSale || '') === chk.date) hit = s;
+    });
+    if (!hit) return _psSettle(chk, 'notsaved');
+    /* Stamped well before this submit went out ⇒ an EARLIER post of the same sale (the server would refuse a repeat).
+       10 minutes, not 1: sentAt is the DEVICE clock and the row is the SERVER's, and a phone a minute fast must not
+       turn a fresh save into "Already Posted". Both answers mean "it is saved" — only the wording differs. */
+    var t = Date.parse(hit.timestamp || '');
+    _psSettle(chk, (t && t < chk.sentAt - 600000) ? 'already' : 'saved');
+  }, function() { _psCheckFailed(chk); });
+}
+function _psCheckFailed(chk) {
+  if (chk.seq !== _PS_SEQ) return;
+  if (++chk.tries < _PS_VERIFY_TRIES) { setTimeout(function() { _psVerify(chk); }, _PS_VERIFY_RETRY_MS); return; }
+  _psSettle(chk, 'unchecked');
+}
+/* One place decides what the rep sees. outcome: saved · already · notsaved · unchecked · refused(msg).
+   Off the Post Sale screen (another tab, or another office) nothing is painted — but only "saved" may go
+   unsaid, and even that is said when the office changed, because the form there has moved on without them. */
+function _psSettle(chk, outcome, msg) {
+  if (chk.seq !== _PS_SEQ) return;
+  var name = (typeof OFFICE_NAMES !== 'undefined' && OFFICE_NAMES[chk.ofc]) || chk.ofc;
+  var here = CFG.officeId === chk.ofc, shown = here && CURRENT_TAB === 'postsale';
+  var tag = here ? '\n\nDSI: ' + chk.dsi : '\n\n' + name + ' · DSI: ' + chk.dsi;
+  if (outcome === 'saved' || outcome === 'already') {
+    _PS_CHECK = null;
+    if (here) {
+      _PS_STEP = 4; _PS_DONE = outcome;
+      // The tracker, Teams, Training and Posted Sales show it on their next open — not after a 90s timer.
+      _psInvalidateDownstream(); _PSV_SALES = null; if (typeof _CACHE !== 'undefined' && _CACHE) _CACHE.lstSalesTs = 0;
+      _psRepaintIfShown(chk);
+    } else {
+      alert((outcome === 'already' ? 'Your sale was already posted — it hasn’t been posted twice.' : 'Your sale posted.') + tag);
+      _PS_STEP = 1; _PS_DATA = null; _PS_DONE = '';
+      _psRepaintIfShown(chk);   // the other office's Post Sale was showing the "being checked" card
     }
-    else {
-      btn.disabled=false; btn.textContent='SUBMIT';
-      // Duplicate = the order already saved (option A): show the plain message, no scary "Error:".
-      alert((res&&res.duplicate) ? (res.error||'This order was already posted today.')
-          : (res&&res.error==='unauthorized') ? _PS_MSG_DROPPED
-          : ('Error: '+(res&&res.error?res.error:'Unknown error')));
-    }
-  }).catch(function(){ btn.disabled=false; btn.textContent='SUBMIT'; alert(_PS_MSG_UNCONFIRMED); });
+    return;
+  }
+  if (outcome === 'refused') {
+    _PS_CHECK = null;
+    _psRepaintIfShown(chk);            // SUBMIT is live again (or, in another office, the card updates)
+    alert(msg + (shown ? '' : tag));   // a refusal is always said — the reason is the server's own
+    return;
+  }
+  // notsaved / unchecked — the form keeps everything so SUBMIT is one press away (in the sale's own office only).
+  chk.phase = outcome;
+  if (!here) _PS_CHECK = null;   // do not leave a notice about another office's sale on this office's form
+  if (!_psRepaintIfShown(chk)) {
+    alert((outcome === 'notsaved'
+      ? (here ? 'Your sale did NOT save. Open Post Sale and press SUBMIT to send it again.'
+              : 'Your sale in ' + name + ' did NOT save. Switch back to ' + name + ' and press SUBMIT to send it again.')
+      : (here ? _PS_MSG_UNCHECKED
+              : 'We couldn’t confirm whether your sale in ' + name + ' saved. Switch back to ' + name + ' and look for it in Posted Sales before submitting again.')) + tag);
+  }
 }
 /* R-109 / R-113 (2026-09-14). The old catch said "Submission failed. Please try again." — but a
    transport failure on postSale almost always LANDED: writePostSale waits up to 20s for its lock after
@@ -410,7 +576,9 @@ function _psSubmit(btn) {
    "already posted — it is saved". So say exactly that.
    `unauthorized` is the opposite case: Google dropped the body, the key check refused it, NOTHING was
    saved — the one time "it didn't go through" is literally true. */
-var _PS_MSG_UNCONFIRMED = 'We couldn’t confirm this sale went through — it usually does. It’s safe to press SUBMIT again: if it already saved, you’ll get a message saying so, and it won’t be posted twice.';
+/* 2026-09-28: _PS_MSG_UNCONFIRMED ("…it usually does…") is GONE — a lost answer now triggers a check instead
+   of a guess. This is what is left when even the check cannot get through. */
+var _PS_MSG_UNCHECKED = 'We couldn’t confirm whether this sale saved — the connection is struggling. Look for it in Posted Sales before submitting again. Pressing SUBMIT is safe: if it already saved you’ll see “Already Posted”, and it won’t be posted twice.';
 var _PS_MSG_DROPPED = 'That sale didn’t go through — the connection dropped it, so nothing was saved. Please press SUBMIT again.';
 
 // ── REHASH TEXT ───────────────────────────────────────────────────────────

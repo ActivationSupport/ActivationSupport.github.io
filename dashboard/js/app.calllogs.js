@@ -505,6 +505,8 @@ function _noteItemHtml(n) {
    🛡 savefeedback_harness · _failcheck_savefeedback · savefeedback_browser_test (real Chrome). */
 var _NOTE_PID = 0;
 var _NOTE_VERIFY_DELAY_MS = 30000;   // after the transport gives up; writeNoteEntry's _safeAppend lock wait is 25s
+var _NOTE_VERIFY_TRIES = 3;          // read-back attempts before "couldn't check" (the read can time out too)
+var _NOTE_VERIFY_RETRY_MS = 20000;   // between read-back attempts
 var _NOTE_RETRY_KEYS = {};           // "dsi|type|text" → clientKey of an add whose outcome is unknown
 var _modalNotesSrc = null, _modalNotesDsi = '';   // the list openNotesModal rendered a CROSS-office order from
 var _NOTE_MARKER = {
@@ -602,6 +604,18 @@ function _noteSettle(o) {
   var e = o.entry;
   var before = _nmMatchCount(o.list(), e);
   var retryId = _nmRetryId(o.dsi, e.noteType, e.noteText);
+  var failedChecks = 0;
+  /* 🔴 THE USER SWITCHED OFFICE SINCE THIS SAVE WENT OUT (2026-09-28). Every branch used to `return` here, so a
+     refused or lost note on an office switch ended in SILENCE — the "sometimes it doesn't even give an error"
+     report (Angel, master-admin, saves across 9 offices). Now: the lists and windows on screen belong to ANOTHER
+     office, so nothing is touched or painted (officerace_harness) — but the save is still FOUND OUT (the read-back
+     names the note's own office) and a note that did not save is said out loud, office + DSI + text. A note that
+     did save needs nothing said. */
+  function away() { return CFG.officeId !== o.ofc; }
+  function tellAway(lead) {
+    var name = (typeof OFFICE_NAMES !== 'undefined' && OFFICE_NAMES[o.ofc]) || o.ofc;
+    if (typeof alert === 'function') alert(lead + '\n\n' + name + ' · DSI: ' + o.dsi + '\nYou wrote: “' + e.noteText + '”');
+  }
   function inList() { var l = o.list(); return !!(l && l.indexOf(e) >= 0); }
   function drop() { var l = o.list(); var i = l ? l.indexOf(e) : -1; if (i >= 0) l.splice(i, 1); o.repaint('removed'); }
   function tellNotSaved(lead) {
@@ -611,30 +625,41 @@ function _noteSettle(o) {
       : shown ? 'Please add it again.' : 'Please add it again. You wrote: “' + e.noteText + '”'));
   }
   function unchecked() {
-    if (CFG.officeId !== o.ofc) return;
+    if (away()) return tellAway('We couldn’t check whether your ' + o.what + ' saved. Switch back to that office and look for it before adding it again.');
     e._unconfirmed = 'unchecked';
     if (inList() && _nmModalShowing(o.dsi)) o.repaint('unconfirmed');
     else _nmNotice(o.anchors, o.dsi, 'We couldn’t check whether your ' + o.what + ' saved. Reload the page and look for it before adding it again.');
   }
+  // The check itself can time out on the same slow server — try it again before giving up (Angel, 2026-09-28:
+  // her read-backs failed, so a note that HAD saved was reported as "couldn't check").
+  function checkFailed() {
+    if (++failedChecks < _NOTE_VERIFY_TRIES) { setTimeout(verify, _NOTE_VERIFY_RETRY_MS); return; }
+    unchecked();
+  }
   function verify() {
-    if (CFG.officeId !== o.ofc) return;
-    api({ action: 'readNotes' }).then(function (res) {
-      if (CFG.officeId !== o.ofc) return;
-      if (!res || res.error || !res.notes) return unchecked();
+    api({ action: 'readNotes' }, { officeId: o.ofc }).then(function (res) {
+      if (!res || res.error || !res.notes) return checkFailed();
       if (_nmMatchCount(res.notes[o.dsi] || [], e) > before) {
         // It saved. From here an identical note is a genuinely new one, so its key is no longer reused.
         if (_NOTE_RETRY_KEYS[retryId] === o.key) delete _NOTE_RETRY_KEYS[retryId];
+        if (away()) return;
         delete e._unconfirmed; delete e._pid;
         if (inList()) o.repaint('confirmed');
         if (_nmModalShowing(o.dsi)) _nmClearNotice('note');
         return;
       }
+      if (away()) return tellAway('That ' + o.what + ' didn’t save. Switch back to that office and add it again.');
       if (inList()) drop(); else o.repaint('removed');
       tellNotSaved('That ' + o.what + ' didn’t save.');
-    }).catch(unchecked);
+    }).catch(checkFailed);
   }
   function unknown() {
-    if (CFG.officeId !== o.ofc) return;
+    if (away()) {
+      if (o.cross) return tellAway('We couldn’t confirm your ' + o.what + ' saved. Switch back, reload, and check this appointment’s notes before adding it again.');
+      if (o.key) _NOTE_RETRY_KEYS[retryId] = o.key;
+      setTimeout(verify, _NOTE_VERIFY_DELAY_MS);   // nothing to mark on screen — just find out
+      return;
+    }
     var seen = inList(), shown = _nmModalShowing(o.dsi);
     e._unconfirmed = o.cross ? 'cross' : 'checking';
     if (seen) o.repaint('unconfirmed');
@@ -650,9 +675,12 @@ function _noteSettle(o) {
   }
   return {
     ok: function (res) {
-      if (CFG.officeId !== o.ofc) return;
       if (res && res.error === 'unauthorized' && o.retried) return unknown();
-      if (_saveRefused(res)) { drop(); return tellNotSaved('That ' + o.what + ' didn’t save — ' + _saveRefusalReason(res.error) + '.'); }
+      if (_saveRefused(res)) {
+        if (away()) return tellAway('That ' + o.what + ' didn’t save — ' + _saveRefusalReason(res.error) + '. Switch back to that office and add it again.');
+        drop(); return tellNotSaved('That ' + o.what + ' didn’t save — ' + _saveRefusalReason(res.error) + '.');
+      }
+      if (away()) return;   // saved; this office's lists are no longer on screen
       /* Success. `duplicate` = the server handed back an EARLIER copy of this exact note (a re-add of an
          unknown save that had landed after all) — drop the second local copy while the first is on screen. */
       var twin = false;
@@ -943,13 +971,13 @@ function modalAddInquiryRequest() {
   if (_cross) {
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'inquiry',
                 linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email })
-      .then(function(res){ _done(); if (CFG.officeId !== _ofc) return; _s.ok(res); })
+      .then(function(res){ _done(); _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   } else {
     apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'inquiry',
               clientKey:_key,
               authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
-      .then(function(res){ _done(); if (CFG.officeId !== _ofc) return; _s.ok(res); })
+      .then(function(res){ _done(); _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   }
 }
@@ -1055,13 +1083,13 @@ function modalAddCancelRequest() {
   if (_cross) {
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'cancel',
                 linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email })
-      .then(function(res){ _done(); if (CFG.officeId !== _ofc) return; _s.ok(res); })
+      .then(function(res){ _done(); _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   } else {
     apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'cancel',
               clientKey:_key,
               authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
-      .then(function(res){ _done(); if (CFG.officeId !== _ofc) return; _s.ok(res); })
+      .then(function(res){ _done(); _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   }
 }
@@ -1382,7 +1410,7 @@ function modalAddNote(noteType) {
       },
       anchors: [histId] });
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:text, noteType:noteType, linesActivated:lines, email:SESSION.email, authorName:SESSION.name||SESSION.email })
-      .then(function(res){ _done(); if (CFG.officeId !== _ofc) return; _s.ok(res); })
+      .then(function(res){ _done(); _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   } else {
     if (!DATA.notes) DATA.notes = {};
@@ -1405,7 +1433,7 @@ function modalAddNote(noteType) {
       },
       anchors: [histId] });
     apiPost({ action:'addNote', dsi:_dsi2, noteText:text, noteType:noteType, linesActivated:lines, clientKey:_key2, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
-      .then(function(res){ _done(); if (CFG.officeId !== _ofc2) return; _s2.ok(res); })
+      .then(function(res){ _done(); _s2.ok(res); })
       .catch(function(){ _done(); _s2.fail(); });
   }
 }

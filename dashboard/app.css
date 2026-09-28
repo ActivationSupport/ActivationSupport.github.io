@@ -1282,6 +1282,15 @@ html[data-theme="dark"] .wr-delta.bad{color:#f87171}
 .ps-success-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px}
 .ps-success-units{font-size:15px;color:var(--text2);margin-bottom:28px}
 .ps-success-units span{color:var(--blue2);font-weight:700;font-size:20px}
+/* Post Sale self-check (2026-09-28): colours are the existing .nm-cx-err red and .ps-char-count.warn orange */
+.ps-verify{margin:16px 0 0;padding:12px 14px;border-radius:var(--r-md);font-size:13px;line-height:1.5;font-weight:600}
+.ps-verify.info{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.ps-verify.bad{background:rgba(207,107,98,.14);color:#e9756a}
+.ps-verify.warn{background:rgba(249,115,22,.12);color:#f97316}
+/* Light: the dark inks above are ~2.7:1 on a light tint — too faint for "did NOT save". Reuses the AA-checked
+   light badge inks (.badge-red / .pill-15-30 above). */
+html[data-theme="light"] .ps-verify.bad{background:#f2cac5;color:#ac241d;box-shadow:inset 0 0 0 1px #dc958f}
+html[data-theme="light"] .ps-verify.warn{background:#f2d4be;color:#974615;box-shadow:inset 0 0 0 1px #d5a788}
 /* ── POSTED SALES (view + correct) ── */
 .psv-show-voided{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;white-space:nowrap}
 .psv-actions{white-space:nowrap;text-align:right}
