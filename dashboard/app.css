@@ -209,12 +209,15 @@ html[data-office="powershift"][data-theme="dark"] .sign-out{ color:rgba(255,255,
 /* The header/footer hairlines are 8% white, which vanishes on #606060. */
 html[data-office="powershift"][data-theme="dark"] .sidebar-header,
 html[data-office="powershift"][data-theme="dark"] .sidebar-footer{ border-color:rgba(255,255,255,.22) }
-/* ── POWERSHIFT GOLD REBRAND (2026-09-29) — the STYLING from the owner's own mockup, option "B" (user's pick from a rendered
-   side-by-side, _private/preview/powershift_gold_preview.js). The palette itself is OFFICE_CONFIG.powershift.theme.
-   Every rule is scoped to this office, so the other offices cannot change (theme_noop_check).
-   · navy card band + gold count · gold Refresh / Clear (not the theme toggle) · gold active nav · gold sidebar edge
-   · the navy/gold stripe in the top bar · navy "Orders" chip in light mode
-   · at-risk row = ONE gold bar on the first cell + an amber tint (the shared rule paints a bar on EVERY cell). */
+/* ── POWERSHIFT GOLD REBRAND (2026-09-29) — the owner's own mockup of their Master Tracker, rebuilt as design "C" (user's pick
+   from rendered side-by-sides, _private/preview/powershift_gold.html; generator powershift_gold_preview.js). The PALETTE is
+   OFFICE_CONFIG.powershift.theme; the gold LOGO is OFFICE_CONFIG.powershift.logos. Every rule is scoped to this office, so the
+   other offices cannot change (theme_noop_check).
+   · black sidebar, gold nav icons + gold active item, gold edge glow · big title + metallic silver/navy/gold stripe (an SVG, so
+     its edges are anti-aliased — the first CSS-gradient version looked jagged, user 09-29) · big moon button + gold Refresh
+   · navy card band with a gold list icon + gold count · gold Clear · filled pastel chips (navy Orders) · navy table head with
+     sort hints · bigger rows / pills / NOTES · at-risk row: amber tint + gold bars (as their mockup draws it) · hover = gold bar
+   ⚠ Status pill COLOURS are unchanged on purpose — they mean the same thing in every office; only their shape follows the mockup. */
 html[data-office="powershift"] .card-header.dark{background:linear-gradient(90deg,#0A223E,#18324D);color:#fff;border-bottom:0;border-radius:var(--r-lg) var(--r-lg) 0 0}
 html[data-office="powershift"] .card-header.dark span{color:#D4AF5A;opacity:1!important;font-weight:700!important}
 html[data-office="powershift"] .refresh-btn:not(#theme-toggle),
@@ -222,13 +225,71 @@ html[data-office="powershift"] .clear-filters-btn{background:linear-gradient(180
 html[data-office="powershift"] .refresh-btn:not(#theme-toggle):hover,
 html[data-office="powershift"] .clear-filters-btn:hover{background:linear-gradient(180deg,#EACB7A,#D4AB52);border-color:#9C7A30;color:#0A223E}
 html[data-office="powershift"] .nav-item.active{background:linear-gradient(90deg,#C79E48,#E0BD66);color:#0A0A0A;border-left-color:#E6C56D;border-radius:var(--r-md)}
-html[data-office="powershift"] .sidebar{box-shadow:inset -2px 0 0 rgba(204,164,75,.45)}
-html[data-office="powershift"] .topbar{background-image:linear-gradient(118deg,transparent 64%,#9B9CA1 64%,#9B9CA1 65.2%,#172437 65.2%,#172437 69%,#B28A38 69%,#B28A38 71.5%,transparent 71.5%)}
 html[data-theme="light"][data-office="powershift"] .ct-chip.ct-chip-active{background:#17304C;border-color:#17304C;color:#fff}
 html[data-theme="light"][data-office="powershift"] .ct-chip.ct-chip-active b{color:#fff}
-html[data-office="powershift"] .call-table tbody tr.ct-row-atrisk td{box-shadow:none}
-html[data-office="powershift"] .call-table tbody tr.ct-row-atrisk td:first-child{box-shadow:inset 3px 0 0 #D6A951}
 html[data-theme="light"][data-office="powershift"] .call-table tbody tr.ct-row-atrisk td{background:#FAF2DE}
+html[data-office="powershift"] .nav-item{font-size:.95rem;padding:8px 18px;color:rgba(255,255,255,.92)}
+html[data-office="powershift"] .nav-item .nav-icon{color:#D4AF5A}
+html[data-office="powershift"] .nav-item .nav-icon svg{width:21px;height:21px}
+html[data-office="powershift"] .nav-item.active{margin:2px 8px;padding:8px 12px}
+html[data-office="powershift"] .nav-item.active .nav-icon{color:#0A0A0A}
+html[data-office="powershift"] .nav-group-label{letter-spacing:.14em;color:rgba(255,255,255,.72)}
+html[data-office="powershift"] .sidebar{box-shadow:inset -2px 0 0 rgba(204,164,75,.45),inset -46px 0 50px -44px rgba(204,164,75,.28)}
+html[data-office="powershift"] .topbar{background-image:none;position:relative;overflow:hidden;padding-top:12px;padding-bottom:12px}
+html[data-theme="light"][data-office="powershift"] .topbar{background:linear-gradient(180deg,#F8F9FA,#ECEEF1)}
+html[data-office="powershift"] .topbar > *{position:relative;z-index:1}
+html[data-office="powershift"] .topbar::before{content:'';position:absolute;top:0;bottom:0;left:57.5%;width:280px;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 190 72' preserveAspectRatio='xMinYMid meet'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23D9DBDF'/%3E%3Cstop offset='.55' stop-color='%23AEB0B5'/%3E%3Cstop offset='1' stop-color='%238A8C92'/%3E%3C/linearGradient%3E%3ClinearGradient id='n' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%230E1A2C'/%3E%3Cstop offset='.7' stop-color='%231B2C47'/%3E%3Cstop offset='.92' stop-color='%233A3A2E'/%3E%3Cstop offset='1' stop-color='%238A7440'/%3E%3C/linearGradient%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23F3D78A'/%3E%3Cstop offset='.15' stop-color='%23D9B45A'/%3E%3Cstop offset='.55' stop-color='%23B98F3C'/%3E%3Cstop offset='.8' stop-color='%23D8B660'/%3E%3Cstop offset='1' stop-color='%23A07A2C'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='0,72 31,72 100,0 69,0' fill='url(%23s)'/%3E%3Cpolygon points='31,72 73,72 142,0 100,0' fill='url(%23n)'/%3E%3Cpolygon points='73,72 120,72 189,0 142,0' fill='url(%23g)'/%3E%3C/svg%3E") left center/auto 100% no-repeat}
+html[data-office="powershift"] .topbar h2{font-size:1.5rem;font-weight:700;letter-spacing:-.01em}
+html[data-theme="light"][data-office="powershift"] .topbar h2{color:#151A23}
+html[data-office="powershift"] #page-subtitle{font-size:.92rem!important}
+html[data-office="powershift"] #last-updated{font-size:.92rem!important}
+html[data-office="powershift"] #last-updated::after{content:'';display:inline-block;width:19px;height:19px;margin-left:12px;vertical-align:-4px;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E") center/contain no-repeat}
+html[data-office="powershift"] #theme-toggle{width:44px;height:44px;padding:0;border-radius:var(--r-md);box-shadow:var(--e-1)}
+html[data-theme="light"][data-office="powershift"] #theme-toggle{border:1px solid #C8CED7;border-color:#C8CED7;color:#17304C}
+html[data-office="powershift"] #theme-toggle .ico svg{width:22px;height:22px}
+html[data-office="powershift"] .refresh-btn:not(#theme-toggle){height:44px;padding:0 22px;font-size:1.02rem;border-radius:var(--r-md);box-shadow:0 2px 6px rgba(150,110,30,.28)}
+html[data-office="powershift"] .refresh-btn:not(#theme-toggle) .ico svg{width:20px;height:20px;margin-right:4px}
+html[data-office="powershift"] .card{box-shadow:var(--e-2)}
+html[data-office="powershift"] .card:has(.call-table) > .card-header.dark{padding:17px 22px 17px 64px;font-size:1.3rem;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D4AF5A' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M9 6h12M9 12h12M9 18h12'/%3E%3Ccircle cx='4' cy='6' r='1.3' fill='%23D4AF5A'/%3E%3Ccircle cx='4' cy='12' r='1.3' fill='%23D4AF5A'/%3E%3Ccircle cx='4' cy='18' r='1.3' fill='%23D4AF5A'/%3E%3C/svg%3E") 22px center/30px no-repeat,linear-gradient(90deg,#0A223E,#18324D)}
+html[data-office="powershift"] .card:has(.call-table) > .card-header.dark span{font-size:1.15rem!important}
+html[data-office="powershift"] .filter-row{padding:14px 16px;border-radius:var(--r-lg)}
+html[data-office="powershift"] .filter-row input,
+html[data-office="powershift"] .dd-btn,
+html[data-office="powershift"] .date-filter-wrap input[type=date]{height:40px;border-radius:var(--r-md);font-size:.95rem}
+html[data-office="powershift"] .dd-btn{font-weight:700;padding:0 16px}
+html[data-office="powershift"] .date-filter-wrap{font-size:.86rem}
+html[data-office="powershift"] .clear-filters-btn{height:40px;padding:0 20px;font-size:.95rem;border-radius:var(--r-md)}
+html[data-office="powershift"] .ct-chip{padding:7px 16px;font-size:.9rem;border-radius:var(--r-pill);gap:7px}
+html[data-office="powershift"] .ct-chip b{margin-left:4px}
+html[data-theme="light"][data-office="powershift"] .ct-chip-atrisk{background:#F6DFA2;border-color:#E3BE62;color:#7F4506}
+html[data-theme="light"][data-office="powershift"] .ct-chip-rotting{background:#FAD1D5;border-color:#EFA3AB;color:#A81D2A}
+html[data-theme="light"][data-office="powershift"] .ct-chip-booked{background:#CDE1FA;border-color:#9DC1EE;color:#17529B}
+html[data-office="powershift"] .tbl-count{font-size:.86rem;font-weight:700}
+html[data-office="powershift"] .ct-risk-filter{height:38px;border-radius:var(--r-md);font-size:.92rem}
+html[data-office="powershift"] .call-table{font-size:.97rem}
+html[data-office="powershift"] .call-table th{font-size:.8rem;font-weight:800;letter-spacing:.06em;padding:13px 16px}
+html[data-theme="light"][data-office="powershift"] .call-table th{background:#D9DDE4;color:#17304C;border-color:#C3C9D2}
+html[data-office="powershift"] .call-table th:first-child{border-top-left-radius:var(--r-md)}
+html[data-office="powershift"] .call-table th:last-child{border-top-right-radius:var(--r-md)}
+html[data-office="powershift"] .call-table th.sort-th::after{content:'\21D5';margin-left:8px;opacity:.55}
+html[data-office="powershift"] .call-table td{padding:7px 16px}
+html[data-office="powershift"] .rep-name{font-weight:700}
+html[data-theme="light"][data-office="powershift"] .rep-name{color:#0F1B35}
+html[data-office="powershift"] .dsi-link{font-weight:400}
+html[data-theme="light"][data-office="powershift"] .dsi-link{color:#2A2F3A}
+html[data-office="powershift"] .prod-pill,
+html[data-office="powershift"] .sp{font-size:.86rem;padding:4px 13px;border-radius:var(--r-pill)}
+html[data-theme="light"][data-office="powershift"] .prod-pill{background:#D3E5FC;color:#1F5FA8;box-shadow:inset 0 0 0 1px #A9C8F0}
+html[data-office="powershift"] .notes-btn{height:34px;padding:0 18px;font-size:.88rem;font-weight:700;border-radius:var(--r-md)}
+html[data-theme="light"][data-office="powershift"] .notes-btn{border-color:#C3C9D2;color:#0F1B35}
+html[data-office="powershift"] .call-table tbody tr.ct-row-atrisk td{box-shadow:inset 3px 0 0 #D6A951}
+html[data-theme="light"][data-office="powershift"] .call-table tbody tr.ct-row-atrisk .notes-btn{border-color:#E2C27C;background:#FFF8E6}
+html[data-office="powershift"] .ct-flag-atrisk{font-size:.78rem;padding:3px 10px;border-radius:var(--r-pill)}
+html[data-theme="light"][data-office="powershift"] .ct-flag-atrisk{background:#F6DFA2;color:#7F4506;box-shadow:inset 0 0 0 1px #E3BE62}
+html[data-office="powershift"] .call-table tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 #D6A951}
 
 /* ═══════════════════ MILLENNIUM FALCON COCKPIT — dashboard reskin (login frozen) ═══════════════════
    Sales Support DASHBOARD only. Scoped to #app + the two body-level overlays (#ticket-modal, .ss-addpop-bg)

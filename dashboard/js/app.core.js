@@ -273,7 +273,14 @@ var OFFICE_CONFIG = {
     /* Official RGBA uploads from their site, resized by logo_build.js (nothing redrawn).
        The lockup is 5.27:1, near vanguard's 4.80:1, so the width caps bind first.
        `fullLight` is their own black-wordmark lockup for the light Daily Report header. */
-    logos:{ full:'assets/powershift-logo-full-reverse.png', fullLight:'assets/powershift-logo-full.png', emblem:'assets/powershift-logo-symbol.png', sidebarH:40 },
+    /* 🟡 GOLD LOGO 2026-09-29 (user: "we need to make changes to the Trademark as well"; picked "C + gold/chrome logo").
+       Their OWN official artwork RECOLOURED BY LAYER, every letterform kept — the owner's mockup logo is a redraw, so it was
+       not copied. Built by _private/preview/powershift_gold_logo.py from the 2560px masters: outline + shifter + gate and
+       "POWERSHIFT" → gold, PM letters lifted to silver (chrome), "MARKETING, INC." unchanged. fullLight is the ACCENT
+       variant (deep gold, original grey letters) because chrome's pale letters wash out on white. NEW filenames, so no
+       cached copy of the old art can linger, and the EMAIL (reportBrand.logo, mirrored in Code.gs) and the booking pages
+       (bookLogo) keep the grey art until their own step. */
+    logos:{ full:'assets/powershift-logo-gold-full-reverse.png', fullLight:'assets/powershift-logo-gold-full.png', emblem:'assets/powershift-logo-gold-symbol.png', sidebarH:40 },
     /* ⚠ A pale tint, clearly not the calendar's multi-office neutral (#8a94a0) on dark. It is faint on
        the light theme, but the cell still reads "Booked · elsewhere" and names the office in the
        tooltip. The slot is blocked either way, so the double-booking guard is unaffected. */
