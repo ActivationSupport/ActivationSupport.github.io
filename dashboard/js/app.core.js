@@ -290,6 +290,11 @@ var OFFICE_CONFIG = {
        light mode hid light-inked logos — this office ships `fullLight`, their own black-ink lockup, so
        that defect cannot apply here. Their dark-mode lift stays for anyone who switches. */
     defaultTheme:'light',
+    /* 🔒 LOCKED LIGHT — user's call 2026-09-29: "For the powershift portal keep it in lightmode for everyone. Im only speak on
+       the powershift portal." A lock is stronger than defaultTheme: a saved dark choice no longer wins here and the toggle is
+       hidden (same shape as Sales Support's dark lock). Every other office is untouched (themedefault_harness). Their dark-mode
+       CSS (the body-scoped block in app.css) stays in place but is unreachable while this lock exists. */
+    lockTheme:'light',
     bookTint:'#E5E5E5', bookLogo:'powershift-logo-symbol.png'
   },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
@@ -374,6 +379,7 @@ var OFFICE_LOGOS = _ocfg('logos');
 /* Per-office theme DEFAULT, used only when the browser has no saved choice (_applyTheme).
    Absent ⇒ 'dark', which is every office except powershift. */
 var OFFICE_DEFAULT_THEME = _ocfg('defaultTheme');   // derived from OFFICE_CONFIG (see top of file)
+var OFFICE_LOCK_THEME    = _ocfg('lockTheme');      // 'light' / 'dark' = forced for everyone, toggle hidden (powershift)
 
 var CFG = {};
 var SESSION = {};
@@ -1688,11 +1694,19 @@ function _themeAllowed() {
 }
 /* The office whose default applies: CFG once signed in, else the ?office= in the URL, because the
    login screen paints before CFG exists and must not flash the wrong theme. */
-function _officeDefaultTheme() {
+function _themeOfficeId() {
   var oid = (typeof CFG !== 'undefined' && CFG && CFG.officeId) ? CFG.officeId : '';
   if (!oid) { try { oid = (new URLSearchParams(window.location.search).get('office') || '').toLowerCase().trim(); } catch (e) { oid = ''; } }
-  var d = OFFICE_DEFAULT_THEME[oid];
+  return oid;
+}
+function _officeDefaultTheme() {
+  var d = OFFICE_DEFAULT_THEME[_themeOfficeId()];
   return (d === 'light' || d === 'dark') ? d : 'dark';
+}
+// A LOCKED office theme ('' when none): beats a saved choice and hides the toggle.
+function _officeLockTheme() {
+  var l = (typeof OFFICE_LOCK_THEME !== 'undefined' && OFFICE_LOCK_THEME) ? OFFICE_LOCK_THEME[_themeOfficeId()] : '';
+  return (l === 'light' || l === 'dark') ? l : '';
 }
 function _applyTheme() {
   var allowed = _themeAllowed(), pref = '';
@@ -1708,10 +1722,12 @@ function _applyTheme() {
   else theme = _officeDefaultTheme();
   var _ssOffice = (typeof CFG !== 'undefined' && CFG && CFG.officeId === 'salessupport');
   if (_ssOffice) theme = 'dark';   // Sales Support is locked to its deep-space dark theme
+  var _lock = _officeLockTheme();
+  if (_lock) theme = _lock;        // a per-office lock (powershift → light) beats a saved choice
   document.documentElement.setAttribute('data-theme', theme);
   var tg = document.getElementById('theme-toggle');
   if (tg) {
-    tg.style.display = (allowed && !_ssOffice) ? '' : 'none';
+    tg.style.display = (allowed && !_ssOffice && !_lock) ? '' : 'none';
     tg.innerHTML = theme === 'light' ? icon('moon') : icon('sun');
     tg.title = theme === 'light' ? 'Switch to dark' : 'Switch to light';
   }
@@ -1719,7 +1735,7 @@ function _applyTheme() {
   if (typeof CFG !== 'undefined' && CFG && CFG.officeId) applyOfficeTheme(CFG.officeId);
 }
 function _toggleTheme() {
-  if (!_themeAllowed()) return;
+  if (!_themeAllowed() || _officeLockTheme()) return;   // a locked office has no toggle (and ignores a stray call)
   var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
   try { localStorage.setItem('as_theme', next); } catch (e) {}
   _applyTheme();
@@ -1840,6 +1856,10 @@ function switchOffice(newOfficeId) {
      Clearing _NOTES_LOADED and notesAt too is what lets _paintCachedNotes paint B's cached notes at once.
      Done FIRST, before anything below that touches the DOM and could throw. */
   if (DATA) DATA.notes = undefined; _NOTES_LOADED = false; if (_CACHE) _CACHE.notesAt = 0;   // office switch drops notes
+  /* 2026-09-29: re-resolve the THEME too, not only the colours — with a per-office lock (powershift → light) the theme must
+     follow the office: switching in forces light, switching out restores the person's own choice / that office's default.
+     _applyTheme() ends by calling applyOfficeTheme(CFG.officeId), so the recolour below is kept for safety only. */
+  if (typeof _applyTheme === 'function') _applyTheme();
   applyOfficeTheme(newOfficeId);   // recolor the UI to the new office
   _setSidebarOfficeLogo(newOfficeId);
   window.history.pushState({}, '', window.location.pathname + '?office=' + newOfficeId);
