@@ -194,7 +194,7 @@ html[data-office="salessupport"] .ss-card{
    button #E5E5E5 on card 8.62:1 · white nav on the #606060 sidebar 6.29:1.
    Rebuild the comparison with _private/preview/powershift_dark_preview.js. */
 html[data-office="powershift"][data-theme="dark"] body{
-  --bg:#2A2A2A; --surface:#3D3D3D; --surface2:#474747; --sidebar-bg:#606060;
+  --bg:#2A2A2A; --surface:#3D3D3D; --surface2:#474747; --sidebar-bg:#0A0A0A;   /* 09-29: black, not #606060 (gold rebrand) */
   --border:rgba(255,255,255,.16);
   --field-bg:#333333; --field-border:#5A5A5A; --control-bg:#454545; --inset-bg:#303030;
   --panel2-bg:#333333; --panel2-border:#4F4F4F; --kpi-bg:#333333;
@@ -209,6 +209,26 @@ html[data-office="powershift"][data-theme="dark"] .sign-out{ color:rgba(255,255,
 /* The header/footer hairlines are 8% white, which vanishes on #606060. */
 html[data-office="powershift"][data-theme="dark"] .sidebar-header,
 html[data-office="powershift"][data-theme="dark"] .sidebar-footer{ border-color:rgba(255,255,255,.22) }
+/* ── POWERSHIFT GOLD REBRAND (2026-09-29) — the STYLING from the owner's own mockup, option "B" (user's pick from a rendered
+   side-by-side, _private/preview/powershift_gold_preview.js). The palette itself is OFFICE_CONFIG.powershift.theme.
+   Every rule is scoped to this office, so the other offices cannot change (theme_noop_check).
+   · navy card band + gold count · gold Refresh / Clear (not the theme toggle) · gold active nav · gold sidebar edge
+   · the navy/gold stripe in the top bar · navy "Orders" chip in light mode
+   · at-risk row = ONE gold bar on the first cell + an amber tint (the shared rule paints a bar on EVERY cell). */
+html[data-office="powershift"] .card-header.dark{background:linear-gradient(90deg,#0A223E,#18324D);color:#fff;border-bottom:0;border-radius:var(--r-lg) var(--r-lg) 0 0}
+html[data-office="powershift"] .card-header.dark span{color:#D4AF5A;opacity:1!important;font-weight:700!important}
+html[data-office="powershift"] .refresh-btn:not(#theme-toggle),
+html[data-office="powershift"] .clear-filters-btn{background:linear-gradient(180deg,#E0BD66,#C79E48);color:#0A223E;border:1px solid #B8923F;font-weight:700}
+html[data-office="powershift"] .refresh-btn:not(#theme-toggle):hover,
+html[data-office="powershift"] .clear-filters-btn:hover{background:linear-gradient(180deg,#EACB7A,#D4AB52);border-color:#9C7A30;color:#0A223E}
+html[data-office="powershift"] .nav-item.active{background:linear-gradient(90deg,#C79E48,#E0BD66);color:#0A0A0A;border-left-color:#E6C56D;border-radius:var(--r-md)}
+html[data-office="powershift"] .sidebar{box-shadow:inset -2px 0 0 rgba(204,164,75,.45)}
+html[data-office="powershift"] .topbar{background-image:linear-gradient(118deg,transparent 64%,#9B9CA1 64%,#9B9CA1 65.2%,#172437 65.2%,#172437 69%,#B28A38 69%,#B28A38 71.5%,transparent 71.5%)}
+html[data-theme="light"][data-office="powershift"] .ct-chip.ct-chip-active{background:#17304C;border-color:#17304C;color:#fff}
+html[data-theme="light"][data-office="powershift"] .ct-chip.ct-chip-active b{color:#fff}
+html[data-office="powershift"] .call-table tbody tr.ct-row-atrisk td{box-shadow:none}
+html[data-office="powershift"] .call-table tbody tr.ct-row-atrisk td:first-child{box-shadow:inset 3px 0 0 #D6A951}
+html[data-theme="light"][data-office="powershift"] .call-table tbody tr.ct-row-atrisk td{background:#FAF2DE}
 
 /* ═══════════════════ MILLENNIUM FALCON COCKPIT — dashboard reskin (login frozen) ═══════════════════
    Sales Support DASHBOARD only. Scoped to #app + the two body-level overlays (#ticket-modal, .ss-addpop-bg)

@@ -254,9 +254,18 @@ var OFFICE_CONFIG = {
        light nav 19.8:1. The only non-swatch values are #0A0A0A (their site's text colour) and #3D3D3D
        (their site's dark), used for structure and the light-mode hover.
        ⚠ Tableau spells the company "power shift" (two words); the brand and this name use one. */
+    /* 🟡 REBRAND 2026-09-29 — BLACK + GOLD + NAVY, from a mockup the OWNER sent (their Master Tracker restyled). The
+       user picked option "B" from a rendered side-by-side (_private/preview/powershift_gold.html / _gold_preview.js).
+       Measured from their image: sidebar #0A0A0A · gold #CCA44B (buttons #C89F48 → #E6C56D) · navy band #0A223E →
+       #18324D. This line carries the PALETTE; the mockup's STYLING (navy card band, gold Refresh/Clear, gold active nav,
+       top-bar stripe, amber at-risk row) is the html[data-office="powershift"] block in app.css.
+       Measured: navy text on gold btn 6.42:1 · gold nav on black 9.50:1 · navy ink on white 13.43:1 · gold accent on the
+       dark card 5.21:1 · gold btn edge vs white card 2.50:1 (as in their own mockup).
+       ⚠ color / reportBrand / bookTint are NOT moved yet — reportBrand is mirrored in Code.gs, and the emails + booking
+       pages are the next step (user's call). The four-grey theme G is history (09-17). */
     name:'Powershift Marketing', color:'#E5E5E5',
-    theme:{ btn:'#E5E5E5', accent:'#FFFFFF', lightInk:'#606060', dark:'#1F1F1F', hover:'#FFFFFF', glow:'#606060', band:'#0A0A0A', onBand:'#ffffff', sidebar:'#0A0A0A', btnText:'#0A0A0A', onAccent:'#0A0A0A',
-            lightBtn:'#606060', lightBtnText:'#FFFFFF', lightHover:'#3D3D3D', lightNav:'#FFFFFF' },
+    theme:{ btn:'#C79E48', accent:'#D4AF5A', lightInk:'#17304C', dark:'#17304C', hover:'#DDB866', glow:'#17304C', band:'#0A0A0A', onBand:'#ffffff', sidebar:'#0A0A0A', btnText:'#0A223E', onAccent:'#0A223E',
+            lightBtn:'#C79E48', lightBtnText:'#0A223E', lightHover:'#DDB866', lightNav:'#D4AF5A' },
     /* MIRRORED in Code.gs OFFICE_CONFIG.powershift.brand; move the two together. The email BODY is
        white, so the accent stripe and section text use the DARK swatch (#606060), since white would
        vanish. The black band and white lockup carry the crisp look. */
