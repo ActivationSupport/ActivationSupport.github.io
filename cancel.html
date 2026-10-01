@@ -15,13 +15,13 @@
 <style>
   :root{--bg:#0c1116;--panel:#141b23;--panel2:#1b242e;--line:#26313d;--text:#e8eef4;--text2:#9fb0c0;
     --muted:#6f8296;--accent:#27a8e0;--accent2:#4ab8ee;--accentdim:#16384a;--accent-deep:#1c7aa8;--on-accent:#fff;--glow:#16222e;--green:#3ecf8e;--greendim:#123226;--red:#ef6b6b;--radius:14px}
-  /* ── POWERSHIFT (2026-09-17): monochrome brand, so the shared navy chrome is replaced with the
-     same greys as their portal (page #2A2A2A · panels #3D3D3D). Their four brand greys are
-     #FFFFFF · #E5E5E5 · #A1A1A1 · #606060; --text2/--muted here are neutral versions of the stock
-     bluish greys. No other office matches this selector. */
+  /* ── POWERSHIFT (2026-10-01): NAVY & GOLD, matching their portal and emails. The shared chrome is
+     replaced with their navy (page #0A1B30 · cards #17304C, the Master Tracker band) and the THEMES
+     row below carries the gold. Measured on the card: text 12.41:1 · labels 8.34:1 · muted 5.33:1
+     (4.54:1 on a field). The four greys of 2026-09-17 are history. No other office matches this selector. */
   html[data-office="powershift"] body{
-    --bg:#2A2A2A; --panel:#3D3D3D; --panel2:#474747; --line:#5A5A5A;
-    --text:#F2F2F2; --text2:#C4C4C4; --muted:#9A9A9A; --glow:#3A3A3A;
+    --bg:#0A1B30; --panel:#17304C; --panel2:#1F3B5B; --line:#3A5676;
+    --text:#F4F6F9; --text2:#C2CDDA; --muted:#93A5BA; --glow:#1F3F63;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -244,11 +244,11 @@
     // ⚠ logoBg for the same reason as apexpremier: the eagle is NAVY (luma 0.171), so on the
     // dark tile only its orange beak would survive. The guard named it, red, by luma.
     eaglespeak:{accent:'#F57614',accent2:'#F9A05C',dim:'#141f3d',deep:'#B4530F',on:'#141433',glow:'#16234a',logo:'eaglespeak-logo-symbol.png',logoBg:'#ffffff'},
-    // ⚠ powershift is MONOCHROME (onboarded 2026-09-17), in the user's four greys
-    // (#FFFFFF · #E5E5E5 · #A1A1A1 · #606060). The fills are pale, so `on` is DARK: #0A0A0A on the
-    // #E5E5E5→#A1A1A1 button is 7.7–15.7:1. The mark is grey-gradient letters, bright enough for
-    // the dark tile without logoBg (the drift guard measures it).
-    powershift:{accent:'#E5E5E5',accent2:'#FFFFFF',dim:'#1f1f1f',deep:'#A1A1A1',on:'#0A0A0A',glow:'#3a3a3a',logo:'powershift-logo-symbol.png'}
+    // ⚠ powershift is GOLD on NAVY (2026-10-01; the four greys of 09-17 are history). `on` is DARK:
+    // navy #0A223E on the gold button is 6.42:1 at #C79E48 and 4.52:1 at the gradient's dark end
+    // (#A9822F) — white would be 2.5:1. The mark is their own artwork recoloured gold/chrome, bright
+    // enough for the dark tile without logoBg (the drift guard measures it).
+    powershift:{accent:'#C79E48',accent2:'#D4AF5A',dim:'#0A223E',deep:'#A9822F',on:'#0A223E',glow:'#1F3F63',logo:'powershift-logo-gold-symbol.png'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t=THEMES[o]; if(!t) return;

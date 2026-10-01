@@ -261,15 +261,16 @@ var OFFICE_CONFIG = {
        top-bar stripe, amber at-risk row) is the html[data-office="powershift"] block in app.css.
        Measured: navy text on gold btn 6.42:1 · gold nav on black 9.50:1 · navy ink on white 13.43:1 · gold accent on the
        dark card 5.21:1 · gold btn edge vs white card 2.50:1 (as in their own mockup).
-       ⚠ color / reportBrand / bookTint are NOT moved yet — reportBrand is mirrored in Code.gs, and the emails + booking
-       pages are the next step (user's call). The four-grey theme G is history (09-17). */
-    name:'Powershift Marketing', color:'#E5E5E5',
+       🟡 2026-10-01: color / reportBrand / bookTint / bookLogo moved to the same gold & navy ("E2", user's pick from a rendered
+       preview) together with the emails (Code.gs brand, Scheduler emailBrand) and the three booking pages' THEMES rows.
+       The four-grey theme G is history (09-17). */
+    name:'Powershift Marketing', color:'#C79E48',
     theme:{ btn:'#C79E48', accent:'#D4AF5A', lightInk:'#17304C', dark:'#17304C', hover:'#DDB866', glow:'#17304C', band:'#0A0A0A', onBand:'#ffffff', sidebar:'#0A0A0A', btnText:'#0A223E', onAccent:'#0A223E',
             lightBtn:'#C79E48', lightBtnText:'#0A223E', lightHover:'#DDB866', lightNav:'#D4AF5A' },
-    /* MIRRORED in Code.gs OFFICE_CONFIG.powershift.brand; move the two together. The email BODY is
-       white, so the accent stripe and section text use the DARK swatch (#606060), since white would
-       vanish. The black band and white lockup carry the crisp look. */
-    reportBrand:{ band:'#0A0A0A', headerText:'#ffffff', headerSub:'#E5E5E5', accent:'#606060', accentText:'#606060', logo:'powershift-logo-full-reverse.png', logoH:40 },
+    /* MIRRORED in Code.gs OFFICE_CONFIG.powershift.brand; move the two together. NAVY & GOLD (2026-10-01): navy band,
+       gold date line and rules, navy section text (the email BODY is white, so the headings stay dark), and their
+       gold/chrome lockup. */
+    reportBrand:{ band:'#0A223E', headerText:'#FFFFFF', headerSub:'#D4AF5A', accent:'#C79E48', accentText:'#17304C', logo:'powershift-logo-gold-full-reverse.png', logoH:40 },
     /* Official RGBA uploads from their site, resized by logo_build.js (nothing redrawn).
        The lockup is 5.27:1, near vanguard's 4.80:1, so the width caps bind first.
        `fullLight` is their own black-wordmark lockup for the light Daily Report header. */
@@ -278,12 +279,13 @@ var OFFICE_CONFIG = {
        not copied. Built by _private/preview/powershift_gold_logo.py from the 2560px masters: outline + shifter + gate and
        "POWERSHIFT" → gold, PM letters lifted to silver (chrome), "MARKETING, INC." unchanged. fullLight is the ACCENT
        variant (deep gold, original grey letters) because chrome's pale letters wash out on white. NEW filenames, so no
-       cached copy of the old art can linger, and the EMAIL (reportBrand.logo, mirrored in Code.gs) and the booking pages
-       (bookLogo) keep the grey art until their own step. */
+       cached copy of the old art can linger. The EMAIL (reportBrand.logo, mirrored in Code.gs) and the booking pages
+       (bookLogo) took the gold art in their own step, 2026-10-01. */
     logos:{ full:'assets/powershift-logo-gold-full-reverse.png', fullLight:'assets/powershift-logo-gold-full.png', emblem:'assets/powershift-logo-gold-symbol.png', sidebarH:40 },
-    /* ⚠ A pale tint, clearly not the calendar's multi-office neutral (#8a94a0) on dark. It is faint on
-       the light theme, but the cell still reads "Booked · elsewhere" and names the office in the
-       tooltip. The slot is blocked either way, so the double-booking guard is unaffected. */
+    /* bookTint (staff calendar's cross-office "booked elsewhere" cell) is their gold since 2026-10-01 — clearly not the
+       calendar's multi-office neutral (#8a94a0), and deeper than evolution's #F7C45D. The cell still reads
+       "Booked · elsewhere" and names the office in the tooltip; the slot is blocked either way, so the
+       double-booking guard is unaffected. */
     /* DEFAULTS TO LIGHT — user's call 2026-09-17: "it should default to the light mode instead of our
        standard dark mode like our other portals". Only the DEFAULT moves; the toggle is unchanged and a
        saved choice still wins. The reason every office defaults to dark (see _applyTheme) was that
@@ -295,7 +297,7 @@ var OFFICE_CONFIG = {
        hidden (same shape as Sales Support's dark lock). Every other office is untouched (themedefault_harness). Their dark-mode
        CSS (the body-scoped block in app.css) stays in place but is unreachable while this lock exists. */
     lockTheme:'light',
-    bookTint:'#E5E5E5', bookLogo:'powershift-logo-symbol.png'
+    bookTint:'#C79E48', bookLogo:'powershift-logo-gold-symbol.png'
   },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
   // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
