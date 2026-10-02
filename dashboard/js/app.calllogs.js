@@ -567,6 +567,22 @@ function _nmClearNotice(kind) {
    ⚠ No #save-banners on the page (an old cached index.html, a harness) ⇒ the alert, exactly as before. The message
      must never be lost because the nicer place to put it is missing. */
 var _SAVE_BANNER_N = 0, _SAVE_BANNER_OK_MS = 5000, _SAVE_BANNER_KEYS = {}, _SAVE_EPOCH = 0;
+/* 2026-10-02 — THE AUDIT. User: "we need to be 100% sure we arent losing notes or ratings". A save whose ANSWER was
+   lost already logs a row (WRITE-02, from the transport) — but that row says nothing about how it ENDED, and both
+   measurements so far had to be run by hand to find out. From here every note or rating the portal finally GIVES UP
+   on writes its own row, so the morning digest carries the count and zero means zero:
+     WRITE-01 + final:'not-saved'  — it is not in the sheet and the re-sends are spent (or the server refused it)
+     WRITE-02 + final:'unchecked'  — the check itself never got an answer; whether it saved is unknown
+   A save that was found, or that a re-send completed, logs nothing: the absence of a final row IS the good news.
+   ⚠ The DSI is in the message so two different orders are two rows (the reporter drops repeats of one message). */
+function _saveLogFinal(code, action, final, what, dsi, extra) {
+  try {
+    if (typeof _ERR === 'undefined' || !_ERR || !_ERR.report) return;
+    var x = { action: action, final: final, kind: 'write' };
+    for (var k in (extra || {})) if (Object.prototype.hasOwnProperty.call(extra, k)) x[k] = extra[k];
+    _ERR.report(code, { message: what + ' · ' + dsi }, x);
+  } catch (_e) {}
+}
 /* `key` (optional): at most ONE banner per key — a newer one replaces the older (a rating tapped again and lost
    again must not pile up a second "didn't save" for the same order). Notes pass no key: two lost notes on one
    order are two different pieces of text and both must be said. */
@@ -692,6 +708,7 @@ function _noteSettle(o) {
   // Taken off the screen and said — the one place a same-office note is finally given up on.
   function notSaved(why) {
     done = true; bannerOff();   // given up: not saved
+    _saveLogFinal('WRITE-01', 'addNote', 'not-saved', o.what + ' NOT SAVED after ' + resends + ' re-send(s)' + (why ? ' — ' + why : ''), o.dsi, { resends: resends, noteOffice: o.ofc });
     if (away()) return tellAway('That ' + o.what + ' didn’t save' + (why ? ' — ' + why : '') + '. Switch back to that office and add it again.');
     /* The answer is in and the "checking" banner is already down, so nothing may stop the words: a repaint that
        throws must not swallow them (review 2026-10-02 — the retry would return at once on `done`). */
@@ -743,6 +760,7 @@ function _noteSettle(o) {
   }
   function unchecked() {
     done = true; bannerOff();
+    _saveLogFinal('WRITE-02', 'addNote', 'unchecked', o.what + ' outcome UNKNOWN — the check got no answer', o.dsi, { resends: resends, noteOffice: o.ofc });
     if (away()) return tellAway('We couldn’t check whether your ' + o.what + ' saved. Switch back to that office and look for it before adding it again.');
     e._unconfirmed = 'unchecked';
     if (inList() && _nmModalShowing(o.dsi)) o.repaint('unconfirmed');
@@ -1389,6 +1407,16 @@ var _RATING_SEQ = {}, _RATING_OK = {}, _RATING_INFLIGHT = {}, _RATING_HOLD = {};
 var _RATING_VERIFY_DELAY_MS = 30000;   // after the 15s abort; the same margin notes use over the server's lock wait
 var _RATING_HOLD_MS = 180000;          // > blob cache TTL (75s) + a rebuild + one 90s refresh
 var _RATING_AGREE_MS = 90000;          // once the server agrees: > the 75s TTL a racing stale rebuild can still occupy
+/* 2026-10-02 — A RATING THAT IS NOT IN THE SHEET IS SENT AGAIN, NOT PUT BACK. User: "all of our notes and rating must be
+   saved". Until now a tap the 30s read-back could not find was undone on screen and the rep was told to tap again.
+   🔑 WHY THIS ONE IS SAFE WITHOUT A clientKey (the rule at _AS_RETRY_SAFE_WRITES is "safe to repeat, never merely
+     convenient"): writeRatingEntry is an upsert under the script lock — sending the same value twice leaves the same
+     sheet. The one hazard is SOMEONE ELSE's rating: a blind re-send a minute later would overwrite a newer tap by
+     another person. So it is re-sent ONLY while the sheet still holds exactly what it held before this tap
+     (_RATING_OK — the last value the server confirmed to this browser). Anything else in the sheet means another
+     hand has been there: nothing is sent, and the rep is shown what the sheet says, as before.
+   ⚠ Only the latest tap, only in the office it was made in (mine()), only by the person who made it. */
+var _RATING_RESEND_MAX = 2;
 function _ratingHold(dsi, rating, ofc, confirmed) {
   _RATING_HOLD[dsi] = { rating: rating, ofc: ofc, confirmed: !!confirmed, until: Date.now() + _RATING_HOLD_MS };
 }
@@ -1420,6 +1448,7 @@ function modalSetRating(rating) {
   _ratingPaint(dsi, rating);
   var seq = _RATING_SEQ[dsi] = (_RATING_SEQ[dsi] || 0) + 1;
   var _ofc = CFG.officeId;
+  var _by = SESSION.email, resends = 0;   // the person who tapped — a re-send runs up to a couple of minutes later
   _ratingHold(dsi, rating, _ofc, false);
   // ⚠ An UNKNOWN save stays "in flight" until its read-back settles, so a tap meanwhile cannot adopt the
   // unconfirmed value as the undo target (review 2026-09-14, item 9).
@@ -1450,14 +1479,33 @@ function modalSetRating(rating) {
       if (!res || res.error || !res.ratings) return unchecked();
       var got = String(res.ratings[dsi] || '');
       if (got === rating) return confirmed();
+      if (resends < _RATING_RESEND_MAX && got === String(_RATING_OK[dsi] || '') && SESSION.email === _by) return resendTap();
+      _saveLogFinal('WRITE-01', 'setRating', 'not-saved', 'rating NOT SAVED after ' + resends + ' re-send(s)' + (got !== String(_RATING_OK[dsi] || '') ? ' — the sheet holds a different rating' : ''), dsi, { resends: resends });
       putBack(got, 'That rating didn’t save' + (got ? ' — the saved rating is ' + got + '.' : ', so the order is unrated again.') + ' Tap it again.');
     }, function() { landed(); if (mine()) unchecked(); });
   };
+  // Not in the sheet, and nobody else has touched it ⇒ the same tap goes out again, then gets its own 30s check.
+  var resendTap = function() {
+    resends++;
+    _RATING_INFLIGHT[dsi] = (_RATING_INFLIGHT[dsi] || 0) + 1;   // in flight again until THIS settles (verify's reply counted it down)
+    apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:_by }).then(function(res) {
+      if (!mine()) return landed();
+      // a dropped body or a full server queue wrote nothing ⇒ look again, which sends again while re-sends remain
+      if (res && (res.error === 'unauthorized' || /^busy\b/i.test(String(res.error || '')))) return setTimeout(verify, _RATING_VERIFY_DELAY_MS);
+      landed();
+      if (_saveRefused(res)) {
+        _saveLogFinal('WRITE-01', 'setRating', 'not-saved', 'rating REFUSED on a re-send — ' + String(res.error), dsi, { resends: resends });
+        return putBack(_RATING_OK[dsi] || '', 'That rating didn’t save — ' + _saveRefusalReason(res.error) + ' — so it was put back. Tap it again.');
+      }
+      confirmed();
+    }, function() { if (!mine()) return landed(); setTimeout(verify, _RATING_VERIFY_DELAY_MS); });
+  };
   var unchecked = function() {
+    _saveLogFinal('WRITE-02', 'setRating', 'unchecked', 'rating outcome UNKNOWN — the check got no answer', dsi, { resends: resends });
     delete _RATING_HOLD[dsi];   // the next refresh shows the sheet's value
     _nmNotice(['nm-rating-row'], dsi, 'We couldn’t check whether that rating saved. Reload the page to see the saved rating.', 'rating');
   };
-  apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:SESSION.email })
+  apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:_by })
     .then(function(res) {
       landed();
       if (CFG.officeId !== _ofc) return;
@@ -1468,7 +1516,7 @@ function modalSetRating(rating) {
       // Kept on screen. Said inline only while the window shows this order — an alert for a save that most
       // likely landed would interrupt for nothing; the read-back alerts if it really did not.
       if (_nmModalShowing(dsi)) _nmNotice(['nm-rating-row'], dsi, 'Checking whether that rating saved…', 'rating');
-      setTimeout(verify, _RATING_VERIFY_DELAY_MS);
+      setTimeout(verify, _RATING_VERIFY_DELAY_MS);   // the first send's answer was lost
     });
 }
 
