@@ -517,6 +517,18 @@ var _NOTE_VERIFY_RETRY_MS = 20000;   // between read-back attempts
    still hanging at 30s would be joined by the deciding check — which would inherit a nearly spent attempt and a
    snapshot taken before the 30s mark (review 2026-10-02). */
 var _NOTE_EARLY_LOOK_MS = [4000, 9000];
+/* 2026-10-02 — A NOTE THAT DID NOT REACH THE SHEET IS SENT AGAIN, NOT HANDED BACK. User: "all of our notes and rating
+   must be saved we can not risk things being lost". Until now a note the 30s check could not find was taken off the
+   screen and the rep was asked to type it again — on a day of back-to-back calls that is exactly where a note gets
+   lost for good. The portal still holds the text, so it re-sends it itself, up to this many times, each followed by
+   its own 30s check. Only when those are spent is the rep told.
+   🔑 WHY THIS IS SAFE (the rule at _AS_RETRY_SAFE_WRITES — the server guard comes first): the re-send carries the SAME
+     clientKey, and writeNoteEntry returns the first note for a key it has seen (_IDEMPOTENCY_TTL, 15 min — the whole
+     chase ends inside 3). It only starts after the 30s check, i.e. past the server's 25s lock wait, so the first
+     attempt has either written or given up; it cannot still be queued behind us.
+   ⚠ Same-office notes only. A cross-office note goes through the Scheduler, which has no clientKey ⇒ never re-sent.
+   ⚠ Never after an office switch: apiPost stamps the office the rep is IN, and the note belongs to the one they left. */
+var _NOTE_RESEND_MAX = 2;
 var _NOTE_RETRY_KEYS = {};           // "dsi|type|text" → clientKey of an add whose outcome is unknown
 var _modalNotesSrc = null, _modalNotesDsi = '';   // the list openNotesModal rendered a CROSS-office order from
 var _NOTE_MARKER = {
@@ -668,6 +680,29 @@ function _noteSettle(o) {
   var done = false, bid = '';   // done: the read-back has its answer · bid: this save's 'checking' corner banner, if any
   var epoch = _SAVE_EPOCH;      // the person signed out since ⇒ this save's outcome is nobody's on this screen
   function gone() { if (epoch !== _SAVE_EPOCH) done = true; return done; }
+  var resends = 0;
+  // Taken off the screen and said — the one place a same-office note is finally given up on.
+  function notSaved(why) {
+    done = true; bannerOff();   // given up: not saved
+    if (away()) return tellAway('That ' + o.what + ' didn’t save' + (why ? ' — ' + why : '') + '. Switch back to that office and add it again.');
+    /* The answer is in and the "checking" banner is already down, so nothing may stop the words: a repaint that
+       throws must not swallow them (review 2026-10-02 — the retry would return at once on `done`). */
+    try { if (inList()) drop(); else o.repaint('removed'); } catch (_e) {}
+    tellNotSaved('That ' + o.what + ' didn’t save' + (why ? ' — ' + why : '') + '.');
+  }
+  // The 30s check did not find it ⇒ send it again (see _NOTE_RESEND_MAX). true = a re-send is out; the chase goes on.
+  function resendNow() {
+    if (!o.resend || !o.key || o.cross || away() || resends >= _NOTE_RESEND_MAX) return false;
+    resends++; failedChecks = 0;
+    var again = function () { if (!gone()) setTimeout(verify, _NOTE_VERIFY_DELAY_MS); };   // lost again ⇒ look again
+    o.resend().then(function (r) {
+      if (gone()) return;
+      if (r && r.error === 'unauthorized') return again();          // a dropped body may still have run (R-112)
+      if (_saveRefused(r)) return notSaved(_saveRefusalReason(r.error));
+      found();                                                      // written now, or the first one had landed (duplicate)
+    }, again);
+    return true;
+  }
   function bannerOff() { _saveBannerClose(bid); bid = ''; }
   /* 🔴 THE USER SWITCHED OFFICE SINCE THIS SAVE WENT OUT (2026-09-28). Every branch used to `return` here, so a
      refused or lost note on an office switch ended in SILENCE — the "sometimes it doesn't even give an error"
@@ -731,12 +766,8 @@ function _noteSettle(o) {
       if (gone()) return;
       if (!res || res.error || !res.notes) return checkFailed();
       if (isThere(res)) return found();
-      done = true; bannerOff();   // the answer is in: not saved
-      if (away()) return tellAway('That ' + o.what + ' didn’t save. Switch back to that office and add it again.');
-      /* The answer is in and the "checking" banner is already down, so nothing may stop the words: a repaint that
-         throws must not swallow them (review 2026-10-02 — the retry would return at once on `done`). */
-      try { if (inList()) drop(); else o.repaint('removed'); } catch (_e) {}
-      tellNotSaved('That ' + o.what + ' didn’t save.');
+      if (resendNow()) return;    // not in the sheet ⇒ send it again before anyone is asked to retype it
+      notSaved('');               // the answer is in: not saved, and the re-sends are spent
     }).catch(checkFailed);
   }
   function unknown() {
@@ -1056,16 +1087,18 @@ function modalAddInquiryRequest() {
   var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'inquiry request', key:_key, retried:!_cross, cross:_cross,
     list: function(){ return _nmTypeList(_dsi, _cross, true); },
     repaint: function(){ _nmRepaintTypeBlock(_dsi, 'inquiry', _nmTypeList(_dsi, _cross, true), !_cross); },
-    anchors: ['nm-iq-block', 'nm-iq-wrap'] });
+    anchors: ['nm-iq-block', 'nm-iq-wrap'],
+    resend: function(){ return _send(); } });
+  var _send = function(){ return apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'inquiry',
+              clientKey:_key,
+              authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }); };
   if (_cross) {
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'inquiry',
                 linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email })
       .then(function(res){ _done(); _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   } else {
-    apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'inquiry',
-              clientKey:_key,
-              authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+    _send()
       .then(function(res){ _done(); _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   }
@@ -1168,16 +1201,18 @@ function modalAddCancelRequest() {
   var _s = _noteSettle({ entry:entry, dsi:_dsi, ofc:_ofc, what:'cancel request', key:_key, retried:!_cross, cross:_cross,
     list: function(){ return _nmTypeList(_dsi, _cross, true); },
     repaint: function(){ _nmRepaintTypeBlock(_dsi, 'cancel', _nmTypeList(_dsi, _cross, true), !_cross); },
-    anchors: ['nm-cx-block', 'nm-cx-wrap'] });
+    anchors: ['nm-cx-block', 'nm-cx-wrap'],
+    resend: function(){ return _send(); } });
+  var _send = function(){ return apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'cancel',
+              clientKey:_key,
+              authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }); };
   if (_cross) {
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'cancel',
                 linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email })
       .then(function(res){ _done(); _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   } else {
-    apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'cancel',
-              clientKey:_key,
-              authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+    _send()
       .then(function(res){ _done(); _s.ok(res); })
       .catch(function(){ _done(); _s.fail(); });
   }
@@ -1521,8 +1556,10 @@ function modalAddNote(noteType) {
         if (nc && l) nc.textContent = l.length;
         if (_nmModalShowing(_dsi2) && typeof _refreshOpenNotesModal === 'function') _refreshOpenNotesModal();
       },
-      anchors: [histId] });
-    apiPost({ action:'addNote', dsi:_dsi2, noteText:text, noteType:noteType, linesActivated:lines, clientKey:_key2, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email })
+      anchors: [histId],
+      resend: function(){ return _send2(); } });
+    var _send2 = function(){ return apiPost({ action:'addNote', dsi:_dsi2, noteText:text, noteType:noteType, linesActivated:lines, clientKey:_key2, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }); };
+    _send2()
       .then(function(res){ _done(); _s2.ok(res); })
       .catch(function(){ _done(); _s2.fail(); });
   }
