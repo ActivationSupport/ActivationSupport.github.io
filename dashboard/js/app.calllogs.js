@@ -708,7 +708,8 @@ function _noteSettle(o) {
   // Taken off the screen and said — the one place a same-office note is finally given up on.
   function notSaved(why) {
     done = true; bannerOff();   // given up: not saved
-    _saveLogFinal('WRITE-01', 'addNote', 'not-saved', o.what + ' NOT SAVED after ' + resends + ' re-send(s)' + (why ? ' — ' + why : ''), o.dsi, { resends: resends, noteOffice: o.ofc });
+    // A refusal (why) is already a WRITE-01 row from the transport; only a note the SHEET never got needs its own.
+    if (!why) _saveLogFinal('WRITE-01', 'addNote', 'not-saved', o.what + ' NOT SAVED after ' + resends + ' re-send(s)', o.dsi, { resends: resends, noteOffice: o.ofc });
     if (away()) return tellAway('That ' + o.what + ' didn’t save' + (why ? ' — ' + why : '') + '. Switch back to that office and add it again.');
     /* The answer is in and the "checking" banner is already down, so nothing may stop the words: a repaint that
        throws must not swallow them (review 2026-10-02 — the retry would return at once on `done`). */
@@ -769,6 +770,7 @@ function _noteSettle(o) {
   // The check itself can time out on the same slow server — try it again before giving up (Angel, 2026-09-28:
   // her read-backs failed, so a note that HAD saved was reported as "couldn't check").
   function checkFailed() {
+    if (gone()) return;   // already settled (a throw inside found()/notSaved() lands here — review 2026-10-02)
     if (++failedChecks < _NOTE_VERIFY_TRIES) { setTimeout(verify, _NOTE_VERIFY_RETRY_MS); return; }
     unchecked();
   }
@@ -808,7 +810,7 @@ function _noteSettle(o) {
   }
   function unknown() {
     if (away()) {
-      if (o.cross) return tellAway('We couldn’t confirm your ' + o.what + ' saved. Switch back, reload, and check this appointment’s notes before adding it again.');
+      if (o.cross) { _saveLogFinal('WRITE-02', 'addNote', 'unchecked', 'cross-office ' + o.what + ' — no check is possible (Scheduler)', o.dsi, { cross: true }); return tellAway('We couldn’t confirm your ' + o.what + ' saved. Switch back, reload, and check this appointment’s notes before adding it again.'); }
       if (o.key) _NOTE_RETRY_KEYS[retryId] = o.key;
       setTimeout(verify, _NOTE_VERIFY_DELAY_MS);   // nothing to mark on screen — just find out
       lookEarly();
@@ -824,7 +826,7 @@ function _noteSettle(o) {
         : 'We couldn’t confirm your ' + o.what + ' saved yet — checking now. You’ll be told if it didn’t.', 'note', o.cross ? 'bad' : 'checking');
       if (!o.cross) bid = said;
     }
-    if (o.cross) return;
+    if (o.cross) { _saveLogFinal('WRITE-02', 'addNote', 'unchecked', 'cross-office ' + o.what + ' — no check is possible (Scheduler)', o.dsi, { cross: true }); return; }
     if (o.key) _NOTE_RETRY_KEYS[retryId] = o.key;
     setTimeout(verify, _NOTE_VERIFY_DELAY_MS);
     lookEarly();
@@ -1417,6 +1419,8 @@ var _RATING_AGREE_MS = 90000;          // once the server agrees: > the 75s TTL 
      hand has been there: nothing is sent, and the rep is shown what the sheet says, as before.
    ⚠ Only the latest tap, only in the office it was made in (mine()), only by the person who made it. */
 var _RATING_RESEND_MAX = 2;
+// The server kept a NEWER rating than this tap (Code.gs writeRatingEntry, tapAgeMs). Not a failure — someone got there later.
+function _RATING_NEWER_MSG(r) { return 'A newer rating was saved for this order' + (r ? ' — it is ' + r + '.' : '.') + ' Tap again if yours should win.'; }
 function _ratingHold(dsi, rating, ofc, confirmed) {
   _RATING_HOLD[dsi] = { rating: rating, ofc: ofc, confirmed: !!confirmed, until: Date.now() + _RATING_HOLD_MS };
 }
@@ -1449,11 +1453,12 @@ function modalSetRating(rating) {
   var seq = _RATING_SEQ[dsi] = (_RATING_SEQ[dsi] || 0) + 1;
   var _ofc = CFG.officeId;
   var _by = SESSION.email, resends = 0;   // the person who tapped — a re-send runs up to a couple of minutes later
+  var _tapAt = Date.now(), _ep = _SAVE_EPOCH;   // the tap's age rides on every send (the server keeps a NEWER rating) · sign-out fence
   _ratingHold(dsi, rating, _ofc, false);
   // ⚠ An UNKNOWN save stays "in flight" until its read-back settles, so a tap meanwhile cannot adopt the
   // unconfirmed value as the undo target (review 2026-09-14, item 9).
   var landed = function() { _RATING_INFLIGHT[dsi] = Math.max(0, (_RATING_INFLIGHT[dsi] || 1) - 1); };
-  var mine = function() { return CFG.officeId === _ofc && _RATING_SEQ[dsi] === seq; };   // office race guard + latest tap only
+  var mine = function() { return CFG.officeId === _ofc && _RATING_SEQ[dsi] === seq && _ep === _SAVE_EPOCH; };   // office race guard + latest tap only + still the same session
   // Shows `back` — what the server holds — and says why. Only the latest tap may do this.
   var putBack = function(back, msg) {
     if (!mine()) return;
@@ -1471,7 +1476,11 @@ function modalSetRating(rating) {
     _saveBannerDropKey('rating|' + dsi);   // a later tap that saved: the old "didn't save" banner is no longer true
   };
   var verify = function() {
-    if (!mine()) return landed();
+    if (!mine()) {
+      // Abandoned because the rep switched office (not because a newer tap took over, not a sign-out): nobody will check.
+      if (_RATING_SEQ[dsi] === seq && _ep === _SAVE_EPOCH && CFG.officeId !== _ofc) _saveLogFinal('WRITE-02', 'setRating', 'unchecked', 'rating outcome UNKNOWN — the office was switched before the check', dsi, { resends: resends });
+      return landed();
+    }
     // then(ok, fail), not then().catch(): a throw inside `ok` must not run landed() twice and read as a lost reply.
     api({ action:'readRatings' }).then(function(res) {
       landed();
@@ -1488,13 +1497,14 @@ function modalSetRating(rating) {
   var resendTap = function() {
     resends++;
     _RATING_INFLIGHT[dsi] = (_RATING_INFLIGHT[dsi] || 0) + 1;   // in flight again until THIS settles (verify's reply counted it down)
-    apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:_by }).then(function(res) {
+    _ratingHold(dsi, rating, _ofc, false);   // the chase can outlast the hold — keep the tap on screen while it runs
+    apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:_by, tapAgeMs:Date.now() - _tapAt }).then(function(res) {
       if (!mine()) return landed();
       // a dropped body or a full server queue wrote nothing ⇒ look again, which sends again while re-sends remain
       if (res && (res.error === 'unauthorized' || /^busy\b/i.test(String(res.error || '')))) return setTimeout(verify, _RATING_VERIFY_DELAY_MS);
       landed();
+      if (res && res.superseded) return putBack(String(res.rating || ''), _RATING_NEWER_MSG(res.rating));
       if (_saveRefused(res)) {
-        _saveLogFinal('WRITE-01', 'setRating', 'not-saved', 'rating REFUSED on a re-send — ' + String(res.error), dsi, { resends: resends });
         return putBack(_RATING_OK[dsi] || '', 'That rating didn’t save — ' + _saveRefusalReason(res.error) + ' — so it was put back. Tap it again.');
       }
       confirmed();
@@ -1505,10 +1515,11 @@ function modalSetRating(rating) {
     delete _RATING_HOLD[dsi];   // the next refresh shows the sheet's value
     _nmNotice(['nm-rating-row'], dsi, 'We couldn’t check whether that rating saved. Reload the page to see the saved rating.', 'rating');
   };
-  apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:_by })
+  apiPost({ action:'setRating', dsi:dsi, rating:rating, updatedBy:_by, tapAgeMs:Date.now() - _tapAt })
     .then(function(res) {
       landed();
       if (CFG.officeId !== _ofc) return;
+      if (res && res.superseded) return putBack(String(res.rating || ''), _RATING_NEWER_MSG(res.rating));
       if (_saveRefused(res)) return putBack(_RATING_OK[dsi] || '', 'That rating didn’t save — ' + _saveRefusalReason(res.error) + ' — so it was put back. Tap it again.');
       confirmed();
     }, function() {

@@ -120,12 +120,19 @@ var AS_ERR = (function (w, d) {
   };
 
   var SESSION_MAX   = 20;   // total reports per page-load
+  /* 2026-10-02 — FINAL reports (extra.final: the portal GAVE UP on a note or rating) are the loss audit, so they are not
+     allowed to be crowded out or lost: their own budget (a storm of ordinary errors cannot use it up), sent FIRST in a
+     batch (the server keeps 10 per request), and put back in the queue if the send fails or the server logged nothing
+     (busy, rate cap) — up to FINAL_TRIES times, FINAL_RETRY_MS apart. */
+  var FINAL_MAX     = 40;
+  var FINAL_TRIES   = 5;
+  var FINAL_RETRY_MS = 60000;
   var PER_SIG_MAX   = 3;    // reports per identical signature
   var BREADCRUMBS   = 25;   // ring buffer size
   var SNAPSHOT_MAX  = 40000;// chars of masked markup
   var QUIET_MS      = 2500; // network must be idle this long before we flush
 
-  var _queue = [], _sent = 0, _suppressed = 0, _sigCount = {}, _crumbs = [];
+  var _queue = [], _sent = 0, _suppressed = 0, _sigCount = {}, _crumbs = [], _finalSent = 0;
   var _inflight = 0, _lastNet = 0, _flushTimer = null, _endpoint = '', _installed = false;
 
   // ── inlined helpers (see the no-dependencies rule) ───────────────────────
@@ -424,8 +431,9 @@ var AS_ERR = (function (w, d) {
      hundreds of rows and burn the very backend we are trying to diagnose.
      Suppressed reports are COUNTED and the count rides along on the next one
      that does go out, so a storm is visible in the log as a storm. */
-  function _admit(sig) {
-    if (_sent >= SESSION_MAX) { _suppressed++; return false; }
+  function _admit(sig, isFinal) {
+    if (isFinal) { if (_finalSent >= FINAL_MAX) { _suppressed++; return false; } }
+    else if (_sent >= SESSION_MAX) { _suppressed++; return false; }
     _sigCount[sig] = (_sigCount[sig] || 0) + 1;
     if (_sigCount[sig] > PER_SIG_MAX) { _suppressed++; return false; }
     return true;
@@ -439,7 +447,8 @@ var AS_ERR = (function (w, d) {
       var e   = err || {};
       var msg = scrub(_clip(e.message || e.msg || _s(err), 400));
       var sig = code + '|' + msg + '|' + _s(e.lineno);
-      if (!_admit(sig)) return code;
+      var isFinal = !!(extra && extra.final);
+      if (!_admit(sig, isFinal)) return code;
 
       var rec = {
         code:    code,
@@ -471,7 +480,7 @@ var AS_ERR = (function (w, d) {
         rec.snapshot = snapshot(extra && extra._root);
       }
       _queue.push(rec);
-      _sent++;
+      if (isFinal) _finalSent++; else _sent++;
       _flushSoon();
       return code;
     } catch (e) { return code || 'APP-01'; }
@@ -500,6 +509,9 @@ var AS_ERR = (function (w, d) {
       var url = _endpoint || w.APPS_SCRIPT_URL;
       if (!url) return;                       // core has not loaded; keep queueing
       var batch = _queue.splice(0, _queue.length);
+      var _isF = function (r) { return !!(r && r.extra && r.extra.final); };
+      batch.sort(function (a, b) { return (_isF(b) ? 1 : 0) - (_isF(a) ? 1 : 0); });   // finals first (stable)
+      var finals = batch.filter(_isF);
       var wrap = function (rs) {
         return JSON.stringify({
           action: 'logClientError',
@@ -523,14 +535,30 @@ var AS_ERR = (function (w, d) {
       /* keepalive lets the send survive the page being closed — the tab
          closing is a COMMON way to lose the report for the error that made
          the rep give up and close the tab. */
-      w.fetch(url, {
+      var sent = w.fetch(url, {
         method: 'POST',
         redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // no CORS preflight
         body: body,
         keepalive: !!beacon
-      })['catch'](function () { /* a failed report is not an error worth reporting */ });
+      });
+      if (finals.length && !beacon) {
+        // the audit rows must ARRIVE: read the answer, and put them back unless the server says it logged something
+        sent.then(function (r) { return r.text(); }).then(function (t) {
+          var j = null; try { j = JSON.parse(t); } catch (eJ) {}
+          if (!j || !(Number(j.logged) > 0)) _requeueFinals(finals);
+        })['catch'](function () { _requeueFinals(finals); });
+      } else {
+        sent['catch'](function () { /* a failed report is not an error worth reporting */ });
+      }
     } catch (e) {}
+  }
+
+  function _requeueFinals(rs) {
+    var back = [];
+    for (var i = 0; i < rs.length; i++) { rs[i]._tries = (rs[i]._tries || 0) + 1; if (rs[i]._tries < FINAL_TRIES) back.push(rs[i]); }
+    if (!back.length) return;
+    w.setTimeout(function () { for (var k = 0; k < back.length; k++) _queue.push(back[k]); _flushSoon(); }, FINAL_RETRY_MS);
   }
 
   // ── NETWORK ACTIVITY HOOKS (called by the transports) ────────────────────
@@ -622,7 +650,7 @@ var AS_ERR = (function (w, d) {
     context: context, netStart: netStart, netEnd: netEnd,
     label: function (c) { return (CODES[c] || {}).label || 'Something went wrong'; },
     hint:  function (c) { return (CODES[c] || {}).hint  || ''; },
-    _state: function () { return { queued: _queue.length, sent: _sent, suppressed: _suppressed, inflight: _inflight, crumbs: _crumbs.length }; }
+    _state: function () { return { queued: _queue.length, sent: _sent, finalSent: _finalSent, suppressed: _suppressed, inflight: _inflight, crumbs: _crumbs.length }; }
   };
 })(window, document);
 
