@@ -523,9 +523,14 @@ var _NOTE_EARLY_LOOK_MS = [4000, 9000];
    lost for good. The portal still holds the text, so it re-sends it itself, up to this many times, each followed by
    its own 30s check. Only when those are spent is the rep told.
    🔑 WHY THIS IS SAFE (the rule at _AS_RETRY_SAFE_WRITES — the server guard comes first): the re-send carries the SAME
-     clientKey, and writeNoteEntry returns the first note for a key it has seen (_IDEMPOTENCY_TTL, 15 min — the whole
-     chase ends inside 3). It only starts after the 30s check, i.e. past the server's 25s lock wait, so the first
-     attempt has either written or given up; it cannot still be queued behind us.
+     clientKey, and writeNoteEntry returns the first note for a key it has seen (_IDEMPOTENCY_TTL, 15 min; the chase
+     is ~2½ min as a rule and ~8 at the very worst, when every check also has to be retried).
+   🔴 THAT GUARD MUST BE THE ATOMIC ONE (Code.gs writeNoteEntry, 2026-10-02: lookup + append + record under ONE script
+     lock). The first cut of this argued "the re-send starts after 30s, past the server's 25s lock wait, so the first
+     attempt has written or given up". An independent review broke that: the 25s runs from when an execution REACHES
+     the lock, not from when the browser sent it — Google can start it late — so attempt 1 can append after our check
+     missed it, with the re-send already in flight. Only the server can settle that, and with the lock it does.
+     ⇒ DEPLOY THE BACKEND FIRST. Without it this re-send can write a note twice.
    ⚠ Same-office notes only. A cross-office note goes through the Scheduler, which has no clientKey ⇒ never re-sent.
    ⚠ Never after an office switch: apiPost stamps the office the rep is IN, and the note belongs to the one they left. */
 var _NOTE_RESEND_MAX = 2;
@@ -681,6 +686,9 @@ function _noteSettle(o) {
   var epoch = _SAVE_EPOCH;      // the person signed out since ⇒ this save's outcome is nobody's on this screen
   function gone() { if (epoch !== _SAVE_EPOCH) done = true; return done; }
   var resends = 0;
+  var who = (typeof SESSION !== 'undefined' && SESSION && SESSION.email) || '';   // the author — a re-send is theirs alone
+  // The server said "nothing was written, try again" (the 25s lock wait ran out). Never a refusal.
+  function busy(r) { return !!(r && /^busy\b/i.test(String(r.error || ''))); }
   // Taken off the screen and said — the one place a same-office note is finally given up on.
   function notSaved(why) {
     done = true; bannerOff();   // given up: not saved
@@ -693,11 +701,21 @@ function _noteSettle(o) {
   // The 30s check did not find it ⇒ send it again (see _NOTE_RESEND_MAX). true = a re-send is out; the chase goes on.
   function resendNow() {
     if (!o.resend || !o.key || o.cross || away() || resends >= _NOTE_RESEND_MAX) return false;
+    /* Whoever is signed in now is not the author (the badge expired mid-chase, or someone else signed in): apiPost
+       would send THEIR badge. Nothing is sent and nothing is taken away — it ends as "couldn't check" (review). */
+    if (((typeof SESSION !== 'undefined' && SESSION && SESSION.email) || '') !== who) { unchecked(); return true; }
     resends++; failedChecks = 0;
     var again = function () { if (!gone()) setTimeout(verify, _NOTE_VERIFY_DELAY_MS); };   // lost again ⇒ look again
+    /* A poll that read the sheet BEFORE this re-send's append must not land after it and wipe the note (it has no
+       _pid once confirmed) — the same stamp every local add uses (see _bgRefreshNotes). */
+    _NOTE_LOCAL_AT = Date.now();   // fence: the re-send is going out
     o.resend().then(function (r) {
+      _NOTE_LOCAL_AT = Date.now();
       if (gone()) return;
-      if (r && r.error === 'unauthorized') return again();          // a dropped body may still have run (R-112)
+      if (r && (r.error === 'unauthorized' || busy(r))) return again();   // a dropped body may still have run (R-112) · busy wrote nothing
+      /* The badge ran out: _forceReauth has already put the sign-in screen up. The note is NOT dropped — whether it is
+         in the sheet is simply unknown, and the text must still be there when they are back. */
+      if (r && r.error === 'auth_required') return unchecked();
       if (_saveRefused(r)) return notSaved(_saveRefusalReason(r.error));
       found();                                                      // written now, or the first one had landed (duplicate)
     }, again);
@@ -796,6 +814,7 @@ function _noteSettle(o) {
   return {
     ok: function (res) {
       if (res && res.error === 'unauthorized' && o.retried) return unknown();
+      if (busy(res) && o.resend && o.key && !o.cross) return unknown();   // the server queue was full: chase it, do not hand it back
       if (_saveRefused(res)) {
         if (away()) return tellAway('That ' + o.what + ' didn’t save — ' + _saveRefusalReason(res.error) + '. Switch back to that office and add it again.');
         drop(); return tellNotSaved('That ' + o.what + ' didn’t save — ' + _saveRefusalReason(res.error) + '.');
@@ -1089,9 +1108,10 @@ function modalAddInquiryRequest() {
     repaint: function(){ _nmRepaintTypeBlock(_dsi, 'inquiry', _nmTypeList(_dsi, _cross, true), !_cross); },
     anchors: ['nm-iq-block', 'nm-iq-wrap'],
     resend: function(){ return _send(); } });
+  var _by = SESSION.email, _byName = SESSION.name||SESSION.email;   // the author, fixed now — a re-send runs minutes later
   var _send = function(){ return apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'inquiry',
               clientKey:_key,
-              authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }); };
+              authorEmail:_by, authorName:_byName }); };
   if (_cross) {
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'inquiry',
                 linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email })
@@ -1203,9 +1223,10 @@ function modalAddCancelRequest() {
     repaint: function(){ _nmRepaintTypeBlock(_dsi, 'cancel', _nmTypeList(_dsi, _cross, true), !_cross); },
     anchors: ['nm-cx-block', 'nm-cx-wrap'],
     resend: function(){ return _send(); } });
+  var _by = SESSION.email, _byName = SESSION.name||SESSION.email;   // the author, fixed now — a re-send runs minutes later
   var _send = function(){ return apiPost({ action:'addNote', dsi:_dsi, noteText:noteText, noteType:'cancel',
               clientKey:_key,
-              authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }); };
+              authorEmail:_by, authorName:_byName }); };
   if (_cross) {
     _apptPost({ action:'addAppointmentNote', appointmentId:_modalApptId, noteText:noteText, noteType:'cancel',
                 linesActivated:0, email:SESSION.email, authorName:SESSION.name||SESSION.email })
@@ -1558,7 +1579,8 @@ function modalAddNote(noteType) {
       },
       anchors: [histId],
       resend: function(){ return _send2(); } });
-    var _send2 = function(){ return apiPost({ action:'addNote', dsi:_dsi2, noteText:text, noteType:noteType, linesActivated:lines, clientKey:_key2, authorEmail:SESSION.email, authorName:SESSION.name||SESSION.email }); };
+    var _by2 = SESSION.email, _byName2 = SESSION.name||SESSION.email;   // the author, fixed now — a re-send runs minutes later
+    var _send2 = function(){ return apiPost({ action:'addNote', dsi:_dsi2, noteText:text, noteType:noteType, linesActivated:lines, clientKey:_key2, authorEmail:_by2, authorName:_byName2 }); };
     _send2()
       .then(function(res){ _done(); _s2.ok(res); })
       .catch(function(){ _done(); _s2.fail(); });
