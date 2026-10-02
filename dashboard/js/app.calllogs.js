@@ -507,6 +507,16 @@ var _NOTE_PID = 0;
 var _NOTE_VERIFY_DELAY_MS = 30000;   // after the transport gives up; writeNoteEntry's _safeAppend lock wait is 25s
 var _NOTE_VERIFY_TRIES = 3;          // read-back attempts before "couldn't check" (the read can time out too)
 var _NOTE_VERIFY_RETRY_MS = 20000;   // between read-back attempts
+/* 2026-10-02 — LOOK EARLY, DECIDE LATE. Measured 09-28 and 10-01: every note whose answer was lost HAD saved, the
+   row stamped seconds after it was sent. Waiting the full 30s to look left the rep with "not confirmed" (or a
+   pop-up) for most of a minute over a note that was already in the sheet. So the sheet is also read at these
+   delays after the transport gives up — and ONLY a note that is FOUND settles early. "Not there yet" proves
+   nothing before _NOTE_VERIFY_DELAY_MS (the server may still be queueing the write for 25s, R-109), so "didn't
+   save" is still said by the 30s check alone. */
+/* ⚠ Keep every look UNDER 10s: a read gets 15s per attempt and api() MERGES identical in-flight reads, so a look
+   still hanging at 30s would be joined by the deciding check — which would inherit a nearly spent attempt and a
+   snapshot taken before the 30s mark (review 2026-10-02). */
+var _NOTE_EARLY_LOOK_MS = [4000, 9000];
 var _NOTE_RETRY_KEYS = {};           // "dsi|type|text" → clientKey of an add whose outcome is unknown
 var _modalNotesSrc = null, _modalNotesDsi = '';   // the list openNotesModal rendered a CROSS-office order from
 var _NOTE_MARKER = {
@@ -529,9 +539,60 @@ function _nmClearNotice(kind) {
   var old = document.getElementById('nm-save-notice');
   if (old && old.remove && (!kind || old.getAttribute('data-kind') === kind)) old.remove();
 }
+/* ── SAVE MESSAGES THAT DO NOT STOP THE WORK (2026-10-02) ──────────────────────────────────────────────
+   User, mid day-after calls, with a screenshot of the browser's own alert box over the call list: "We can not have
+   this happen as it will disrupt work flow." An alert() blocks the whole page until OK is pressed — and it used to
+   arrive while the rep was already typing on the next order. The same words now go into a small banner in the
+   corner (#save-banners in index.html): it never takes focus, and the rep closes it when they like.
+     tone 'checking' — the save's answer was lost and it is being looked for; replaced by 'ok' or 'bad'
+     tone 'ok'       — it saved; closes itself
+     tone 'bad'      — it did not save / could not be checked; STAYS until closed (R-125: never silent)
+   ⚠ No #save-banners on the page (an old cached index.html, a harness) ⇒ the alert, exactly as before. The message
+     must never be lost because the nicer place to put it is missing. */
+var _SAVE_BANNER_N = 0, _SAVE_BANNER_OK_MS = 5000, _SAVE_BANNER_KEYS = {}, _SAVE_EPOCH = 0;
+/* `key` (optional): at most ONE banner per key — a newer one replaces the older (a rating tapped again and lost
+   again must not pile up a second "didn't save" for the same order). Notes pass no key: two lost notes on one
+   order are two different pieces of text and both must be said. */
+function _saveSay(text, tone, key) {
+  // Nobody is signed in (the login screen is up): a message about the last person's order is not for whoever is next.
+  if (typeof SESSION !== 'undefined' && SESSION && !SESSION.email) return '';
+  if (key) _saveBannerDropKey(key);
+  var box = document.getElementById('save-banners');
+  if (!box || !box.insertAdjacentHTML) { if (typeof alert === 'function') alert(text); return 'alert'; }
+  var id = 'sb-' + (++_SAVE_BANNER_N);
+  var lines = String(text).split('\n').filter(function (l) { return l.trim(); });
+  box.insertAdjacentHTML('beforeend',
+    '<div class="save-banner sb-' + esc(tone || 'bad') + '" id="' + id + '" role="' + (tone === 'bad' || !tone ? 'alert' : 'status') + '">' +
+      '<div class="sb-body"><div class="sb-msg">' + esc(lines[0] || '') + '</div>' +
+      lines.slice(1).map(function (l) { return '<div class="sb-meta">' + esc(l) + '</div>'; }).join('') + '</div>' +
+      '<button type="button" class="sb-x" aria-label="Dismiss" onclick="_saveBannerClose(\'' + id + '\')">&times;</button>' +
+    '</div>');
+  if (key) _SAVE_BANNER_KEYS[key] = id;
+  return id;
+}
+function _saveBannerDropKey(key) { if (_SAVE_BANNER_KEYS[key]) { _saveBannerClose(_SAVE_BANNER_KEYS[key]); delete _SAVE_BANNER_KEYS[key]; } }
+/* Sign-out (app.core.js signOut): the banners name a customer's order and quote the rep's own words, and the box sits
+   ABOVE the login screen — so they go with the person. The epoch stops a check still pending from speaking later. */
+function _saveBannersReset() {
+  _SAVE_EPOCH++; _SAVE_BANNER_KEYS = {};
+  var box = document.getElementById('save-banners');
+  if (box) box.innerHTML = '';
+}
+function _saveBannerClose(id) {
+  var b = /^sb-/.test(String(id || '')) ? document.getElementById(id) : null;
+  if (b && b.remove) b.remove();
+}
+// A 'checking' banner whose save was found: swap it for a short "Saved" that closes itself. Never an alert.
+function _saveBannerSaved(id, text) {
+  if (!/^sb-/.test(String(id || ''))) return;
+  _saveBannerClose(id);
+  var ok = _saveSay(text, 'ok');
+  if (/^sb-/.test(String(ok))) setTimeout(function () { _saveBannerClose(ok); }, _SAVE_BANNER_OK_MS);
+}
 /* An inline message beside whatever the person just touched, while the notes window shows that order;
-   otherwise a plain alert — the one case a silent failure would otherwise be total. */
-function _nmNotice(anchorIds, dsi, msg, kind) {
+   otherwise a corner banner (_saveSay) — the one case a silent failure would otherwise be total.
+   Returns 'inline', or what _saveSay returned (a banner id, or 'alert'). */
+function _nmNotice(anchorIds, dsi, msg, kind, tone) {
   _nmClearNotice();
   var html = '<div class="nm-cx-err" id="nm-save-notice" data-kind="'+esc(kind || 'note')+'" role="alert" style="display:block">'+esc(msg)+'</div>';
   if (_nmModalShowing(dsi)) {
@@ -542,8 +603,7 @@ function _nmNotice(anchorIds, dsi, msg, kind) {
     var mb = document.getElementById('modal-body');
     if (mb && mb.insertAdjacentHTML) { mb.insertAdjacentHTML('afterbegin', html); return 'inline'; }
   }
-  if (typeof alert === 'function') alert(msg + (dsi ? '\n\nDSI: ' + dsi : ''));
-  return 'alert';
+  return _saveSay(msg + (dsi ? '\n\nDSI: ' + dsi : ''), tone || 'bad', kind === 'rating' && dsi ? 'rating|' + dsi : '');
 }
 // A server refusal in words a rep can act on — never a raw server code.
 var _SAVE_REFUSAL_WORDS = {
@@ -605,6 +665,10 @@ function _noteSettle(o) {
   var before = _nmMatchCount(o.list(), e);
   var retryId = _nmRetryId(o.dsi, e.noteType, e.noteText);
   var failedChecks = 0;
+  var done = false, bid = '';   // done: the read-back has its answer · bid: this save's 'checking' corner banner, if any
+  var epoch = _SAVE_EPOCH;      // the person signed out since ⇒ this save's outcome is nobody's on this screen
+  function gone() { if (epoch !== _SAVE_EPOCH) done = true; return done; }
+  function bannerOff() { _saveBannerClose(bid); bid = ''; }
   /* 🔴 THE USER SWITCHED OFFICE SINCE THIS SAVE WENT OUT (2026-09-28). Every branch used to `return` here, so a
      refused or lost note on an office switch ended in SILENCE — the "sometimes it doesn't even give an error"
      report (Angel, master-admin, saves across 9 offices). Now: the lists and windows on screen belong to ANOTHER
@@ -614,7 +678,7 @@ function _noteSettle(o) {
   function away() { return CFG.officeId !== o.ofc; }
   function tellAway(lead) {
     var name = (typeof OFFICE_NAMES !== 'undefined' && OFFICE_NAMES[o.ofc]) || o.ofc;
-    if (typeof alert === 'function') alert(lead + '\n\n' + name + ' · DSI: ' + o.dsi + '\nYou wrote: “' + e.noteText + '”');
+    _saveSay(lead + '\n\n' + name + ' · DSI: ' + o.dsi + '\nYou wrote: “' + e.noteText + '”', 'bad');
   }
   function inList() { var l = o.list(); return !!(l && l.indexOf(e) >= 0); }
   function drop() { var l = o.list(); var i = l ? l.indexOf(e) : -1; if (i >= 0) l.splice(i, 1); o.repaint('removed'); }
@@ -625,6 +689,7 @@ function _noteSettle(o) {
       : shown ? 'Please add it again.' : 'Please add it again. You wrote: “' + e.noteText + '”'));
   }
   function unchecked() {
+    done = true; bannerOff();
     if (away()) return tellAway('We couldn’t check whether your ' + o.what + ' saved. Switch back to that office and look for it before adding it again.');
     e._unconfirmed = 'unchecked';
     if (inList() && _nmModalShowing(o.dsi)) o.repaint('unconfirmed');
@@ -636,20 +701,41 @@ function _noteSettle(o) {
     if (++failedChecks < _NOTE_VERIFY_TRIES) { setTimeout(verify, _NOTE_VERIFY_RETRY_MS); return; }
     unchecked();
   }
+  // The sheet has it. From here an identical note is a genuinely new one, so its key is no longer reused.
+  function found() {
+    if (gone()) return;
+    done = true;
+    if (_NOTE_RETRY_KEYS[retryId] === o.key) delete _NOTE_RETRY_KEYS[retryId];
+    _saveBannerSaved(bid, 'Saved — your ' + o.what + ' is in.\nDSI: ' + o.dsi); bid = '';
+    if (away()) return;
+    delete e._unconfirmed; delete e._pid;
+    if (inList()) o.repaint('confirmed');
+    if (_nmModalShowing(o.dsi)) _nmClearNotice('note');
+  }
+  function isThere(res) { return !!(res && !res.error && res.notes && _nmMatchCount(res.notes[o.dsi] || [], e) > before); }
+  // Always the note's OWN office: the rep may be in another one by now.
+  function readBack() { return api({ action: 'readNotes' }, { officeId: o.ofc }); }
+  // An early look (see _NOTE_EARLY_LOOK_MS): may only ever say "found". A miss or a failed read says nothing.
+  function lookEarly() {
+    _NOTE_EARLY_LOOK_MS.forEach(function (ms) {
+      setTimeout(function () {
+        if (gone()) return;
+        // waited:false — nobody is watching this read; a failure belongs in the digest's background column
+        api({ action: 'readNotes' }, { officeId: o.ofc, waited: false }).then(function (res) { if (isThere(res)) found(); }, function () {});
+      }, ms);
+    });
+  }
   function verify() {
-    api({ action: 'readNotes' }, { officeId: o.ofc }).then(function (res) {
+    if (gone()) return;   // an early look already found it
+    readBack().then(function (res) {
+      if (gone()) return;
       if (!res || res.error || !res.notes) return checkFailed();
-      if (_nmMatchCount(res.notes[o.dsi] || [], e) > before) {
-        // It saved. From here an identical note is a genuinely new one, so its key is no longer reused.
-        if (_NOTE_RETRY_KEYS[retryId] === o.key) delete _NOTE_RETRY_KEYS[retryId];
-        if (away()) return;
-        delete e._unconfirmed; delete e._pid;
-        if (inList()) o.repaint('confirmed');
-        if (_nmModalShowing(o.dsi)) _nmClearNotice('note');
-        return;
-      }
+      if (isThere(res)) return found();
+      done = true; bannerOff();   // the answer is in: not saved
       if (away()) return tellAway('That ' + o.what + ' didn’t save. Switch back to that office and add it again.');
-      if (inList()) drop(); else o.repaint('removed');
+      /* The answer is in and the "checking" banner is already down, so nothing may stop the words: a repaint that
+         throws must not swallow them (review 2026-10-02 — the retry would return at once on `done`). */
+      try { if (inList()) drop(); else o.repaint('removed'); } catch (_e) {}
       tellNotSaved('That ' + o.what + ' didn’t save.');
     }).catch(checkFailed);
   }
@@ -658,6 +744,7 @@ function _noteSettle(o) {
       if (o.cross) return tellAway('We couldn’t confirm your ' + o.what + ' saved. Switch back, reload, and check this appointment’s notes before adding it again.');
       if (o.key) _NOTE_RETRY_KEYS[retryId] = o.key;
       setTimeout(verify, _NOTE_VERIFY_DELAY_MS);   // nothing to mark on screen — just find out
+      lookEarly();
       return;
     }
     var seen = inList(), shown = _nmModalShowing(o.dsi);
@@ -665,13 +752,15 @@ function _noteSettle(o) {
     if (seen) o.repaint('unconfirmed');
     // Nowhere to show the marker (window closed, another order open, or the list was replaced) ⇒ say it.
     if (!seen || !shown) {
-      _nmNotice(o.anchors, o.dsi, o.cross
+      var said = _nmNotice(o.anchors, o.dsi, o.cross
         ? 'We couldn’t confirm your ' + o.what + ' saved. Reload the page and check this appointment’s notes before adding it again.'
-        : 'We couldn’t confirm your ' + o.what + ' saved yet — checking now. You’ll be told if it didn’t.');
+        : 'We couldn’t confirm your ' + o.what + ' saved yet — checking now. You’ll be told if it didn’t.', 'note', o.cross ? 'bad' : 'checking');
+      if (!o.cross) bid = said;
     }
     if (o.cross) return;
     if (o.key) _NOTE_RETRY_KEYS[retryId] = o.key;
     setTimeout(verify, _NOTE_VERIFY_DELAY_MS);
+    lookEarly();
   }
   return {
     ok: function (res) {
@@ -1294,6 +1383,7 @@ function modalSetRating(rating) {
     if (!mine()) return;
     _ratingHold(dsi, rating, _ofc, true);
     if (_nmModalShowing(dsi)) _nmClearNotice('rating');
+    _saveBannerDropKey('rating|' + dsi);   // a later tap that saved: the old "didn't save" banner is no longer true
   };
   var verify = function() {
     if (!mine()) return landed();

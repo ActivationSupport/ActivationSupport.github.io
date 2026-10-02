@@ -1069,6 +1069,21 @@ tr:hover td{background:rgba(var(--blue2-rgb),.07)}
 /* ── DSI TOAST ── */
 #dsi-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e3a5f;color:#fff;padding:10px 22px;border-radius:var(--r-md);font-size:.85rem;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:400;white-space:nowrap}
 #dsi-toast.show{opacity:1}
+/* Save messages that do not stop the work (2026-10-02) — replaces the browser's blocking alert() for a note / rating
+   whose save could not be confirmed. A stack in the corner, above the modal, that never takes focus. Colours are the
+   existing surface + status variables, so both themes and every office follow without a rule of their own. */
+#save-banners{position:fixed;right:18px;bottom:18px;z-index:650;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;width:360px;max-width:calc(100vw - 24px);max-height:calc(100vh - 36px);overflow:hidden;pointer-events:none}
+.save-banner{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:11px 10px 11px 14px;border-radius:var(--r-md);background:var(--surface2);border:1px solid var(--border);border-left:4px solid var(--gray);box-shadow:0 10px 28px rgba(0,0,0,.35);color:var(--text);font-size:.82rem;line-height:1.4}
+.save-banner.sb-checking{border-left-color:var(--yellow)}
+.save-banner.sb-ok{border-left-color:var(--green)}
+.save-banner.sb-bad{border-left-color:var(--red)}
+.save-banner{flex:0 0 auto}
+.save-banner .sb-body{flex:1;min-width:0;max-height:9.5em;overflow-y:auto}
+.save-banner .sb-msg{font-weight:600}
+.save-banner .sb-meta{margin-top:3px;color:var(--text2);font-size:.76rem;overflow-wrap:anywhere}
+.save-banner .sb-x{flex:0 0 auto;width:26px;height:26px;border:0;border-radius:var(--r-md);background:transparent;color:var(--text2);font-size:1.15rem;line-height:1;cursor:pointer}
+.save-banner .sb-x:hover{background:var(--border);color:var(--text)}
+@media (max-width:768px){#save-banners{right:12px;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:auto;max-width:none}.save-banner .sb-body{max-height:6.5em}}
 
 /* ── PRODUCT PILLS ── */
 .prod-pill{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:var(--r-lg);background:#0d2a4a;color:#5ba3e8;white-space:nowrap;margin-right:3px}

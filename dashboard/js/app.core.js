@@ -1647,6 +1647,7 @@ function doSetPin() {
 function signOut() {
   if (typeof _ratingResetForOffice === 'function') _ratingResetForOffice();   // held ratings belong to this person
   if (typeof _psResetForSession === 'function') _psResetForSession();         // so does a pending Post Sale check (review 2026-09-28)
+  if (typeof _saveBannersReset === 'function') _saveBannersReset();           // and the save banners: they sit above the login screen (2026-10-02)
   clearInterval(_inactivityInterval);
   clearInterval(_bgInterval);
   clearInterval(_luInterval);
