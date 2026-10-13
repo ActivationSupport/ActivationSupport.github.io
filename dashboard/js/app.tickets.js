@@ -1010,7 +1010,7 @@ function _ticketTableHtml() {
     /* An archived row only appears when the filter asks for it, but it must still be
        obvious at a glance — otherwise "Include archived" silently mixes duplicates back
        into a list people count. */
-    return '<tr class="ss-row' + (t.archived ? ' ss-row-arch' : '') + '" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
+    return '<tr class="ss-row' + (t.archived ? ' ss-row-arch' : '') + '" onclick="openTicketDetail(' + jsq(t.ticketId) + ')">' +
       '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) +
         (t.archived ? ' <span class="ss-arch-tag" title="Duplicate of ' + esc(t.duplicateOf || '') + '">DUP</span>' : '') + '</td>' +
       '<td data-label="Created" class="ss-mono" style="white-space:nowrap">' + esc(_ticketFmtDate(t.created)) + '</td>' +
@@ -1158,7 +1158,7 @@ function _followupTableHtml() {
     /* An archived row only appears when the filter asks for it, but it must still be
        obvious at a glance — otherwise "Include archived" silently mixes duplicates back
        into a list people count. */
-    return '<tr class="ss-row' + (t.archived ? ' ss-row-arch' : '') + '" onclick="openTicketDetail(\'' + esc(t.ticketId) + '\')">' +
+    return '<tr class="ss-row' + (t.archived ? ' ss-row-arch' : '') + '" onclick="openTicketDetail(' + jsq(t.ticketId) + ')">' +
       '<td data-label="Ticket" class="ss-tid" style="white-space:nowrap">' + esc(t.ticketId) +
         (t.archived ? ' <span class="ss-arch-tag" title="Duplicate of ' + esc(t.duplicateOf || '') + '">DUP</span>' : '') + '</td>' +
       '<td data-label="Age" class="ss-mono" style="white-space:nowrap;color:' + col + '">' + age + 'd</td>' +

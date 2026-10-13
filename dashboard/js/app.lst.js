@@ -505,7 +505,7 @@ function _lstKpiSalesTable(sales) {
     var nm = (roster[s.repEmail] && roster[s.repEmail].name) || s.repName || s.repEmail || '—';
     return '<tr><td>'+esc(nm)+'</td>'+
       '<td style="white-space:nowrap">'+esc(_ctShortDate(s.dateOfSale))+'</td>'+
-      '<td>'+(s.dsi?'<span class="dsi-link" onclick="clickDsi(\''+esc(s.dsi)+'\')">'+esc(s.dsi)+'</span>':'—')+'</td>'+
+      '<td>'+(s.dsi?'<span class="dsi-link" onclick="clickDsi('+jsq(s.dsi)+')">'+esc(s.dsi)+'</span>':'—')+'</td>'+
       '<td>'+_lstSaleProducts(s)+'</td>'+
       '<td style="text-align:center;font-weight:700">'+(s.units||0)+'</td></tr>';
   }).join('');
@@ -609,7 +609,7 @@ function _lstTopPerf(topAll, topTeams) {
     var d = item.d;
     return '<div class="lst-pod ' + podCls[i] + '">' +
       '<div class="lst-pod-medal">' + medals[i] + '</div>' +
-      '<div class="lst-pod-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')">' + esc(d.name) + '</div>' +
+      '<div class="lst-pod-name lst-rep-link" onclick="_lstShowRepProfile(' + jsq(item.email) + ')">' + esc(d.name) + '</div>' +
       '<div class="lst-pod-role">' + esc(_LST_RNKL[d.rank] || d.rank) + '</div>' +
       '<div class="lst-pod-stats">' +
         '<div class="lst-pod-stat"><div class="lst-pod-num">' + d.units + '</div><div class="lst-pod-lbl">UNITS</div></div>' +
@@ -624,7 +624,7 @@ function _lstTopPerf(topAll, topTeams) {
     // team has a record to open. The podium and the grid must not disagree about
     // whether a given team is reachable.
     var pnm = t.teamId
-      ? '<div class="lst-pod-name lst-team-link" onclick="openTeamDashboard(\'' + esc(t.teamId) + '\')" title="Open ' + esc(t.name) + '’s dashboard">' + esc(t.name) + '</div>'
+      ? '<div class="lst-pod-name lst-team-link" onclick="openTeamDashboard(' + jsq(t.teamId) + ')" title="Open ' + esc(t.name) + '’s dashboard">' + esc(t.name) + '</div>'
       : '<div class="lst-pod-name">' + esc(t.name) + '</div>';
     return '<div class="lst-pod ' + podCls[i] + '">' +
       '<div class="lst-pod-medal">' + medals[i] + '</div>' +
@@ -675,7 +675,7 @@ function _lstBoard(leaders, reps, tArr, todayIdx, boardTitle) {
          `_tmListRow` does on the Teams tab, and it is what keeps the Bri'an Key bug out:
          an apostrophe in a NAME would break out of the handler string, an id will not. */
       var tnm = t.teamId
-        ? '<div class="lst-team-nm lst-team-link" onclick="openTeamDashboard(\'' + esc(t.teamId) + '\')" title="Open ' + esc(t.name) + '’s dashboard">' + esc(t.name) + '</div>'
+        ? '<div class="lst-team-nm lst-team-link" onclick="openTeamDashboard(' + jsq(t.teamId) + ')" title="Open ' + esc(t.name) + '’s dashboard">' + esc(t.name) + '</div>'
         : '<div class="lst-team-nm">' + esc(t.name) + '</div>';
       h += '<div class="lst-team-card' + (i === 0 ? ' first' : '') + '">' +
         '<div class="lst-team-rnk">#' + (i + 1) + '</div>' +
@@ -737,7 +737,7 @@ function _lstDaysTbl(leaders, reps, todayIdx) {
        reads like there is still a second handler to defend against. */
     var r = '<tr>' +
       '<td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')" title="Open ' + esc(d.name) + '’s dashboard">' + esc(d.name) + _lstBaselineBadge(item.email) + '</div>' +
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(' + jsq(item.email) + ')" title="Open ' + esc(d.name) + '’s dashboard">' + esc(d.name) + _lstBaselineBadge(item.email) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[d.rank] || d.rank) + '</div></td>';
     for (var i = 0; i < 7; i++) {
       if (i > todayIdx) {
@@ -874,7 +874,7 @@ function _lstWeeksTbl(leaders, reps) {
     // is no longer clickable and why stopPropagation went with it.
     var r = '<tr>' +
       '<td style="color:var(--text2)">' + (rank <= 3 ? medals[rank - 1] : rank) + '</td>';
-    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(\'' + item.email + '\')" title="Open ' + esc(wr.name) + '’s dashboard">' + esc(wr.name) + _lstBaselineBadge(item.email) + '</div>' +
+    r += '<td class="ll"><div class="lst-rep-name lst-rep-link" onclick="_lstShowRepProfile(' + jsq(item.email) + ')" title="Open ' + esc(wr.name) + '’s dashboard">' + esc(wr.name) + _lstBaselineBadge(item.email) + '</div>' +
       '<div class="lst-rep-role">' + esc(_LST_RNKL[wr.rank] || wr.rank) + '</div></td>';
     wr.weeks.forEach(function(w) {
       r += '<td style="color:var(--text2)">' + w.orders + '</td>';
@@ -1031,7 +1031,7 @@ function _lstProfileHtml(email, lineStats, tableauNames) {
         h += '<option value="'+esc(n)+'"'+(n===tableauName?' selected':'')+'>'+esc(n)+'</option>';
       });
       h += '</select>';
-      h += '<button class="rp-save-btn" onclick="lstSaveTableauName(\''+email+'\',this)">Save</button>';
+      h += '<button class="rp-save-btn" onclick="lstSaveTableauName('+jsq(email)+',this)">Save</button>';
       h += '</div>';
       if (!tableauName) h += '<div class="rp-no-data" style="margin-top:8px">No Tableau name linked — rates and line stats require this.</div>';
     } else {
@@ -1141,9 +1141,9 @@ function _lstRepBreakdownHtml(email) {
   var h = '<div class="rp-bd-body">';
   h += '<div class="rp-bd-toggle">' +
     '<div class="rp-bd-btn' + (_LST_BD_VIEW === 'days' ? ' active' : '') +
-      '" onclick="lstBdSetView(\'days\',\'' + esc(email) + '\')">DAY BY DAY</div>' +
+      '" onclick="lstBdSetView(\'days\',' + jsq(email) + ')">DAY BY DAY</div>' +
     '<div class="rp-bd-btn' + (_LST_BD_VIEW === 'weeks' ? ' active' : '') +
-      '" onclick="lstBdSetView(\'weeks\',\'' + esc(email) + '\')">WEEK BY WEEK</div>' +
+      '" onclick="lstBdSetView(\'weeks\',' + jsq(email) + ')">WEEK BY WEEK</div>' +
     '</div>';
 
   var grand = periods.reduce(function(a, p) { return a + p.sales.length; }, 0);

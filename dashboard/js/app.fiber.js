@@ -226,7 +226,7 @@ function _fibBuild() {
       var cru = _fibCruTag(o);
       var title = (o.isUpgrade?'Upgrade — ':'New Internet — ')+_fibStatusOf(o)+' — '+(_fibCustomer(o)||o.dsi)+(o.voip>0?' — '+o.voip+' VoIP':'')+(o.cruIru?' — '+o.cruIru:'')+(_fibMoved(o)?' — moved from '+_fibFmtYmd(o.origDueDate):'');
       return '<div class="fib-chip" style="background:'+st.bg+';color:'+st.fg+'" title="'+esc(title)+'"'+
-        ' onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">'+
+        ' onclick="_fibOpenDetail('+jsq(o.dsi)+')">'+
         '<span class="fib-chip-l">'+tag+esc(o.dsi)+voip+'</span>'+cru+'</div>';
     }).join('');
     if (list.length > 3) {
@@ -255,7 +255,7 @@ function _fibBuild() {
         '<thead><tr><th>DSI</th><th>Type</th><th>Customer</th><th>VoIP</th><th>CRU/IRU</th><th>Rep</th><th>Order date</th><th>Status</th></tr></thead><tbody>' +
         na.map(function(o) {
           var st = _fibStyleOf(o);
-          return '<tr onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">' +
+          return '<tr onclick="_fibOpenDetail('+jsq(o.dsi)+')">' +
             '<td class="fib-na-dsi">'+esc(o.dsi)+'</td>' +
             '<td>'+_fibTypeTag(o)+'</td>' +
             '<td>'+esc(_fibCustomer(o)||'—')+'</td>' +
@@ -285,7 +285,7 @@ function _fibOpenDay(ymd) {
     '<div class="nm-sub">'+list.length+' install'+(list.length===1?'':'s')+'</div>' +
     '<div class="fib-daylist">' + list.map(function(o) {
       var st = _fibStyleOf(o);
-      return '<div class="fib-dayrow" onclick="_fibOpenDetail(\''+esc(o.dsi)+'\')">' +
+      return '<div class="fib-dayrow" onclick="_fibOpenDetail('+jsq(o.dsi)+')">' +
         '<span class="fib-na-dsi">'+esc(o.dsi)+'</span>' +
         '<span class="fib-dayrow-cust">'+esc(_fibCustomer(o)||'—')+'</span>' +
         _fibCruTag(o) +

@@ -208,7 +208,7 @@ function _adminRowsHtml() {
        that mark is precisely what has just been proven wrong. */
     var dim = st === 'fixed' && !e.regression;
     return '<tr class="ae-row' + (open ? ' is-open' : '') + (dim ? ' ae-r-done' : '') +
-        (e.regression ? ' ae-r-regress' : '') + '" onclick="_adminOpen(\'' + esc(e.rowKey) + '\')">' +
+        (e.regression ? ' ae-r-regress' : '') + '" onclick="_adminOpen(' + jsq(e.rowKey) + ')">' +
       '<td data-label="When" class="ae-when">' + esc(_adminAgo(e.ts)) + '</td>' +
       '<td data-label="Code"><span class="ae-code ' + _adminCodeClass(e.code) + '">' + esc(e.code) + '</span>' +
         _adminFixPill(e) + '</td>' +
@@ -265,7 +265,7 @@ function _adminDetailRow() {
   var inner;
   if (_ADMIN.detailLoading) inner = loadingState('Loading the detail…', { bare: true, icon: 'clock' });
   else if (!d) inner = '';
-  else if (d.error) inner = errorState('Couldn’t load this error’s detail.', { bare: true, sub: d.error, retry: '_adminOpen(\'' + esc(_ADMIN.openKey) + '\')' });
+  else if (d.error) inner = errorState('Couldn’t load this error’s detail.', { bare: true, sub: d.error, retry: '_adminOpen(' + jsq(_ADMIN.openKey) + ')' });
   else {
     var blk = function (label, val, mono) {
       if (!val) return '';

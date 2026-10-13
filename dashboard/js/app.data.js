@@ -1388,4 +1388,11 @@ function fmtDateTime(v) {
 }
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
+/* 🔴 2026-10-13 SECURITY — a value passed as a JS STRING ARGUMENT inside an inline handler: onclick="f('+jsq(x)+')".
+   esc() alone cannot protect `onclick="f('+esc(x)+')"`: the browser HTML-DECODES the attribute before the JS runs, so
+   &#39; is a real ' again and x = "a');evil();//" closes the string. jsq() emits a complete JSON string literal ("…", every
+   quote/backslash/control character escaped) and then HTML-escapes it for the attribute — after decoding, JS sees exactly
+   the literal. Same falsy handling as esc() (String(s||'')), so every handler receives exactly what it did before.
+   ⚠ Use it WITHOUT surrounding \' quotes — it supplies its own. */
+function jsq(s){ return esc(JSON.stringify(String(s||''))); }
 

@@ -368,7 +368,7 @@ function productBreakdown(productCounts, clickable) {
   return Object.keys(productCounts).map(function(pt) {
     var label = PRODUCT_LABELS[pt.toUpperCase()] || pt;
     var count = productCounts[pt];
-    var attrs = clickable ? ' ct-clk" onclick="_ctAddFilter(\'product\',\''+esc(pt)+'\')" title="Click to filter by this product"' : '"';
+    var attrs = clickable ? ' ct-clk" onclick="_ctAddFilter(\'product\','+jsq(pt)+')" title="Click to filter by this product"' : '"';
     return '<span class="prod-pill'+attrs+'>' + esc(label) + (count > 1 ? ' \xd7' + count : '') + '</span>';
   }).join('');
 }
@@ -377,7 +377,7 @@ function statusBreakdown(statusCounts, clickable) {
   if (!statusCounts || !Object.keys(statusCounts).length) return '<span class="sp sp-yellow">—</span>';
   return Object.keys(statusCounts).map(function(s) {
     var count = statusCounts[s];
-    var attrs = clickable ? ' ct-clk" onclick="_ctAddFilter(\'status\',\''+esc(s)+'\')" title="Click to filter by this status"' : '"';
+    var attrs = clickable ? ' ct-clk" onclick="_ctAddFilter(\'status\','+jsq(s)+')" title="Click to filter by this status"' : '"';
     return '<span class="sp ' + spCls(s) + attrs + '>' + esc(s) + (count > 1 ? ' \xd7' + count : '') + '</span>';
   }).join(' ');
 }
@@ -1931,7 +1931,7 @@ function _ctRemoveFilter(type, value) {
 }
 function _ctFilterChip(prefix, label, type, value) {
   return '<span class="ct-af-chip">'+(prefix?esc(prefix)+': ':'')+esc(label)+
-    '<span class="ct-af-x" title="Remove" onclick="_ctRemoveFilter(\''+type+'\',\''+esc(value)+'\')">&times;</span></span>';
+    '<span class="ct-af-x" title="Remove" onclick="_ctRemoveFilter(\''+type+'\','+jsq(value)+')">&times;</span></span>';
 }
 function _ctActiveFilterBar() {
   var chips=[];
@@ -2053,7 +2053,7 @@ function callTableRows(orders, extraColFn) {
     }
     if (_ctShowRiskFlags && rotting) flags+='<span class="ct-flag ct-flag-rotting" title="No Answer · 8+ days since last call">'+icon('clock')+' Rotting</span>';
     if (_ctShowRiskFlags && atrisk) flags+='<span class="ct-flag ct-flag-atrisk" title="1–2★ rating or Order Issue">'+icon('issues')+' At-risk</span>';
-    var dsiCell='<span class="dsi-link" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>'+(flags?'<div class="ct-flags">'+flags+'</div>':'');
+    var dsiCell='<span class="dsi-link" onclick="clickDsi('+jsq(dsi)+')">'+esc(dsi)+'</span>'+(flags?'<div class="ct-flags">'+flags+'</div>':'');
     return '<tr'+rowCls+'>' +
       '<td><span class="rep-name">'+esc(o.rep)+'</span></td>' +
       '<td>'+dsiCell+'</td>' +
@@ -2205,12 +2205,12 @@ function _mtoFilterRow(tid) {
   var any = f.q||f.status||f.product||f.from||f.to;
   var cS = 'width:auto;min-width:130px;max-width:190px';
   return '<div class="mto-filters">' +
-    '<input class="ps-input" style="'+cS+'" type="text" placeholder="Search rep / DSI…" value="'+esc(f.q)+'" oninput="_mtoFSet(\''+tid+'\',\'q\',this.value)">' +
-    '<select class="ps-select" style="'+cS+'" onchange="_mtoFSet(\''+tid+'\',\'status\',this.value)">'+statOpts+'</select>' +
-    '<select class="ps-select" style="'+cS+'" onchange="_mtoFSet(\''+tid+'\',\'product\',this.value)">'+prodOpts+'</select>' +
-    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(f.from)+'" onchange="_mtoFSet(\''+tid+'\',\'from\',this.value)" title="From date">' +
-    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(f.to)+'" onchange="_mtoFSet(\''+tid+'\',\'to\',this.value)" title="To date">' +
-    (any?'<button class="lst-toggle-btn" onclick="_mtoFClear(\''+tid+'\')">Clear</button>':'') +
+    '<input class="ps-input" style="'+cS+'" type="text" placeholder="Search rep / DSI…" value="'+esc(f.q)+'" oninput="_mtoFSet('+jsq(tid)+',\'q\',this.value)">' +
+    '<select class="ps-select" style="'+cS+'" onchange="_mtoFSet('+jsq(tid)+',\'status\',this.value)">'+statOpts+'</select>' +
+    '<select class="ps-select" style="'+cS+'" onchange="_mtoFSet('+jsq(tid)+',\'product\',this.value)">'+prodOpts+'</select>' +
+    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(f.from)+'" onchange="_mtoFSet('+jsq(tid)+',\'from\',this.value)" title="From date">' +
+    '<input class="ps-input" style="'+cS+'" type="date" value="'+esc(f.to)+'" onchange="_mtoFSet('+jsq(tid)+',\'to\',this.value)" title="To date">' +
+    (any?'<button class="lst-toggle-btn" onclick="_mtoFClear('+jsq(tid)+')">Clear</button>':'') +
     '</div>';
 }
 function renderMyTeamGrouped(myTeamId) {
@@ -2241,16 +2241,18 @@ function renderMyTeamGrouped(myTeamId) {
     } else if (!orders.length) {
       body = noData('No orders for this team.', { icon:'myorders', bare:true });
     } else {
+      // 2026-10-13: the team id is client-chosen (writeAddTeam) — esc() it inside attributes. Lookups by id are unaffected
+      // for ids without & < > " ' ` (all the Teams form generates).
       body = _mtoFilterRow(id) +
-        '<div class="call-table-wrap"><table class="call-table" id="mto-tbl-'+id+'"><thead><tr>'+_mtoHeaders()+'</tr></thead>' +
-        '<tbody id="mto-tbody-'+id+'">'+_mtoTbodyHtml(id)+'</tbody></table></div>' +
-        '<div class="tbl-count" id="mto-cnt-'+id+'" style="margin-top:6px">'+_mtoCountText(id)+'</div>';
+        '<div class="call-table-wrap"><table class="call-table" id="mto-tbl-'+esc(id)+'"><thead><tr>'+_mtoHeaders()+'</tr></thead>' +
+        '<tbody id="mto-tbody-'+esc(id)+'">'+_mtoTbodyHtml(id)+'</tbody></table></div>' +
+        '<div class="tbl-count" id="mto-cnt-'+esc(id)+'" style="margin-top:6px">'+_mtoCountText(id)+'</div>';
     }
     var cntTxt = pending ? '…' : (orders.length + ' order' + (orders.length===1?'':'s'));
     return '<details class="mto-team" open>' +
       '<summary class="mto-team-hdr'+(isSelf?' mto-self':'')+'">' +
         '<span class="mto-caret">'+icon('chev-right')+'</span>' +
-        '<span class="mto-emoji">'+(t.emoji||'👥')+'</span>' +
+        '<span class="mto-emoji">'+esc(t.emoji||'👥')+'</span>' +
         '<span class="mto-name">'+esc(t.name)+'</span>' +
         (isSelf?'<span class="tm-role-tag" style="margin-left:6px">(your team)</span>':'') +
         '<span class="mto-count">'+cntTxt+'</span>' +
@@ -2345,7 +2347,7 @@ function _asRepTable(lines){
   var th='padding:6px 8px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text2);border-bottom:2px solid var(--border)';
   var td='padding:5px 8px;border-bottom:1px solid var(--border);font-size:.82rem';
   var rows=lines.map(function(l){
-    var dsiCell = l.dsi ? '<span style="cursor:pointer;color:var(--blue2);text-decoration:underline" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(l.dsi)+'\')">'+esc(l.dsi)+'</span>' : '—';
+    var dsiCell = l.dsi ? '<span style="cursor:pointer;color:var(--blue2);text-decoration:underline" title="Open in SaraPlus + copy" onclick="clickDsi('+jsq(l.dsi)+')">'+esc(l.dsi)+'</span>' : '—';
     return '<tr>'+
       '<td style="'+td+';white-space:nowrap">'+esc(_asFmtDateFE(l.date))+'</td>'+
       '<td style="'+td+'">'+dsiCell+'</td>'+
@@ -2720,7 +2722,7 @@ function _trRenderRows() {
     var paid = '<div class="tr-paid"' + (_trRO ? ' title="Read-only — only Master Admin, Owner and Admin can mark a payout paid"' : '') +
       '><label class="tr-all"><input type="checkbox" ' + (allChecked?'checked':'') + (items.length && !_trRO ? '' : ' disabled') + ' onchange="_trToggleAll(' + idx + ',this.checked)"> ALL</label>';
     items.forEach(function(it) {
-      paid += '<label><input type="checkbox" ' + (po[it.id]?'checked':'') + _dis + ' onchange="_trToggleItem(' + idx + ',\'' + esc(it.id) + '\',this.checked)"> ' + esc(it.label) + '</label>';
+      paid += '<label><input type="checkbox" ' + (po[it.id]?'checked':'') + _dis + ' onchange="_trToggleItem(' + idx + ',' + jsq(it.id) + ',this.checked)"> ' + esc(it.label) + '</label>';
     });
     paid += '</div>';
     var note = (o.notes||'').trim();

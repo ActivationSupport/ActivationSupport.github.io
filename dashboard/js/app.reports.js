@@ -405,7 +405,7 @@ function _wrBuildHtml() {
       return '<tr'+(w.start===sel?' style="outline:2px solid var(--field-border)"':'')+'>'+
         '<td>'+(w.start===sel
                  ? '<b>'+esc(_wrRangeLabel(w.start,w.end))+'</b> <span class="wr-sub">viewing</span>'
-                 : '<a href="#" class="wr-wk" onclick="wrSelectWeek(\''+esc(w.start)+'\');return false">'+
+                 : '<a href="#" class="wr-wk" onclick="wrSelectWeek('+jsq(w.start)+');return false">'+
                    esc(_wrRangeLabel(w.start,w.end))+'</a>')+
           (w.backfilled?' <span class="wr-sub" title="Backfilled: its two backlog figures are today’s snapshot, not that week’s">backfilled</span>':'')+'</td>'+
         '<td class="wr-numb">'+a+'</td>'+
@@ -1056,7 +1056,7 @@ function _drSectionNoAnswers(list) {
   if (!list||!list.length) return '';
   var rows=list.map(function(e){
     return '<tr>'+
-      '<td><span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(e.dsi)+'\')">'+esc(e.dsi)+'</span></td>'+
+      '<td><span class="dsi-link" onclick="copyDsiAndOpen('+jsq(e.dsi)+')">'+esc(e.dsi)+'</span></td>'+
       '<td class="dr-notes-cell">'+_drNoteItems(e.notes)+'</td></tr>';
   }).join('');
   return '<div class="dr-section"><div class="dr-sec-hdr">No Answers That Day '+
@@ -1071,7 +1071,7 @@ function _drSectionEscalations(list) {
     var rpCls=e.rating==='1 Star'?'rp-1':'rp-2';
     return '<tr>'+
       '<td><span class="rating-pill '+rpCls+'">'+esc(e.rating)+'</span></td>'+
-      '<td><span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(e.dsi)+'\')">'+esc(e.dsi)+'</span></td>'+
+      '<td><span class="dsi-link" onclick="copyDsiAndOpen('+jsq(e.dsi)+')">'+esc(e.dsi)+'</span></td>'+
       '<td class="dr-notes-cell">'+_drNoteItems(e.notes)+'</td></tr>';
   }).join('');
   return '<div class="dr-section"><div class="dr-sec-hdr">Escalations That Day '+
@@ -1087,7 +1087,7 @@ function _drOutcomePill(o){
   var c=_DR_OUTCOME_COLOR[o]||'#9aa0a6';
   return '<span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:.72rem;font-weight:700;background:'+c+'22;color:'+c+'">'+esc(_drApptOutcomeLabel(o))+'</span>';
 }
-function _drDsiCell(dsi){ return dsi?'<span class="dsi-link" onclick="copyDsiAndOpen(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>':'<span class="dr-muted">—</span>'; }
+function _drDsiCell(dsi){ return dsi?'<span class="dsi-link" onclick="copyDsiAndOpen('+jsq(dsi)+')">'+esc(dsi)+'</span>':'<span class="dr-muted">—</span>'; }
 // One quiet grey line of nonzero outcome counts (replaces the chip rainbow).
 function _drOutcomeBreakdown(o, includeUnmarked){
   var parts=[];

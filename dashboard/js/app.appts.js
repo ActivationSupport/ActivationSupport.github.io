@@ -834,7 +834,7 @@ function _apptCalGrid(appts, acts, ws) {
           html+= _oid ? _apptXofficeCell(_bl,_oid)
                       : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">'+icon('lock')+'</div>';
         } else if(availAt(ds,slot)){
-          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\',\''+esc(fe)+'\',\''+_apptToAct(ds,slot,fe)+'\')">'+
+          html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+ds+'\','+jsq(fe)+',\''+_apptToAct(ds,slot,fe)+'\')">'+
             '<span class="appt-avail-plus">+</span> Book</div>';
         } else if(!_apptBlocksReady(ds)){
           // availAt failed closed only because the cross-office check hasn't landed yet.
@@ -901,7 +901,7 @@ function _apptOutcomeSelect(a) {
   var opts='<option value="">Mark…</option>'+_APPT_OUTCOMES.map(function(o){
     return '<option value="'+o[0]+'"'+(a.outcome===o[0]?' selected':'')+'>'+o[1]+'</option>';
   }).join('');
-  return '<select class="appt-outcome-sel" onchange="setApptOutcomeUI(\''+esc(a.appointmentId)+'\',this.value)">'+opts+'</select>';
+  return '<select class="appt-outcome-sel" onchange="setApptOutcomeUI('+jsq(a.appointmentId)+',this.value)">'+opts+'</select>';
 }
 
 function _apptUpcomingTable(appts) {
@@ -936,16 +936,16 @@ function _apptUpcomingTable(appts) {
     var actions='';
     if (ok) {   // notes reference the customer → only for viewers who can see them
       var _nN=_apptNotesCount(a);
-      actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openApptNotes(\''+esc(a.appointmentId)+'\')">'+icon('edit')+(_nN?' '+_nN:'')+'</button>';
+      actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openApptNotes('+jsq(a.appointmentId)+')">'+icon('edit')+(_nN?' '+_nN:'')+'</button>';
     }
     if (canX && !cancelled && !terminal)
-      actions+='<button class="appt-resched-btn" onclick="rescheduleApptUI(\''+esc(a.appointmentId)+'\')">Reschedule</button>';
+      actions+='<button class="appt-resched-btn" onclick="rescheduleApptUI('+jsq(a.appointmentId)+')">Reschedule</button>';
     if (canX && !cancelled)
-      actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>';
+      actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt('+jsq(a.appointmentId)+')">Cancel</button>';
     if (SESSION.role==='master-admin')
-      actions+='<button class="appt-del-btn" title="Delete permanently (master-admin)" aria-label="Delete appointment" onclick="deleteApptUI(\''+esc(a.appointmentId)+'\')">'+icon('trash')+'</button>';
+      actions+='<button class="appt-del-btn" title="Delete permanently (master-admin)" aria-label="Delete appointment" onclick="deleteApptUI('+jsq(a.appointmentId)+')">'+icon('trash')+'</button>';
     var dsiCell = ok && a.customerDSI
-      ? '<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>'
+      ? '<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi('+jsq(a.customerDSI)+')">'+esc(a.customerDSI)+'</span>'
       : (ok?'—':'••••');
     h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
       '<td>'+esc(_apptFmtDate(a.date))+'</td><td>'+_apptDualCell(a.date,a.timeSlot,a.activatorEmail)+'</td>'+
@@ -1022,7 +1022,7 @@ function _apptAllActGrid(appts, acts, dStr){
         html+= _oid ? _apptXofficeCell(_bl,_oid)
                     : '<div class="appt-cal-cell appt-cell-blocked" title="'+esc(_bl)+'">'+icon('lock')+'</div>';
       } else if(inSched){
-        html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+dStr+'\',\''+esc(a.email)+'\',\''+asl+'\')"><span class="appt-avail-plus">+</span> Book</div>';
+        html+='<div class="appt-cal-cell appt-cell-avail" onclick="openApptBookingModal(\''+dStr+'\','+jsq(a.email)+',\''+asl+'\')"><span class="appt-avail-plus">+</span> Book</div>';
       } else {
         html+='<div class="appt-cal-cell appt-cell-closed">—</div>';
       }
@@ -1042,7 +1042,7 @@ function _apptDayAgenda(appts, acts, dStr){
   var h='<div class="appt-agenda">';
   rows.forEach(function(a){
     var ok=canAll||a.bookerEmail===SESSION.email, col=_apptActColor(a.activatorEmail);
-    var dsi = ok && a.customerDSI ? ' <span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(a.customerDSI)+'\')">'+esc(a.customerDSI)+'</span>' : '';
+    var dsi = ok && a.customerDSI ? ' <span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi('+jsq(a.customerDSI)+')">'+esc(a.customerDSI)+'</span>' : '';
     h+='<div class="appt-agenda-row'+_apptCellTypeCls(a)+'" style="border-left:3px solid '+col+'">'+
       '<div class="appt-agenda-time">'+esc(_apptFmt12(_apptToOffice(a.date,a.timeSlot,a.activatorEmail)))+'</div>'+
       '<div class="appt-agenda-main">'+
@@ -1931,7 +1931,7 @@ function _loadBlocks(email) {
         '<span class="appt-block-date">'+esc(_apptFmtDate(b.date))+'</span>'+
         '<span class="appt-block-time">'+esc(t)+'</span>'+
         '<span class="appt-block-reason">'+esc(b.reason||'')+'</span>'+
-        '<button class="appt-do-cancel-btn" onclick="_removeBlk(\''+esc(b.blockId)+'\',\''+esc(email)+'\')"><span class="ico"><svg><use href="#i-x"></use></svg></span></button>'+
+        '<button class="appt-do-cancel-btn" onclick="_removeBlk('+jsq(b.blockId)+','+jsq(email)+')"><span class="ico"><svg><use href="#i-x"></use></svg></span></button>'+
       '</div>';
     }).join('');
   });
@@ -2169,13 +2169,13 @@ function _myApptTableHtml(){
     var outcomeCell=cancelled?'<span class="appt-outcome appt-outcome-canceled">Canceled</span>'
       :(occurred&&canX?_apptOutcomeSelect(a):(a.outcome?_apptOutcomeBadge(a.outcome):'—'));
     var dsi=String(a.customerDSI||'').trim();
-    var dsiCell=dsi?'<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi(\''+esc(dsi)+'\')">'+esc(dsi)+'</span>':'<span style="color:var(--text2)">—</span>';
+    var dsiCell=dsi?'<span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi('+jsq(dsi)+')">'+esc(dsi)+'</span>':'<span style="color:var(--text2)">—</span>';
     var lang=(a.language==='spanish')?'<span style="display:inline-block;padding:1px 6px;border-radius:6px;background:rgba(217,150,60,.18);color:#c8892e;font-size:.68rem;font-weight:700">ES</span>':'<span style="color:var(--text2);font-size:.72rem">EN</span>';
     var offName=(typeof OFFICE_NAMES!=='undefined'&&OFFICE_NAMES[a.office])||a.office;
     var _dn=_dashNotesCount(a); var notesN=_dn?(' '+_dn):'';
     var actions='';
-    if(canX) actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openDashNotes(\''+esc(a.appointmentId)+'\')">'+icon('edit')+' Notes<span id="manote-'+esc(a.appointmentId)+'">'+notesN+'</span></button>';
-    if(canX&&!cancelled) actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt(\''+esc(a.appointmentId)+'\')">Cancel</button>';
+    if(canX) actions+='<button class="appt-resched-btn" title="Notes" aria-label="Appointment notes" onclick="openDashNotes('+jsq(a.appointmentId)+')">'+icon('edit')+' Notes<span id="manote-'+esc(a.appointmentId)+'">'+notesN+'</span></button>';
+    if(canX&&!cancelled) actions+='<button class="appt-do-cancel-btn" onclick="cancelAppt('+jsq(a.appointmentId)+')">Cancel</button>';
     h+='<tr'+(occurred&&!cancelled&&!a.outcome?' class="appt-row-needsoutcome"':'')+'>'+
       '<td>'+esc(_apptFmtDate(a.date))+'</td>'+
       '<td>'+_myApptDualCell(a)+'</td>'+

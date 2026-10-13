@@ -245,7 +245,7 @@ function _peopleRemovedRowHtml(row, ctx) {
     : (row.daysLeft <= 3 ? '<span class="badge badge-red">' + row.daysLeft + ' day' + (row.daysLeft === 1 ? '' : 's') + '</span>'
                          : row.daysLeft + ' days');
   var actions = (ctx.canRestore && _peopleOutranks(row.rank))   // 📗 D-078: only someone you outrank
-    ? '<td><button class="notes-btn" onclick="restorePerson(\''+esc(row.email)+'\')">Restore</button></td>'
+    ? '<td><button class="notes-btn" onclick="restorePerson('+jsq(row.email)+')">Restore</button></td>'
     : '<td></td>';
   return '<tr data-email="'+esc(row.email)+'" style="color:var(--text2)">' +
     '<td>'+esc(row.name||'—')+'</td><td>'+esc(row.email)+'</td>' +
@@ -271,17 +271,17 @@ function _peopleRowHtml(row, ctx) {
         // which also covers "a master-admin target only by another master-admin" (matches the backend).
         var _outranks = _peopleOutranks(row.rank);
         var resetBtn = (canResetPw && !isSelf && _outranks)
-          ? ' <button class="notes-btn" onclick="resetPersonPassword(\''+esc(row.email)+'\')">Reset Password</button>' : '';
+          ? ' <button class="notes-btn" onclick="resetPersonPassword('+jsq(row.email)+')">Reset Password</button>' : '';
         // Edit: someone you outrank, or your own row (name/phone only). Anyone else: no buttons — the server would refuse.
         var editBtn = (isSelf || _outranks)
-          ? '<button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">'+(isSelf && role !== 'master-admin' ? 'Edit Name/Phone' : 'Edit')+'</button>' : '';
+          ? '<button class="notes-btn" onclick="openEditPersonModal('+jsq(row.email)+')">'+(isSelf && role !== 'master-admin' ? 'Edit Name/Phone' : 'Edit')+'</button>' : '';
         actions = '<td style="white-space:nowrap">' + editBtn +
           resetBtn +
-          (role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson(\''+esc(row.email)+'\')">Remove</button>' : '') + '</td>';
+          (role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson('+jsq(row.email)+')">Remove</button>' : '') + '</td>';
       } else if (isMgr) {
-        actions = '<td><button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">Edit</button></td>';
+        actions = '<td><button class="notes-btn" onclick="openEditPersonModal('+jsq(row.email)+')">Edit</button></td>';
       } else if (isSelf) {
-        actions = '<td><button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">Edit Phone</button></td>';
+        actions = '<td><button class="notes-btn" onclick="openEditPersonModal('+jsq(row.email)+')">Edit Phone</button></td>';
       } else {
         actions = '<td></td>';
       }
@@ -472,7 +472,7 @@ function buildPersonForm(email, person) {
   html += '<div class="field"><label>Tableau Name'+lock(canTeamTab)+'</label><select id="pf-tableau"'+(canTeamTab?'':' disabled')+' style="'+fs+(canTeamTab?'':ds)+'">'+tableauOpts+'</select></div>';
   html += '<div class="field"><label>Office Permissions'+lock(canPerms)+'</label><div id="pf-perms" style="padding:8px;border:1.5px solid var(--field-border);border-radius:6px'+(canPerms?'':';background:var(--field-bg)')+'">'+ officeChecks+'</div></div>';
   html += '<div class="field"><label>Status'+lock(canStatus)+'</label><select id="pf-status"'+(canStatus?'':' disabled')+' style="'+fs+(canStatus?'':ds)+'"><option value="false"'+(p.deactivated?'':' selected')+'>Active</option><option value="true"'+(p.deactivated?' selected':'')+'>Inactive</option></select></div>';
-  html += '<div class="nm-actions"><button class="nm-add-btn" onclick="savePerson('+(isEdit?'\''+esc(email)+'\'':'null')+')">SAVE</button><button class="nm-close-btn" onclick="closeModal()">CANCEL</button></div>';
+  html += '<div class="nm-actions"><button class="nm-add-btn" onclick="savePerson('+(isEdit?''+jsq(email)+'':'null')+')">SAVE</button><button class="nm-close-btn" onclick="closeModal()">CANCEL</button></div>';
   return html;
 }
 
@@ -912,10 +912,10 @@ function _tmBuildList() {
     var parentTag = (!nested && team.parentId && teams[team.parentId]) ? '<span class="tm-parent-tag">'+icon('corner-down-right')+' '+esc(teams[team.parentId].name)+'</span>' : '';
     var branch = nested ? '<span class="tm-branch" style="padding-left:'+((depth-1)*18)+'px">'+icon('corner-down-right')+'</span>' : '';
     var acts = canManage ?
-      '<td class="tm-act-cell"><button class="tm-btn-edit" onclick="openEditTeamModal(\''+esc(team.teamId)+'\')">EDIT</button><button class="tm-btn-del" onclick="_tmDelete(\''+esc(team.teamId)+'\')">DEL</button></td>' :
+      '<td class="tm-act-cell"><button class="tm-btn-edit" onclick="openEditTeamModal('+jsq(team.teamId)+')">EDIT</button><button class="tm-btn-del" onclick="_tmDelete('+jsq(team.teamId)+')">DEL</button></td>' :
       '<td></td>';
     var out = '<tr'+(nested?' class="tm-sub-row"':'')+'>' +
-      '<td class="tm-name-cell">'+branch+'<span class="tm-emoji-col">'+(team.emoji||'👥')+'</span><button class="tm-name-link" onclick="_tmShowDetail(\''+esc(team.teamId)+'\')">'+esc(team.name)+'</button>'+parentTag+rollTag+'</td>' +
+      '<td class="tm-name-cell">'+branch+'<span class="tm-emoji-col">'+esc(team.emoji||'👥')+'</span><button class="tm-name-link" onclick="_tmShowDetail('+jsq(team.teamId)+')">'+esc(team.name)+'</button>'+parentTag+rollTag+'</td>' +
       '<td class="tm-leader-cell">'+esc(leaderName)+(leaderRole?' <span class="tm-role-tag">('+esc(leaderRole)+')</span>':'')+'</td>' +
       '<td class="tm-num-cell">'+cnt+'</td>' +
       '<td class="tm-num-cell"><span style="color:'+uColor+';font-weight:700">'+units+'</span></td>' +
@@ -1052,7 +1052,7 @@ function _tmBuildDetail(teamId) {
     ? '<span class="tm-roll-tag">'+icon('myteam')+' incl. '+_subCount+' sub-team'+(_subCount!==1?'s':'')+' · '+memberEmails.length+' reps</span>'
     : '';
   var hdr = '<div class="tm-back" onclick="_tmBackToList()">'+icon('arrow-left')+' Teams</div>' +
-    '<div class="tm-detail-hdr"><span class="tm-detail-em">'+(team.emoji||'👥')+'</span><span class="tm-detail-nm">'+esc(team.name)+'</span>'+_rollTag+'</div>';
+    '<div class="tm-detail-hdr"><span class="tm-detail-em">'+esc(team.emoji||'👥')+'</span><span class="tm-detail-nm">'+esc(team.name)+'</span>'+_rollTag+'</div>';
 
   var breakdown = '<div class="tm-section-label">TEAM BREAKDOWN</div>' +
     '<div class="tm-breakdown-row">' +
@@ -1123,7 +1123,7 @@ function _tmSubTeamsHtml(teamId) {
 
   function row(emoji,name,st,cls,tag){
     return '<tr'+(cls?' class="'+cls+'"':'')+'>' +
-      '<td class="tm-sub-name"><span class="tm-emoji-col">'+emoji+'</span>'+esc(name)+(tag?' <span class="tm-role-tag">'+tag+'</span>':'')+'</td>' +
+      '<td class="tm-sub-name"><span class="tm-emoji-col">'+esc(emoji)+'</span>'+esc(name)+(tag?' <span class="tm-role-tag">'+tag+'</span>':'')+'</td>' +
       '<td class="tm-num-cell">'+st.reps+'</td>' +
       '<td class="tm-num-cell">'+st.wk+'</td>' +
       '<td class="tm-num-cell">'+st.avg.toFixed(1)+'</td></tr>';
@@ -1303,7 +1303,7 @@ function _tmLdrDays(emails, roster) {
              '<td class="tm-day-cell tm-unit-cell '+uCls(day.u,past)+'">'+(past?day.u:'—')+'</td>';
     }).join('');
     return '<tr><td class="tm-ldr-rank">'+(idx+1)+'</td>' +
-      '<td class="tm-ldr-name-cell"><span class="tm-ldr-name" onclick="_lstShowRepProfile(\''+esc(e)+'\')">'+esc(a.name)+'</span>' +
+      '<td class="tm-ldr-name-cell"><span class="tm-ldr-name" onclick="_lstShowRepProfile('+jsq(e)+')">'+esc(a.name)+'</span>' +
       '<div class="lst-rep-role">'+esc(_LST_RNKL[a.rank]||a.rank)+'</div></td>'+dayCells+'</tr>';
   }).join('');
 
@@ -1334,7 +1334,7 @@ function _tmLdrWeeks(emails, roster) {
     var a=agg[e];
     var wkCells=a.wks.map(function(wk){ return '<td class="tm-day-cell">'+wk.o+'</td><td class="tm-day-cell">'+wk.u+'</td>'; }).join('');
     return '<tr><td class="tm-ldr-rank">'+(idx+1)+'</td>' +
-      '<td class="tm-ldr-name-cell"><span class="tm-ldr-name" onclick="_lstShowRepProfile(\''+esc(e)+'\')">'+esc(a.name)+'</span>' +
+      '<td class="tm-ldr-name-cell"><span class="tm-ldr-name" onclick="_lstShowRepProfile('+jsq(e)+')">'+esc(a.name)+'</span>' +
       '<div class="lst-rep-role">'+esc(_LST_RNKL[a.rank]||a.rank)+'</div></td>'+wkCells+'</tr>';
   }).join('');
   var totCells=totWks.map(function(wk){ return '<td class="tm-day-cell"><b>'+wk.o+'</b></td><td class="tm-day-cell"><b>'+wk.u+'</b></td>'; }).join('');
@@ -1387,7 +1387,7 @@ function _tmBuildForm(teamId) {
     '<div style="display:flex;flex-wrap:wrap;gap:2px;max-height:160px;overflow-y:auto;padding:4px;background:var(--field-bg);border:1.5px solid var(--field-border);border-radius:6px">'+grid+'</div>'+
     '</div>'+
     '<div class="nm-actions">'+
-    '<button class="nm-add-btn" onclick="saveTeamModal(\''+esc(teamId||'')+'\')">SAVE</button>'+
+    '<button class="nm-add-btn" onclick="saveTeamModal('+jsq(teamId||'')+')">SAVE</button>'+
     '<button class="nm-close-btn" onclick="closeModal()">CANCEL</button>'+
     '</div>';
 }
