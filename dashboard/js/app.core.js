@@ -1399,6 +1399,23 @@ function doForgotPassword() {
   document.getElementById('login-error').style.display = 'none';
   if (!LOGIN_EMAIL) { loginBack(); return; }
   document.getElementById('login-reset-sent-who').textContent = LOGIN_EMAIL;
+  _resetSentWords(false);
+  loginShowStep('resetsent');
+  _sendResetIfAllowed();
+}
+/* 🔴 2026-10-13 (HIGH #5, user chose "A", 📗 D-077): a NEW person (no password yet) is NOT shown a create-password form —
+   anyone who knew their email could use that form first. They get the emailed link instead: the same request, cooldown
+   and resend button as "Forgot password", in welcome words. The server's setPin no longer sets a password either. */
+function _resetSentWords(first) {
+  var r = document.getElementById('login-reset-sent-text'), f = document.getElementById('login-first-sent-text');
+  if (r) r.style.display = first ? 'none' : '';
+  if (f) f.style.display = first ? '' : 'none';
+}
+function doFirstPasswordLink() {
+  document.getElementById('login-error').style.display = 'none';
+  if (!LOGIN_EMAIL) { loginBack(); return; }
+  var who = document.getElementById('login-first-sent-who'); if (who) who.textContent = LOGIN_EMAIL;
+  _resetSentWords(true);
   loginShowStep('resetsent');
   _sendResetIfAllowed();
 }
@@ -1502,12 +1519,8 @@ function loginCheckEmail() {
       document.getElementById('login-pin').value = '';
       document.getElementById('login-pin').focus();
     } else {
-      document.getElementById('login-who-set').textContent = email;
-      loginShowStep('setpin');
-      document.getElementById('login-new-pin').value = '';
-      document.getElementById('login-confirm-pin').value = '';
-      _pwCheck('login-new-pin', 'login-new-pin-req');
-      document.getElementById('login-new-pin').focus();
+      // No password yet ⇒ the emailed link (D-077), never the old create-password form.
+      doFirstPasswordLink();
     }
   }).catch(function() {
     btn.disabled = false; btn.textContent = 'Continue';

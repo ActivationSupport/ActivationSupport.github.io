@@ -173,7 +173,9 @@
 
     <!-- Step: reset link sent confirmation -->
     <div id="ls-reset-sent-step" style="display:none">
-      <p class="login-set-intro">If <span id="login-reset-sent-who" style="color:var(--login-accent);font-weight:600"></span> is registered, a password reset link is on its way. Check your inbox (and spam) — the link works for 45 minutes.</p>
+      <p class="login-set-intro" id="login-reset-sent-text">If <span id="login-reset-sent-who" style="color:var(--login-accent);font-weight:600"></span> is registered, a password reset link is on its way. Check your inbox (and spam) — the link works for 45 minutes.</p>
+      <!-- 2026-10-13 (D-077): a NEW person's first password is set only through an emailed link — same step, welcome words. -->
+      <p class="login-set-intro" id="login-first-sent-text" style="display:none"><b>Welcome!</b> To keep your account safe, we've emailed a link to <span id="login-first-sent-who" style="color:var(--login-accent);font-weight:600"></span> — open it to create your password. Check your inbox (and spam); the link works for 45 minutes.</p>
       <button class="btn" id="login-resend-btn" onclick="doResendReset()">Resend link</button>
       <div class="login-back" onclick="loginBack()"><span class="ico"><svg><use href="#i-arrow-left"></use></svg></span>Back to sign in</div>
     </div>
@@ -367,7 +369,7 @@
      no dependencies precisely so it can hold this slot — do not "tidy" it next to its
      alphabetical neighbours or below app.core.js. -->
 <script defer src="js/app.errors.js?v=20261002a"></script>
-<script defer src="js/app.core.js?v=20261002a"></script>
+<script defer src="js/app.core.js?v=20261013a"></script>
 <!-- Keyboard reachability for the 77 clickable div/span/tr elements that carry an inline
      onclick and no tabindex. Applied by MutationObserver, so no render site changes and
      new markup is covered as it appears. Order-independent (DOM APIs only), but kept next
