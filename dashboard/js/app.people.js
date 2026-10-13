@@ -51,6 +51,18 @@ var _PEOPLE_TOP_RANKS = { 'owner':true, 'master-admin':true };
    🔑 Code.gs is the real gate; this only decides what the form offers and enables. */
 var _PEOPLE_RANK_CAPPED = { 'activator':true, 'admin':true, 'jd':true, 'manager':true };
 
+/* 📗 D-078 (2026-10-13): nobody changes someone ranked AT OR ABOVE themselves — same rank included; a master-admin may
+   change anyone; your own row is name/phone only. ⚠ A COPY of Code.gs `_RANK_LEVEL` (rankcap_harness compares the two);
+   this one only decides which buttons and fields show — Code.gs `_authGate` is the gate. */
+var _PEOPLE_RANK_LEVEL = { 'master-admin':7, 'owner':6, 'admin':5, 'activator':5, 'manager':4, 'jd':4, 'leader':3, 'client-rep':1 };
+function _peopleOutranks(targetRank) {
+  var me = String(SESSION.role || '').trim().toLowerCase(), t = String(targetRank || 'client-rep').trim().toLowerCase();
+  if (me === 'master-admin') return true;
+  var a = _PEOPLE_RANK_LEVEL.hasOwnProperty(me) ? _PEOPLE_RANK_LEVEL[me] : 0;
+  var b = _PEOPLE_RANK_LEVEL.hasOwnProperty(t) ? _PEOPLE_RANK_LEVEL[t] : 6;   // unknown target fails closed, as on the server
+  return a > b;
+}
+
 /* The modal's field-level capabilities. Extracted for the same reason as `_peopleRowCtx` above:
    `buildPersonForm` RENDERS from these and `savePerson` RE-DERIVES them, so two copies would let
    the form show one thing and the save send another — and the backend would be the only thing
@@ -60,7 +72,7 @@ var _PEOPLE_RANK_CAPPED = { 'activator':true, 'admin':true, 'jd':true, 'manager'
    master-admin's. Before this, every flag depended only on the caller.
    ⚠⚠ THIS IS CONVENIENCE, NOT THE BOUNDARY. The real gate is the escalation guard in `Code.gs`
    ("(b) Rank may only be CHANGED by …"). Disabling a <select> hides a control, not an endpoint. */
-function _peopleEditCaps(targetRank) {
+function _peopleEditCaps(targetRank, isSelf) {
   var role = SESSION.role;
   var editLevel;
   if (role === 'master-admin')   editLevel = 'full';
@@ -70,8 +82,16 @@ function _peopleEditCaps(targetRank) {
   else if (role === 'leader')    editLevel = 'leaderbasic'; // team leads: add/assign people + edit basics (no role/perms/status)
   else editLevel = 'selfphone';
   var tgt = String(targetRank || '').trim().toLowerCase();
+  /* 📗 D-078: your OWN row → name and phone only; someone you do not OUTRANK → read only. master-admin unchanged. */
+  if (role !== 'master-admin' && isSelf) {
+    return { editLevel: editLevel, canRole: false, canPerms: false, canStatus: false, canBasic: editLevel !== 'selfphone', canTeamTab: false };
+  }
+  if (role !== 'master-admin' && !_peopleOutranks(tgt || 'client-rep')) {
+    return { editLevel: editLevel, canRole: false, canPerms: false, canStatus: false, canBasic: false, canTeamTab: false };
+  }
   return {
     editLevel: editLevel,
+    canTeamTab: editLevel !== 'selfphone',   // team + Tableau name (D-078 splits these from the name for self-edits)
     /* ⚠ A capped role LOSES this when the person being edited is an owner or master-admin —
        user, 2026-08-31: "they should not be able to change master admin or owner".
        ⚠⚠ Keyed off `role`, NOT `editLevel`: jd and manager share admin's editLevel, so an
@@ -224,7 +244,7 @@ function _peopleRemovedRowHtml(row, ctx) {
     ? '<span style="color:var(--text2)">unknown</span>'
     : (row.daysLeft <= 3 ? '<span class="badge badge-red">' + row.daysLeft + ' day' + (row.daysLeft === 1 ? '' : 's') + '</span>'
                          : row.daysLeft + ' days');
-  var actions = ctx.canRestore
+  var actions = (ctx.canRestore && _peopleOutranks(row.rank))   // 📗 D-078: only someone you outrank
     ? '<td><button class="notes-btn" onclick="restorePerson(\''+esc(row.email)+'\')">Restore</button></td>'
     : '<td></td>';
   return '<tr data-email="'+esc(row.email)+'" style="color:var(--text2)">' +
@@ -247,11 +267,15 @@ function _peopleRowHtml(row, ctx) {
       if (row.isGuest) {
         actions = (isAdmin || isMgr) ? '<td style="color:#aaa;font-size:.78rem">Managed in ' + esc(OFFICE_NAMES[row.homeOffice]||row.homeOffice) + '</td>' : '<td></td>';
       } else if (canManagePeople) {
-        // Reset Password: management tier only, never your own row, and a
-        // master-admin target only by another master-admin (matches the backend).
-        var resetBtn = (canResetPw && !isSelf && (row.rank !== 'master-admin' || role === 'master-admin'))
+        // Reset Password: management tier only, never your own row, and (📗 D-078) only someone you OUTRANK —
+        // which also covers "a master-admin target only by another master-admin" (matches the backend).
+        var _outranks = _peopleOutranks(row.rank);
+        var resetBtn = (canResetPw && !isSelf && _outranks)
           ? ' <button class="notes-btn" onclick="resetPersonPassword(\''+esc(row.email)+'\')">Reset Password</button>' : '';
-        actions = '<td style="white-space:nowrap"><button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">Edit</button>' +
+        // Edit: someone you outrank, or your own row (name/phone only). Anyone else: no buttons — the server would refuse.
+        var editBtn = (isSelf || _outranks)
+          ? '<button class="notes-btn" onclick="openEditPersonModal(\''+esc(row.email)+'\')">'+(isSelf && role !== 'master-admin' ? 'Edit Name/Phone' : 'Edit')+'</button>' : '';
+        actions = '<td style="white-space:nowrap">' + editBtn +
           resetBtn +
           (role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson(\''+esc(row.email)+'\')">Remove</button>' : '') + '</td>';
       } else if (isMgr) {
@@ -401,12 +425,13 @@ function buildPersonForm(email, person) {
      touch the Role field at all. On the ADD form there is no target yet, so `rank` defaults to
      client-rep and an activator can set the new person's role — which is correct: the cap is on
      GRANTING owner/master-admin (handled by _peopleGrantableRoles), not on adding people. */
-  var caps      = _peopleEditCaps(rank);
+  var caps      = _peopleEditCaps(rank, !!isSelf);
   var editLevel = caps.editLevel;
   var canRole   = caps.canRole;
   var canPerms  = caps.canPerms;
   var canStatus = caps.canStatus;
   var canBasic  = caps.canBasic;
+  var canTeamTab = caps.canTeamTab;
   var fs = 'width:100%;padding:8px;border:1.5px solid var(--field-border);border-radius:6px;background:var(--field-bg);color:var(--text)';
   var ds = ';background:var(--field-bg);color:#999';
   var perms = (p.permissions || CFG.officeId).split(',').map(function(o){ return o.trim(); });
@@ -443,8 +468,8 @@ function buildPersonForm(email, person) {
   html += '<div class="field"><label>Email</label><input type="email" id="pf-email" value="'+esc(email||'')+'"'+(isEdit?' readonly style="'+fs+ds+'"':' style="'+fs+'"')+'></div>';
   html += '<div class="field"><label>Phone</label><input type="text" id="pf-phone" value="'+esc(p.phone||'')+'" placeholder="e.g. 555-867-5309" style="'+fs+'"></div>';
   html += '<div class="field"><label>Role'+lock(canRole)+'</label><select id="pf-role"'+(canRole?'':' disabled')+' style="'+fs+(canRole?'':ds)+'">'+ roleOpts+'</select></div>';
-  html += '<div class="field"><label>Team</label><select id="pf-team"'+(canBasic?'':' disabled')+' style="'+fs+(canBasic?'':ds)+'">'+teamOpts+'</select></div>';
-  html += '<div class="field"><label>Tableau Name'+lock(canBasic)+'</label><select id="pf-tableau"'+(canBasic?'':' disabled')+' style="'+fs+(canBasic?'':ds)+'">'+tableauOpts+'</select></div>';
+  html += '<div class="field"><label>Team'+lock(canTeamTab)+'</label><select id="pf-team"'+(canTeamTab?'':' disabled')+' style="'+fs+(canTeamTab?'':ds)+'">'+teamOpts+'</select></div>';
+  html += '<div class="field"><label>Tableau Name'+lock(canTeamTab)+'</label><select id="pf-tableau"'+(canTeamTab?'':' disabled')+' style="'+fs+(canTeamTab?'':ds)+'">'+tableauOpts+'</select></div>';
   html += '<div class="field"><label>Office Permissions'+lock(canPerms)+'</label><div id="pf-perms" style="padding:8px;border:1.5px solid var(--field-border);border-radius:6px'+(canPerms?'':';background:var(--field-bg)')+'">'+ officeChecks+'</div></div>';
   html += '<div class="field"><label>Status'+lock(canStatus)+'</label><select id="pf-status"'+(canStatus?'':' disabled')+' style="'+fs+(canStatus?'':ds)+'"><option value="false"'+(p.deactivated?'':' selected')+'>Active</option><option value="true"'+(p.deactivated?' selected':'')+'>Inactive</option></select></div>';
   html += '<div class="nm-actions"><button class="nm-add-btn" onclick="savePerson('+(isEdit?'\''+esc(email)+'\'':'null')+')">SAVE</button><button class="nm-close-btn" onclick="closeModal()">CANCEL</button></div>';
@@ -472,14 +497,16 @@ function savePerson(existingEmail) {
      out of `#pf-role` would let a tampered <select> widen the caller's own permissions — the
      value under test would be supplying the test. `existing.rank` is what the roster says.
      🔑 Same helper the form rendered from, so the two cannot disagree. */
-  var caps      = _peopleEditCaps(existing.rank || 'client-rep');
+  var _isSelfSave = !!existingEmail && existingEmail.toLowerCase() === (SESSION.email || '').toLowerCase();
+  var caps      = _peopleEditCaps(existing.rank || 'client-rep', _isSelfSave);
   var canRole   = caps.canRole;
   var canPerms  = caps.canPerms;
   var canStatus = caps.canStatus;
   var canBasic  = caps.canBasic;
-  var name        = canBasic  ? document.getElementById('pf-name').value.trim()    : (existing.name || '');
-  var team        = canBasic  ? document.getElementById('pf-team').value.trim()    : (existing.team || '');
-  var tableauName = canBasic  ? document.getElementById('pf-tableau').value        : (existing.tableauName || '');
+  var canTeamTab = caps.canTeamTab;
+  var name        = canBasic   ? document.getElementById('pf-name').value.trim()    : (existing.name || '');
+  var team        = canTeamTab ? document.getElementById('pf-team').value.trim()    : (existing.team || '');
+  var tableauName = canTeamTab ? document.getElementById('pf-tableau').value        : (existing.tableauName || '');
   var deactivated = canStatus ? document.getElementById('pf-status').value==='true': (existing.deactivated || false);
   var rank        = canRole   ? document.getElementById('pf-role').value           : (existing.rank || 'client-rep');
   var checked     = canPerms  ? document.querySelectorAll('#pf-perms input[type=checkbox]:checked') : null;
