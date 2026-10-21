@@ -299,6 +299,27 @@ var OFFICE_CONFIG = {
     lockTheme:'light',
     bookTint:'#C79E48', bookLogo:'powershift-logo-gold-symbol.png'
   },
+  thrivepoint: {
+    /* Thrive Point, Inc — Fresno CA, onboarded 2026-10-21 (10th office). ROYAL & GOLD, picked by the user ("A") from a
+       rendered side-by-side (_private/preview/thrivepoint_brand_preview.js) against B · gold buttons, which read too
+       close to Powershift. Brand from their own Elementor kit: navy #203782 · blue #3F5BB5 · gold #EBC32F.
+       · DEEP-NAVY structure (sidebar/band) is what tells them apart: Elevate owns a near-identical blue accent (#3D5BFF)
+         and Powershift a gold button, so neither the blue nor the gold alone would.
+       · btn #2E4AA8 (between their navy and blue) carries white text at 7.89:1; accent gold #EBC32F is 9.15:1 on the dark
+         card. Gold is only 1.6:1 on WHITE, so light mode uses lightInk = their navy (10.88:1).
+       · onAccent is DARK navy (a gold fill takes dark text, 9.10:1) — the bright-accent pattern of eaglespeak/evolution. */
+    name:'Thrive Point', color:'#EBC32F',
+    theme:{ btn:'#2E4AA8', accent:'#EBC32F', lightInk:'#203782', lightNav:'#EBC32F', dark:'#14214F', hover:'#3F5BB5', glow:'#203782', band:'#101B45', onBand:'#ffffff', sidebar:'#0D1636', btnText:'#ffffff', onAccent:'#14214F' },
+    /* MIRRORED in Code.gs OFFICE_CONFIG.thrivepoint.brand; move the two together. Navy band, gold rules, navy accent text
+       (the report email body is WHITE, where gold would be 1.6:1). */
+    reportBrand:{ band:'#101B45', headerText:'#FFFFFF', headerSub:'#F2D45C', accent:'#EBC32F', accentText:'#203782', logo:'thrivepoint-logo-full-reverse.png', logoH:40 },
+    /* Their artwork, not redrawn. There is NO official reverse (their _Reverse_ uploads 404) and the navy wordmark vanishes
+       on dark, so the reverse is BUILT by logo_build.js `recolorBlueInk` — navy letters → white, the gold compass exactly as
+       drawn. fullLight = their standard navy lockup. The lockup is 2.81:1 — the SAME aspect as Apex Premier's — so the
+       heights are Apex's, which were matched on rendered area (office_uniformity.js), not guessed. */
+    logos:{ full:'assets/thrivepoint-logo-full-reverse.png', fullLight:'assets/thrivepoint-logo-full.png', emblem:'assets/thrivepoint-logo-symbol.png', sidebarH:52, drHeaderH:35 },
+    bookTint:'#EBC32F', bookLogo:'thrivepoint-logo-symbol.png'
+  },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
   // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
   // dark is FORCED (see _applyTheme + the html[data-office="salessupport"] block in

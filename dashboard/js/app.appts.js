@@ -207,9 +207,10 @@ function _apptActName(email) {
 // ⚠ evolution is Louisville KY = EASTERN. Kentucky is split, and the western half is
 // Central — the office directory in the ticketing backend is the authority here.
 // ⚠ powershift is Worcester MA = EASTERN (Massachusetts is not split).
+// ⚠ thrivepoint is Fresno CA = PACIFIC (California is not split; the office directory agrees, 2026-10-21).
 // ⚠ apexpremier is Fremont CA = PACIFIC. Same authority: the ticketing backend's office
 // directory already carried the address and IANA zone before we asked anyone.
-var APPT_OFFICE_TZ = { viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', leadsphere:'America/Chicago', evolution:'America/New_York', revamped:'America/Chicago', apexpremier:'America/Los_Angeles', eaglespeak:'America/New_York', powershift:'America/New_York' };
+var APPT_OFFICE_TZ = { viridian:'America/Chicago', elevate:'America/Los_Angeles', vanguard:'America/New_York', leadsphere:'America/Chicago', evolution:'America/New_York', revamped:'America/Chicago', apexpremier:'America/Los_Angeles', eaglespeak:'America/New_York', powershift:'America/New_York', thrivepoint:'America/Los_Angeles' };
 // Activators share their Google Calendar with THIS account (the Appointment
 // Scheduler's deploy-owner) to enable two-way sync. One constant → shown in the
 // "My Schedule" linking step; update here if the backend's owner account changes.

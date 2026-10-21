@@ -271,7 +271,11 @@
     // navy #0A223E on the gold button is 6.42:1 at #C79E48 and 4.52:1 at the gradient's dark end
     // (#A9822F) — white would be 2.5:1. The mark is their own artwork recoloured gold/chrome, bright
     // enough for the dark tile without logoBg (the drift guard measures it).
-    powershift:{accent:'#C79E48',accent2:'#D4AF5A',dim:'#0A223E',deep:'#A9822F',on:'#0A223E',glow:'#1F3F63',logo:'powershift-logo-gold-symbol.png'}
+    powershift:{accent:'#C79E48',accent2:'#D4AF5A',dim:'#0A223E',deep:'#A9822F',on:'#0A223E',glow:'#1F3F63',logo:'powershift-logo-gold-symbol.png'},
+  // thrivepoint (2026-10-21) ROYAL & GOLD, as their portal: royal-blue fill + WHITE text (7.89:1 at #2E4AA8, higher at the
+  // navy end #203782), GOLD #EBC32F for accent TEXT on the dark page (accent2). The mark is their gold compass — bright,
+  // so no logoBg (the drift guard measures luma).
+  thrivepoint:{accent:'#2E4AA8',accent2:'#EBC32F',dim:'#14214F',deep:'#203782',on:'#ffffff',glow:'#203782',logo:'thrivepoint-logo-symbol.png'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t=THEMES[o]; if(!t) return;

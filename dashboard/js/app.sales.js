@@ -900,7 +900,8 @@ var ATX_OFFICE_NUMBER = {
   revamped:  '',   // ⏰ ditto. Blank renders the [Office Activation Number] placeholder
   apexpremier: '', // ⏰ ditto — number is provisioned when the office starts taking calls (D-038)
   eaglespeak: '',  // ⏰ ditto — their QC line is in OFFICE_QC_NUMBER, which is NOT this number
-  powershift: ''   // ⏰ ditto — user 2026-09-17: "We are working on their number currently"
+  powershift: '',  // ⏰ ditto — user 2026-09-17: "We are working on their number currently"
+  thrivepoint: ''  // ⏰ ditto — onboarded 2026-10-21; no customer number supplied yet (D-038)
 };
 
 /* An office's QUALITY CONTROL line — the number a rep adds to the Rehash GROUP TEXT so the
