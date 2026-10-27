@@ -320,6 +320,41 @@ var OFFICE_CONFIG = {
     logos:{ full:'assets/thrivepoint-logo-full-reverse.png', fullLight:'assets/thrivepoint-logo-full.png', emblem:'assets/thrivepoint-logo-symbol.png', sidebarH:52, drHeaderH:35 },
     bookTint:'#EBC32F', bookLogo:'thrivepoint-logo-symbol.png'
   },
+  kcstandard: {
+    /* The Standard Marketing (Tableau: "the kc standard inc") — Overland Park KS, onboarded 2026-10-27. TEAL & GOLD,
+       picked by the user from a rendered side-by-side (_private/preview/kcatlas_brand_preview.js) with Viridian and
+       Evolution as reference rows. Brand from their own artwork: teal wordmark #0C6C6C in a gold-foil frame.
+       · btn #0C6C6C carries white text at 6.22:1; gold accent #D4AF4A is 7.41:1 on the dark card. Gold is illegible on
+         WHITE, so light mode uses lightInk = their teal (6.22:1).
+       · onAccent is DARK teal (a gold fill takes dark text, 7.61:1). */
+    name:'The Standard Marketing', color:'#D4AF4A',
+    theme:{ btn:'#0C6C6C', accent:'#D4AF4A', lightInk:'#0C6C6C', lightNav:'#D4AF4A', dark:'#0E2B2B', hover:'#128280', glow:'#0C4A4A', band:'#0A2626', onBand:'#ffffff', sidebar:'#071C1C', btnText:'#ffffff', onAccent:'#0A2626' },
+    /* MIRRORED in Code.gs OFFICE_CONFIG.kcstandard.brand; move the two together. Teal band, gold rules, teal accent text
+       (the report email body is WHITE, where gold would be illegible). */
+    reportBrand:{ band:'#0A2626', headerText:'#FFFFFF', headerSub:'#D4AF4A', accent:'#D4AF4A', accentText:'#0C6C6C', logo:'kcstandard-logo-full-reverse.png', logoH:50 },
+    /* Their artwork, not redrawn. No reverse exists and the teal letters vanish on dark, so the reverse is BUILT by
+       logo_build.js `recolorTealInk` — teal letters → white, the gold frame exactly as drawn. fullLight = their teal
+       original. The lockup is ~1.8:1 (a framed, near-square mark), so it needs Viridian-style extra height. */
+    logos:{ full:'assets/kcstandard-logo-full-reverse.png', fullLight:'assets/kcstandard-logo-full.png', emblem:'assets/kcstandard-logo-symbol.png', sidebarH:60, loginH:80, drHeaderH:36 },
+    bookTint:'#0C6C6C', bookLogo:'kcstandard-logo-symbol.png'
+  },
+  atlas: {
+    /* Atlas Marketing, Inc. — Des Moines IA, onboarded 2026-10-27. STEEL & CRIMSON, picked by the user from a rendered
+       side-by-side with Apex Premier and Vanguard (the two red offices) as reference rows. Brand from their site: crimson
+       #C41230 · ink #16171A · silver #6B7078/#C9CCD1.
+       · STEEL buttons (#4A4F57, white 8.24:1) are what tell them apart: Apex and Vanguard both have RED buttons.
+       · accent #EE5A6E is their crimson lifted to clear 4.5:1 on the dark card (4.67:1) — the first render (#E8455C)
+         measured 4.02:1, tuned after the pick with the look unchanged. Dark onAccent (#16171A, 5.40:1) because white on
+         that crimson is 3.3:1; light mode forces white on lightInk #9E0E26 (8.25:1). */
+    name:'Atlas Marketing', color:'#C41230',
+    theme:{ btn:'#4A4F57', accent:'#EE5A6E', lightInk:'#9E0E26', lightNav:'#EE5A6E', dark:'#1E1F23', hover:'#6B7078', glow:'#3A0C16', band:'#16171A', onBand:'#ffffff', sidebar:'#0E0F11', btnText:'#ffffff', onAccent:'#16171A' },
+    /* MIRRORED in Code.gs OFFICE_CONFIG.atlas.brand; move the two together. */
+    reportBrand:{ band:'#16171A', headerText:'#FFFFFF', headerSub:'#C9CCD1', accent:'#EE5A6E', accentText:'#9E0E26', logo:'atlas-logo-full.png', logoH:54 },
+    /* Their round badge (black disc, red ring, silver globe) — self-backed, so ONE file reads on dark and light, and it is
+       both lockup and emblem (no horizontal wordmark exists). Square ⇒ Viridian-style heights. Source is 256px. */
+    logos:{ full:'assets/atlas-logo-full.png', emblem:'assets/atlas-logo-full.png', sidebarH:64, loginH:90, drHeaderH:40 },
+    bookTint:'#C41230', bookLogo:'atlas-logo-full.png'
+  },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
   // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
   // dark is FORCED (see _applyTheme + the html[data-office="salessupport"] block in

@@ -297,7 +297,7 @@
      🔴 apexpremier and eaglespeak were absent from 2026-08-25 to 2026-08-29: the THEMES table
      below had them (that is what officeconfig_drift checks) and this did not, so the drift
      guard stayed green while their customers hit a dead page. ADD EVERY NEW OFFICE HERE. */
-  var OFFICE_NAMES = { elevate:"Elevate", viridian:"Viridian", vanguard:"Vanguard", leadsphere:"LeadSphere Solutions", evolution:"Evolution Concepts", revamped:"Revamped Strategies", apexpremier:"Apex Premier Management", eaglespeak:"Eagles' Peak Enterprises", powershift:"Powershift Marketing", thrivepoint:"Thrive Point" };
+  var OFFICE_NAMES = { elevate:"Elevate", viridian:"Viridian", vanguard:"Vanguard", leadsphere:"LeadSphere Solutions", evolution:"Evolution Concepts", revamped:"Revamped Strategies", apexpremier:"Apex Premier Management", eaglespeak:"Eagles' Peak Enterprises", powershift:"Powershift Marketing", thrivepoint:"Thrive Point", kcstandard:"The Standard Marketing", atlas:"Atlas Marketing" };
   var PRODUCTS = ["Wireless", "Air", "Fiber - Self Install"];
   var qty = {};
   var win = null, selectedSlot = "", loadingSlots = false, ACTS = [];
@@ -348,7 +348,13 @@
   // thrivepoint (2026-10-21) ROYAL & GOLD, as their portal: royal-blue fill + WHITE text (7.89:1 at #2E4AA8, higher at the
   // navy end #203782), GOLD #EBC32F for accent TEXT on the dark page (accent2). The mark is their gold compass — bright,
   // so no logoBg (the drift guard measures luma).
-  thrivepoint:{accent:'#2E4AA8',accent2:'#EBC32F',dim:'#14214F',deep:'#203782',on:'#ffffff',glow:'#203782',logo:'thrivepoint-logo-symbol.png'}
+  thrivepoint:{accent:'#2E4AA8',accent2:'#EBC32F',dim:'#14214F',deep:'#203782',on:'#ffffff',glow:'#203782',logo:'thrivepoint-logo-symbol.png'},
+  // kcstandard (2026-10-27) TEAL & GOLD, as their portal: teal fill + WHITE text (6.22:1 at #0C6C6C), GOLD #D4AF4A for
+  // accent TEXT on the dark page (accent2). The mark is their white disc + gold script — bright, so no logoBg.
+  kcstandard:{accent:'#0C6C6C',accent2:'#D4AF4A',dim:'#0A2626',deep:'#0A5656',on:'#ffffff',glow:'#0C4A4A',logo:'kcstandard-logo-symbol.png'},
+  // atlas (2026-10-27) STEEL & CRIMSON, as their portal: steel fill + WHITE text (8.24:1 at #4A4F57), crimson #EE5A6E for
+  // accent TEXT on the dark page (accent2). logoBg: the badge is a BLACK disc (luma 0.18), invisible on the dark tile.
+  atlas:{accent:'#4A4F57',accent2:'#EE5A6E',dim:'#16171A',deep:'#3A3E45',on:'#ffffff',glow:'#3A0C16',logo:'atlas-logo-full.png',logoBg:'#ffffff'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t = THEMES[o]; if(!t) return;
@@ -412,7 +418,7 @@
     /* ⚠ Same trap as OFFICE_NAMES above, quieter: a missing entry does not block the booking,
        it just drops the "Times shown in … time (CT)" note, so the customer is never told which
        zone the slots are in. Add every new office here too. */
-    var OFFICE_TZ_ABBR = { elevate:"PT", viridian:"CT", vanguard:"ET", leadsphere:"CT", evolution:"ET", revamped:"CT", apexpremier:"PT", eaglespeak:"ET", powershift:"ET", thrivepoint:"PT" };
+    var OFFICE_TZ_ABBR = { elevate:"PT", viridian:"CT", vanguard:"ET", leadsphere:"CT", evolution:"ET", revamped:"CT", apexpremier:"PT", eaglespeak:"ET", powershift:"ET", thrivepoint:"PT", kcstandard:"CT", atlas:"CT" };
     var _tza = OFFICE_TZ_ABBR[OFFICE];
     if (_tza) $("tznote").textContent = "🕓 Times shown in " + OFFICE_NAMES[OFFICE] + " time (" + _tza + ").";
 

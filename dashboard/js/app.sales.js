@@ -901,7 +901,9 @@ var ATX_OFFICE_NUMBER = {
   apexpremier: '', // ⏰ ditto — number is provisioned when the office starts taking calls (D-038)
   eaglespeak: '',  // ⏰ ditto — their QC line is in OFFICE_QC_NUMBER, which is NOT this number
   powershift: '',  // ⏰ ditto — user 2026-09-17: "We are working on their number currently"
-  thrivepoint: ''  // ⏰ ditto — onboarded 2026-10-21; no customer number supplied yet (D-038)
+  thrivepoint: '', // ⏰ ditto — onboarded 2026-10-21; no customer number supplied yet (D-038)
+  kcstandard: '',  // ⏰ ditto — onboarded 2026-10-27. Their BUSINESS phone was supplied; that is not an activation line (D-038)
+  atlas: ''        // ⏰ ditto — onboarded 2026-10-27 (D-038)
 };
 
 /* An office's QUALITY CONTROL line — the number a rep adds to the Rehash GROUP TEXT so the
