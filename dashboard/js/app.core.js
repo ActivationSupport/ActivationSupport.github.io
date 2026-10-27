@@ -332,10 +332,14 @@ var OFFICE_CONFIG = {
     /* MIRRORED in Code.gs OFFICE_CONFIG.kcstandard.brand; move the two together. Teal band, gold rules, teal accent text
        (the report email body is WHITE, where gold would be illegible). */
     reportBrand:{ band:'#0A2626', headerText:'#FFFFFF', headerSub:'#D4AF4A', accent:'#D4AF4A', accentText:'#0C6C6C', logo:'kcstandard-logo-full-reverse.png', logoH:50 },
-    /* Their artwork, not redrawn. No reverse exists and the teal letters vanish on dark, so the reverse is BUILT by
-       logo_build.js `recolorTealInk` — teal letters → white, the gold frame exactly as drawn. fullLight = their teal
-       original. The lockup is ~1.8:1 (a framed, near-square mark), so it needs Viridian-style extra height. */
-    logos:{ full:'assets/kcstandard-logo-full-reverse.png', fullLight:'assets/kcstandard-logo-full.png', emblem:'assets/kcstandard-logo-symbol.png', sidebarH:60, loginH:80, drHeaderH:36 },
+    /* Their artwork, not redrawn. No reverse exists and the teal letters vanish on dark, so the reverse recolours the
+       teal letters white and keeps the gold frame exactly as drawn. fullLight = their teal original.
+       🔁 2026-10-27 (user: "keep it exactly the same, just making it higher rez and easier to read"): their site serves
+       only a 286px file, so both PNGs are now the SAME ARTWORK rebuilt at 4× (_private/preview/kc_logo_upscale.js:
+       high-quality upscale, edge ramp tightened, lettering set to the exact ink #0C6C6C — no shape changed), and shown
+       LARGER: sidebar 60→96 (fits the 200px max-width at 1.8:1), sign-in 80→110, report header 36→48. Swap in the
+       office's original file when it arrives. */
+    logos:{ full:'assets/kcstandard-logo-full-reverse.png', fullLight:'assets/kcstandard-logo-full.png', emblem:'assets/kcstandard-logo-symbol.png', sidebarH:96, loginH:110, drHeaderH:48 },
     bookTint:'#0C6C6C', bookLogo:'kcstandard-logo-symbol.png'
   },
   atlas: {
@@ -343,13 +347,15 @@ var OFFICE_CONFIG = {
        side-by-side with Apex Premier and Vanguard (the two red offices) as reference rows. Brand from their site: crimson
        #C41230 · ink #16171A · silver #6B7078/#C9CCD1.
        · STEEL buttons (#4A4F57, white 8.24:1) are what tell them apart: Apex and Vanguard both have RED buttons.
-       · accent #EE5A6E is their crimson lifted to clear 4.5:1 on the dark card (4.67:1) — the first render (#E8455C)
-         measured 4.02:1, tuned after the pick with the look unchanged. Dark onAccent (#16171A, 5.40:1) because white on
-         that crimson is 3.3:1; light mode forces white on lightInk #9E0E26 (8.25:1). */
+       · 🔒 ONE RED IN BOTH MODES — their exact crimson #C41230. User 2026-10-27: "The Atlas red shouldnt change shade when
+         swithcing from light to dark mode" → picked "A … keep the crimson" from a rendered side-by-side (A brand #C41230 ·
+         B balanced #DC2E48 · C bright #EE5A6E). So NO lightInk / lightNav: the accent IS the colour in both themes.
+         TRADE-OFF SHOWN AND ACCEPTED: small crimson text is 2.57:1 on the dark card (6.04:1 on white) — the same call as
+         Apex's #D30000 (D-039). White on crimson 6.04:1 ⇒ onAccent white. Was: #EE5A6E dark / #9E0E26 light. */
     name:'Atlas Marketing', color:'#C41230',
-    theme:{ btn:'#4A4F57', accent:'#EE5A6E', lightInk:'#9E0E26', lightNav:'#EE5A6E', dark:'#1E1F23', hover:'#6B7078', glow:'#3A0C16', band:'#16171A', onBand:'#ffffff', sidebar:'#0E0F11', btnText:'#ffffff', onAccent:'#16171A' },
+    theme:{ btn:'#4A4F57', accent:'#C41230', dark:'#1E1F23', hover:'#6B7078', glow:'#3A0C16', band:'#16171A', onBand:'#ffffff', sidebar:'#0E0F11', btnText:'#ffffff', onAccent:'#ffffff' },
     /* MIRRORED in Code.gs OFFICE_CONFIG.atlas.brand; move the two together. */
-    reportBrand:{ band:'#16171A', headerText:'#FFFFFF', headerSub:'#C9CCD1', accent:'#EE5A6E', accentText:'#9E0E26', logo:'atlas-logo-full.png', logoH:54 },
+    reportBrand:{ band:'#16171A', headerText:'#FFFFFF', headerSub:'#C9CCD1', accent:'#C41230', accentText:'#C41230', logo:'atlas-logo-full.png', logoH:54 },
     /* Their round badge (black disc, red ring, silver globe) — self-backed, so ONE file reads on dark and light, and it is
        both lockup and emblem (no horizontal wordmark exists). Square ⇒ Viridian-style heights. Source is 256px. */
     logos:{ full:'assets/atlas-logo-full.png', emblem:'assets/atlas-logo-full.png', sidebarH:64, loginH:90, drHeaderH:40 },
