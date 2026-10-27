@@ -1935,12 +1935,22 @@ function switchOffice(newOfficeId) {
   loadData();
 }
 
-// All 8 portal roles
+/* The 8 original portal roles — every role EXCEPT the QC Agent.
+   ⚠⚠ THE NAME PREDATES qc-agent (2026-10-26). A QC Agent sees only the Call Logs, Activator Text, Appointments and People
+   (user's call), so it is NOT in this list, and each tab it gets names it explicitly (ROLE_QC below). A tab marked
+   ALL_ROLES is therefore hidden from QC Agents — which is correct for every one of them today. */
 var ALL_ROLES  = ['master-admin','owner','admin','activator','client-rep','leader','jd','manager'];
+/* 🔎 QC AGENT (2026-10-26). Sees every order in the office in the Call Logs, adds activation notes and rates calls;
+   People is view-only; Appointments they can view and book like anyone, but are never bookable themselves. The
+   backend gates are in Code.gs (search "QC AGENT"). Only a master-admin can make someone a QC Agent. */
+var ROLE_QC = 'qc-agent';
 // Call-log tabs + Master Tracker: not visible to client-rep or leader (who get
 // the My Orders / My Team's Orders tabs instead). jd is included — jd has the
 // same office-wide visibility as a manager.
+/* ⚠ ROLES_CALL ALSO GATES the Daily + Weekly Report tabs and is checked equal to Code.gs `_DR_ROLES` — which is why
+   the QC Agent rides on ROLES_CALLLOG (the six Call Logs tabs only) and never on ROLES_CALL. */
 var ROLES_CALL = ['master-admin','owner','admin','activator','jd','manager'];
+var ROLES_CALLLOG = ROLES_CALL.concat([ROLE_QC]);
 /* 🗑 ROLES_REP IS GONE (2026-08-30, user's call). It meant "rep-side tabs: not visible to
    activator" and had exactly six members — Post Sale, Rehash, First Bill, Live Sales,
    Activation Rates, Churn. Activators were added to ALL SIX in one pass, which made every one
@@ -1952,7 +1962,7 @@ var ROLES_CALL = ['master-admin','owner','admin','activator','jd','manager'];
    ROLES_CALL tabs kept them — which is exactly why this is its own set and not a narrowing of
    ROLES_CALL. ⚠ The blob still ships dayAfterOrders to them; this hides the nav item, it is
    not a data boundary (see the ⚠⚠ note on the Admin group below). */
-var ROLES_DAYAFTER = ['master-admin','owner','admin','activator'];
+var ROLES_DAYAFTER = ['master-admin','owner','admin','activator',ROLE_QC];
 /* 🗑 ROLES_DAILY IS GONE (2026-08-31). It existed for ONE DAY: leaders were given the Daily
    Report on 08-30, then taken back off it on 08-31 once we looked at what the report contains —
    `activationSummary.repImpact` and `churnSummary.repImpact` name the office's five reps with the
@@ -1981,7 +1991,7 @@ var TABS = [
   { id: 'rehash',      label: 'Rehash Text',          roles: ALL_ROLES,  group: 'Sales',       sub: 'Generate the customer welcome text' },
   { id: 'postedsales', label: 'Posted Sales',         roles: ALL_ROLES,  group: 'Sales',       sub: 'View & correct posted sales' },
   { id: 'firstbill',   label: 'First Bill Calc',       roles: ALL_ROLES,  group: 'Sales',       sub: "Estimate a customer's first bill" },
-  { id: 'appointments', label: 'Appointments',         roles: ALL_ROLES,  group: 'Scheduling',  sub: 'Book & manage LD appointments' },
+  { id: 'appointments', label: 'Appointments',         roles: ALL_ROLES.concat([ROLE_QC]), group: 'Scheduling',  sub: 'Book & manage LD appointments' },
   /* ⚠ icon:'clock' is REQUIRED, not decoration. buildNav resolves `t.icon || t.id`, and there is
      no `i-myappts` symbol — so without this the row rendered with NO ICON AT ALL and no error,
      looking exactly like a tab that was never meant to have one. Reuses an existing sprite
@@ -2006,13 +2016,13 @@ var TABS = [
   { id: 'actsupport',  label: 'Activation/Pending Sheets', roles: ALL_ROLES, group: 'Orders',    sub: 'Date → Rep → Product → Status' },
   // Activator-side counterpart to the reps' Rehash Text — customer-facing messages for the
   // call/appointment types activators work out of the Call Logs tabs.
-  { id: 'acttext',     label: 'Activator Text',       roles: ['activator','master-admin'], group: 'Call Logs', sub: 'Customer texts for order issues & appointments', icon: 'smartphone' },
-  { id: 'master',      label: 'Master Tracker',       roles: ROLES_CALL, group: 'Call Logs',   sub: '120-day window' },
+  { id: 'acttext',     label: 'Activator Text',       roles: ['activator','master-admin',ROLE_QC], group: 'Call Logs', sub: 'Customer texts for order issues & appointments', icon: 'smartphone' },
+  { id: 'master',      label: 'Master Tracker',       roles: ROLES_CALLLOG, group: 'Call Logs',   sub: '120-day window' },
   { id: 'dayafter',    label: 'Day-After Calls',      roles: ROLES_DAYAFTER, group: 'Call Logs', sub: "Yesterday's deliveries" },
-  { id: 'delivered',   label: 'Delivered Not Active', roles: ROLES_CALL, group: 'Call Logs',   sub: 'Open & delivered orders' },
-  { id: 'issues',      label: 'Order Issues',        roles: ROLES_CALL, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
-  { id: 'escalations', label: 'Escalations',          roles: ROLES_CALL, group: 'Call Logs',   sub: '1 & 2 star ratings' },
-  { id: 'noanswer',    label: 'No Answer',            roles: ROLES_CALL, group: 'Call Logs',   sub: 'No answer ratings' },
+  { id: 'delivered',   label: 'Delivered Not Active', roles: ROLES_CALLLOG, group: 'Call Logs',   sub: 'Open & delivered orders' },
+  { id: 'issues',      label: 'Order Issues',        roles: ROLES_CALLLOG, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
+  { id: 'escalations', label: 'Escalations',          roles: ROLES_CALLLOG, group: 'Call Logs',   sub: '1 & 2 star ratings' },
+  { id: 'noanswer',    label: 'No Answer',            roles: ROLES_CALLLOG, group: 'Call Logs',   sub: 'No answer ratings' },
   // Its own group, directly under Call Logs — that's where someone is standing when they
   // hit an order issue. Content is served from the _Knowledge sheet, never committed.
   { id: 'knowledge',   label: 'Issue Resolution',     roles: ALL_ROLES,  group: 'Knowledge',   sub: 'Order issue playbooks & scripts', icon: 'training' },
@@ -2059,7 +2069,7 @@ var TABS = [
      owns alert-triangle and escalations owns alert-octagon, and a third warning shape in the nav
      would read as a third severity level rather than a place to look. */
   { id: 'adminerrors', label: 'Error Log',             roles: ['master-admin'], group: 'Admin', sub: 'Live client errors across every portal', icon: 'monitor' },
-  { id: 'people',       label: 'People',               roles: ALL_ROLES,  group: 'Team',        sub: 'Roster & guests' },
+  { id: 'people',       label: 'People',               roles: ALL_ROLES.concat([ROLE_QC]), group: 'Team',       sub: 'Roster & guests' },
   { id: 'teams',        label: 'Teams',                roles: ALL_ROLES,  group: 'Team',        sub: 'Team rosters & stats' },
 ];
 

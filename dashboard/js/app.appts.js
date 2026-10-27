@@ -181,6 +181,10 @@ function _apptWindow(allowSameDay) {
 }
 // Phase 3 #1b: only activators + master-admins get the same-day booking override.
 function _apptCanSameDay(){ return SESSION.role==='master-admin'||SESSION.role==='activator'; }
+/* Who sees every appointment's customer name / DSI (not just their own bookings). qc-agent added 2026-10-26 (user's
+   call) — SEEING only: cancel/reschedule/outcome keep their own master-admin/activator/booker checks. Mirrors the
+   Scheduler's getAppointments canSeeName, which is the real boundary (it masks the rows before they leave). */
+function _apptSeesCustomer(){ return SESSION.role==='master-admin'||SESSION.role==='activator'||SESSION.role==='qc-agent'; }
 function _apptFmt12(t) {
   if (!t) return ''; var p=t.split(':').map(Number); var h=p[0],m=p[1];
   return (h>12?h-12:h===0?12:h)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM');
@@ -822,7 +826,7 @@ function _apptCalGrid(appts, acts, ws) {
       if (fe) {
         var mine=slotAppts.find(function(a){return a.activatorEmail===fe;});
         if (mine) {
-          var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||mine.bookerEmail===SESSION.email;
+          var ok=_apptSeesCustomer()||mine.bookerEmail===SESSION.email;
           var col=_apptActColor(fe);
           var _ct=_apptDualParts(mine.date,mine.timeSlot,mine.activatorEmail);
           html+='<div class="appt-cal-cell appt-cell-booked'+_apptCellTypeCls(mine)+'" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(mine.customerName):'Booked')+' · '+esc(_apptCellTitleMeta(mine))+(_ct.same?'':' · call '+esc(_ct.actLbl+(_ct.actAbbr?' '+_ct.actAbbr:'')))+'">'+
@@ -922,7 +926,7 @@ function _apptUpcomingTable(appts) {
     '<th>Date</th><th>Time</th><th>Activator</th><th>Customer</th><th>DSI</th><th>Type</th><th>Services / Reason</th><th>Status</th><th>Outcome</th><th>Actions</th><th>Booked By</th>'+
     '</tr></thead><tbody>';
   rows.forEach(function(a){
-    var ok=canAll||a.bookerEmail===SESSION.email;       // may see customer / DSI
+    var ok=_apptSeesCustomer()||a.bookerEmail===SESSION.email;       // may see customer / DSI
     var canX=canAll||a.bookerEmail===SESSION.email;      // may modify
     var cancelled = a.status==='cancelled';
     var occurred  = a.date<=today;                       // happened or happening today
@@ -1006,7 +1010,7 @@ function _apptAllActGrid(appts, acts, dStr){
       var ap=aMap[a.email+'|'+slot], sc=_apptDaySched(a.schedule,dk), asl=_apptToAct(dStr,slot,a.email);
       var inSched=sc&&_apptSlotInSched(asl,sc.start,sc.end);
       if(ap){
-        var ok=SESSION.role==='master-admin'||SESSION.role==='activator'||ap.bookerEmail===SESSION.email;
+        var ok=_apptSeesCustomer()||ap.bookerEmail===SESSION.email;
         var col=_apptActColor(a.email);
         html+='<div class="appt-cal-cell appt-cell-booked'+_apptCellTypeCls(ap)+'" style="box-shadow:inset 3px 0 0 '+col+'" title="'+(ok?esc(ap.customerName):'Booked')+' · '+esc(_apptCellTitleMeta(ap))+'">'+
           '<div class="appt-cell-name">'+_apptOutcomeGlyph(ap)+(ok?esc(ap.customerName):'••••••')+_apptSrcBadge(ap)+'</div>'+
@@ -1038,11 +1042,10 @@ function _apptDayAgenda(appts, acts, dStr){
     .sort(function(a,b){ return (a.timeSlot||'').localeCompare(b.timeSlot||''); });
   if(!rows.length) return '<div class="card" style="margin-bottom:16px"><div class="card-body">' +
     noData('No appointments scheduled for this day.', { icon:'appointments', bare:true }) + '</div></div>';
-  var canAll = SESSION.role==='master-admin'||SESSION.role==='activator';
   var today = _apptDateStr(new Date());
   var h='<div class="appt-agenda">';
   rows.forEach(function(a){
-    var ok=canAll||a.bookerEmail===SESSION.email, col=_apptActColor(a.activatorEmail);
+    var ok=_apptSeesCustomer()||a.bookerEmail===SESSION.email, col=_apptActColor(a.activatorEmail);
     var dsi = ok && a.customerDSI ? ' <span class="appt-dsi-link" title="Open in SaraPlus + copy" onclick="clickDsi('+jsq(a.customerDSI)+')">'+esc(a.customerDSI)+'</span>' : '';
     h+='<div class="appt-agenda-row'+_apptCellTypeCls(a)+'" style="border-left:3px solid '+col+'">'+
       '<div class="appt-agenda-time">'+esc(_apptFmt12(_apptToOffice(a.date,a.timeSlot,a.activatorEmail)))+'</div>'+

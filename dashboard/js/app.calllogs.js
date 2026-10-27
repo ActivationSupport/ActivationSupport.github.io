@@ -1282,7 +1282,9 @@ function openNotesModal(dsi, customer, rep, opts) {
   var custNote = String(opts.customerNote || '').trim();
   var rating = (DATA.ratings||{})[dsi] || '';
   var role = SESSION.role || 'client-rep';
-  var canAddActivation = role==='master-admin' || role==='activator';
+  // qc-agent (2026-10-26): adds activation notes; rep notes, cancel requests and inquiries stay READ-ONLY to them —
+  // they are left out of canAddRep on purpose (Code.gs _authGate refuses those note types for them too).
+  var canAddActivation = role==='master-admin' || role==='activator' || role==='qc-agent';
   var canAddRep = ['master-admin','owner','admin','activator','client-rep','leader','jd','manager'].indexOf(role) !== -1;
 
   // 'cancel' matches none of these filters, so cancel requests never leak into the
@@ -1298,7 +1300,7 @@ function openNotesModal(dsi, customer, rep, opts) {
 
   // Only the activation team may SET ratings (mirrors the backend setRating gate);
   // everyone else sees the current rating read-only.
-  var canRate = ['master-admin','admin','activator'].indexOf(role) !== -1;
+  var canRate = ['master-admin','admin','activator','qc-agent'].indexOf(role) !== -1;
   var ratingHtml;
   if (canRate) {
     ratingHtml = RATING_OPTS.map(function(r) {

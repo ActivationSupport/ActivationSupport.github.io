@@ -14,7 +14,7 @@ var _LST_DAYS = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
 var _LST_RNKL = {
   'master-admin':'Master Admin','owner':'Owner','admin':'Admin',
   'activator':'Activator','client-rep':'Client Rep','manager':'Manager',
-  'jd':'JD','l1':'Team Leader','leader':'Team Leader'
+  'jd':'JD','l1':'Team Leader','leader':'Team Leader','qc-agent':'QC Agent'
 };
 // Office-leaderboard "Leaders" group = Team Leader, JD, Manager, Owner (low→high rank).
 // All four always show on the board (none are in _LST_SKIP_UNLESS_SOLD).
@@ -126,7 +126,8 @@ function _lstUCls(n) {
 
 // Hidden from the tracker unless they personally post a sale. The four leader
 // ranks (owner/manager/jd/leader) are intentionally NOT here — they always show.
-var _LST_SKIP_UNLESS_SOLD = ['master-admin','admin','activator'];
+// qc-agent added 2026-10-26: QC Agents make calls, they do not sell — same treatment as activators.
+var _LST_SKIP_UNLESS_SOLD = ['master-admin','admin','activator','qc-agent'];
 
 // Remap legacy (old-portal) rows onto the NEW roster. The old system uses different
 // emails, so a rep's legacy sales would land on a duplicate "client-rep" row instead

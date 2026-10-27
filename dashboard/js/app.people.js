@@ -1,9 +1,9 @@
 // ── PEOPLE ────────────────────────────────────────────────────────────────
-var PORTAL_ROLES = ['master-admin','owner','admin','activator','client-rep','leader','jd','manager'];
+var PORTAL_ROLES = ['master-admin','owner','admin','activator','qc-agent','client-rep','leader','jd','manager'];
 var _ROLE_LABELS = {
   'master-admin':'Master Admin','owner':'Owner','admin':'Admin',
   'activator':'Activator','client-rep':'Client Rep','leader':'Team Leader',
-  'jd':'JD','manager':'Manager'
+  'jd':'JD','manager':'Manager','qc-agent':'QC Agent'
 };
 
 /* The role-derived flags every People row needs.
@@ -54,10 +54,14 @@ var _PEOPLE_RANK_CAPPED = { 'activator':true, 'admin':true, 'jd':true, 'manager'
 /* 📗 D-078 (2026-10-13): nobody changes someone ranked AT OR ABOVE themselves — same rank included; a master-admin may
    change anyone; your own row is name/phone only. ⚠ A COPY of Code.gs `_RANK_LEVEL` (rankcap_harness compares the two);
    this one only decides which buttons and fields show — Code.gs `_authGate` is the gate. */
-var _PEOPLE_RANK_LEVEL = { 'master-admin':7, 'owner':6, 'admin':5, 'activator':5, 'manager':4, 'jd':4, 'leader':3, 'client-rep':1 };
+var _PEOPLE_RANK_LEVEL = { 'master-admin':7, 'owner':6, 'admin':5, 'activator':5, 'manager':4, 'jd':4, 'leader':3, 'qc-agent':2, 'client-rep':1 };
+/* 🔒 Ranks only a master-admin may GRANT, or change someone holding (2026-10-26, user: "Master Admins only"). A COPY of
+   Code.gs `_MA_ONLY_RANKS`, which is the gate; this only hides the option and the buttons. */
+var _PEOPLE_MA_ONLY_RANKS = { 'qc-agent':true };
 function _peopleOutranks(targetRank) {
   var me = String(SESSION.role || '').trim().toLowerCase(), t = String(targetRank || 'client-rep').trim().toLowerCase();
   if (me === 'master-admin') return true;
+  if (_PEOPLE_MA_ONLY_RANKS[t]) return false;
   var a = _PEOPLE_RANK_LEVEL.hasOwnProperty(me) ? _PEOPLE_RANK_LEVEL[me] : 0;
   var b = _PEOPLE_RANK_LEVEL.hasOwnProperty(t) ? _PEOPLE_RANK_LEVEL[t] : 6;   // unknown target fails closed, as on the server
   return a > b;
@@ -111,6 +115,7 @@ function _peopleEditCaps(targetRank, isSelf) {
    silently become ungrantable, and an exclusion must be stated as an exclusion. */
 function _peopleGrantableRoles(role) {
   return PORTAL_ROLES.filter(function(ro) {
+    if (_PEOPLE_MA_ONLY_RANKS[ro] && role !== 'master-admin') return false;   // QC Agent: master-admin grants only
     if (role === 'owner')             return ro !== 'master-admin';
     if (_PEOPLE_RANK_CAPPED[role])    return !_PEOPLE_TOP_RANKS[ro];   // never owner/master-admin — themselves included
     return true;
@@ -280,7 +285,7 @@ function _peopleRowHtml(row, ctx) {
           (role==='master-admin' ? ' <button class="notes-btn" style="color:var(--red)" onclick="deletePerson('+jsq(row.email)+')">Remove</button>' : '') + '</td>';
       } else if (isMgr) {
         actions = '<td><button class="notes-btn" onclick="openEditPersonModal('+jsq(row.email)+')">Edit</button></td>';
-      } else if (isSelf) {
+      } else if (isSelf && role !== 'qc-agent') {   // People is VIEW ONLY for a QC Agent (2026-10-26)
         actions = '<td><button class="notes-btn" onclick="openEditPersonModal('+jsq(row.email)+')">Edit Phone</button></td>';
       } else {
         actions = '<td></td>';
