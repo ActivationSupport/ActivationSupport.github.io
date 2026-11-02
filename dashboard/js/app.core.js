@@ -2045,8 +2045,8 @@ var TABS = [
      OWN tableauName regardless of role and returns [] when it is blank — so this is never a
      leak, but for anyone without a name in roster column I the tab is permanently empty and
      reads as broken. The fix for that is a Tableau name, not code. */
-  { id: 'myorders',    label: 'My Orders',           roles: ['owner','activator','client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 120-day window' },
-  { id: 'myteam',      label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 120-day window" },
+  { id: 'myorders',    label: 'My Orders',           roles: ['owner','activator','client-rep','leader','jd','manager'], group: 'Orders', sub: 'Your own orders — 60-day window' },
+  { id: 'myteam',      label: "My Team's Orders",      roles: ['leader','jd','manager'],              group: 'Orders', sub: "Your team's orders — 60-day window" },
   // Everyone sees the tab; repFilter() scopes it — client-rep to their own lines, leader to
   // their team, everyone else office-wide (the server scopes masterTracker the same way).
   /* ⚠ The tab is named for what it SHOWS, not for the company. "Activation Support" is the
@@ -2058,7 +2058,7 @@ var TABS = [
   // Activator-side counterpart to the reps' Rehash Text — customer-facing messages for the
   // call/appointment types activators work out of the Call Logs tabs.
   { id: 'acttext',     label: 'Activator Text',       roles: ['activator','master-admin',ROLE_QC], group: 'Call Logs', sub: 'Customer texts for order issues & appointments', icon: 'smartphone' },
-  { id: 'master',      label: 'Master Tracker',       roles: ROLES_CALLLOG, group: 'Call Logs',   sub: '120-day window' },
+  { id: 'master',      label: 'Master Tracker',       roles: ROLES_CALLLOG, group: 'Call Logs',   sub: '60-day window' },
   { id: 'dayafter',    label: 'Day-After Calls',      roles: ROLES_DAYAFTER, group: 'Call Logs', sub: "Yesterday's deliveries" },
   { id: 'delivered',   label: 'Delivered Not Active', roles: ROLES_CALLLOG, group: 'Call Logs',   sub: 'Open & delivered orders' },
   { id: 'issues',      label: 'Order Issues',        roles: ROLES_CALLLOG, group: 'Call Logs',   sub: 'Porting, BYOD & payment — 29-day window' },
@@ -2074,7 +2074,7 @@ var TABS = [
   { id: 'livesales',   label: 'Live Sales Tracker',   roles: ALL_ROLES,  group: 'Performance', sub: "This week's leaderboard" },
   { id: 'actrates',    label: 'Activation Rates',     roles: ALL_ROLES,  group: 'Performance', sub: 'Rep activation breakdown' },
   { id: 'churn',       label: 'Churn Report',         roles: ALL_ROLES,  group: 'Performance', sub: 'ICD disconnect breakdown' },
-  { id: 'completed',   label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 120-day window' },
+  { id: 'completed',   label: 'Completed Orders',     roles: ALL_ROLES,  group: 'Performance', sub: 'Fully completed — 60-day window' },
   /* ── REPORTING (2026-08-20, user request) ──
      `dailyreport` MOVED here out of Performance — same tab, same id, same roles; only its
      `group` changed, so no state, deep link or role check moves with it.
