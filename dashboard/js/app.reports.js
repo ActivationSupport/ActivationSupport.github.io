@@ -814,7 +814,7 @@ function _drSectionActivatedToday(act) {
 // ── STATUS BREAKDOWN ──────────────────────────────────────────────────────
 var _DR_ST_CLS = {
   'Active':'sp-active','Posted':'sp-posted','Approved':'sp-posted','Confirmed':'sp-pale-yellow',
-  'Canceled':'sp-canceled','Disconnected':'sp-disconnected',
+  'Canceled':'sp-canceled','Disconnected':'sp-disconnected','Returned':'sp-canceled','Jeopardy':'sp-orange-bright',
   'Porting Issue':'sp-orange-bright','Pending Valid Payment':'sp-orange-bright',
   'BYOD':'sp-orange','Port Approved':'sp-dark-orange','Pending Order Port':'sp-dark-orange',
   'Delivered':'sp-purple','Shipped':'sp-yellow-bright','Scheduled':'sp-yellow',

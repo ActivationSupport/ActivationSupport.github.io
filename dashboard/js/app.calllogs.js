@@ -318,6 +318,8 @@ function spCls(s) {
   if (sl === 'posted' || sl === 'approved')                     return 'sp-posted';
   if (sl.indexOf('cancel') !== -1)                              return 'sp-canceled';
   if (sl.indexOf('disco') !== -1)                               return 'sp-disconnected';
+  if (sl === 'returned')                                        return 'sp-canceled';
+  if (sl === 'jeopardy')                                        return 'sp-orange-bright';
   if (sl === 'porting issue' || sl === 'pending valid payment') return 'sp-orange-bright';
   if (sl === 'byod')                                            return 'sp-orange';
   if (sl === 'port approved' || sl === 'pending order port')    return 'sp-dark-orange';
@@ -2288,7 +2290,7 @@ var _AS_STATUS = null;          // cached readAutoEmailStatus result (global, no
 var _asStatusFlight = false;
 var _AS_STATUS_ERR = false;     // last fetch failed → show a retry instead of a stuck "Loading…"
 
-function _asIsDone(s){ var l=String(s||'').toLowerCase().trim(); return l==='active'||l==='posted'||l.indexOf('cancel')!==-1||l.indexOf('disco')!==-1; }
+function _asIsDone(s){ var l=String(s||'').toLowerCase().trim(); return l==='active'||l==='posted'||l.indexOf('cancel')!==-1||l.indexOf('disco')!==-1||l==='returned'; }
 function _asProdLabelFE(p){
   var s=String(p||'').trim(); if(!s) return 'Other'; var l=s.toLowerCase();
   if(l.indexOf('wireless')!==-1||l==='cell'||l==='new phones'||l==='byod') return 'Wireless';

@@ -1037,7 +1037,7 @@ function _tmBuildDetail(teamId) {
     Object.keys(sc).forEach(function(st){
       var c = sc[st]||0, sl = String(st).toLowerCase();
       wTot += c;
-      if (sl.indexOf('cancel')!==-1) wCanc += c;
+      if (sl.indexOf('cancel')!==-1 || sl==='returned') wCanc += c;
       else if (isIssueStatus(sl)) wIssue += c;
       else if (sl!=='active' && sl!=='posted' && sl!=='approved' && sl.indexOf('disco')===-1) wPend += c;
     });

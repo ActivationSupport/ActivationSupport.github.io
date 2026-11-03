@@ -25,7 +25,7 @@ function _fibResetForOffice() {
 function _fibStatusGroup(o) {
   var s = _fibStatusOf(o).toLowerCase();
   if (s.indexOf('active') !== -1 || s.indexOf('posted') !== -1) return 'active';
-  if (s.indexOf('cancel') !== -1)      return 'canceled';
+  if (s.indexOf('cancel') !== -1 || s.indexOf('returned') !== -1) return 'canceled';
   if (s.indexOf('disconnect') !== -1)  return 'disconnected';
   return 'inflight';
 }
