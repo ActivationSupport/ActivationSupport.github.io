@@ -297,7 +297,7 @@
      🔴 apexpremier and eaglespeak were absent from 2026-08-25 to 2026-08-29: the THEMES table
      below had them (that is what officeconfig_drift checks) and this did not, so the drift
      guard stayed green while their customers hit a dead page. ADD EVERY NEW OFFICE HERE. */
-  var OFFICE_NAMES = { elevate:"Elevate", viridian:"Viridian", vanguard:"Vanguard", leadsphere:"LeadSphere Solutions", evolution:"Evolution Concepts", revamped:"Revamped Strategies", apexpremier:"Apex Premier Management", eaglespeak:"Eagles' Peak Enterprises", powershift:"Powershift Marketing", thrivepoint:"Thrive Point", kcstandard:"The Standard Marketing", atlas:"Atlas Marketing" };
+  var OFFICE_NAMES = { elevate:"Elevate", viridian:"Viridian", vanguard:"Vanguard", leadsphere:"LeadSphere Solutions", evolution:"Evolution Concepts", revamped:"Revamped Strategies", apexpremier:"Apex Premier Management", eaglespeak:"Eagles' Peak Enterprises", powershift:"Powershift Marketing", thrivepoint:"Thrive Point", kcstandard:"The Standard Marketing", atlas:"Atlas Marketing", element:"Element Management" };
   var PRODUCTS = ["Wireless", "Air", "Fiber - Self Install"];
   var qty = {};
   var win = null, selectedSlot = "", loadingSlots = false, ACTS = [];
@@ -354,7 +354,10 @@
   kcstandard:{accent:'#0C6C6C',accent2:'#D4AF4A',dim:'#0A2626',deep:'#0A5656',on:'#ffffff',glow:'#0C4A4A',logo:'kcstandard-logo-symbol.png'},
   // atlas (2026-10-27) STEEL & CRIMSON, as their portal: steel fill + WHITE text (8.24:1 at #4A4F57), their crimson #C41230 (user: one red) for
   // accent TEXT on the dark page (accent2). logoBg: the badge is a BLACK disc (luma 0.18), invisible on the dark tile.
-  atlas:{accent:'#4A4F57',accent2:'#C41230',dim:'#16171A',deep:'#3A3E45',on:'#ffffff',glow:'#3A0C16',logo:'atlas-logo-full.png',logoBg:'#ffffff'}
+  atlas:{accent:'#4A4F57',accent2:'#C41230',dim:'#16171A',deep:'#3A3E45',on:'#ffffff',glow:'#3A0C16',logo:'atlas-logo-full.png',logoBg:'#ffffff'},
+  // element (2026-11-05) SKY & INK, as their portal: their sky #00A2E9 fill + INK text (6.55:1; white would be 2.86:1 — the
+  // evolution/powershift call). The mark is their sky tile with the dolphin filled white — bright, so no logoBg.
+  element:{accent:'#00A2E9',accent2:'#33B5EE',dim:'#0E121B',deep:'#0093D6',on:'#0E121B',glow:'#003A5C',logo:'element-logo-symbol.png'}
   };
   function applyTheme(o){document.documentElement.setAttribute('data-office',o);
     var t = THEMES[o]; if(!t) return;
@@ -418,7 +421,7 @@
     /* ⚠ Same trap as OFFICE_NAMES above, quieter: a missing entry does not block the booking,
        it just drops the "Times shown in … time (CT)" note, so the customer is never told which
        zone the slots are in. Add every new office here too. */
-    var OFFICE_TZ_ABBR = { elevate:"PT", viridian:"CT", vanguard:"ET", leadsphere:"CT", evolution:"ET", revamped:"CT", apexpremier:"PT", eaglespeak:"ET", powershift:"ET", thrivepoint:"PT", kcstandard:"CT", atlas:"CT" };
+    var OFFICE_TZ_ABBR = { elevate:"PT", viridian:"CT", vanguard:"ET", leadsphere:"CT", evolution:"ET", revamped:"CT", apexpremier:"PT", eaglespeak:"ET", powershift:"ET", thrivepoint:"PT", kcstandard:"CT", atlas:"CT", element:"PT" };
     var _tza = OFFICE_TZ_ABBR[OFFICE];
     if (_tza) $("tznote").textContent = "🕓 Times shown in " + OFFICE_NAMES[OFFICE] + " time (" + _tza + ").";
 

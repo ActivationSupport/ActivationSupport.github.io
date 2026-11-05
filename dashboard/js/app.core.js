@@ -361,6 +361,27 @@ var OFFICE_CONFIG = {
     logos:{ full:'assets/atlas-logo-full.png', emblem:'assets/atlas-logo-full.png', sidebarH:64, loginH:90, drHeaderH:40 },
     bookTint:'#C41230', bookLogo:'atlas-logo-full.png'
   },
+  element: {
+    /* Element Management (Cheree Management Inc DBA Element Management; Tableau "cheree management, inc.") — Woodland
+       Hills CA, onboarded 2026-11-05. SKY & INK, from a rendered side-by-side (_private/preview/element_brand_preview.js)
+       with LeadSphere, Elevate and Thrive Point (the blue offices) as reference rows. Brand from their site: ONE sky blue
+       #00A2E9 (icon, wordmark, buttons) · ink #0E121B.
+       · What tells them apart: a CYAN-sky button with INK text (as their site) on near-black chrome. LeadSphere, Elevate
+         and Thrive all have royal/navy buttons with white text on navy chrome.
+       · White on sky is 2.86:1, so btnText/onAccent are their ink (6.55:1). Sky is 2.86:1 on WHITE too, so light mode
+         uses lightInk #0077B6 (4.87:1); lightNav keeps the sky on the dark sidebar (6.80:1). */
+    name:'Element Management', color:'#00A2E9',
+    theme:{ btn:'#00A2E9', accent:'#00A2E9', lightInk:'#0077B6', lightNav:'#00A2E9', dark:'#161B26', hover:'#33B5EE', glow:'#003A5C', band:'#0E121B', onBand:'#ffffff', sidebar:'#0A0D14', btnText:'#0E121B', onAccent:'#0E121B' },
+    /* MIRRORED in Code.gs OFFICE_CONFIG.element.brand; move the two together. Ink band, sky rules, deep-blue accent text
+       (the report email body is WHITE, where sky would be 2.86:1). */
+    reportBrand:{ band:'#0E121B', headerText:'#FFFFFF', headerSub:'#00A2E9', accent:'#00A2E9', accentText:'#0077B6', logo:'element-logo-full.png', logoH:44 },
+    /* Their artwork, not redrawn: the site serves only a 350×95 lockup + 150×150 icon, so both are the SAME art rebuilt
+       at 4× (_private/preview/element_logo_build.js), and the dolphin cut-out INSIDE THE ICON is filled white — as it
+       reads on their own white site (on dark it would read dark). Sky reads on dark AND light, so ONE file serves both;
+       fullLight = the same file only to opt out of the light-theme outline (.dr-logo-light, filter:none). 3.68:1 lockup. */
+    logos:{ full:'assets/element-logo-full.png', fullLight:'assets/element-logo-full.png', emblem:'assets/element-logo-symbol.png', sidebarH:52, loginH:80, drHeaderH:36 },
+    bookTint:'#00A2E9', bookLogo:'element-logo-symbol.png'
+  },
   // ── Sales Support — NOT a sales office: a Jedi-themed ticketing desk with its own
   // screens (app.tickets.js). No Tableau data, no daily report, no booking. Deep-space
   // dark is FORCED (see _applyTheme + the html[data-office="salessupport"] block in
