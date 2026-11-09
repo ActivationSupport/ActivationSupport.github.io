@@ -1784,6 +1784,7 @@ function openApptSchedModal() {
   document.getElementById('appt-sched-body').innerHTML=loadingState('Loading your schedule…', { icon:'appointments', bare:true });
   document.getElementById('appt-sched-modal').classList.add('open');
   _apptGet({action:'getActivatorSchedule',email:SESSION.email}).then(function(res){
+    _SC_CAL.calEmail=String((res.schedule||{}).calEmail||'');
     _renderSchedModal(res.schedule||{});
     _scLoadCalStatus();
   }).catch(function(e){
@@ -1795,19 +1796,80 @@ function openApptSchedModal() {
 // Calendar-link self-check for My Schedule: tells the activator whether their Google
 // Calendar is actually shared with the deploy owner. (The 2026-07 owner-account switch
 // orphaned old shares — this surfaces a broken link so they know to re-share.)
-function _scLoadCalStatus(){
+// 2026-11-09 (option A): names the Google address being checked, and "check again" sends
+// fresh:'true' so the Scheduler skips its 5-minute retry cooldown (📕 R-136) — before this, a
+// re-check right after sharing still said "not linked". A failed fresh check lists the usual causes.
+var _SC_CAL={calEmail:''};   // the saved alternate calendar address (option C); '' = sign-in email
+function _scLoadCalStatus(fresh){
   var el=document.getElementById('sc-cal-status'); if(!el) return;
-  el.innerHTML='<span style="color:var(--text2)">Checking your calendar link…</span>';
-  _apptGet({action:'getCalendarLinkStatus',email:SESSION.email}).then(function(res){
-    var el2=document.getElementById('sc-cal-status'); if(!el2) return;
-    var s=(res.statuses||[])[0];
-    if(s&&s.linked){
-      el2.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle"></span>'+
-        '<b style="color:var(--green)">Your calendar is linked</b> <span style="color:var(--text2)">— busy times auto-block and booked appointments appear on it.</span>';
+  el.innerHTML='<span style="color:var(--text2)">'+(fresh?'Checking again…':'Checking your calendar link…')+'</span>';
+  var chk=document.getElementById('sc-cal-check'); if(chk) chk.innerHTML='';
+  var q={action:'getCalendarLinkStatus',email:SESSION.email}; if(fresh) q.fresh='true';
+  _apptGet(q).then(function(res){
+    _scRenderCalStatus((res.statuses||[])[0], !!fresh);
+  }).catch(function(){ var el2=document.getElementById('sc-cal-status'); if(el2) el2.innerHTML='';
+    var c2=document.getElementById('sc-cal-check'); if(c2) c2.innerHTML=_scCheckBtn(!!fresh); });
+}
+function _scCheckBtn(again){
+  return '<button type="button" class="appt-book-btn" style="padding:6px 14px;font-size:.8rem" onclick="_scLoadCalStatus(true)">'+
+    (again?'Check again':'I’ve shared it — check again')+'</button>';
+}
+function _scRenderCalStatus(s, fresh){
+  var el=document.getElementById('sc-cal-status'); if(!el) return;
+  var chk=document.getElementById('sc-cal-check');
+  var me=String(SESSION.email||'').toLowerCase();
+  var calId=String((s&&s.calId)||_SC_CAL.calEmail||me).toLowerCase();
+  var acct=document.getElementById('sc-cal-acct'); if(acct) acct.textContent=calId;
+  if(s&&s.linked){
+    el.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle"></span>'+
+      '<b style="color:var(--green)">Your calendar is linked</b> <span style="color:var(--text2)">— busy times auto-block and booked appointments appear on it'+
+      (calId!==me?' (calendar: <b style="color:var(--text)">'+esc(calId)+'</b>)':'')+'.</span>';
+    if(chk) chk.innerHTML='';
+    return;
+  }
+  var who='<b style="color:var(--text)">'+esc(calId)+'</b>'+(calId===me?' (the email you sign in with)':'');
+  var h=fresh
+    ? '<b style="color:var(--red)">'+icon('issues')+' Still not linked</b> <span style="color:var(--text2)">— checked just now for '+who+'.</span>'
+    : '<b style="color:var(--red)">'+icon('issues')+' Not linked yet</b> <span style="color:var(--text2)">— we look for the Google Calendar of '+who+'.</span>';
+  if(fresh){
+    h+='<div style="font-size:.8rem;color:var(--text2);margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--surface2);line-height:1.5">'+
+      '<b style="color:var(--text)">Usually one of these:</b><br>'+
+      '• You shared from a <b>different Google account</b> than '+esc(calId)+'. Sign in to Google as '+esc(calId)+' and share from there — or, if your calendar really is under another address, enter it below.<br>'+
+      '• The permission was <b>“See only free/busy.”</b> Change it to <b>“Make changes to events.”</b><br>'+
+      '• You shared a <b>different calendar</b> than your main one (the one named with your email).</div>';
+  }
+  el.innerHTML=h;
+  if(chk) chk.innerHTML=_scCheckBtn(fresh);
+}
+function _scSaveCalEmail(){
+  var inp=document.getElementById('sc-cal-email'); if(!inp) return;
+  var err=document.getElementById('sc-cal-email-err'), btn=document.getElementById('sc-cal-save');
+  var v=String(inp.value||'').trim().toLowerCase();
+  var showErr=function(m){ if(err){err.textContent=m;err.style.display='block';} };
+  if(err) err.style.display='none';
+  // Same shape the Scheduler accepts (_CAL_EMAIL_RE) — keep the two in step.
+  if(v && !/^[a-z0-9][^\s@,;<>"'=]*@[^\s@,;<>"'=]+\.[a-z]{2,}$/i.test(v)){ showErr('That doesn’t look like an email address.'); return; }
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  var st=document.getElementById('sc-cal-status'); if(st) st.innerHTML='<span style="color:var(--text2)">Saving and checking…</span>';
+  _apptPost({action:'setActivatorCalEmail',email:SESSION.email,calEmail:v}).then(function(res){
+    if(btn){btn.disabled=false;btn.textContent='Save & check';}
+    if(res&&res.ok){
+      _SC_CAL.calEmail=String(res.calEmail||'');
+      inp.value=_SC_CAL.calEmail;
+      showToast(_SC_CAL.calEmail?'Saved — using '+_SC_CAL.calEmail:'Cleared — using your sign-in email');
+      _scRenderCalStatus({linked:!!res.linked,calId:res.calId||_SC_CAL.calEmail||SESSION.email}, true);
     } else {
-      el2.innerHTML='<b style="color:var(--red)">'+icon('issues')+' Your calendar isn’t linked</b> <span style="color:var(--text2)">— share it with the address below (the July setup change broke older shares, so re-share even if you did this before).</span>';
+      var e=String((res&&res.error)||'');
+      showErr(e==='invalid_cal_email'?'That doesn’t look like an email address.':
+        (e==='forbidden'||e==='auth_required'?'Your sign-in has expired — sign in again, then retry.':
+        (e.indexOf('unknown action')===0?'This isn’t switched on yet — try again later.':'Couldn’t save. Try again.')));
+      _scLoadCalStatus();
     }
-  }).catch(function(){ var el2=document.getElementById('sc-cal-status'); if(el2) el2.innerHTML=''; });
+  }).catch(function(){
+    if(btn){btn.disabled=false;btn.textContent='Save & check';}
+    showErr('Connection error — nothing was saved. Try again.');
+    _scLoadCalStatus();
+  });
 }
 
 // Item 4 notes section: an appointment's ORDER notes (the universal call-logs Notes for
@@ -1869,10 +1931,19 @@ function _renderSchedModal(sched) {
     '<div style="border:1px solid rgba(var(--blue2-rgb),.35);background:rgba(var(--blue2-rgb),.08);border-radius:10px;padding:12px 14px;margin-bottom:16px">'+
       '<div style="font-weight:700;margin-bottom:4px">'+icon('appointments')+' Link your Google Calendar <span style="font-weight:400;color:var(--text2);font-size:.82rem">— recommended</span></div>'+
       '<div id="sc-cal-status" style="margin:4px 0 8px;font-size:.83rem;line-height:1.45"></div>'+
+      // Option C (2026-11-09): calendar lives under another Google account than the sign-in email.
+      '<div class="field" style="margin:8px 0 10px"><label for="sc-cal-email">My Google Calendar is under a different address <span style="font-weight:400;color:var(--text2);text-transform:none;letter-spacing:0">(optional)</span></label>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+          '<input class="appt-form-input" id="sc-cal-email" type="email" autocomplete="off" spellcheck="false" placeholder="yourname@gmail.com" value="'+esc(_SC_CAL.calEmail)+'" style="flex:1;min-width:200px;max-width:330px">'+
+          '<button type="button" class="appt-book-btn" id="sc-cal-save" style="padding:6px 14px;font-size:.8rem" onclick="_scSaveCalEmail()">Save &amp; check</button>'+
+        '</div>'+
+        '<div id="sc-cal-email-err" style="display:none;color:var(--red);font-size:.78rem;margin-top:6px"></div>'+
+        '<div class="sc-bookable-hint" style="margin-top:6px">Leave blank if your calendar is under '+esc(SESSION.email)+'. Otherwise share from <b>that</b> account using the steps below. Your sign-in email doesn’t change.</div>'+
+      '</div>'+
       '<div style="font-size:.84rem;color:var(--text);line-height:1.5">'+
         'So the system automatically <b>blocks the times you’re busy</b> and adds <b>booked appointments onto your calendar</b>, share your calendar once:'+
         '<ol style="margin:8px 0 6px 18px;padding:0;font-size:.83rem;color:var(--text2);line-height:1.65">'+
-          '<li>Open <b>Google Calendar</b> on a computer (calendar.google.com).</li>'+
+          '<li>Open <b>Google Calendar</b> on a computer (calendar.google.com), signed in as <b id="sc-cal-acct" style="color:var(--text)">'+esc(_SC_CAL.calEmail||SESSION.email)+'</b>.</li>'+
           '<li>Hover <b>your calendar</b> in the left list → <b>⋮</b> → <b>Settings and sharing</b>.</li>'+
           '<li>Under <b>Share with specific people or groups</b> → <b>Add people</b>.</li>'+
           '<li>Add the address below, set permission to <b>“Make changes to events,”</b> then <b>Send</b>.</li>'+
@@ -1881,6 +1952,7 @@ function _renderSchedModal(sched) {
           '<code style="background:var(--surface2);padding:4px 9px;border-radius:6px;font-size:.84rem;user-select:all">'+esc(APPT_CAL_SHARE_EMAIL)+'</code>'+
           '<button type="button" class="appt-book-btn" style="padding:4px 12px;font-size:.78rem" onclick="_copyCalShareEmail()">Copy address</button>'+
         '</div>'+
+        '<div id="sc-cal-check" style="margin-top:10px"></div>'+
         '<div class="sc-bookable-hint" style="margin-top:8px">One-time, ~30 seconds. We only read your <b>busy times</b> (never event titles). Not linked? Booking still works — your calendar just won’t auto-block.</div>'+
       '</div>'+
     '</div>'+
@@ -2140,7 +2212,8 @@ function openCalOverview(){
     var dot=function(on){return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(on?'var(--green)':'var(--red)')+'"></span>';};
     var rows=st.length?st.map(function(s){
       return '<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border)">'+dot(s.linked)+
-        '<b>'+esc(s.name||s.email)+'</b><span style="color:var(--text2);font-size:.78rem">'+esc(s.email)+'</span>'+
+        '<b>'+esc(s.name||s.email)+'</b><span style="color:var(--text2);font-size:.78rem">'+esc(s.email)+
+          (s.altCal&&s.calId?' · calendar: '+esc(s.calId):'')+'</span>'+
         '<span style="margin-left:auto;font-weight:700;font-size:.82rem;color:'+(s.linked?'var(--green)':'var(--red)')+'">'+(s.linked?'Linked':'Not linked')+'</span></div>';
     }).join(''):'<div class="nm-empty">No activators found.</div>';
     document.getElementById('modal-body').innerHTML=
