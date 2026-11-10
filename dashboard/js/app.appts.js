@@ -1785,6 +1785,7 @@ function openApptSchedModal() {
   document.getElementById('appt-sched-modal').classList.add('open');
   _apptGet({action:'getActivatorSchedule',email:SESSION.email}).then(function(res){
     _SC_CAL.calEmail=String((res.schedule||{}).calEmail||'');
+    _SC_CAL.icsSet=!!(res.schedule||{}).icsSet; _SC_CAL.icsHost=String((res.schedule||{}).icsHost||'');
     _renderSchedModal(res.schedule||{});
     _scLoadCalStatus();
   }).catch(function(e){
@@ -1799,7 +1800,7 @@ function openApptSchedModal() {
 // 2026-11-09 (option A): names the Google address being checked, and "check again" sends
 // fresh:'true' so the Scheduler skips its 5-minute retry cooldown (📕 R-136) — before this, a
 // re-check right after sharing still said "not linked". A failed fresh check lists the usual causes.
-var _SC_CAL={calEmail:''};   // the saved alternate calendar address (option C); '' = sign-in email
+var _SC_CAL={calEmail:'',icsSet:false,icsHost:''};   // alternate Google address (option C) + is a private calendar link saved (never the link itself)
 function _scLoadCalStatus(fresh){
   var el=document.getElementById('sc-cal-status'); if(!el) return;
   el.innerHTML='<span style="color:var(--text2)">'+(fresh?'Checking again…':'Checking your calendar link…')+'</span>';
@@ -1820,6 +1821,17 @@ function _scRenderCalStatus(s, fresh){
   var me=String(SESSION.email||'').toLowerCase();
   var calId=String((s&&s.calId)||_SC_CAL.calEmail||me).toLowerCase();
   var acct=document.getElementById('sc-cal-acct'); if(acct) acct.textContent=calId;
+  if(s&&s.linked&&s.kind==='ics'){
+    el.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle"></span>'+
+      '<b style="color:var(--green)">Your calendar is linked</b> <span style="color:var(--text2)">— through your '+esc(_icsProvider(s.icsHost||_SC_CAL.icsHost))+' link: busy times auto-block, and each new booking arrives as a <b style="color:var(--text)">calendar invite by email</b>.</span>';
+    if(chk) chk.innerHTML='';
+    return;
+  }
+  if(s&&!s.linked&&s.icsSet&&s.icsError){
+    el.innerHTML='<b style="color:var(--red)">'+icon('issues')+' We couldn’t read your calendar link</b> <span style="color:var(--text2)">— '+esc(s.icsError)+'. Make a new link and paste it under “Not on Google Calendar?” below.</span>';
+    if(chk) chk.innerHTML=_scCheckBtn(fresh);
+    return;
+  }
   if(s&&s.linked){
     el.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle"></span>'+
       '<b style="color:var(--green)">Your calendar is linked</b> <span style="color:var(--text2)">— busy times auto-block and booked appointments appear on it'+
@@ -1840,6 +1852,67 @@ function _scRenderCalStatus(s, fresh){
   }
   el.innerHTML=h;
   if(chk) chk.innerHTML=_scCheckBtn(fresh);
+}
+/* 2026-11-09 — user: "we need to have it able to be linked to anyone's calendar regardless of type they use."
+   Proton / iCloud / Outlook: the activator pastes their calendar's PRIVATE LINK (.ics). The Scheduler reads busy times
+   from it and sends each new booking as a calendar-invite email. The link is a secret: it is sent once, never shown
+   back (the server only says "a Proton link is saved"). */
+function _icsProvider(host){
+  var h=String(host||'').toLowerCase();
+  return /proton/.test(h)?'Proton':/icloud|apple/.test(h)?'iCloud':/outlook|office365|live\.com|hotmail/.test(h)?'Outlook':'calendar';
+}
+function _scIcsSectionHtml(){
+  var set=!!_SC_CAL.icsSet, prov=_icsProvider(_SC_CAL.icsHost);
+  var step=function(name,body){ return '<li style="margin-bottom:4px"><b style="color:var(--text)">'+name+':</b> '+body+'</li>'; };
+  return '<details id="sc-ics-box" style="margin-top:12px;border-top:1px solid rgba(var(--blue2-rgb),.3);padding-top:10px"'+(set?' open':'')+'>'+
+    '<summary style="cursor:pointer;font-weight:700;font-size:.86rem">Not on Google Calendar? Use Proton, iCloud or Outlook'+(set?' <span style="color:var(--green);font-weight:600">· '+esc(prov)+' link saved</span>':'')+'</summary>'+
+    '<div style="font-size:.83rem;color:var(--text2);line-height:1.55;margin-top:8px">Paste your calendar’s <b style="color:var(--text)">private link</b>. We read only your <b style="color:var(--text)">busy times</b> from it, and each new booking reaches you as a <b style="color:var(--text)">calendar invite by email</b> at '+esc(SESSION.email)+' — open it to add it to your calendar.</div>'+
+    '<ul style="margin:8px 0 8px 18px;padding:0;font-size:.82rem;color:var(--text2);line-height:1.55">'+
+      step('Proton','Calendar → hover your calendar → <b>⋮</b> → <b>Share</b> → <b>Share with anyone</b> → choose <b>Limited view</b> (busy times only) → <b>Copy link</b>.')+
+      step('iCloud','icloud.com/calendar → the share icon next to your calendar → tick <b>Public Calendar</b> → <b>Copy Link</b>.')+
+      step('Outlook','outlook.com → Settings → Calendar → <b>Shared calendars</b> → <b>Publish a calendar</b> → pick your calendar and <b>Can view when I’m busy</b> → <b>Publish</b> → copy the <b>ICS</b> link.')+
+    '</ul>'+
+    '<div class="field" style="margin:4px 0 2px"><label for="sc-ics-url">Private calendar link</label>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+        '<input class="appt-form-input" id="sc-ics-url" type="url" autocomplete="off" spellcheck="false" placeholder="'+(set?'Saved: your '+esc(prov)+' link — paste a new one to replace it':'https://… or webcal://…')+'" style="flex:1;min-width:200px;max-width:330px">'+
+        '<button type="button" class="appt-book-btn" id="sc-ics-save" style="padding:6px 14px;font-size:.8rem" onclick="_scSaveIcs(false)">Save &amp; check</button>'+
+        (set?'<button type="button" class="appt-book-btn" id="sc-ics-remove" style="padding:6px 14px;font-size:.8rem;background:var(--surface2);color:var(--text)" onclick="_scSaveIcs(true)">Remove link</button>':'')+
+      '</div>'+
+      '<div id="sc-ics-err" style="display:none;color:var(--red);font-size:.78rem;margin-top:6px"></div>'+
+    '</div>'+
+  '</details>';
+}
+function _scSaveIcs(remove){
+  var inp=document.getElementById('sc-ics-url'), err=document.getElementById('sc-ics-err');
+  var v=remove?'':String((inp&&inp.value)||'').trim();
+  var showErr=function(m){ if(err){err.textContent=m;err.style.display='block';} };
+  if(err) err.style.display='none';
+  if(!remove && !v){ showErr('Paste your calendar’s private link first.'); return; }
+  // Same shape the Scheduler accepts (_ICS_URL_RE after webcal:// → https://) — keep the two in step.
+  if(!remove && !/^(https|webcals?):\/\/[^\s"'<>\\]+$/i.test(v)){ showErr('That doesn’t look like a calendar link — it should start with https:// or webcal://'); return; }
+  if(remove && !confirm('Remove your calendar link? Your busy times will stop blocking bookings.')) return;
+  var btn=document.getElementById(remove?'sc-ics-remove':'sc-ics-save'); if(btn){btn.disabled=true;btn.textContent=remove?'Removing…':'Saving…';}
+  var st=document.getElementById('sc-cal-status'); if(st) st.innerHTML='<span style="color:var(--text2)">'+(remove?'Removing…':'Saving and reading your calendar…')+'</span>';
+  _apptPost({action:'setActivatorIcsUrl',email:SESSION.email,icsUrl:v}).then(function(res){
+    if(res&&res.ok){
+      _SC_CAL.icsSet=!!res.icsSet; _SC_CAL.icsHost=String(res.icsHost||'');
+      var box=document.getElementById('sc-ics-box');
+      if(box){ var tmp=document.createElement('div'); tmp.innerHTML=_scIcsSectionHtml(); box.parentNode.replaceChild(tmp.firstChild, box); }
+      showToast(remove?'Calendar link removed':(res.icsOk?'Calendar linked':'Saved — but we couldn’t read it yet'));
+      _scRenderCalStatus({linked:!!res.linked,kind:res.kind,calId:res.calId||SESSION.email,icsSet:!!res.icsSet,icsOk:!!res.icsOk,icsError:res.icsError||'',icsHost:res.icsHost||''}, true);
+    } else {
+      if(btn){btn.disabled=false;btn.textContent=remove?'Remove link':'Save & check';}
+      var e=String((res&&res.error)||'');
+      showErr(e==='invalid_ics_url'?'That doesn’t look like a calendar link — it should start with https:// or webcal://':
+        (e==='forbidden'||e==='auth_required'?'Your sign-in has expired — sign in again, then retry.':
+        (e.indexOf('unknown action')===0?'This isn’t switched on yet — try again later.':'Couldn’t save. Try again.')));
+      _scLoadCalStatus();
+    }
+  }).catch(function(){
+    if(btn){btn.disabled=false;btn.textContent=remove?'Remove link':'Save & check';}
+    showErr('Connection error — nothing was saved. Try again.');
+    _scLoadCalStatus();
+  });
 }
 function _scSaveCalEmail(){
   var inp=document.getElementById('sc-cal-email'); if(!inp) return;
@@ -1929,7 +2002,7 @@ function _renderSchedModal(sched) {
       '<div class="sc-bookable-hint">When on, you appear in the booking pool + Next Available Agent. '+(SESSION.role==='master-admin'?'Master-admins are off by default — turn this on only if you take appointments.':'Turn off if you temporarily aren’t taking appointments.')+'</div>'+
     '</div>'+
     '<div style="border:1px solid rgba(var(--blue2-rgb),.35);background:rgba(var(--blue2-rgb),.08);border-radius:10px;padding:12px 14px;margin-bottom:16px">'+
-      '<div style="font-weight:700;margin-bottom:4px">'+icon('appointments')+' Link your Google Calendar <span style="font-weight:400;color:var(--text2);font-size:.82rem">— recommended</span></div>'+
+      '<div style="font-weight:700;margin-bottom:4px">'+icon('appointments')+' Link your calendar <span style="font-weight:400;color:var(--text2);font-size:.82rem">— recommended</span></div>'+
       '<div id="sc-cal-status" style="margin:4px 0 8px;font-size:.83rem;line-height:1.45"></div>'+
       // Option C (2026-11-09): calendar lives under another Google account than the sign-in email.
       '<div class="field" style="margin:8px 0 10px"><label for="sc-cal-email">My Google Calendar is under a different address <span style="font-weight:400;color:var(--text2);text-transform:none;letter-spacing:0">(optional)</span></label>'+
@@ -1955,6 +2028,7 @@ function _renderSchedModal(sched) {
         '<div id="sc-cal-check" style="margin-top:10px"></div>'+
         '<div class="sc-bookable-hint" style="margin-top:8px">One-time, ~30 seconds. We only read your <b>busy times</b> (never event titles). Not linked? Booking still works — your calendar just won’t auto-block.</div>'+
       '</div>'+
+      _scIcsSectionHtml()+
     '</div>'+
     '<div class="field" style="margin-bottom:16px"><label>My Timezone</label>'+
       '<select class="appt-form-input" id="sc-tz">'+tzOpts+'</select>'+
@@ -2213,7 +2287,8 @@ function openCalOverview(){
     var rows=st.length?st.map(function(s){
       return '<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border)">'+dot(s.linked)+
         '<b>'+esc(s.name||s.email)+'</b><span style="color:var(--text2);font-size:.78rem">'+esc(s.email)+
-          (s.altCal&&s.calId?' · calendar: '+esc(s.calId):'')+'</span>'+
+          (s.altCal&&s.calId?' · calendar: '+esc(s.calId):'')+
+          (s.icsSet?' · '+esc(_icsProvider(s.icsHost))+' link'+(s.icsOk?'':' (can’t read it)'):'')+'</span>'+
         '<span style="margin-left:auto;font-weight:700;font-size:.82rem;color:'+(s.linked?'var(--green)':'var(--red)')+'">'+(s.linked?'Linked':'Not linked')+'</span></div>';
     }).join(''):'<div class="nm-empty">No activators found.</div>';
     document.getElementById('modal-body').innerHTML=

@@ -1528,18 +1528,37 @@ function doResetWithToken() {
   if (pErr) { err.textContent = pErr; err.style.display = 'block'; return; }
   if (newPw !== confirm) { err.textContent = "Passwords don't match. Try again."; err.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Setting password…';
-  apiPost({ action: 'resetPasswordWithToken', token: LOGIN_RESET_TOKEN, newPin: newPw }).then(function(res) {
-    if (res && res.ok && res.valid) { LOGIN_RESET_TOKEN = ''; if (res.email) LOGIN_EMAIL = res.email; _adoptSession(res); }
-    else {
-      err.textContent = (res && res.error) || 'Could not reset your password. The link may have expired — request a new one.';
-      err.style.display = 'block';
-      btn.disabled = false; btn.textContent = 'Set Password & Sign In';
-    }
-  }).catch(function() {
-    err.textContent = 'Connection error. Try again.';
-    err.style.display = 'block';
+  /* 2026-11-09 — user: "It should always allow them to change their password unless there is a legit issue."
+     🔴 A 15s timeout here used to say "Connection error. Try again." while the server had in fact SET the password and
+     used up the link, so the retry said "invalid or already used" and the person could not get in (thrivepoint 11-07).
+     🔑 Re-sending the SAME link + password is now safe — the backend answers a replay as the success it was — so a
+     timeout (or a stripped/busy reply) is re-sent ONCE before anything is said. Only then do we speak, and we say what
+     is likely true: the password is probably saved. */
+  var tok = LOGIN_RESET_TOKEN;
+  var send = function () { return apiPost({ action: 'resetPasswordWithToken', token: tok, newPin: newPw }); };
+  var show = function (msg) {
+    err.textContent = msg; err.style.display = 'block';
     btn.disabled = false; btn.textContent = 'Set Password & Sign In';
-  });
+  };
+  var retryable = function (res) { var e = String((res && res.error) || ''); return e === 'unauthorized' || /^busy\b/i.test(e); };
+  var onRes = function (res) {
+    if (res && res.ok && res.valid) { LOGIN_RESET_TOKEN = ''; if (res.email) LOGIN_EMAIL = res.email; _adoptSession(res); return; }
+    var e = String((res && res.error) || '');
+    if ((res && res.code === 'pw_link_used') || /already (been )?used/i.test(e))
+      return show('This link was already used to set your password. Press “Back to sign in” and sign in with your new password — or request a new link if you don’t know it.');
+    show(e || 'Could not reset your password. The link may have expired — request a new one.');
+  };
+  var unsure = function () {
+    show('We couldn’t confirm in time — your new password may already be saved. Press “Back to sign in” and try it. ' +
+         'If it doesn’t work, press Set Password again (this link keeps working for a few minutes) or request a new link.');
+  };
+  var again = function () { btn.textContent = 'Still working…'; return send().then(function (r2) { if (retryable(r2)) unsure(); else onRes(r2); }, unsure); };
+  /* ⚠ The success branch is written INLINE here (not only in onRes) so officerace_harness still sees this handler
+     mutate LOGIN_EMAIL — a mutation hidden in a named callback is invisible to that audit (R-100). */
+  apiPost({ action: 'resetPasswordWithToken', token: tok, newPin: newPw }).then(function (res) {
+    if (res && res.ok && res.valid) { LOGIN_RESET_TOKEN = ''; if (res.email) LOGIN_EMAIL = res.email; _adoptSession(res); return; }
+    if (retryable(res)) again(); else onRes(res);
+  }, again);
 }
 function _resetCancel() { LOGIN_RESET_TOKEN = ''; loginBack(); }
 
