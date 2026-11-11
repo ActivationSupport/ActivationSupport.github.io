@@ -32,6 +32,9 @@ function _peopleRowCtx() {
        escalation guard, so an admin still cannot restore an owner however the UI is coaxed. */
     canSeeRemoved: role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'activator',
     canRestore:    role === 'master-admin' || role === 'owner' || role === 'admin' || role === 'activator',
+    /* 2026-11-11: the People change log (who changed whom) + Undo. Master-admin only — and, as above, a convenience
+       gate: the backend gates readPeopleLog (_READ_ROLES) and undoPeopleChange (_ADMIN_ACTIONS) on master-admin. */
+    canSeeLog: role === 'master-admin',
     myEmail: (SESSION.email || '').toLowerCase()
   };
 }
@@ -161,6 +164,7 @@ function renderPeople() {
   /* Removed is only offered to the roles allowed to see it; for everyone else the view does not
      exist, so a stale _PEOPLE_VIEW cannot strand them on a blank screen. */
   if (_PEOPLE_VIEW === 'removed' && !ctx.canSeeRemoved) _PEOPLE_VIEW = 'active';
+  if (_PEOPLE_VIEW === 'log' && !ctx.canSeeLog) _PEOPLE_VIEW = 'active';
   var view = _PEOPLE_VIEW;
   var rows = split[view] || split.active;
 
@@ -173,13 +177,17 @@ function renderPeople() {
      Counts sit in the labels so an admin can see there IS something in Removed without clicking. */
   var tabs = '<div class="rh-tabs">' + tab('active','Active',split.active.length) +
              tab('inactive','Inactive',split.inactive.length) +
-             (ctx.canSeeRemoved ? tab('removed','Removed',split.removed.length) : '') + '</div>';
+             (ctx.canSeeRemoved ? tab('removed','Removed',split.removed.length) : '') +
+             (ctx.canSeeLog ? '<div class="rh-tab'+(view==='log'?' active':'')+'" onclick="_peopleView(\'log\')">Change log</div>' : '') + '</div>';
 
-  var addBtn = (ctx.canManagePeople && view !== 'removed')
+  var addBtn = (ctx.canManagePeople && view !== 'removed' && view !== 'log')
     ? '<button class="refresh-btn" style="margin-bottom:14px" onclick="openAddPersonModal()">+ Add Person</button>' : '';
 
   var body;
-  if (!rows.length) {
+  if (view === 'log') {
+    return '<div class="card"><div class="card-header dark">People &amp; Roster</div><div class="card-body">' +
+      tabs + _peopleLogHtml() + '</div></div>';
+  } else if (!rows.length) {
     body = noData(view === 'removed' ? 'Nobody has been removed in the last ' + _PEOPLE_RETAIN_DAYS + ' days.'
          : view === 'inactive' ? 'No inactive people.'
          : 'No people in the roster yet.', { icon:'people', bare:true });
@@ -205,6 +213,108 @@ function renderPeople() {
    ⚠ Display only — the backend owns the real cutoff, and readDeletedRoster already sends
    daysLeft per person so the countdown can never disagree with the purge. */
 var _PEOPLE_RETAIN_DAYS = 14;
+
+/* ════════ CHANGE LOG (2026-11-11) ═══════════════════════════════════════════════════════════════════════════════
+   User: "We need a change log so if anyone is making unauthorized changes we are able to track it. As well as go back,
+   fix and repair if necessary." Every People change (add · edit · deactivate · reactivate · remove · restore) is
+   written by the backend to _PeopleLog with WHO did it (from their sign-in, not the request). This view lists them,
+   newest first, and Undo puts one back — refused by the server if the person was changed again since. Privilege
+   changes (role, office access, email) are marked and were also emailed when they happened. */
+var _PLOG = { rows: null, scope: 'office', q: '', loading: false, err: '', key: '' };
+var _PLOG_ACTIONS = { added: 'Added', edited: 'Edited', removed: 'Removed', restored: 'Restored', deactivated: 'Deactivated', reactivated: 'Reactivated' };
+function _peopleLogKey() { return _PLOG.scope === 'all' ? 'all' : String((typeof CFG !== 'undefined' && CFG) ? CFG.officeId : ''); }
+function _peopleLogLoad(force) {
+  var key = _peopleLogKey();
+  if (_PLOG.loading || (!force && _PLOG.rows && _PLOG.key === key)) return;
+  _PLOG.loading = true; _PLOG.err = '';
+  var plOffice = CFG.officeId;   // officerace: a reply for the office we have since LEFT must not land in _PLOG
+  api({ action: 'readPeopleLog', office: key, limit: 500 }).then(function (res) {
+    _PLOG.loading = false;
+    if (CFG.officeId !== plOffice || _peopleLogKey() !== key) return _peopleLogLoad();   // office or scope changed while loading
+    if (res && res.ok) { _PLOG.rows = res.rows || []; _PLOG.key = key; }
+    else { _PLOG.rows = null; _PLOG.err = (res && res.error) || 'Could not load the change log.'; }
+    _peopleLogPaint();
+  }).catch(function () {
+    _PLOG.loading = false; _PLOG.rows = null; _PLOG.err = 'Could not load the change log — check your connection, then press Try again.';
+    _peopleLogPaint();
+  });
+}
+function _peopleLogPaint() {
+  var el = document.getElementById('plog-body'); if (el) el.innerHTML = _peopleLogBody();
+}
+function _peopleLogScope(v) { _PLOG.scope = v === 'all' ? 'all' : 'office'; _peopleLogPaint(); _peopleLogLoad(); }
+function _peopleLogSearch(v) { _PLOG.q = String(v || ''); var el = document.getElementById('plog-list'); if (el) el.innerHTML = _peopleLogList(); }
+function _peopleLogHtml() {
+  setTimeout(function () { _peopleLogLoad(); }, 0);
+  return '<div class="filter-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<select class="appt-form-input" style="max-width:170px" onchange="_peopleLogScope(this.value)">' +
+        '<option value="office"'+(_PLOG.scope !== 'all' ? ' selected' : '')+'>This office</option>' +
+        '<option value="all"'+(_PLOG.scope === 'all' ? ' selected' : '')+'>All offices</option></select>' +
+      '<input id="f-plog" placeholder="Search person, who changed it, what changed…" value="'+esc(_PLOG.q)+'" oninput="_peopleLogSearch(this.value)" style="flex:1;min-width:200px">' +
+      '<button class="notes-btn" onclick="_peopleLogLoad(true)">Refresh</button>' +
+    '</div>' +
+    '<div class="sc-bookable-hint" style="margin:0 0 10px">Every change to People is recorded here with who made it. ' +
+      '<span class="badge badge-red">Privilege</span> = a role, office-access or email change (you were emailed when it happened). ' +
+      'Undo puts that one change back — it is refused if the person was changed again since.</div>' +
+    '<div id="plog-body">' + _peopleLogBody() + '</div>';
+}
+function _peopleLogBody() {
+  if (_PLOG.err) return errorState(_PLOG.err, { bare: true, retry: '_peopleLogLoad(true)' });
+  if (!_PLOG.rows || _PLOG.key !== _peopleLogKey()) return loadingState('Loading the change log…', { bare: true });
+  return '<div id="plog-list">' + _peopleLogList() + '</div>';
+}
+function _peopleLogList() {
+  var all = _PLOG.scope === 'all', q = _PLOG.q.trim().toLowerCase();
+  var rows = (_PLOG.rows || []).filter(function (r) {
+    return !q || [r.person, r.by, r.changes, r.action, r.office, ((r.after || r.before) || {}).name].join(' ').toLowerCase().indexOf(q) !== -1;
+  });
+  if (!rows.length) return noData(q ? 'No changes match that search.' : 'No changes recorded yet. Every People change from now on is listed here.', { icon: 'people', bare: true });
+  var officeName = function (o) { return (typeof OFFICE_CONFIG !== 'undefined' && OFFICE_CONFIG[o] && OFFICE_CONFIG[o].name) || o; };
+  return '<div class="tbl-wrap"><table id="plog-table"><thead><tr><th>When</th>' + (all ? '<th>Office</th>' : '') +
+    '<th>Changed by</th><th>Change</th><th>Person</th><th>What changed</th><th></th></tr></thead><tbody>' +
+    rows.map(function (r) {
+      var snap = (r.after || r.before) || {};
+      var undo = /^UNDO of /.test(r.changes);
+      var tags = (r.sensitive ? ' <span class="badge badge-red">Privilege</span>' : '') + (undo ? ' <span class="badge">Undo</span>' : '');
+      var act = r.undoneAt
+        ? '<span style="color:var(--text2);font-size:.78rem">Undone by '+esc(r.undoneBy || '—')+'<br>'+esc(_peopleRemovedWhen(r.undoneAt, r.office))+'</span>'
+        : '<button class="notes-btn" onclick="_peopleLogUndo('+jsq(r.id)+')">Undo</button>';
+      return '<tr data-plog="'+esc(r.id)+'"'+(r.undoneAt ? ' style="opacity:.6"' : '')+'>' +
+        '<td style="white-space:nowrap">'+esc(_peopleRemovedWhen(r.when, r.office))+'</td>' +
+        (all ? '<td>'+esc(officeName(r.office))+'</td>' : '') +
+        '<td>'+esc(r.by || '—')+(r.byRole ? '<div style="color:var(--text2);font-size:.75rem">'+esc(_ROLE_LABELS[r.byRole] || r.byRole)+'</div>' : '')+'</td>' +
+        '<td style="white-space:nowrap">'+esc(_PLOG_ACTIONS[r.action] || r.action)+tags+'</td>' +
+        '<td>'+esc(snap.name || '—')+'<div style="color:var(--text2);font-size:.75rem">'+esc(r.person)+'</div></td>' +
+        '<td style="font-size:.82rem">'+esc(r.changes.replace(/^UNDO of \S+ · /, ''))+'</td>' +
+        '<td>'+act+'</td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+function _peopleLogUndo(id) {
+  var r = (_PLOG.rows || []).filter(function (x) { return x.id === id; })[0]; if (!r) return;
+  var who = ((r.after || r.before) || {}).name || r.person;
+  var what = (_PLOG_ACTIONS[r.action] || r.action) + ' — ' + r.changes.replace(/^UNDO of \S+ · /, '');
+  if (!confirm('Undo this change to ' + who + '?\n\n' + what + '\n\nby ' + (r.by || 'unknown') + '\n\nThis puts it back the way it was before.')) return;
+  var btn = document.querySelector('tr[data-plog="' + id + '"] button'); if (btn) { btn.disabled = true; btn.textContent = 'Undoing…'; }
+  var undoOffice = CFG.officeId;   // officerace: the undo is server-side and office-independent; only the REPAINT is guarded
+  apiPost({ action: 'undoPeopleChange', logId: id }).then(function (res) {
+    if (CFG.officeId !== undoOffice) { if (res && res.ok) showToast('Change undone — ' + who); _PLOG.rows = null; return; }
+    if (res && res.ok) {
+      showToast('Change undone — ' + who);
+      _peopleLogLoad(true);
+      if (res.office === ((typeof CFG !== 'undefined' && CFG) ? CFG.officeId : '') && typeof refreshData === 'function') refreshData();
+      return;
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Undo'; }
+    var e = String((res && res.error) || '');
+    alert(res && res.detail ? res.detail
+      : e === 'forbidden' ? 'Only a master-admin can undo People changes.'
+      : e === 'unauthorized' ? 'That didn’t go through — the connection dropped it, so nothing was changed. Please try again.'
+      : (e || 'The undo did not go through.'));
+  }).catch(function () {
+    if (btn) { btn.disabled = false; btn.textContent = 'Undo'; }
+    alert('We couldn’t confirm the undo — it may have gone through. Press Refresh on the change log to check before trying again.');
+  });
+}
 
 /* The Removed view's row. Separate from _peopleRowHtml on purpose: different columns
    (when/who/countdown instead of phone/tableau/access) and a different action. */
@@ -481,6 +591,14 @@ function buildPersonForm(email, person) {
   return html;
 }
 
+function _peopleDupMsg(email, p, known) {
+  p = p || {};
+  var who = (p.name ? p.name + ' (' + email + ')' : email);
+  var off = p.inactive === true || p.deactivated === true;
+  if (off) return who + ' is already on this office’s roster, but INACTIVE.\n\nOpen the “Inactive” tab and reactivate them instead of adding them again.';
+  if (known) return who + ' is already on this office’s roster.\n\nSearch for them in the Active list and edit them there.';
+  return who + ' is already on this office’s roster — an earlier save probably went through, or someone else just added them.\n\nReload the page to see them, then edit them there.';
+}
 function openAddPersonModal() {
   document.getElementById('modal-title').innerHTML = '<div class="nm-dsi">Add Person</div>';
   document.getElementById('modal-body').innerHTML = buildPersonForm(null, null);
@@ -520,6 +638,10 @@ function savePerson(existingEmail) {
     : (existing.permissions || CFG.officeId);
   if (!emailVal) { alert('Email is required.'); return; }
   var body = { name:name, rank:rank, team:team, tableauName:tableauName, phone:phone, permissions:permissions, deactivated:deactivated };
+  /* 2026-11-11: adding someone already on THIS office's roster — say who, and where they are (an inactive person sits
+     in the Inactive tab, which is why managers could not see them). Checked here first; the server's reply covers what
+     this browser does not know yet (an earlier save that timed out but landed, or someone else's add). */
+  if (!existingEmail && (DATA.roster || {})[emailVal]) { alert(_peopleDupMsg(emailVal, DATA.roster[emailVal], true)); return; }
   if (existingEmail) { body.action = 'updateRosterEntry'; body.email = existingEmail; }
   else               { body.action = 'addRosterEntry';    body.email = emailVal; }
   apiPost(body).then(function(res) {
@@ -533,6 +655,7 @@ function savePerson(existingEmail) {
       var rec = { name:name, rank:rank, team:team, tableauName:tableauName, phone:phone, permissions:permissions, deactivated:deactivated };
       if (!_peopleAfterSave(existingEmail || emailVal, rec, existingEmail ? 'update' : 'add')) refreshData();
     }
+    else if (res.error === 'email already exists' && !existingEmail) alert(_peopleDupMsg(emailVal, res.existing, false));
     else alert(res.error === 'unauthorized'
       ? 'That didn’t go through — the connection dropped it, so nothing was saved. Please save again.'
       : (res.error || 'Save failed.'));
@@ -1467,6 +1590,10 @@ function saveTeamModal(existingId) {
   var leaderId=(document.getElementById('tm-f-leader')||{}).value||'';
   var parentId=(document.getElementById('tm-f-parent')||{}).value||'';
   if(!name){ alert('Team name is required.'); return; }
+  /* 2026-11-11: a duplicate name is refused by the server ("team name already exists"); say which team, and how to
+     find it, before sending. */
+  var _dupTeam = Object.keys(DATA.teams||{}).filter(function(k){ return k!==existingId && String((DATA.teams[k]||{}).name||'').trim().toLowerCase()===name.toLowerCase(); })[0];
+  if(_dupTeam){ alert('There is already a team called “'+name+'”.\n\nPick a different name, or open that team and edit it.'); return; }
   var body;
   if(existingId) {
     body={action:'updateTeam',teamId:existingId,name:name,emoji:emoji,leaderId:leaderId,parentId:parentId};
@@ -1479,7 +1606,8 @@ function saveTeamModal(existingId) {
       closeModal();
       var rec = { name:name, emoji:emoji, leaderId:leaderId, parentId:parentId };
       if (!_teamsAfterSave(body.teamId, rec, existingId ? 'update' : 'add')) refreshData();
-    } else alert(res.error === 'unauthorized'
+    } else if(res.error === 'team name already exists') alert('There is already a team called “'+name+'” — an earlier save probably went through, or someone else just made it.\n\nReload the page to see it.');
+    else alert(res.error === 'unauthorized'
       ? 'That didn’t go through — the connection dropped it, so nothing was saved. Please save again.'
       : (res.error||'Save failed.'));
   /* R-109 (2026-09-14): a timed-out team save usually landed — the retry then said "team name already
