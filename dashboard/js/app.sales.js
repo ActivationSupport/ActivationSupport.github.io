@@ -92,6 +92,21 @@ function _psDsiHint(s) {
   if (_PS_ORDER_RE.test(x)) return { cls: 'ok', text: '✓ ' + x + (x.indexOf('NG') === 0 ? ' — Sara 2.0 order' : '') };
   return { cls: 'warn', text: 'Needs DSI or SPM + 9 digits, or NG + 9 digits (Sara 2.0) — now ' + x.length + ' characters' };
 }
+/* "How was this order processed?" — user 2026-11-11: "should say Sara 1.0, Sara 2.0, and Tower". A sale saved before
+   then says plain "Sara": an NG order can only be Sara 2.0, anything else was Sara 1.0. Mirrors Code.gs _processedViaFor. */
+var _PS_VIAS = ['Sara 1.0', 'Sara 2.0', 'Tower'];
+function _psViaLabel(via, dsi) {
+  var v = String(via == null ? '' : via).trim();
+  if (v && v.toLowerCase() !== 'sara') return v;
+  return _psCleanDsi(dsi).indexOf('NG') === 0 ? 'Sara 2.0' : 'Sara 1.0';
+}
+// An NG number only comes from Sara 2.0, so typing one picks Sara 2.0 (and a DSI/SPM number moves Sara 2.0 back to 1.0).
+// Tower is never overridden; the rep can still change any of it.
+function _psViaForDsi(via, dsi) {
+  var x = _psCleanDsi(dsi), v = _psViaLabel(via, dsi);
+  if (!_PS_ORDER_RE.test(x) || v === 'Tower') return v;
+  return x.indexOf('NG') === 0 ? 'Sara 2.0' : (v === 'Sara 2.0' ? 'Sara 1.0' : v);
+}
 function _psNormDsi(s) {
   var x = String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (x.indexOf('DSI') === 0) x = x.slice(3);
@@ -120,7 +135,7 @@ function _psInit() {
   _PS_DATA = {
     _ofc: CFG.officeId,   // the office this sale belongs to — see _psWrongOffice
     dateOfSale: _psOfficeToday(),
-    dsi: '', accountType: 'Consumer', processedVia: 'Sara',
+    dsi: '', accountType: 'Consumer', processedVia: 'Sara 1.0',
     underSomeoneCodes: 'No', codesUsedBy: '', trainee: '', traineeName: '', notes: '',
     products: { air: false, wireless: false, fiber: false, voip: false, dtv: false },
     airQty: 1, wirelessNew: 0, wirelessByod: 0,
@@ -223,8 +238,10 @@ function _psStep1Html() {
   }
   h += '<div class="ps-label">HOW WAS THIS ORDER PROCESSED?</div>';
   h += '<div class="ps-toggle-row">';
-  h += '<div class="ps-toggle' + (d.processedVia === 'Sara' ? ' active' : '') + '" onclick="_psToggle(\'processedVia\',\'Sara\',this)">Sara</div>';
-  h += '<div class="ps-toggle' + (d.processedVia === 'Tower' ? ' active' : '') + '" onclick="_psToggle(\'processedVia\',\'Tower\',this)">Tower</div>';
+  var _via = _psViaLabel(d.processedVia, d.dsi);
+  _PS_VIAS.forEach(function (v) {
+    h += '<div class="ps-toggle' + (_via === v ? ' active' : '') + '" data-via="' + esc(v) + '" onclick="_psToggle(\'processedVia\',' + jsq(v) + ',this)">' + esc(v) + '</div>';
+  });
   h += '</div>';
   h += '<div class="ps-label">WAS THIS SALE MADE UNDER SOMEONE ELSE\'S CODES?</div>';
   h += '<div class="ps-toggle-row">';
@@ -251,6 +268,12 @@ function _psDsiInput(el) {
   var hint = _psDsiHint(el.value);
   c.textContent = hint.text;
   c.className = 'ps-char-count ' + hint.cls;
+  // Pick Sara 2.0 for an NG number in place (re-rendering would steal focus from the box being typed in).
+  var via = _psViaForDsi(_PS_DATA.processedVia, el.value);
+  if (via !== _PS_DATA.processedVia) {
+    _PS_DATA.processedVia = via;
+    document.querySelectorAll('.ps-toggle[data-via]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-via') === via); });
+  }
 }
 function _psToggle(field, val, el) {
   _PS_DATA[field] = val;
@@ -398,7 +421,7 @@ function _psRecapHtml(showEdit) {
   h += _psRRow('Date', d.dateOfSale);
   h += _psRRow('Order #', d.dsi);
   h += _psRRow('Account Type', d.accountType);
-  h += _psRRow('Processed Via', d.processedVia);
+  h += _psRRow('Processed Via', _psViaLabel(d.processedVia, d.dsi));
   if (d.trainee==='Yes'&&d.traineeName) h+=_psRRow('Trainee', d.traineeName);
   if (d.underSomeoneCodes==='Yes'&&d.codesUsedBy) h+=_psRRow('Codes Used By',d.codesUsedBy);
   if (d.notes) h+=_psRRow('Notes',d.notes);
@@ -2218,7 +2241,7 @@ function _psvEdit(idx) {
   _PSE = {
     rowIndex: s.rowIndex,
     dateOfSale: s.dateOfSale || '', dsi: s.dsi || '',
-    accountType: s.accountType || 'Consumer', processedVia: s.processedVia || 'Sara',
+    accountType: s.accountType || 'Consumer', processedVia: _psViaLabel(s.processedVia, s.dsi),   // old "Sara" shows as 1.0 / 2.0
     underSomeoneCodes: s.underSomeoneCodes || 'No', codesUsedBy: s.codesUsedBy || '',
     trainee: s.trainee || 'No', traineeName: s.traineeName || '',
     air: (s.airQty > 0),
@@ -2245,7 +2268,7 @@ function _pseFormHtml() {
   h += '<div class="ps-label">ORDER NUMBER <span style="font-weight:400;text-transform:none;color:var(--text2);letter-spacing:0">(DSI, SPM or NG)</span></div>';
   h += '<input class="ps-input" type="text" maxlength="16" autocomplete="off" spellcheck="false" value="' + esc(d.dsi) + '" oninput="_pseSet(\'dsi\',this.value)">';
   h += '<div class="ps-label">TYPE OF ACCOUNT</div><div class="ps-toggle-row">' + tog('accountType','Consumer','Consumer') + tog('accountType','Business','Business') + '</div>';
-  h += '<div class="ps-label">HOW WAS THIS ORDER PROCESSED?</div><div class="ps-toggle-row">' + tog('processedVia','Sara','Sara') + tog('processedVia','Tower','Tower') + '</div>';
+  h += '<div class="ps-label">HOW WAS THIS ORDER PROCESSED?</div><div class="ps-toggle-row">' + _PS_VIAS.map(function (v) { return tog('processedVia', v, v); }).join('') + '</div>';
   h += '<div class="ps-label">TRAINEE?</div><div class="ps-toggle-row">' + tog('trainee','Yes','Yes') + tog('trainee','No','No') + '</div>';
   if (d.trainee === 'Yes') h += '<div class="ps-sub-field"><div class="ps-label">WHO?</div><input class="ps-input" type="text" value="' + esc(d.traineeName) + '" oninput="_pseSet(\'traineeName\',this.value)"></div>';
   h += '<div class="ps-label">UNDER SOMEONE ELSE\'S CODES?</div><div class="ps-toggle-row">' + tog('underSomeoneCodes','Yes','Yes') + tog('underSomeoneCodes','No','No') + '</div>';
