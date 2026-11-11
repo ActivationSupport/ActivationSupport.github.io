@@ -1332,6 +1332,7 @@ html[data-theme="dark"] .wr-delta.bad{color:#f87171}
 .ps-input:focus{border-color:var(--blue2)}
 .ps-char-count{font-size:11px;color:var(--text2);margin-top:4px}
 .ps-char-count.warn{color:#f97316}
+.ps-char-count.ok{color:var(--green)}   /* 2026-11-11: a valid order number (DSI/SPM/NG) */
 .ps-toggle-row{display:flex;gap:8px}
 .ps-toggle{flex:1;padding:10px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--border);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;user-select:none}
 .ps-toggle.active{background:rgba(var(--blue2-rgb),.12);border-color:var(--blue2);color:var(--blue2)}
